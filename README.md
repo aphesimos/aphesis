@@ -1,3 +1,12 @@
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/mark-dark.svg">
+  <img alt="The φ drawn stroke by stroke in the fog, its ink boiling" src="assets/readme/mark-light.svg" width="100%">
+</picture>
+
+</div>
+
 # mark
 
 The φ of aphes.is: the hand-drawn original and the brush engine that redraws it live.
@@ -8,5 +17,9 @@ The φ of aphes.is: the hand-drawn original and the brush engine that redraws it
 - `demo/animations.html`: the standalone animation studies (drawing, φ → Φ, both anchors).
 
 The Φ is derived from the φ by the engine; the old separate Φ drawing is superseded.
+
+The image above draws the φ in three strokes (left lobe, right lobe, stem) and lets its ink boil: a turbulence reseeded
+eight times a second, as on the site. It is an approximation for the README; the real gesture, with the measured tip
+travelling and diving into the ring, is the engine's.
 
 **Pending:** the engine's identifiers and comments are still in Portuguese; rename them to English.

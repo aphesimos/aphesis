@@ -28,6 +28,13 @@ Work that waits on something else. Remove an item when it is done.
     - a closed lid with lashes;
     - an optional squint.
     The blinks come at irregular intervals.
+  - **The pupil looks around.** The stippled iris and pupil have their own frame-by-frame states:
+    - centre;
+    - left and right;
+    - up and down;
+    - the four diagonals;
+    - a narrowed pupil and a dilated one.
+    Like the blinks, it cuts between them with no tween, at the low frame rate, in saccades: quick jumps between fixations, then holds of irregular length. It sometimes follows the pointer or the caret's position, glances at the line while the owner types, and once in a while looks straight out. Blinks and gaze are independent tracks, so a blink can land on any gaze state.
   - **Wrong password:** a hard cut to the closed state, and the line trembles.
   - **Right password:** a cut to wide open, held, then the eye dissolves into step 2.
 - **The gate, step 2 (email code):**

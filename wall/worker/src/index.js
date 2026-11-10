@@ -7,7 +7,7 @@
 
    Bindings (wrangler.toml and secrets):
      WALL              the Durable Object namespace (class Wall)
-     ALLOWED_ORIGINS   comma-separated origins allowed by CORS, e.g. "https://aphes.is"
+     ALLOWED_ORIGINS   comma-separated origins allowed by CORS, e.g. "https://aphes.ist"
      TTL_DAYS          how long a line stays (default 30)
      BLOCKLIST         optional extra words for the filter, comma-separated
      TURNSTILE_SECRET  secret: Turnstile secret key. Without it every post is refused, unless

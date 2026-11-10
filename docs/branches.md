@@ -1,6 +1,6 @@
 # Branches
 
-Each part of aphes.is lives on its own branch. Branch from `main` for a new part; never merge parts into `main`,
+Each part of aphes.ist lives on its own branch. Branch from `main` for a new part; never merge parts into `main`,
 which stays a hub.
 
 | branch | what lives there |

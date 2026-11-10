@@ -35,8 +35,8 @@ npx wrangler login
 
 # 1. names: edit wrangler.toml
 #    name             the Worker's name
-#    ALLOWED_ORIGINS  the site's origin(s), e.g. "https://aphes.is"
-#    routes           optional custom domain, e.g. wall-api.aphes.is
+#    ALLOWED_ORIGINS  the site's origin(s), e.g. "https://aphes.ist"
+#    routes           optional custom domain, e.g. wall-api.aphes.ist
 
 # 2. secrets (never in the file)
 npx wrangler secret put TURNSTILE_SECRET   # from the Turnstile widget in the Cloudflare dashboard

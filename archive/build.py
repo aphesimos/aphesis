@@ -270,7 +270,7 @@ def list_html(posts):
             f'<li class="entry" data-stage="{p["stage"]}">'
             f'<a class="entry-link" href="#{p["slug"]}" data-slug="{p["slug"]}">'
             f'{stage_icon(p["stage"])}'
-            f'<span class="entry-main"><span class="entry-title">{esc(p["title"])}<span class="uline" aria-hidden="true"></span></span>'
+            f'<span class="entry-main"><span class="entry-title"><span class="entry-name">{esc(p["title"])}</span><span class="uline" aria-hidden="true"></span></span>'
             f'<span class="entry-summary">{esc(p["summary"])}</span></span>'
             f'<span class="entry-meta"><span class="aph-gloss entry-stage" lang="la">{p["stage"]}</span>'
             f'<span class="aph-meta">{meta_line(p)}</span></span>'

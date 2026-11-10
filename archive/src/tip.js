@@ -68,6 +68,8 @@ export function createTip() {
     if (t && t.matches(':focus-visible')) show(t, 'focus'); else if (mode === 'focus') hide();
   });
   document.addEventListener('focusout', () => { if (mode === 'focus' || mode === 'tap') hide(); });
+  /* a press acts on what the tip names (the eye switches the theme): the tip has said its part */
+  addEventListener('pointerdown', (e) => { if (mode === 'pointer' || mode === 'wait') hide(); });
   addEventListener('scroll', () => { if (mode === 'focus' || mode === 'tap') placeAtElement(target); }, true);
   addEventListener('blur', hide);
 

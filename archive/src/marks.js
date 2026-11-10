@@ -50,3 +50,21 @@ export function drawMarks(root) {
     wrap.append(top, pre, bot);
   });
 }
+
+/* ---------- ink ---------- */
+/* the containers of black-and-white text, marked .aph-ink for the eye's wave (Aphesis.themeShift): while it runs
+   they blend by difference with the fog, so every glyph is the negative of the cell beneath it. Kept out: the seal,
+   the stage icons and stage words, the red underlines, the back mark, the quote rules, the stippled code rules,
+   the feed link and the simulacrum, which carry red or their own cells. Footnote markers and links inside a
+   paragraph go grey for the length of the wave, as the design system's .aph-ink rules set them. */
+const INK = [
+  '.head .gloss-title', '.head .title', '.head .lede', '.stages .aph-gloss',
+  '.entry-name', '.entry-summary', '.entry-meta .aph-meta', '.foot .aph-meta',
+  '.back .aph-label', '.post-stage .aph-meta', '.post-title', '.post-head .lede',
+  '.prose > p', '.prose > h2', '.prose > h3', '.prose > ul', '.prose > ol',
+  '.prose blockquote > p', '.prose .code pre', '.sim figcaption', '.notes li',
+].join(', ');
+
+export function markInk(root) {
+  root.querySelectorAll(INK).forEach((el) => el.classList.add('aph-ink'));
+}

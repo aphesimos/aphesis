@@ -25,21 +25,23 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 
 /* ---------- the frame and the column ---------- */
+/* the frame is absolute with no z-index and, on wide screens, no mask: it makes no stacking context, so the
+   .aph-ink text inside it can blend with the fog itself while the eye's wave runs (Aphesis.themeShift) */
 #scroller {
-  position: fixed; inset: 0; z-index: var(--z-main); overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  position: absolute; inset: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
   scrollbar-width: thin; scrollbar-color: var(--line) transparent;
-  --fade-top: 40px; --fade-top-in: 104px; --fade-bottom: 24px; --fade-bottom-in: 84px;
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent var(--fade-top), #000 var(--fade-top-in), #000 calc(100% - var(--fade-bottom-in)), transparent calc(100% - var(--fade-bottom)));
-          mask-image: linear-gradient(to bottom, transparent 0, transparent var(--fade-top), #000 var(--fade-top-in), #000 calc(100% - var(--fade-bottom-in)), transparent calc(100% - var(--fade-bottom)));
 }
 .views { position: relative; display: block; min-height: 100%; }
-.view { display: block; will-change: opacity, filter, transform; }
+.view { display: block; }
 .view.leaving { pointer-events: none; }
 .col {
   width: 100%; max-width: calc(33em + 2 * var(--space-4)); margin: 0 auto;
   padding: var(--space-8) max(var(--space-4), calc(var(--space-4) + env(safe-area-inset-right, 0px))) var(--space-8) max(var(--space-4), calc(var(--space-4) + env(safe-area-inset-left, 0px)));
   text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg);
 }
+/* while the eye's wave runs the halo gives way: its colour is resolved once, on the column, to the new theme's
+   ground, and painted over the old ground (or blended by difference in .aph-ink) it would smudge every line */
+.aph-shifting .col, .aph-shifting .col * { text-shadow: none; }
 :focus { outline: none; }
 :focus-visible { outline: 1px solid var(--accent); outline-offset: 4px; }
 .title:focus-visible, .post-title:focus-visible { outline: none; }
@@ -167,8 +169,13 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
 /* ---------- phone ---------- */
 @media (max-width: 640px) {
-  /* the column runs under the corners here: it dissolves before it reaches the seal and the eye */
-  #scroller { --fade-top: 92px; --fade-top-in: 140px; --fade-bottom: 66px; --fade-bottom-in: 118px; }
+  /* the column runs under the corners here: it dissolves before it reaches the seal and the eye.
+     the mask would isolate the text from the fog, so it gives way while the eye's wave runs */
+  #scroller {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 92px, #000 140px, #000 calc(100% - 118px), transparent calc(100% - 66px));
+            mask-image: linear-gradient(to bottom, transparent 0, transparent 92px, #000 140px, #000 calc(100% - 118px), transparent calc(100% - 66px));
+  }
+  .aph-shifting #scroller { -webkit-mask-image: none; mask-image: none; }
   .col { padding-top: 132px; padding-bottom: var(--space-7); }
   .entry-link { grid-template-columns: 28px 1fr; }
   .entry-meta { grid-column: 2; flex-direction: row; align-items: baseline; gap: var(--space-3); margin-top: var(--space-2); white-space: normal; text-align: left; }

@@ -3,7 +3,7 @@
    the hash route #<slug>, the list is #archive (or no hash). Escape or the brushed back mark return to the list. */
 
 import { drawStageIcons } from './stage-icon.js';
-import { drawMarks } from './marks.js';
+import { drawMarks, markInk } from './marks.js';
 import { createTip } from './tip.js';
 import { createFigures } from './figure.js';
 import { createViews } from './views.js';
@@ -42,6 +42,7 @@ const scroller = $('scroller');
 const main = $('codex');
 drawStageIcons(main);
 drawMarks(main);
+markInk(main);
 
 /* ---------- calm fog behind the column ---------- */
 /* one zone that follows the column of the view on screen: as wide as the column, as tall as the screen, and

@@ -24,6 +24,9 @@ export function mountView(root, lib, core, opts = {}) {
   const seekIn = $('.m-seek input'), seekFill = $('.m-seek .s-fill'), seekBand = $('.m-seek .s-fill-cells');
   const tNow = $('.m-seek .t-now'), tEnd = $('.m-seek .t-end');
   const bPlay = $('.c-play'), bPrev = $('.c-prev'), bNext = $('.c-next'), bShuf = $('.c-shuffle'), bLoss = $('.c-lossless');
+  const bRand = $('.c-random'), bLoop = $('.c-loop');
+  const LOOP_NAME = { off: 'off', archive: 'archive', queue: 'folder', track: 'track' };
+  const LOOP_SAY = { off: 'loop off', archive: 'loop the whole archive', queue: 'loop this folder, album or queue', track: 'loop this track' };
   const bVol = $('.c-vol'), volIn = $('.m-vol input'), volFill = $('.m-vol .s-fill');
   const qList = $('.m-queue ol'), qHead = $('.m-queue .q-head');
   let dead = false, place = null, query = '', items = [], ctxTracks = [], active = -1, raf = 0;
@@ -229,7 +232,7 @@ export function mountView(root, lib, core, opts = {}) {
     const rows = vl.rows();
     if (rows.has(prev)) renderRow(prev, rows.get(prev));
     if (reveal) vl.reveal(i);
-    const el = vl.rows().get(i); if (el) renderRow(i, el);
+    const el = vl.rows().get(i); if (el) { renderRow(i, el); glance(el); }
     list.setAttribute('aria-activedescendant', 'mrow-' + i);
   }
   function activate(i) {
@@ -287,6 +290,8 @@ export function mountView(root, lib, core, opts = {}) {
   on(bPrev, 'click', () => core.prev());
   on(bNext, 'click', () => core.next());
   on(bShuf, 'click', () => core.setShuffle(!core.shuffle));
+  on(bRand, 'click', () => core.setRandom(!core.random));
+  on(bLoop, 'click', () => { const m = core.cycleLoop(); announce(LOOP_SAY[m]); });
   on(bLoss, 'click', () => core.setLossless(!core.lossless));
   on(bVol, 'click', () => core.toggleMute());
   let seeking = false;
@@ -319,6 +324,14 @@ export function mountView(root, lib, core, opts = {}) {
   }
   function drawOptions() {
     bShuf.setAttribute('aria-pressed', core.shuffle ? 'true' : 'false');
+    bRand.setAttribute('aria-pressed', core.random ? 'true' : 'false');
+    const lm = core.loop || 'off';
+    bLoop.dataset.mode = lm;
+    bLoop.querySelector('.g-loop').innerHTML = glyph('loop', lm === 'track' ? 1 : 0);
+    bLoop.querySelector('.l-loop').textContent = 'loop · ' + LOOP_NAME[lm];
+    bLoop.setAttribute('aria-label', LOOP_SAY[lm] + ' · press for the next mode');
+    /* a mark in accent is not black-and-white ink: it leaves the theme wave's blend while it is red */
+    bShuf.classList.toggle('aph-ink', !core.shuffle); bRand.classList.toggle('aph-ink', !core.random); bLoop.classList.toggle('aph-ink', lm === 'off');
     bLoss.setAttribute('aria-pressed', core.lossless ? 'true' : 'false');
     const t = cur();
     if (core.flacSupported) bLoss.dataset.tip = core.lossless ? 'lossless: the original flac · f' : 'lossless: load the original flac · f';
@@ -363,8 +376,11 @@ export function mountView(root, lib, core, opts = {}) {
   }
 
   /* ---------- the cover: one live simulacrum, reused for every track ---------- */
-  const sim = A.Simulacrum(canvas, { ground: false, fit: 'contain', margin: 0.06, scatter: 0.6, erosion: 0.5, ceiling: 0.8, accent: 0.03, gain: 1 });
-  let shownCover = undefined, simStarted = false;
+  /* the sim's options stay live: the spinning record turns its sound cue off while it swaps frames */
+  const simOpts = { ground: false, fit: 'contain', margin: 0.06, scatter: 0.6, erosion: 0.5, ceiling: 0.8, accent: 0.015, gain: 1 };
+  const sim = A.Simulacrum(canvas, simOpts);
+  let shownCover = undefined, simStarted = false, simShown = false;
+  const coverBox = $('.m-cover'), idleSlot = $('.m-idle');
   const maps = new Map();
   function mapCanvas(cid) {
     if (!maps.has(cid)) {
@@ -380,38 +396,83 @@ export function mountView(root, lib, core, opts = {}) {
     }
     return maps.get(cid);
   }
-  /* no cover: a ring drawn with the brush, the record no one photographed */
-  let ringMap = null;
-  function ring() {
-    if (!ringMap) ringMap = A.Simulacrum.fromBrush((x, w) => {
-      x.scale(w / 24, w / 24);
-      x.fill(new Path2D(A.brush(A.arc(12, 12, 8.4, -80, 272, 64), 2.6, 361) + A.brush(A.arc(12, 12, 1.4, 0, 360, 16), 1.6, 363, 0, 0)));
-      x.globalAlpha = 0.45; x.fill(new Path2D(A.stipple((px, py) => { const r = Math.hypot(px - 12, py - 12); return r > 3.2 && r < 6.8; }, 365, 2400, 0.5)));
-    }, 384, 384);
-    return ringMap;
+
+  /* no cover: a ring drawn with the brush, the record no one photographed. While the track plays it turns, a step
+     at a time at the boil's rate (8 a second, as the seal trembles), so it stays hand-drawn; it eases to a stop on
+     pause. The turning is the simulacrum's source drawn again rotated: what shows is always stipple. */
+  const REC = 384, recCv = document.createElement('canvas');
+  recCv.width = recCv.height = REC;
+  const recX = recCv.getContext('2d');
+  const recRing = new Path2D(A.brush(A.arc(12, 12, 8.4, -80, 272, 64), 2.6, 361) + A.brush(A.arc(12, 12, 1.4, 0, 360, 16), 1.6, 363, 0, 0) +
+    A.brush(A.line(12, 5.4, 12, 6.9, 6), 1.1, 367, 0.3));
+  const recDots = new Path2D(A.stipple((px, py) => { const r = Math.hypot(px - 12, py - 12); return r > 3.2 && r < 6.8; }, 365, 2400, 0.5));
+  let recAngle = 0, recSpeed = 0, recSince = 0, recLast = 0;
+  function drawRecord() {
+    const j = (Math.random() - 0.5) * 0.03, sc = 1 + (Math.random() - 0.5) * 0.012;
+    recX.setTransform(1, 0, 0, 1, 0, 0);
+    recX.fillStyle = '#000'; recX.fillRect(0, 0, REC, REC);
+    recX.translate(REC / 2, REC / 2); recX.rotate(recAngle + j); recX.scale(sc, sc); recX.translate(-REC / 2, -REC / 2);
+    recX.scale(REC / 24, REC / 24);
+    recX.fillStyle = '#fff'; recX.fill(recRing);
+    recX.globalAlpha = 0.45; recX.fill(recDots); recX.globalAlpha = 1;
+    return recCv;
   }
+  const spin = setInterval(() => {
+    /* it turns once the record has coalesced (a swap is a dissolve and a coalesce, about 4 s) */
+    if (dead || shownCover !== 'record' || performance.now() - recSince < 4200 || !root.isConnected) return;
+    const target = core.playing ? 1 : 0, now = performance.now(), dt = Math.min(0.5, (now - (recLast || now)) / 1000);
+    recLast = now;
+    recSpeed += (target - recSpeed) * (1 - Math.exp(-dt / 0.45));   /* about a second and a half to stop or start */
+    if (recSpeed < 0.02 && !target) { recSpeed = 0; recLast = 0; return; }
+    recAngle += recSpeed * 0.95 * dt;                                 /* at full speed, about 55 degrees a second */
+    drawRecord();
+    simOpts.sound = false; sim.show(recCv); simOpts.sound = true;
+  }, 125);
+
+  /* nothing loaded: the design system's eye in the cover's place, as wide as the cover, following the pointer and
+     glancing at the row the keyboard is on. It is made when the deck goes idle and destroyed when a track loads; a
+     runtime without Aphesis.Eye shows the still ring instead */
+  let eye = null;
+  function idle(on) {
+    const has = typeof A.Eye === 'function';
+    coverBox.classList.toggle('idle-eye', on && has);
+    if (on && has && !eye) {
+      idleSlot.innerHTML = '<div class="m-eye"></div>';
+      try { eye = A.Eye(idleSlot.firstChild, { gaze: 'pointer', blink: true }); } catch (err) { console.error(err); eye = null; }
+    }
+    if (!on && eye) { try { eye.destroy(); } catch (_) { /* fine */ } eye = null; idleSlot.textContent = ''; }
+    return has;
+  }
+  /* the eye glances at the row the keyboard is on, where it can */
+  function glance(el) { if (eye && typeof eye.look === 'function' && el) { const r = el.getBoundingClientRect(); try { eye.look(r.left + r.width / 2, r.top + r.height / 2); } catch (_) { /* fine */ } } }
+
   function cover(t) {
-    const cid = t ? t.cover || null : null;
-    if (cid === shownCover) return;
-    shownCover = cid;
+    const key = !t ? 'idle' : (t.cover || 'record');
+    if (key === shownCover) return;
+    shownCover = key; recSince = performance.now();
+    if (key === 'idle' && idle(true)) { if (simShown) { simShown = false; sim.hide(); } return; }
+    idle(false);
     const go = (src) => {
-      if (dead || shownCover !== cid) return;
+      if (dead || shownCover !== key) return;
+      simShown = true;
       if (!simStarted) {
         simStarted = true;
         sim.drawn(() => requestAnimationFrame(() => { if (!dead) canvas.classList.add('on'); }));
         sim.show(src);
       } else sim.set(src);
     };
-    if (cid) mapCanvas(cid).then((c) => go(c || ring())); else go(ring());
+    if (key === 'idle' || key === 'record') go(drawRecord());
+    /* a cover carries information: the legible preset, so it reads at a glance and is still conjured stipple */
+    else mapCanvas(key).then((c) => go(c ? { src: c, legible: true, erosion: 0.15, scatter: 0.18, ceiling: 0.93 } : drawRecord()));
   }
 
   /* ---------- listening to the core ---------- */
   /* while the markup is out of the document (a host resting the section) nothing is drawn; back in, all of it is */
   let stale = false;
-  function redraw() { stale = false; drawTrack(); drawState(); drawOptions(); }
+  function redraw() { stale = false; if (eye) { try { eye.start(); } catch (_) { /* fine */ } } drawTrack(); drawState(); drawOptions(); }
   const off = core.on((type) => {
     if (dead) return 'off';
-    if (!root.isConnected) { stale = true; return undefined; }
+    if (!root.isConnected) { if (!stale && eye) { try { eye.stop(); } catch (_) { /* fine */ } } stale = true; return undefined; }
     if (stale) { redraw(); return undefined; }
     if (type === 'track') { drawTrack(); drawOptions(); }
     else if (type === 'state') { drawState(); vl.refresh(); }
@@ -442,6 +503,8 @@ export function mountView(root, lib, core, opts = {}) {
     else if (k === '-' || k === '_') core.setVolume(core.volume - 0.1);
     else if (k === '=' || k === '+') core.setVolume(core.volume + 0.1);
     else if (k === 's' || k === 'S') core.setShuffle(!core.shuffle);
+    else if (k === 'r' || k === 'R') core.setRandom(!core.random);
+    else if (k === 'o' || k === 'O') announce(LOOP_SAY[core.cycleLoop()]);
     else if (k === 'f' || k === 'F') core.setLossless(!core.lossless);
     else if (k === '/') input.focus();
     else if (k === 'Escape' && place && place.back) location.hash = place.back;
@@ -509,7 +572,8 @@ export function mountView(root, lib, core, opts = {}) {
     if (dead) return;
     dead = true;
     offs.forEach((f) => f()); off();
-    cancelAnimationFrame(raf);
+    cancelAnimationFrame(raf); clearInterval(spin);
+    if (eye) { try { eye.destroy(); } catch (_) { /* fine */ } eye = null; }
     try { ro.disconnect(); } catch (_) { /* fine */ }
     narrowMq.removeEventListener('change', onMq);
     vl.destroy();
@@ -523,5 +587,8 @@ export function mountView(root, lib, core, opts = {}) {
     /* the pieces that dissolve when the section leaves, each on its own */
     pieces: () => Array.from(root.querySelectorAll('.m-in, .m-list .row, .m-cover canvas')),
     get vlist() { return vl; },
+    /* for checks: the record's turn, and the eye in the idle slot */
+    get record() { return { shown: shownCover === 'record', angle: recAngle, speed: recSpeed }; },
+    get eye() { return eye; },
   };
 }

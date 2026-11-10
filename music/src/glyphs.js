@@ -51,6 +51,20 @@ const DRAW = {
     A.brush(quad([3.4, 7], [12, 7.4], [19.6, 16.8]), 1.5, 291, 0.25) + A.brush(quad([3.4, 17], [12, 16.6], [19.6, 7.2]), 1.5, 293, 0.25) +
     A.brush(L(19.8, 16.9, 16.2, 17.4, 8), 1.2, 295, 0.38, 0.05) + A.brush(L(19.8, 16.9, 19.6, 13.4, 8), 1.2, 296, 0.38, 0.05) +
     A.brush(L(19.8, 7.1, 16.2, 6.6, 8), 1.2, 297, 0.38, 0.05) + A.brush(L(19.8, 7.1, 19.6, 10.6, 8), 1.2, 298, 0.38, 0.05)),
+  /* random: a die thrown a little askew, its pips in stipple (radio from the whole archive) */
+  random: () => {
+    const c = Math.cos(-0.24), sn = Math.sin(-0.24), R = (x, y) => [12 + (x - 12) * c - (y - 12) * sn, 12 + (x - 12) * sn + (y - 12) * c];
+    const sq = [[5, 5], [19, 5], [19, 19], [5, 19], [5, 5.6]].map((p) => R(p[0], p[1]));
+    const pip = (cx, cy) => { const [x, y] = R(cx, cy); return (px, py) => (px - x) ** 2 + (py - y) ** 2 < 2.1; };
+    const pips = [pip(8.6, 8.6), pip(12, 12), pip(15.4, 15.4)];
+    return svg(A.brush(path(sq, 12), 1.5, 311, 0.08), A.stipple((x, y) => pips.some((f) => f(x, y)), 313, 900, 0.62));
+  },
+  /* loop: a stroke round and back to itself, ending in a flick; state 1 (one track) carries a 1 inside */
+  loop: (st) => svg(
+    A.brush(A.arc(12, 12, 7.6, -60, 250, 48), 1.6, 321, 0.2) +
+    A.brush(L(15.9, 5.4, 19.6, 4.4, 8), 1.25, 323, 0.38, 0.05) + A.brush(L(15.9, 5.4, 17.4, 9.0, 8), 1.25, 325, 0.38, 0.05) +
+    (st ? A.brush(L(11.2, 10.4, 12.6, 9.2, 6), 1.0, 327, 0.3) + A.brush(L(12.6, 9.2, 12.4, 15.2, 10), 1.2, 329, 0.25) : ''),
+    st ? '' : A.stipple((x, y) => (x - 12) ** 2 + (y - 12) ** 2 < 6, 331, 260, 0.55)),
   /* volume: a cone and the arcs of the sound */
   volume: (st) => svg(A.brush(path([[3.6, 9.6], [7.4, 9.6], [12, 5.4], [12, 18.6], [7.4, 14.4], [3.6, 14.4], [3.6, 10]], 10), 1.4, 301, 0.08) +
     (st ? '' : A.brush(A.arc(13, 12, 4.2, -50, 50, 18), 1.2, 303, 0.3) + A.brush(A.arc(13, 12, 7.4, -48, 48, 24), 1.2, 305, 0.3)) +

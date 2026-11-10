@@ -14,6 +14,19 @@ like a file explorer and listen with the player built in. The gloss is *phonothe
   the **lossless** switch, volume and the queue. Playing a track queues the folder, album or search results it is
   in, from that track; *play* and *shuffle* above the list queue the whole place (a folder with everything under
   it, an artist, an album).
+- **The cover.** Album covers carry information, so they use the design system's legible preset
+  (`{legible: true}`): recognisable at a glance, still stipple that coalesces out of the fog. A track with no cover
+  shows a record drawn with the brush, which turns while the track plays (redrawn at the boil's 8 frames a second,
+  so it trembles as the seal does) and eases to a stop on pause. With nothing loaded, the design system's eye
+  (`Aphesis.Eye`) sits in the cover's place, following the pointer and glancing at the row the keyboard is on; it
+  is destroyed when a track loads and made again when the deck goes idle.
+- **Shuffle, random, loop.** *Shuffle* plays the current queue (a folder, an album, search results) in another
+  order. *Random* is a radio over the whole archive: a random track each time, never one of the last 50 (about
+  half the library when it is small); previous goes back through what played. *Loop* cycles off → archive (the
+  whole library in order, then from the start) → folder (this folder, album or queue) → track → off, shown by a
+  brushed glyph and a label (`loop · folder`). Random with loop track repeats the track; random with any other
+  loop is just random. Next and previous, on screen, by key and from the lock screen, follow the modes, and the
+  modes are remembered.
 - **Lossless.** The switch loads the original FLAC instead of the AAC stream, at the same moment of the track. It
   is off where `canPlayType('audio/flac')` says no; a lossy original says so and plays as it is; an original that
   fails to load falls back to the stream and says so.
@@ -38,7 +51,8 @@ While the section is open, and never while typing in the search field:
 | `j` `l` | seek 10 s back · forward |
 | `n` `p` | next · previous (previous restarts the track after 3 s) |
 | `-` `=` · `m` | volume down · up · mute |
-| `s` · `f` | shuffle · lossless |
+| `s` · `r` · `o` | shuffle · random · the next loop mode |
+| `f` | lossless |
 | `/` | search; Escape clears it, ↓ or Enter goes to the results |
 | ↑ ↓ Home End PageUp PageDown, Enter | move in the list and open or play the row |
 | Escape | up a folder (or out of a search); at the top it is the site's |
@@ -61,8 +75,9 @@ that mounts and unmounts, and the player as a core that outlives it.
   keeps itself on that node (`#aph-np.__aphPlayer`), where the next mount finds it. It uses no window timers,
   frames, observers or listeners, only its own elements' events, so a host that cancels everything a section
   started cannot stop it.
-- **The line** sits top-right, the one corner the site leaves free: the seal is top-left, the eye (and soon an ear
-  for sound) bottom-left, the passage bottom-right. Play · pause, the title and artist (a link to the track's
+- **The line** sits top-right, the one corner the site leaves free: the seal is top-left, the eye and the ear
+  bottom-left, the passage bottom-right. On phones and touch screens its play mark and title are 44px targets,
+  clear of the seal and the safe areas. Play · pause, the title and artist (a link to the track's
   folder), the time, and a stippled progress. It hides while the section is mounted
   (`:root[data-sec="music"]`, which the shell already sets), since the deck shows the same.
 - **This page** is its own small host: `#music…` (or no hash) mounts the section, any other route (the seal's
@@ -86,6 +101,14 @@ Routes: `#music` (folders at the top), `#music/folders/<folder>/<folder>`, `#mus
 When a track starts, the core calls `(Aphesis.Sound && Aphesis.Sound.duck(0.05, 1500))`; when playback stops
 (paused, or the queue ran out) it calls `Aphesis.Sound.duck(1, 1500)` the same guarded way. Moving to the next
 track does not restore it in between. Everything works without `Aphesis.Sound`.
+
+**The ear mutes the music too.** The core reads `Aphesis.Sound.muted` when it is made (a visitor who comes back
+muted gets the music silenced from the first note) and listens on the page's window for the runtime's `aph:sound`
+event (`{detail: {muted}}`). Closing the ear fades the track to silence over `duration-hush` and opening it fades
+it back; the track keeps playing underneath, so it resumes in place. The player's own volume and mute are
+separate: what you hear is the slider times the ear. Where a page cannot set the volume (iOS), the ear can only
+cut. The listener and the fade use the page's own window (the audio element's), never the section's sandboxed
+timers, so they work on every route.
 
 ## Building
 

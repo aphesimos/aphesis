@@ -35,3 +35,12 @@
 #aph-np .np-fill { position: absolute; left: 0; top: 0; height: 4px; width: 100%; color: var(--fog); clip-path: inset(0 100% 0 0); }
 #aph-np .np-fill svg { display: block; }
 #aph-np :focus-visible { outline: 1px solid var(--accent); outline-offset: 4px; }
+/* phones and touch: the same line, with targets a finger can take (44px), clear of the seal on the left */
+@media (max-width: 899px), (pointer: coarse) {
+  #aph-np { top: calc(var(--space-3) + env(safe-area-inset-top, 0px)); right: max(var(--space-2), env(safe-area-inset-right, 0px));
+    max-width: min(360px, calc(100vw - 100px - env(safe-area-inset-left, 0px))); column-gap: 0; padding: 0; }
+  #aph-np .np-play { width: 44px; height: 44px; padding: 11px; }
+  #aph-np .np-name { display: block; line-height: 44px; min-height: 44px; padding-right: var(--space-2); }
+  #aph-np .np-time { padding-right: var(--space-2); }
+  #aph-np .np-bar { margin: 0 var(--space-2) 0 var(--space-3); }
+}

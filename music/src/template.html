@@ -36,7 +36,7 @@
   </div>
 
   <aside class="m-deck idle" aria-label="player">
-    <div class="m-cover m-in"><canvas aria-hidden="true"></canvas></div>
+    <div class="m-cover m-in"><canvas aria-hidden="true"></canvas><div class="m-idle" aria-hidden="true"></div></div>
     <p class="m-caption aph-meta aph-ink m-in" aria-hidden="true"></p>
     <div class="m-now aph-ink m-in" aria-live="off">
       <p class="n-title">nothing playing</p>
@@ -52,7 +52,11 @@
       <button type="button" class="c-prev m-in aph-ink" aria-label="previous" data-tip="previous · p" data-cursor=".55" data-glyph="prev"></button>
       <button type="button" class="c-play m-in" aria-label="play" data-tip="play · space" data-cursor=".55"></button>
       <button type="button" class="c-next m-in aph-ink" aria-label="next" data-tip="next · n" data-cursor=".55" data-glyph="next"></button>
-      <button type="button" class="c-shuffle m-in aph-ink" aria-label="shuffle" aria-pressed="false" data-tip="shuffle · s" data-cursor=".55" data-glyph="shuffle"></button>
+    </div>
+    <div class="m-modes">
+      <button type="button" class="c-shuffle m-in aph-ink" aria-label="shuffle this queue" aria-pressed="false" data-tip="shuffle · this folder or album, in another order · s" data-cursor=".55" data-glyph="shuffle"></button>
+      <button type="button" class="c-random m-in aph-ink" aria-label="random: radio from the whole archive" aria-pressed="false" data-tip="random · the whole archive, as a radio · r" data-cursor=".55" data-glyph="random"></button>
+      <button type="button" class="c-loop m-in aph-ink" aria-label="loop: off" data-tip="loop · off, archive, folder, track · o" data-cursor=".55"><span class="g-loop" aria-hidden="true"></span><span class="l-loop aph-meta">loop · off</span></button>
     </div>
     <div class="m-vol">
       <button type="button" class="c-vol m-in aph-ink" aria-label="mute" data-tip="mute · m" data-cursor=".55"></button>

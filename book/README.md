@@ -16,10 +16,22 @@ a short note, and at most one quote in its own language, with the English in the
 - **Weight:** the fog plus two Simulacrum canvases, made once and reused. A canvas becomes visible only after its
   first frame and is stopped once its picture has dissolved.
 
+## The content service
+
+Built with the content service's address, the book asks it for the published entries (`GET /v1/books`) before it
+opens, waiting at most 3 s; it opens on the service's entries when they come and on the ones in `content/`
+otherwise (the service down, slow or empty). An entry from the service has the same fields, its map a URL served
+with CORS. Edits from the owner's desk are live with no rebuild.
+
+```sh
+python3 book/build.py --content-api https://content-api.aphes.ist     # or APHESIS_CONTENT_API in the environment
+```
+
 ## Files
 
 - `content/*.md`: the entries, one markdown file each, read in file-name order.
 - `src/template.html`, `src/book.css`: the page and its layout.
+- `src/content.js`: the content service's address (written by the build) and the fetch of its entries;
 - `src/main.js`: theme, fog, seal, cursor, tooltip, routing; `src/plate.js`: the two picture canvases;
   `src/leaf.js`: the text page and the contents; `src/turning.js`: edges, keys and swipe;
   `src/motion.js`, `src/numerals.js`: small helpers.

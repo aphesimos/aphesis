@@ -3,6 +3,7 @@
    text page. Turning the leaf dissolves one simulacrum into the next. */
 
 import { ENTRIES, MAPS } from './entries.js';
+import { fetchEntries } from './content.js';
 import { travel } from './motion.js';
 import { roman } from './numerals.js';
 import { createPlate } from './plate.js';
@@ -12,7 +13,8 @@ import { createTurning } from './turning.js';
 const A = window.Aphesis;
 const $ = (id) => document.getElementById(id);
 const root = document.documentElement;
-const n = ENTRIES.length;
+/* the entries: the content service's when it answers in time, the ones the page was built with otherwise */
+let BOOK = ENTRIES, n = BOOK.length;
 
 /* ---------- theme: the system's setting until the eye says otherwise ---------- */
 const sysDark = matchMedia('(prefers-color-scheme: dark)');
@@ -67,33 +69,37 @@ function prepare(img, e) {
 const announceEl = $('announce');
 const announce = (t) => { announceEl.textContent = ''; setTimeout(() => { announceEl.textContent = t; }, 60); };
 
-Promise.all(ENTRIES.map((e) => new Promise((resolve) => {
+fetchEntries().then((fresh) => {
+  if (fresh) { BOOK = fresh; n = fresh.length; root.dataset.bookSource = 'api'; }
+  return Promise.all(BOOK.map((e) => new Promise((resolve) => {
   const im = new Image();
+  if (!MAPS[e.map]) im.crossOrigin = 'anonymous';   /* the content API serves its pictures with CORS */
   im.onload = () => (im.decode ? im.decode().catch(() => {}) : Promise.resolve()).then(() => resolve(im));
   im.onerror = () => resolve(null);
-  im.src = MAPS[e.map];
-}))).then((images) => {
-  const pictures = ENTRIES.map((e, i) => {
+  im.src = MAPS[e.map] || e.map;
+})));
+}).then((images) => {
+  const pictures = BOOK.map((e, i) => {
     const p = { src: images[i] ? prepare(images[i], e) : document.createElement('canvas') };
     ['gain', 'scatter', 'erosion', 'ceiling'].forEach((k) => { if (e[k] !== undefined) p[k] = e[k]; });
     return p;
   });
   const plate = createPlate($('plate'), pictures, $('fog'));
-  const leaf = createLeaf(ENTRIES, { onChoose: (i) => go(i) });
+  const leaf = createLeaf(BOOK, { onChoose: (i) => go(i) });
   let cur = -1;
 
   function go(i, { initial = false } = {}) {
     i = Math.max(0, Math.min(n - 1, i));
     if (i === cur) return;
     cur = i;
-    const e = ENTRIES[i];
+    const e = BOOK[i];
     leaf.show(i);
     plate.to(i);
     const cap = $('caption');
     cap.classList.remove('on');
     setTimeout(() => { if (cur === i) { cap.textContent = e.caption; cap.classList.add('on'); } }, initial ? 900 : 500);
     $('plate').setAttribute('aria-label', e.caption);
-    [[$('prev'), i === 0, i > 0 && ENTRIES[i - 1]], [$('next'), i === n - 1, i < n - 1 && ENTRIES[i + 1]]].forEach(([b, end, other]) => {
+    [[$('prev'), i === 0, i > 0 && BOOK[i - 1]], [$('next'), i === n - 1, i < n - 1 && BOOK[i + 1]]].forEach(([b, end, other]) => {
       if (end && document.activeElement === b) (b.id === 'prev' ? $('next') : $('prev')).focus({ preventScroll: true });
       b.classList.toggle('end', end);
       b.tabIndex = end ? -1 : 0;
@@ -111,7 +117,7 @@ Promise.all(ENTRIES.map((e) => new Promise((resolve) => {
 
   function fromHash() {
     const m = /^#book\/(.+)$/.exec(location.hash);
-    const i = m ? ENTRIES.findIndex((e) => e.slug === decodeURIComponent(m[1])) : -1;
+    const i = m ? BOOK.findIndex((e) => e.slug === decodeURIComponent(m[1])) : -1;
     return i;
   }
 

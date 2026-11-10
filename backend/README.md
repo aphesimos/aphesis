@@ -253,7 +253,13 @@ NODE_PATH=$(npm root -g) node content/tools/make-mail-phi.mjs   # redraw content
 The seed reads `section/archive` (`archive/content/*.md`), `section/book` (`book/content/*.md`), `section/works`
 (`works/content/works.json`, `works/maps/`) and the design system's density maps with git (each ref, or
 `origin/<ref>`), uploads every picture under its content key, writes every entry as published, and puts the email's
-φ in the bucket. Running it again replaces those entries and nothing else.
+φ in the bucket. Running it again adds nothing twice: an entry already in D1 (same slug or id) is left as it is, so
+the owner's edits stay, and each picture lands on its own key again; `--replace` overwrites the imported entries.
+
+**From GitHub Actions**, with no clone: Actions → backend → Run workflow → branch `backend`, tick **seed**. The
+workflow tests, builds and deploys as usual, then fetches `section/archive`, `section/book`, `section/works` and
+`design-system` and runs the seed against the deployed D1 and R2 with the repository's Cloudflare secrets. Or:
+`gh workflow run backend.yml --repo aphesimos/aphesis --ref backend -f seed=true`.
 
 ## Local development
 
@@ -370,8 +376,9 @@ node --test e2e/*.test.mjs             # the Workers under wrangler dev, over HT
    the link Cloudflare mails to it, so it shows *Verified*. The `send_email` binding only delivers to verified
    destinations, and `EMAIL_FROM` (`clavis@aphes.ist`) must be on the zone. The API token also needs Account →
    *D1: Edit*.
-8. **The first content.** After the first deploy, once: `node backend/content/tools/seed.mjs --remote` (with
-   `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in the environment, and the section branches fetched).
+8. **The first content.** After the first deploy, once: run the backend workflow by hand with **seed** ticked (see
+   Tools above), or locally `node backend/content/tools/seed.mjs --remote` (with `CLOUDFLARE_API_TOKEN` and
+   `CLOUDFLARE_ACCOUNT_ID` in the environment, and the section branches fetched).
 
 Keep the salts once set: changing `FORUM_POSTER_SALT` changes every poster token, and so every sigil;
 changing a salt also resets the rate limits.

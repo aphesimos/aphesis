@@ -5,7 +5,7 @@
 //   node backend/content/tools/seed.mjs --remote                         the deployed database and bucket
 //   node backend/content/tools/seed.mjs --local --persist-to DIR         a local wrangler dev state (the tests)
 //   node backend/content/tools/seed.mjs --out DIR                        only write seed.sql and the pictures
-//   options: -c <wrangler config> (default wrangler.toml)
+//   options: -c <wrangler config> (default wrangler.toml), --replace (overwrite entries that are already there)
 //
 // It reads, with git, from:
 //   section/archive  archive/content/*.md: front matter, body, [^notes], ![caption](simulacrum:<map>) figures
@@ -15,7 +15,9 @@
 // and this branch's content/assets/mail-phi.png (the email's φ, at mail/phi.png).
 // Each ref falls back to origin/<ref>; ARCHIVE_REF, BOOK_REF, WORKS_REF and DS_REF override them.
 // Pictures go to R2 under a key made from their bytes (m/<sha-256, 24 hex>.<ext>), exactly as the Worker names
-// uploads. Every imported entry is published. Running it again replaces the imported entries and nothing else.
+// uploads. Every imported entry is published. Running it again adds nothing twice: an entry whose slug or id is
+// already in D1 is left as it is (the owner's edits stay), a picture lands on the same key; --replace overwrites
+// the imported entries instead.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
@@ -122,7 +124,8 @@ const works = data.works.map((w, i) => ({
 const q = (v) => (v === null || v === undefined ? "''" : typeof v === 'number' ? String(v) : typeof v === 'boolean' ? (v ? '1' : '0')
   : "'" + (typeof v === 'string' ? v : JSON.stringify(v)).replace(/'/g, "''") + "'");
 const now = Date.now();
-const row = (table, o) => `INSERT OR REPLACE INTO ${table} (${Object.keys(o).join(', ')}, published, created, updated) VALUES (${Object.values(o).map(q).join(', ')}, 1, ${now}, ${now});`;
+const verb = args.includes('--replace') ? 'INSERT OR REPLACE' : 'INSERT OR IGNORE';
+const row = (table, o) => `${verb} INTO ${table} (${Object.keys(o).join(', ')}, published, created, updated) VALUES (${Object.values(o).map(q).join(', ')}, 1, ${now}, ${now});`;
 const sql = [
   ...posts.map((p) => row('posts', p)),
   ...books.map(({ picture: pic, ...b }) => row('books', { ...b, picture: pic.key, picture_w: pic.w, picture_h: pic.h })),

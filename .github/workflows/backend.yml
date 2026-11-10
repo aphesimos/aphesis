@@ -5,6 +5,8 @@
 # WALL_ADMIN_TOKEN, FORUM_IP_SALT, FORUM_POSTER_SALT, FORUM_ADMIN_SECRET, CONTENT_OWNER_PASSWORD_HASH,
 # CONTENT_OWNER_EMAIL, CONTENT_AUTH_SALT. Empty ones are skipped, a Worker without its Turnstile secret or salts
 # refuses posts until they are set, and the content service's gate stays shut without its own (see backend/README.md).
+# Run by hand with seed = true, it also imports the section branches' content into the deployed content service
+# (content/tools/seed.mjs): once, after the first deploy; running it again adds nothing twice.
 # Repository variable: BACKEND_CUSTOM_DOMAINS = 1 serves wall-api, forum-api and content-api.aphes.ist as custom
 # domains; without it the Workers answer on workers.dev only.
 name: backend
@@ -16,6 +18,11 @@ on:
       - backend/**
       - .github/workflows/backend.yml
   workflow_dispatch:
+    inputs:
+      seed:
+        description: "Import the content of section/archive, section/book and section/works into the content service (the one-time seed; safe to repeat)"
+        type: boolean
+        default: false
 
 concurrency:
   group: backend
@@ -163,3 +170,12 @@ jobs:
           # the script picks the secrets this service maps in services.json, skips empty ones, never prints values
           SECRETS_JSON: ${{ toJSON(secrets) }}
         run: node scripts/deploy.mjs "${{ matrix.service }}"
+
+      # the one-time import, by hand only: the deploy above left wrangler.deploy.toml with the database's real id
+      - name: Import the section branches' content (seed)
+        if: matrix.service == 'content' && github.event_name == 'workflow_dispatch' && inputs.seed
+        run: |
+          for b in section/archive section/book section/works design-system; do
+            git fetch --depth=1 origin "$b:refs/remotes/origin/$b"
+          done
+          node content/tools/seed.mjs --remote -c wrangler.deploy.toml

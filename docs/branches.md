@@ -10,6 +10,7 @@ which stays a hub.
 | `font` | Aphesis Script: build scripts, masters, the variable font and static instances, proofs. |
 | `mark` | The φ: original art, the brush engine (centerline + width profile), the drawing and φ → Φ seal animations. |
 | `site` | The Astro + Cloudflare app: the shell (fog, seal, inscription, passage, routing) and, as they are built, each section. |
+| `backend` | The Rust Workers behind the wall and the forum, and their deploy. |
 
 Sections get their own branches when work on them starts, cut from `site`:
 `section/book`, `section/experimental`, `section/archive`, `section/laboratory`, `section/works`, `section/wall`, `section/forum`.

@@ -31,7 +31,7 @@ export function createApi(base) {
     upload(blob) { const fd = new FormData(); fd.append('file', blob, 'map.jpg'); return call('POST', '/v1/admin/media', fd); },
     wall: () => call('GET', '/v1/admin/wall'),
     wallRemove: (id) => call('DELETE', `/v1/admin/wall/${encodeURIComponent(id)}`),
-    board: () => call('GET', '/v1/admin/forum/board'),
+    board: (cursor) => call('GET', '/v1/admin/forum/board' + (cursor ? '?cursor=' + encodeURIComponent(cursor) : '')),
     thread: (id) => call('GET', `/v1/admin/forum/threads/${encodeURIComponent(id)}`),
     reports: () => call('GET', '/v1/admin/forum/reports'),
     forumRemove: (t, n) => call('DELETE', `/v1/admin/forum/threads/${encodeURIComponent(t)}/posts/${n}`),

@@ -44,12 +44,18 @@ export function createModeration({ api, root }) {
       if (!list.length) reportsEl.append(h('li', { class: 'aph-meta aph-ink', text: 'no reports.' }));
     } else reportsEl.replaceChildren(h('li', { class: 'aph-meta aph-ink', text: rep.data.error || 'the forum did not answer' }));
     if (board.status === 200) {
-      const list = board.data.threads || [];
-      boardEl.replaceChildren(...list.map((t) => h('li', {},
-        h('span', { class: 'mod-text aph-ink', text: t.first || '(a picture)' }), h('span', { class: 'aph-meta aph-ink', text: `${t.replies} ${t.replies === 1 ? 'reply' : 'replies'} · ${ago(t.bumped)}` }),
-        act('read', () => openThread(t.id)))));
-      if (!list.length) boardEl.append(h('li', { class: 'aph-meta aph-ink', text: 'no threads.' }));
+      boardEl.replaceChildren();
+      page(board.data);
+      if (!(board.data.threads || []).length) boardEl.append(h('li', { class: 'aph-meta aph-ink', text: 'no threads.' }));
     }
+  }
+  /* the board comes a page at a time (the forum keeps every thread); `more` reads the next one */
+  function page(data) {
+    boardEl.querySelectorAll('.more').forEach((x) => x.remove());
+    boardEl.append(...(data.threads || []).map((t) => h('li', {},
+      h('span', { class: 'mod-text aph-ink', text: t.first || '(a picture)' }), h('span', { class: 'aph-meta aph-ink', text: `${t.replies} ${t.replies === 1 ? 'reply' : 'replies'} · ${ago(t.bumped)}` }),
+      act('read', () => openThread(t.id)))));
+    if (data.next) boardEl.append(h('li', { class: 'more' }, act('more', async () => { const r = await api.board(data.next); if (r.status === 200) page(r.data); })));
   }
   async function openThread(id, mark) {
     const r = await api.thread(id);

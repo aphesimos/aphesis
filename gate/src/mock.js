@@ -81,7 +81,7 @@ export function createMockApi() {
     wallRemove(id) { if (!session) return no(); wall = wall.filter((m) => m.id !== id); return ok({ ok: true }); },
     board() {
       if (!session) return no();
-      return ok({ threads: Object.values(threads).map((t) => ({ id: t.id, first: t.posts[0].text, replies: t.posts.length - 1, created: t.created, bumped: t.posts[t.posts.length - 1].created, image: null })) });
+      return ok({ next: null, threads: Object.values(threads).map((t) => ({ id: t.id, first: t.posts[0].text, replies: t.posts.length - 1, created: t.created, bumped: t.posts[t.posts.length - 1].created, image: null })) });
     },
     thread(id) { if (!session) return no(); return threads[id] ? ok(structuredClone(threads[id])) : no(404); },
     reports() { if (!session) return no(); return ok({ reports: reports.slice() }); },

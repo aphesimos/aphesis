@@ -33,8 +33,18 @@ export async function loadIndex() {
   return { doc, resolve: (u) => new URL(u, base).href, example: false };
 }
 
+/* untagged files take their names from the library's structure (artist/album/track), so an index written before
+   sync.py filled these in still reads right */
+function fromFolders(t) {
+  const parts = (t.path || '').split('/');
+  const out = {};
+  if (!t.artist && !t.albumArtist && parts.length >= 2) out.artist = parts[0];
+  if (!t.album && parts.length >= 3) out.album = parts[parts.length - 2];
+  return out;
+}
+
 export function buildLibrary({ doc, resolve, example }) {
-  const tracks = doc.tracks.map((t, i) => Object.assign({}, t, {
+  const tracks = doc.tracks.map((t0, i) => Object.assign({}, t0, fromFolders(t0))).map((t, i) => Object.assign({}, t, {
     i,
     artistName: t.artist || t.albumArtist || 'unknown artist',
     shown: t.title || t.name,

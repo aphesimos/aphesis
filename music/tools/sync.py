@@ -405,6 +405,14 @@ def index_doc(state):
         i = len(tracks)
         t = {'id': e['id'], 'path': rel, 'name': os.path.splitext(rel.split('/')[-1])[0]}
         t.update({k: e['meta'][k] for k in ('title', 'artist', 'albumArtist', 'album', 'track', 'disc', 'year') if e['meta'].get(k) is not None})
+        # untagged files take their names from the library's own structure: artist/album/track
+        parts = rel.split('/')
+        if not t.get('artist') and not t.get('albumArtist') and len(parts) >= 2:
+            t['artist'] = parts[0]
+            t['artistFrom'] = 'folder'
+        if not t.get('album') and len(parts) >= 3:
+            t['album'] = parts[-2]
+            t['albumFrom'] = 'folder'
         f = e['facts']
         t.update({'duration': f['duration'], 'format': os.path.splitext(rel)[1].lower().lstrip('.'), 'codec': f['codec'],
                   'lossless': f['lossless'], 'rate': f['rate'], 'bits': f['bits'], 'channels': f['channels'],

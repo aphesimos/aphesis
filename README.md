@@ -6,7 +6,7 @@ replaces it once the design system is settled.
 - `prototype/home_template.html`: the shell: stippled fog (WebGL), the φ seal that travels to the corner,
   the inscription of sections around it, the typed passage, custom cursor and tooltip, eye theme toggle, hash routing.
 - `prototype/build.py`: fills the template (sections, passages, brush engine) into `prototype/home.html`.
-  It reads the engine from a checkout of the `mark` branch at `../../mark/` (e.g. a git worktree).
+  It reads the engine from a checkout of the `mark` branch at `../../mark/` and the font from a checkout of the `font` branch at `../../font/` (e.g. git worktrees).
 - `prototype/home.html`: the last built page.
 
 Sections are built on `section/<name>` branches cut from this one.

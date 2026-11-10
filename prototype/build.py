@@ -37,5 +37,7 @@ t=t.replace('__NAV__',nav).replace('__SECTIONS__',sec).replace('__SECOES__',sec)
 t=t.replace('__SECOESJS__',json.dumps([dict(id=s['id'],name=s['name']) for s in SECTIONS],ensure_ascii=False))
 t=t.replace('__FRASES__',json.dumps(PASSAGES,ensure_ascii=False)).replace('__PASSAGES__',json.dumps(PASSAGES,ensure_ascii=False))
 t=t.replace('__M__',open(D+'../../mark/engine/model.js').read()).replace('__CORE__',open(D+'../../mark/engine/core.js').read())
+import base64
+t=t.replace('__FONT__',base64.b64encode(open(D+'../../font/dist/variable/AphesisScript-VF.woff2','rb').read()).decode())
 t=t.replace('<script>','<script>document.documentElement.lang="en";',1)
 open(D+'home.html','w').write(t); print(len(t))

@@ -1,8 +1,10 @@
+<meta charset="utf-8">
 <title>aphes.is</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Elite&display=swap">
 <style>
+@font-face{font-family:"Aphesis Script";src:url(data:font/woff2;base64,__FONT__) format("woff2");font-weight:300 800;font-display:swap}
 /* layout: one document. fog on a fixed canvas, the φ seal in the center (or in the corner, inside a section),
    sections as an inscription around the seal, the passage of the day in the bottom-right corner. */
 :root{
@@ -16,8 +18,9 @@
   /* roles */
   --bg:var(--n-100); --ink:var(--n-900); --ink-soft:var(--n-600); --line:var(--n-300); --fog:var(--n-900);
   --seal:var(--red); --accent:var(--red); --accent-text:var(--red-text);
-  --f-display:"Cormorant Garamond","Cormorant",Garamond,"Times New Roman",serif;
-  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  /* two faces only (design system): Aphesis Script for the wordmark, titles and glosses; Special Elite for text */
+  --f-display:"Aphesis Script",serif;
+  --f-mono:"Special Elite","Aphesis Script","Courier New",ui-monospace,monospace;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
@@ -42,10 +45,10 @@ a{color:inherit}
 /* the inscription: sections around the seal */
 #inscription{position:fixed;inset:0;z-index:5;pointer-events:none}
 #inscription a{position:absolute;left:0;top:0;pointer-events:auto;text-decoration:none;white-space:nowrap;
-  font:500 14px/1 var(--f-mono);letter-spacing:.22em;text-transform:lowercase;color:var(--ink);
+  font:400 14px/1 var(--f-mono);letter-spacing:.22em;text-transform:lowercase;color:var(--ink);
   opacity:0;transition:opacity .9s ease,color .4s ease,filter .9s ease;filter:blur(6px);padding:10px 8px;
   text-shadow:0 0 4px var(--bg),0 0 10px var(--bg),0 0 18px var(--bg)}
-#inscription a .gl{display:block;margin-top:7px;font:italic 500 16px/1 var(--f-display);letter-spacing:.04em;color:var(--ink-soft);text-transform:none;transition:transform .6s cubic-bezier(.2,.7,.2,1),color .6s ease}
+#inscription a .gl{display:block;margin-top:8px;font:400 20px/1 var(--f-display);font-variation-settings:"wght" 400,"slnt" -10;letter-spacing:.02em;color:var(--ink-soft);text-transform:lowercase;transition:transform .6s cubic-bezier(.2,.7,.2,1),color .6s ease}
 #inscription a{visibility:hidden;transition-property:opacity,color,filter,visibility;transition-delay:0s,0s,0s,.9s}
 #inscription.visible a{opacity:1;filter:none;visibility:visible;transition-delay:0s}
 
@@ -73,7 +76,7 @@ main h1:hover .ltr{transform:translateY(-3px)}
 /* passage of the day: one line, small, bottom-right, typed by a person who is not in a hurry */
 #passage{position:fixed;z-index:4;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));
   max-width:min(230px,calc(100vw - 140px));text-align:right;user-select:none;
-  font:italic 400 11px/1.7 var(--f-mono);letter-spacing:.14em;color:var(--accent-text);
+  font:400 11px/1.7 var(--f-mono);letter-spacing:.14em;color:var(--accent-text);
   text-shadow:0 0 4px var(--bg),0 0 10px var(--bg),0 0 18px var(--bg)}
 #passage .pre{font-style:normal;letter-spacing:0;margin-right:.5em;opacity:.8}
 #passage .caret{display:inline-block;width:.55em;height:1.05em;margin-left:.12em;vertical-align:-.18em;background:currentColor;opacity:.75}
@@ -104,10 +107,10 @@ main section{text-shadow:0 0 6px var(--bg),0 0 16px var(--bg);position:absolute;
   transition:opacity 1s ease,filter 1s ease,transform 1.2s cubic-bezier(.2,.7,.2,1);pointer-events:none}
 main section.active{opacity:1;filter:none;transform:none;pointer-events:auto}
 main h1:focus{outline:none}
-main h1{font:italic 400 clamp(44px,8vw,96px)/1 var(--f-display);margin:0;letter-spacing:-.01em;text-wrap:balance}
-main h1 .gloss{display:block;font:400 13px/1 var(--f-mono);letter-spacing:.3em;color:var(--ink-soft);margin-bottom:18px;font-style:normal}
+main h1{font:400 clamp(44px,8vw,96px)/1 var(--f-display);font-variation-settings:"wght" 400,"slnt" 0;margin:0;padding-right:.2em;text-wrap:balance;text-transform:lowercase}
+main h1 .gloss{display:block;font:400 17px/1 var(--f-display);font-variation-settings:"wght" 400,"slnt" -10;letter-spacing:.12em;color:var(--ink-soft);margin-bottom:18px}
 main p{max-width:52ch;color:var(--ink-soft);margin:28px 0 0;font-size:14px}
-main p.nota{font:italic 400 19px/1.5 var(--f-display);color:var(--ink)}
+main p.nota{font:400 19px/1.6 var(--f-mono);color:var(--ink)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media (prefers-reduced-motion: reduce){
   *{transition-duration:.01ms!important;animation-duration:.01ms!important}

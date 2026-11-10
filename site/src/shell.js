@@ -1,4 +1,4 @@
-/* aphes.is: the shell of the one page. One fog, one seal, one eye, one cursor, one tooltip and one passage live for
+/* aphes.ist: the shell of the one page. One fog, one seal, one eye, one cursor, one tooltip and one passage live for
    the whole visit; the home is the shell itself, and each section is mounted into #aph-host when its route opens and
    unmounted when it closes. Entering or leaving a section is a hash change, never a page load.
 
@@ -456,7 +456,7 @@ function goTo(next, first) {
   if (next === '') {
     target.d = 1; target.l = 1;
     clearTimeout(mountTimer); pendingMount = null;
-    document.title = 'aphes.is'; $('aph-announce').textContent = 'home';
+    document.title = 'aphes.ist'; $('aph-announce').textContent = 'home';
     const de = { ...sealBox }, para = centerBox(), u0 = u;
     tween(first ? 1 : 1600, (k) => { const e = MJ(k); placeSeal({ x: lerp(de.x, para.x, e), y: lerp(de.y, para.y, e), s: lerp(de.s, para.s, e) }); u = lerp(u0, 0, k); paint(estadoT(u)); },
       () => {
@@ -465,7 +465,7 @@ function goTo(next, first) {
         if (prev && (!a || a === document.body)) { const l = links.find((x) => x.getAttribute('href') === '#' + prev); if (l) l.focus({ preventScroll: true }); }
       });
   } else {
-    const sec = SECTIONS.find((s) => s.id === next); document.title = sec.name + ' · aphes.is'; $('aph-announce').textContent = sec.name;
+    const sec = SECTIONS.find((s) => s.id === next); document.title = sec.name + ' · aphes.ist'; $('aph-announce').textContent = sec.name;
     ring.classList.remove('visible', 'focus'); $('aph-ray').querySelector('line').style.opacity = 0;
     if (prev === '' || prev === null) {
       const de = { ...sealBox }, para = cornerBox(), u0 = u;

@@ -1,4 +1,4 @@
-/* aphes.is: the shell of the one page. Its marks carry ids of their own (aph-*), so no section's stylesheet ever
+/* aphes.ist: the shell of the one page. Its marks carry ids of their own (aph-*), so no section's stylesheet ever
    touches them and none of these rules touches a section. Layout: the fog on a fixed canvas, the φ seal in the
    center (in the corner inside a section), the sections as an inscription around the seal, the passage in the
    bottom-right corner, the eye in the bottom-left. The mounted section lives in #aph-host, a plain block with no

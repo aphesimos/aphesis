@@ -1,4 +1,4 @@
-"""Build site/index.html: aphes.is as one continuous page, the home and every section in one document.
+"""Build site/index.html: aphes.ist as one continuous page, the home and every section in one document.
 
   python3 site/build.py                  # writes site/index.html (a full document)
   python3 site/build.py --fragment OUT   # writes the same page without <!doctype>/<html>/<head>/<body>

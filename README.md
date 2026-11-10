@@ -2,14 +2,14 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/site-dark.svg">
-  <img alt="The aphes.is home: the φ in the fog, the sections around it as an inscription, a passage typed in the corner" src="assets/readme/site-light.svg" width="100%">
+  <img alt="The aphes.ist home: the φ in the fog, the sections around it as an inscription, a passage typed in the corner" src="assets/readme/site-light.svg" width="100%">
 </picture>
 
 </div>
 
 # site
 
-aphes.is as one continuous page. The home and every section live in one document: entering or leaving a section
+aphes.ist as one continuous page. The home and every section live in one document: entering or leaving a section
 is a hash change, never a page load. One fog, one seal, one eye, one cursor, one tooltip and one passage stay for
 the whole visit; the eye's theme wave keeps running across routes.
 Published at https://claude.ai/artifact/XdYZE8XBH9vX6psPWHbc2y (private until shared).

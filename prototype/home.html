@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>aphes.is</title>
+<title>aphes.ist</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Elite&display=swap">
@@ -124,7 +124,7 @@ main p.nota{font:400 19px/1.6 var(--f-mono);color:var(--ink)}
 </svg>
 <canvas id="fog" aria-hidden="true"></canvas>
 <svg id="ray" class="aph-ink" aria-hidden="true"><line x1="0" y1="0" x2="0" y2="0"/></svg>
-<a id="seal" href="#home" aria-label="aphes.is — back to the center"><svg viewBox="-45 -90 1090 1090" aria-hidden="true"><g filter="url(#boil)"><path id="ink"/></g></svg></a>
+<a id="seal" href="#home" aria-label="aphes.ist — back to the center"><svg viewBox="-45 -90 1090 1090" aria-hidden="true"><g filter="url(#boil)"><path id="ink"/></g></svg></a>
 <nav id="inscription" class="aph-ink" aria-label="sections"><a href="#book">book<span class="gl" lang="la">liber</span></a><a href="#experimental">experimental<span class="gl" lang="grc">ἄδυτον</span></a><a href="#archive">archive<span class="gl" lang="la">codex</span></a><a href="#laboratory">laboratory<span class="gl" lang="la">officina</span></a><a href="#works">works<span class="gl" lang="la">opera</span></a><a href="#wall">wall<span class="gl" lang="la">paries</span></a><a href="#forum">forum<span class="gl" lang="grc">ἀγορά</span></a></nav>
 <main class="aph-ink"><section id="s-book" aria-labelledby="h-book"><h1 id="h-book" tabindex="-1"><span class="gloss" lang="la">liber</span>book</h1><p class="nota">authors, works and what shaped me, leafed through like a codex.</p><p>this chamber is still being written. the seal in the corner leads back to the center.</p></section><section id="s-experimental" aria-labelledby="h-experimental"><h1 id="h-experimental" tabindex="-1"><span class="gloss" lang="grc">ἄδυτον</span>experimental</h1><p class="nota">chambers discovered through gestures. symbols, motion, no explanation.</p><p>this chamber is still being written. the seal in the corner leads back to the center.</p></section><section id="s-archive" aria-labelledby="h-archive"><h1 id="h-archive" tabindex="-1"><span class="gloss" lang="la">codex</span>archive</h1><p class="nota">writing about anything, from draft (nigredo) to finished (rubedo).</p><p>this chamber is still being written. the seal in the corner leads back to the center.</p></section><section id="s-laboratory" aria-labelledby="h-laboratory"><h1 id="h-laboratory" tabindex="-1"><span class="gloss" lang="la">officina</span>laboratory</h1><p class="nota">measured experiments: machines that rewrite themselves, metrics that lie, the cost of a truth.</p><p>this chamber is still being written. the seal in the corner leads back to the center.</p></section><section id="s-works" aria-labelledby="h-works"><h1 id="h-works" tabindex="-1"><span class="gloss" lang="la">opera</span>works</h1><p class="nota">things I have built.</p><p>this chamber is still being written. the seal in the corner leads back to the center.</p></section><section id="s-wall" aria-labelledby="h-wall"><h1 id="h-wall" tabindex="-1"><span class="gloss" lang="la">paries</span>wall</h1><p class="nota">anonymous messages that drift in the fog and fade with time.</p><p>this chamber is still being written. the seal in the corner leads back to the center.</p></section><section id="s-forum" aria-labelledby="h-forum"><h1 id="h-forum" tabindex="-1"><span class="gloss" lang="grc">ἀγορά</span>forum</h1><p class="nota">a plain anonymous forum, in threads.</p><p>this chamber is still being written. the seal in the corner leads back to the center.</p></section></main>
 <div id="passage"><span class="pre" aria-hidden="true">&gt;&gt;</span><span id="pText" aria-hidden="true"></span><span class="caret" aria-hidden="true"></span><span class="sr" id="pSr"></span></div>
@@ -442,12 +442,12 @@ function goTo(next,first){
   const ins=$('inscription');
   $('seal').classList.toggle('in-corner',next!=='');
   if(next===''){ // back to the center: Φ reopens into φ on the way
-    document.title='aphes.is'; $('announce').textContent='home';
+    document.title='aphes.ist'; $('announce').textContent='home';
     const de={...sealBox}, para=centerBox(), u0=u;
     tween(first||reduz?1:1600,k=>{const e=MJ(k);placeSeal({x:lerp(de.x,para.x,e),y:lerp(de.y,para.y,e),s:lerp(de.s,para.s,e)});u=lerp(u0,0,k);paint(estadoT(u));},
       ()=>{ins.classList.add('visible');});
   } else {
-    const sec=SECTIONS.find(s=>s.id===next); document.title=sec.name+' · aphes.is'; $('announce').textContent=sec.name;
+    const sec=SECTIONS.find(s=>s.id===next); document.title=sec.name+' · aphes.ist'; $('announce').textContent=sec.name;
     ins.classList.remove('visible','focus'); $('ray').querySelector('line').style.opacity=0;
     const de={...sealBox}, para=cornerBox(), u0=u;
     tween(first||reduz?1:1800,k=>{const e=MJ(k);placeSeal({x:lerp(de.x,para.x,e),y:lerp(de.y,para.y,e),s:lerp(de.s,para.s,e)});u=lerp(u0,1,k);paint(estadoT(u));},

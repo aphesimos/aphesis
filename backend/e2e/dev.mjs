@@ -37,6 +37,11 @@ function freePort() {
   });
 }
 
+/* signal the whole process group: npx, wrangler and workerd */
+function kill(child, sig) {
+  try { process.kill(-child.pid, sig); } catch (_) { try { child.kill(sig); } catch (_) { /* gone */ } }
+}
+
 /* start(name, vars) -> { url, state, stop() } */
 export async function start(name, vars = {}) {
   const dir = build(name);
@@ -47,7 +52,8 @@ export async function start(name, vars = {}) {
   const args = [...WRANGLER.slice(1), 'dev', '-c', 'wrangler.e2e.toml', '--ip', '127.0.0.1', '--port', String(port), '--inspector-port', String(inspector),
     '--persist-to', state, '--show-interactive-dev-session=false', '--log-level', 'warn'];
   for (const [k, v] of Object.entries(vars)) args.push('--var', `${k}:${v}`);
-  const child = spawn(WRANGLER[0], args, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, NO_COLOR: '1' } });
+  /* its own process group, so stop() reaches wrangler and workerd under npx, not only npx itself */
+  const child = spawn(WRANGLER[0], args, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'], detached: true, env: { ...process.env, NO_COLOR: '1', WRANGLER_SEND_METRICS: 'false' } });
   let log = '';
   child.stdout.on('data', (d) => { log += d; });
   child.stderr.on('data', (d) => { log += d; });
@@ -55,8 +61,9 @@ export async function start(name, vars = {}) {
   const deadline = Date.now() + 120_000;
   for (;;) {
     if (child.exitCode !== null) throw new Error(`wrangler dev exited:\n${log}`);
-    try { await fetch(url + '/'); break; } catch (_) { /* not yet */ }
-    if (Date.now() > deadline) { child.kill(); throw new Error(`wrangler dev did not start:\n${log}`); }
+    /* each probe gives up after 2 s, so a port that accepts but never answers cannot hold the loop past the deadline */
+    try { await fetch(url + '/', { signal: AbortSignal.timeout(2000) }); break; } catch (_) { /* not yet */ }
+    if (Date.now() > deadline) { kill(child, 'SIGKILL'); throw new Error(`wrangler dev did not start:\n${log}`); }
     await new Promise((r) => setTimeout(r, 300));
   }
   return {
@@ -65,9 +72,12 @@ export async function start(name, vars = {}) {
     log: () => log,
     async stop() {
       if (child.exitCode === null) {
-        child.kill('SIGINT');
+        kill(child, 'SIGINT');
         await new Promise((r) => { child.once('exit', r); setTimeout(r, 5000); });
       }
+      /* whatever is left of the group (workerd) goes for good */
+      kill(child, 'SIGKILL');
+      child.stdout.destroy(); child.stderr.destroy();
       rmSync(state, { recursive: true, force: true });
     },
   };

@@ -32,6 +32,7 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     outputs:
       services: ${{ steps.services.outputs.list }}
     defaults:
@@ -71,9 +72,10 @@ jobs:
         run: cargo install worker-build@"$WORKER_BUILD" --locked
 
       - name: End-to-end tests under wrangler dev
+        timeout-minutes: 15
         run: |
           for s in $(jq -r '.services[].name' services.json); do (cd "$s" && worker-build --release); done
-          E2E_NO_BUILD=1 node --test e2e/*.test.mjs
+          E2E_NO_BUILD=1 node --test --test-timeout=300000 --test-force-exit e2e/*.test.mjs
 
   build:
     needs: test

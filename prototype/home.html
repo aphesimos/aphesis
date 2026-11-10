@@ -545,8 +545,69 @@ function loop(now){
   requestAnimationFrame(loop);
 }
 /* ---------- theme and pause ---------- */
+/* ---------- theme shift (the same as Aphesis.themeShift in the design system's runtime) ---------- */
+const cssColor=cssRGB;
+  /* ================= THEME SHIFT ================= */
+  /* themeShift(apply, {origin, cell, fill, clear}): the change of theme as a stipple wave.
+     From the origin (the eye), square cells spread across the screen in the new theme's ground; in fog-shaped clumps
+     some of them are laid down as the new theme's fog points instead. When the wave is complete the screen already
+     looks like the new theme's fog: only then is the theme applied underneath (apply()), and the overlay melts away
+     while the real fog takes over its points. apply() must switch the theme (e.g. set data-theme). */
+  var shifting = false;
+  function themeShift(apply, o) {
+    o = o || {};
+    if (shifting) return; shifting = true;
+    var root = document.documentElement, before = root.getAttribute('data-theme');
+    /* read the new theme's colours without painting it: switch, read, switch back, all in one frame */
+    var dark = before ? before === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches, next = dark ? 'light' : 'dark';
+    root.setAttribute('data-theme', next); var BG = cssColor('--bg'), FG = cssColor('--fog');
+    if (before) root.setAttribute('data-theme', before); else root.removeAttribute('data-theme');
+    var cell = o.cell || 2, W = Math.ceil(innerWidth / cell), H = Math.ceil(innerHeight / cell);
+    var cv = document.createElement('canvas'); cv.width = W; cv.height = H; cv.setAttribute('aria-hidden', 'true');
+    cv.style.cssText = 'position:fixed;left:0;top:0;width:' + (W * cell) + 'px;height:' + (H * cell) + 'px;z-index:18;pointer-events:none;image-rendering:pixelated';
+    document.body.appendChild(cv);
+    var x = cv.getContext('2d'), img = x.createImageData(W, H), px = img.data;
+    var org = o.origin || [24, innerHeight - 24], ox = org[0] / cell, oy = org[1] / cell;
+    var far = Math.max(Math.hypot(ox, oy), Math.hypot(W - ox, oy), Math.hypot(ox, H - oy), Math.hypot(W - ox, H - oy));
+    /* per cell: when it turns (distance from the eye, loosened by a hash) and what it becomes (ground or a fog point) */
+    var at = new Float32Array(W * H), dot = new Uint8Array(W * H), r = rng(97);
+    var g = [], GS = 28, gw = Math.ceil(W / GS) + 2, gh = Math.ceil(H / GS) + 2;
+    for (var i = 0; i < gw * gh; i++) g.push(r());
+    function vn(cx, cy) { var X = cx / GS, Y = cy / GS, x0 = Math.floor(X), y0 = Math.floor(Y), fx = X - x0, fy = Y - y0; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+      var a = g[y0 * gw + x0], b = g[y0 * gw + x0 + 1], c = g[(y0 + 1) * gw + x0], d = g[(y0 + 1) * gw + x0 + 1];
+      return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy; }
+    for (var yy = 0; yy < H; yy++) for (var xx = 0; xx < W; xx++) {
+      var k = yy * W + xx, h = r();
+      at[k] = 0.72 * Math.hypot(xx - ox, yy - oy) / far + 0.28 * h;
+      var m = vn(xx, yy); dot[k] = (m > 0.6 && r() < (m - 0.6) * 1.15) || r() < 0.01 ? 1 : 0;
+    }
+    var mix = function (a, b, t) { return Math.round((a + (b - a) * t) * 255); };
+    var dotC = [mix(BG[0], FG[0], 0.55), mix(BG[1], FG[1], 0.55), mix(BG[2], FG[2], 0.55)], bgC = [BG[0] * 255, BG[1] * 255, BG[2] * 255];
+    var fill = o.fill || 1300, clear = o.clear || 900, t0 = null;
+    function frame(now) {
+      if (t0 === null) t0 = now;
+      var p = MJ((now - t0) / fill) * 1.04;
+      for (var k = 0, n = W * H; k < n; k++) {
+        var j = k * 4;
+        if (p >= at[k]) { var c = dot[k] ? dotC : bgC; px[j] = c[0]; px[j + 1] = c[1]; px[j + 2] = c[2]; px[j + 3] = 255; }
+        else px[j + 3] = 0;
+      }
+      x.putImageData(img, 0, 0);
+      if (now - t0 < fill) { requestAnimationFrame(frame); return; }
+      /* the screen is the new theme's fog: apply the theme beneath it, let the real fog paint, then melt away */
+      apply();
+      requestAnimationFrame(function () { requestAnimationFrame(function () { requestAnimationFrame(function () {
+        cv.style.transition = 'opacity ' + clear + 'ms cubic-bezier(.2,.7,.2,1)'; cv.style.opacity = '0';
+        setTimeout(function () { cv.remove(); shifting = false; }, clear + 60);
+      }); }); });
+    }
+    requestAnimationFrame(frame);
+  }
+
 $('bTheme').onclick=()=>{const r=document.documentElement;const escuro=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
-  r.dataset.theme=escuro?'light':'dark'; themeIcon(); setTimeout(()=>FOG.colors(),30); [100,300,600,850].forEach(ms=>setTimeout(()=>FOG.colors(),ms));};
+  const e=$('bTheme').getBoundingClientRect();
+  themeShift(()=>{r.dataset.theme=escuro?'light':'dark'; themeIcon(); FOG.colors(); [100,300,600,850].forEach(ms=>setTimeout(()=>FOG.colors(),ms));},
+    {origin:[e.left+e.width/2,e.top+e.height/2]});};
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>FOG.colors());
 /* ---------- opening ---------- */
 FOG.colors(); addEventListener('resize',()=>{ if(route==='') placeSeal(centerBox()); else placeSeal(cornerBox()); });

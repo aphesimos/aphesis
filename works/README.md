@@ -61,6 +61,18 @@ on the `section/works` branch (cut from `site`, merged back when finished).
 3. **Build:** `python3 works/build.py`. It checks every entry for the required fields, a unique id and an existing
    map, and stops with a message if one is wrong.
 
+## The content service
+
+Built with the content service's address, the page asks it for the published works (`GET /v1/works`) before it
+draws the line, waiting at most 3 s; it shows the service's works when they come and the ones in
+`content/works.json` otherwise (the service down, slow or empty). A work from the service has the fields of
+works.json, its map a URL served with CORS, loaded into a canvas for the simulacrum. Edits from the owner's desk are
+live with no rebuild.
+
+```sh
+python3 works/build.py --content-api https://content-api.aphes.ist     # or APHESIS_CONTENT_API in the environment
+```
+
 ## Files
 
 - `build.py`: writes `index.html` (one self-contained document) or, with `--fragment OUT`, the same page without
@@ -69,8 +81,8 @@ on the `section/works` branch (cut from `site`, merged back when finished).
   `src/assets.js`.
 - `src/`: small ES modules, concatenated in order by the build. `motion.js` (timing from the tokens, steps that a
   newer step overrules), `marks.js` (the line, the grain, the brushed underline), `theme.js` (the eye),
-  `picture.js` (the one simulacrum), `inscription.js` (the list), `work.js` (one work), `main.js` (shell and
-  routes); `template.html` and `works.css`.
+  `picture.js` (the one simulacrum), `inscription.js` (the list), `work.js` (one work), `content.js` (the content service's address and
+  works), `main.js` (shell and routes); `template.html` and `works.css`.
 - `content/works.json`: the works. `maps/`: their density maps. `tools/make_maps.mjs`: makes the maps.
 - `vendor/`: Special Elite (Apache License 2.0), embedded so the page carries both faces.
 

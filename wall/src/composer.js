@@ -67,6 +67,7 @@ export function createComposer(form, { api, onSent, say }) {
     const n = Array.from(input.value).length;
     count.textContent = n ? `${n} / ${MAX_LENGTH}` : '';
     count.classList.toggle('near', n > MAX_LENGTH - 20);
+    count.classList.toggle('aph-ink', n <= MAX_LENGTH - 20); /* red near the limit: out of the ink then */
     form.classList.toggle('has-text', n > 0);
     placeCaret();
   }
@@ -120,7 +121,7 @@ export function createComposer(form, { api, onSent, say }) {
   /* ---------- the line leaves the baseline ---------- */
   function release(text) {
     const ghost = document.createElement('span');
-    ghost.className = 'ghost';
+    ghost.className = 'ghost aph-ink';
     ghost.setAttribute('aria-hidden', 'true');
     ghost.textContent = text;
     const cs = getComputedStyle(input);

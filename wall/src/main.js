@@ -71,8 +71,10 @@ let quiet = null;
 function say(text, refused) {
   clearTimeout(quiet);
   status.textContent = text;
+  /* a refusal is red, so it leaves the black-and-white ink while it shows */
   status.classList.toggle('refused', !!refused);
-  quiet = setTimeout(() => { status.textContent = IDLE; status.classList.remove('refused'); }, refused ? 6000 : 4200);
+  status.classList.toggle('aph-ink', !refused);
+  quiet = setTimeout(() => { status.textContent = IDLE; status.classList.remove('refused'); status.classList.add('aph-ink'); }, refused ? 6000 : 4200);
 }
 status.textContent = IDLE;
 if (!api.live) $('line').dataset.tip = 'one line · no names · this preview keeps it on this device only';

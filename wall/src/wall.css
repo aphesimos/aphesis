@@ -29,11 +29,15 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   height: 64px; width: calc(64px * 385 / 533);
 }
 
-/* ---------- the section enters with a blur and a rise ---------- */
-#wall { position: fixed; inset: 0; z-index: var(--z-main); pointer-events: none; }
-#wallHead, #composer { animation: enter var(--duration-scene) var(--easing-settle) both; }
-#composer { animation-delay: .25s; }
-@keyframes enter { from { opacity: 0; filter: blur(10px); transform: translate(-50%, 14px); } to { opacity: 1; filter: blur(0); transform: translate(-50%, 0); } }
+/* ---------- the section enters with a blur and a rise ----------
+   #wall and the form never form a stacking context once they have entered (no z-index, transform or filter of
+   their own), so the .aph-ink text inside them blends with the fog itself while the theme shifts. The entrance
+   fills backwards only, so nothing of it stays behind. */
+#wall { position: absolute; inset: 0; pointer-events: none; }
+#wallHead { animation: enter var(--duration-scene) var(--easing-settle) backwards; }
+#composer { animation: enter-y var(--duration-scene) var(--easing-settle) .25s backwards; }
+@keyframes enter { from { opacity: 0; filter: blur(10px); transform: translate(-50%, 14px); } }
+@keyframes enter-y { from { opacity: 0; filter: blur(10px); transform: translateY(14px); } }
 
 /* ---------- gloss and title ---------- */
 #wallHead {
@@ -67,7 +71,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
 /* ---------- the line to write in ---------- */
 #composer {
-  position: absolute; left: 50%; transform: translateX(-50%); pointer-events: auto; margin: 0;
+  position: absolute; left: 0; right: 0; margin: 0 auto; pointer-events: auto;
   width: min(560px, calc(100vw - 2 * max(var(--space-4), 4vw)));
   bottom: calc(var(--space-6) + var(--space-3) + env(safe-area-inset-bottom, 0px));
 }

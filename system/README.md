@@ -54,6 +54,7 @@ Two faces, no others.
 Stipple is how areas exist. A density field (0 to 1) is compared, cell by cell, against a fixed threshold; where it passes, a square cell lights in `fog` (or a few in `accent`).
 
 - **Fog** (`Aphesis.Fog`): the ground of every screen. Density 1 at home, .62 inside a section; pointer light 1 at home, .4 inside. Register every text block as a calm zone (`fog.zones([...])`, up to 12), padded 10 to 20px.
+- **The clearing.** A section sets `clear` 1: the fog drifts out of the content's column to the sides and leaves only a sparse residue behind the text and pictures, still moving. The home keeps `clear` 0, and the fog flows back when it returns. A section whose subject is the fog itself may keep some (the descent: .4). The fog eases every change of `clear` on its own (minimum jerk, 1.8s); never snap it.
 - **Icon fill** (`Aphesis.stipple`): small squares inside a region on the 24-unit grid, size .42 to .95, a few hundred to 1,600 tries.
 - **Cells** are 2 CSS pixels and always square. Never antialias them, never round them.
 

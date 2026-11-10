@@ -208,22 +208,36 @@
   }
 
   /* ---------- Fog ----------
-     Fog(canvas, {density, light, cell}) -> {zones(rects), set({density, light}), stop(), start()}
+     Fog(canvas, {density, light, clear, clearWidth, cell}) -> {zones(rects), set({density, light, clear, clearWidth}), stop(), start()}
      the stippled ground of every screen. density 0..1 (home 1, inside a section .62); light: the soft rise of dots
-     around the pointer (home 1, section .4). zones: up to 12 calm rectangles behind text (elements or DOMRects). */
+     around the pointer (home 1, section .4). zones: up to 12 calm rectangles behind text (elements or DOMRects).
+     clear 0..1 (home 0, a section 1): the clearing. The fog drifts out of a central band to the sides, which keep
+     their fog, and leaves a sparse residue (about 12%) drifting in the band. Every change of clear is eased with
+     minimum jerk over 1.8s, never snapped. clearWidth: the band's width as a share of the screen's width; left out
+     (or null), it follows the screen: .66 on a wide one, .94 on a phone. */
   function Fog(cv, o) {
-    o = o || {}; var P = glField(cv, 'precision highp float;uniform vec2 R;uniform float T,D,C,S,X;uniform vec3 F,N,F2,N2;uniform vec2 P;uniform vec4 Z[12];' + NOISE + SWITCH_GLSL +
-      'void main(){vec2 cel=floor(gl_FragCoord.xy/S);vec2 uv=(cel*S-R*.5)/min(R.x,R.y);float d=fog(uv,T);' +
+    o = o || {}; var P = glField(cv, 'precision highp float;uniform vec2 R;uniform float T,D,C,S,X;uniform vec3 F,N,F2,N2;uniform vec2 P,Q;uniform vec4 Z[12];' + NOISE + SWITCH_GLSL +
+      'void main(){vec2 cel=floor(gl_FragCoord.xy/S);vec2 uv=(cel*S-R*.5)/min(R.x,R.y);' +
+      /* the clearing: Q = (clear, the band's half-width in uv). The noise is read from nearer the centre line, so the
+         masses are seen drifting out to the sides as clear rises; the band thins to a residue that keeps moving */
+      'float ax=abs(uv.x)/Q.y,ex=exp(-ax*ax);float d=fog(vec2(uv.x*(1.-Q.x*.6*ex),uv.y),T);' +
+      'float cl=Q.x*(1.-smoothstep(Q.x*.7,Q.x*.7+.45,ax));' +
       'float vin=smoothstep(1.45,.35,length(uv*vec2(.9,1.)))*.85+.15;vec2 pp=(P-R*.5)/min(R.x,R.y);float luz=exp(-dot(uv-pp,uv-pp)*7.)*.35;' +
       'float m=smoothstep(.44,.74,d);float dens=(m*.8+.012)*vin*D+luz*vin*C*m;' +
       'for(int i=0;i<12;i++){vec4 z=Z[i];if(z.z>0.){vec2 q=abs(gl_FragCoord.xy-z.xy)/z.zw;dens*=1.-.8*(1.-smoothstep(.45,1.05,length(q)));}}' +
+      'dens*=(1.-.88*cl)*(1.+.14*Q.x*smoothstep(.85,1.3,ax));' +
       /* a theme change spreads through the fog in soft patches with grainy edges */
       'float s=sw(cel,uv,X);vec3 Fc=mix(F,F2,s),Nc=mix(N,N2,s);' +
-      'gl_FragColor=vec4(mix(Fc,Nc,step(h(cel),dens)*.55),1.);}', ['R', 'T', 'D', 'C', 'S', 'X', 'F', 'N', 'F2', 'N2', 'P', 'Z', 'SO', 'SF']);
+      'gl_FragColor=vec4(mix(Fc,Nc,step(h(cel),dens)*.55),1.);}', ['R', 'T', 'D', 'C', 'S', 'X', 'F', 'N', 'F2', 'N2', 'P', 'Q', 'Z', 'SO', 'SF']);
     if (!P) return { zones: function () {}, set: function () {}, stop: function () {}, start: function () {}, destroy: function () {} };
     var gl = P.gl, U = P.U, colors = palette(cv, ['--bg', '--fog']);
     var ptr = null, sm = null, t = 0, last = performance.now(), zEls = [], ZB = new Float32Array(48);
     var dens = o.density === undefined ? 1 : o.density, light = o.light === undefined ? 1 : o.light, dpr = 1;
+    /* the clearing eases from where it is to its new target with minimum jerk; setting the same value again
+       (a shell that sets every frame) does not restart it */
+    var CLEAR_MS = 1800, clr = { from: o.clear || 0, to: o.clear || 0, t0: -1 }, clearW = o.clearWidth == null ? null : o.clearWidth;
+    function clearAt(now) { if (clr.t0 < 0) return clr.to; var k = REDUCED ? 1 : clamp((now - clr.t0) / CLEAR_MS); if (k >= 1) { clr.t0 = -1; clr.from = clr.to; return clr.to; } return lerp(clr.from, clr.to, MJ(k)); }
+    function setClear(v) { v = clamp(+v || 0); if (Math.abs(v - clr.to) < 1e-4) return; var now = performance.now(); clr.from = clearAt(now); clr.to = v; clr.t0 = now; }
     function onMove(e) { var r = cv.getBoundingClientRect(); ptr = [e.clientX - r.left, e.clientY - r.top]; }
     window.addEventListener('pointermove', onMove);
     var L = loop(function (now) {
@@ -238,12 +252,15 @@
       var c = colors(now);
       gl.uniform4fv(U.Z, ZB); gl.uniform2f(U.R, cv.width, cv.height); gl.uniform1f(U.T, t); gl.uniform1f(U.S, 1);
       gl.uniform3fv(U.F, c.a[0]); gl.uniform3fv(U.N, c.a[1]); gl.uniform3fv(U.F2, c.b[0]); gl.uniform3fv(U.N2, c.b[1]); gl.uniform1f(U.X, c.x); waveUniforms(gl, U, cv, dpr, c); gl.uniform2f(U.P, sm[0] * dpr, cv.height - sm[1] * dpr); gl.uniform1f(U.D, dens); gl.uniform1f(U.C, light);
+      var cw = clearW == null ? lerp(0.94, 0.66, clamp((R.width - 480) / 720)) : clamp(clearW, 0.05, 1);
+      gl.uniform2f(U.Q, clearAt(now), Math.max(1e-3, cw * 0.5 * cv.width / Math.min(cv.width, cv.height)));
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     });
     L.start();
     return {
       zones: function (list) { zEls = (list || []).map(function (z) { return z instanceof Element ? { el: z } : z; }); },
-      set: function (k) { if (k.density !== undefined) dens = k.density; if (k.light !== undefined) light = k.light; },
+      set: function (k) { if (!k) return; if (k.density !== undefined) dens = k.density; if (k.light !== undefined) light = k.light;
+        if (k.clear !== undefined) setClear(k.clear); if (k.clearWidth !== undefined) clearW = k.clearWidth; },
       stop: L.stop, start: function () { if (P.released) return; last = performance.now(); L.start(); },
       /* destroy(): stop for good: the loop, the pointer and theme listeners, and the WebGL context */
       destroy: function () { L.stop(); window.removeEventListener('pointermove', onMove); colors.off(); P.release(); }

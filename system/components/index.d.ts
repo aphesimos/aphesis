@@ -1,7 +1,13 @@
 /** aphes.ist runtime: window.Aphesis (plain JavaScript, no framework). */
 type Pt = [number, number];
 interface FogZone { el?: Element; pad?: number; left?: number; top?: number; width?: number; height?: number }
-interface FogProps { density?: number; light?: number }
+interface FogProps {
+  density?: number; light?: number;
+  /** the clearing, 0..1 (home 0, a section 1): the fog drifts out of a central band to the sides, leaving a sparse residue. Eased with minimum jerk over 1.8 s. */
+  clear?: number;
+  /** the band's width as a share of the screen's width; null or left out follows the screen (.66 wide, .94 on a phone) */
+  clearWidth?: number | null;
+}
 interface SimulacrumSource { src: string | HTMLImageElement | HTMLCanvasElement; gain?: number; scatter?: number; erosion?: number; ceiling?: number }
 interface SimulacrumProps { sound?: boolean; source?: string | HTMLImageElement | HTMLCanvasElement | SimulacrumSource; scatter?: number; erosion?: number; ceiling?: number; fit?: 'contain' | 'cover'; gain?: number; cell?: number; accent?: number; margin?: number; ground?: boolean }
 interface IconsProps { name: 'eye' | 'sol' | 'luna' | 'terminator' | 'threshold' | 'ear'; state?: 0 | 1 }

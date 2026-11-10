@@ -1,0 +1,188 @@
+/* forum · ἀγορά
+   layout: one column of text (52 to 65 characters a line) on the section's fog (density .62, light .4), which clears
+   behind the column. the seal holds the top-left corner, the eye the bottom-left, the passage corner stays free:
+   on narrow screens the column scrolls between them, dissolving at its edges, so text never passes under a corner.
+   nothing has a box: posts are grouped by space, the form's only line is a brush stroke, pictures are stipple. */
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; overflow: hidden; background: var(--bg); color: var(--ink);
+  font: var(--type-body-weight) var(--type-body-size)/var(--type-body-line) var(--font-text);
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--duration-theme) var(--easing-settle), color var(--duration-theme) var(--easing-settle);
+}
+a { color: inherit; }
+button { font: inherit; letter-spacing: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; border-radius: var(--radius-none); text-transform: lowercase; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+[hidden] { display: none !important; }
+:focus { outline: none; }
+:focus-visible { outline: 1px solid var(--accent); outline-offset: 4px; }
+
+#fog { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: var(--z-fog); pointer-events: none;
+  opacity: 0; transition: opacity var(--duration-scene) var(--easing-settle); }
+#fog.on { opacity: 1; }
+
+/* the seal: closed into the corner, it leads home */
+#seal {
+  position: fixed; z-index: var(--z-seal); display: block; color: var(--seal);
+  left: calc(var(--space-4) + env(safe-area-inset-left, 0px)); top: calc(var(--space-4) + env(safe-area-inset-top, 0px));
+  height: 64px; width: calc(64px * 385 / 533);
+}
+
+/* ---------- the column ---------- */
+#scroller {
+  position: fixed; inset: 0; z-index: var(--z-main); overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  transition: opacity var(--duration-scene) var(--easing-settle), filter var(--duration-scene) var(--easing-settle);
+}
+#scroller.away { opacity: 0; filter: blur(10px); pointer-events: none; }
+#forum {
+  max-width: 640px; margin: 0 auto;
+  padding: var(--space-7) max(16px, env(safe-area-inset-right, 0px)) var(--space-8) max(16px, env(safe-area-inset-left, 0px));
+}
+@media (max-width: 820px) {
+  #scroller {
+    top: calc(96px + env(safe-area-inset-top, 0px)); bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--space-4), #000 calc(100% - var(--space-5)), transparent);
+    mask-image: linear-gradient(to bottom, transparent, #000 var(--space-4), #000 calc(100% - var(--space-5)), transparent);
+  }
+  #forum { padding-top: var(--space-4); padding-bottom: var(--space-6); }
+}
+
+/* the title: its gloss above it, both leaning at -12 */
+h1 {
+  font: 400 clamp(44px, 8vw, 96px)/1 var(--font-display); font-variation-settings: "wght" 400, "slnt" -12;
+  margin: 0; padding-right: .2em; text-transform: lowercase;
+}
+h1 .gloss {
+  display: block; font: 400 var(--type-gloss-title-size)/1 var(--font-display); font-variation-settings: "wght" 400, "slnt" -12;
+  letter-spacing: var(--type-gloss-title-tracking); color: var(--ink-soft); margin-bottom: var(--space-3); padding: .2em .2em 0 0;
+}
+h1 .w { display: inline-block; }
+.lede { font-size: var(--type-lede-size); line-height: var(--type-lede-line); margin: var(--space-4) 0 0; max-width: 52ch; }
+.tools { margin: var(--space-3) 0 0; display: flex; gap: var(--space-4); align-items: baseline; flex-wrap: wrap; }
+.tools button, .tools #note { color: var(--ink-soft); letter-spacing: var(--type-meta-tracking); padding: var(--space-1) 0; }
+.tools button:hover { color: var(--accent-text); }
+
+.is-thread .lede { display: none; }
+.is-thread h1 { font-size: clamp(40px, 6vw, 64px); }
+
+/* ---------- entrances: a blur and a rise, never typed ---------- */
+.enter { opacity: 0; filter: blur(10px); transform: translateY(14px); }
+.in { transition: opacity var(--duration-scene) var(--easing-settle), filter var(--duration-scene) var(--easing-settle), transform var(--duration-scene) var(--easing-settle);
+  transition-delay: calc(min(var(--i, 0), 10) * 60ms); }
+#view.leaving { opacity: 0; filter: blur(6px); transition: opacity var(--duration-quick) var(--easing-settle), filter var(--duration-quick) var(--easing-settle); }
+
+/* labels that act: lowercase, tracked, no boxes */
+.act { font-size: var(--type-label-size); letter-spacing: var(--type-label-tracking); line-height: 1; padding: var(--space-2) 0; color: var(--ink); text-decoration: none; display: inline-block; }
+.act:hover { color: var(--accent-text); }
+.act[disabled] { color: var(--ink-soft); }
+
+/* ---------- the board ---------- */
+.board-top { margin-top: var(--space-6); }
+.threads { list-style: none; margin: var(--space-5) 0 0; padding: 0; }
+.row { display: grid; grid-template-columns: 88px 1fr; gap: var(--space-4); align-items: center; padding: var(--space-3) 0; text-decoration: none; color: var(--ink); }
+.row .thumb { width: 88px; min-height: 40px; display: grid; place-items: center; color: var(--fog); }
+.row .first { display: block; line-height: 1.55; }
+.row:hover .first, .row:focus-visible .first { color: var(--accent-text); }
+.row .meta { display: block; margin-top: var(--space-1); }
+.row .noimg { color: var(--ink-soft); font-size: var(--type-meta-size); letter-spacing: var(--type-meta-tracking); }
+.empty { color: var(--ink-soft); }
+
+/* ---------- a thread ---------- */
+.crumbs { margin: var(--space-5) 0 0; }
+.posts { list-style: none; margin: var(--space-5) 0 0; padding: 0; }
+.post { padding: var(--space-4) 0; display: flow-root; scroll-margin-top: var(--space-6); }
+/* a post reached by a quote or a route takes focus without a ring: its sigil turning rubedo is the sign */
+.post:focus, .post:focus-visible { outline: none; }
+.pm { display: flex; align-items: center; flex-wrap: wrap; gap: 0 var(--space-2); margin: 0; }
+.pm .sigil { width: 36px; height: 36px; color: var(--ink-soft); display: inline-block; margin-right: var(--space-1);
+  transition: color var(--duration-slow) var(--easing-settle); }
+.pm .sigil svg { width: 100%; height: 100%; display: block; }
+.post.hit .sigil { color: var(--accent); }
+.pm .num { color: var(--ink); text-decoration: none; }
+.pm button, .pm .num { padding: var(--space-1) 0; }
+.pm button { color: var(--ink-soft); }
+.pm button:hover, .pm .num:hover { color: var(--accent-text); }
+.pm .op { color: var(--ink-soft); }
+.body { margin: var(--space-2) 0 0; overflow-wrap: anywhere; max-width: 62ch; }
+.body .q { color: var(--ink-soft); }
+a.ref { color: var(--ink-soft); text-decoration: none; padding: 2px 0; }
+a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
+.removed .body { color: var(--ink-soft); }
+
+/* a picture in a post: a still simulacrum, opened as a live one */
+.pic { float: left; margin: var(--space-2) var(--space-4) var(--space-2) 0; max-width: 45%; }
+.pic .open { display: block; color: var(--fog); line-height: 0; }
+.pic .open svg { display: block; max-width: 100%; height: auto; }
+.pic figcaption { margin-top: var(--space-1); max-width: 200px; }
+.pic figcaption a, .textpic a { color: var(--ink-soft); text-decoration: none; }
+.pic figcaption a:hover { color: var(--accent-text); }
+.textpic { margin: var(--space-2) 0 0; }
+.textpic a { color: var(--ink-soft); }
+.still { display: block; }
+@media (max-width: 520px) {
+  .pic { float: none; max-width: 100%; margin-right: 0; }
+}
+
+/* ---------- the form ---------- */
+.composer { margin-top: var(--space-5); }
+.composer textarea {
+  display: block; width: 100%; min-height: 7.2em; max-height: 60vh; resize: none; overflow-y: auto; margin: 0; padding: var(--space-2) 0;
+  background: transparent; border: 0; border-radius: var(--radius-none); color: var(--ink);
+  font: var(--type-body-weight) var(--type-body-size)/var(--type-body-line) var(--font-text); text-shadow: inherit;
+}
+.composer textarea::placeholder { color: var(--ink-soft); opacity: 1; }
+.composer textarea:focus-visible { outline: none; }
+.baseline { display: block; width: 100%; height: 8px; color: var(--ink-soft); transition: color var(--duration-slow) var(--easing-settle); }
+.baseline path { fill: currentColor; }
+.composer:focus-within .baseline { color: var(--accent); }
+.crow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+.crow .grow { flex: 1; }
+.file { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.file:focus-visible + label { outline: 1px solid var(--accent); outline-offset: 4px; }
+.attach { cursor: pointer; }
+.chosen { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-3); color: var(--fog); }
+.chosen .act { color: var(--ink-soft); }
+.count { color: var(--ink-soft); }
+.status { min-height: 1.7em; margin: var(--space-2) 0 0; }
+.status.err { color: var(--accent-text); }
+.ts { margin-top: var(--space-3); }
+
+/* ---------- the viewer: one live simulacrum over the fog ---------- */
+#viewer { position: fixed; inset: 0; z-index: var(--z-main); pointer-events: none; }
+#vbar { pointer-events: auto; }
+.layer { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; display: block; pointer-events: none;
+  opacity: 0; transition: opacity var(--duration-scene) var(--easing-settle); }
+.layer.on { opacity: 1; }
+.vstill { position: fixed; inset: 0; display: grid; place-items: center; color: var(--fog); pointer-events: none;
+  opacity: 0; transition: opacity var(--duration-scene) var(--easing-settle); }
+.vstill.on { opacity: 1; }
+#vbar { position: fixed; z-index: var(--z-corner); text-align: right; max-width: min(380px, calc(100vw - 140px));
+  right: max(16px, calc(var(--space-4) + env(safe-area-inset-right, 0px))); top: calc(var(--space-5) + env(safe-area-inset-top, 0px));
+  opacity: 0; transition: opacity var(--duration-scene) var(--easing-settle); }
+#vbar.on { opacity: 1; }
+#vbar p { margin: 0; }
+.vctl { display: flex; gap: var(--space-4); justify-content: flex-end; margin-top: var(--space-2) !important; }
+.vctl a, .vctl button { color: var(--ink); text-decoration: none; padding: var(--space-1) 0; }
+.vctl a:hover, .vctl button:hover { color: var(--accent-text); }
+
+/* the quoted post, beside a >>n reference: the tooltip's own look, shown whole */
+.quote-tip { max-width: min(340px, calc(100vw - 32px)); }
+.quote-tip .qs { display: inline-block; width: 18px; height: 18px; vertical-align: -4px; margin-right: var(--space-2); color: var(--ink-soft); }
+.quote-tip .qs svg { width: 100%; height: 100%; display: block; }
+
+/* ---------- corners ---------- */
+#controls {
+  position: fixed; z-index: var(--z-corner); display: flex; align-items: center; gap: var(--space-2);
+  left: calc(var(--space-3) + env(safe-area-inset-left, 0px)); bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+}
+#controls button { padding: var(--space-2); }
+#controls button:focus-visible { outline-offset: 2px; }
+#bTheme { width: 46px; height: 46px; position: relative; color: var(--accent); }
+#bTheme .eye { position: absolute; inset: var(--space-2); display: block; transform-origin: 50% 50%;
+  transition: opacity var(--duration-quick) var(--easing-settle), transform var(--duration-slow) var(--easing-settle); }
+#bTheme .eye svg { width: 100%; height: 100%; display: block; overflow: visible; }
+#bTheme .eye.closed { opacity: 0; transform: scaleY(.2) translateY(-4px); }
+.is-dark #bTheme .eye.open { opacity: 0; transform: scaleY(.08); }
+.is-dark #bTheme .eye.closed { opacity: 1; transform: none; }

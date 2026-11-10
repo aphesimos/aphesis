@@ -1,0 +1,32 @@
+# forum · ἀγορά: the Worker behind the board. Placeholders only: no real ids, no secrets.
+# Secrets are set with `wrangler secret put` (see README.md): TURNSTILE_SECRET, IP_SALT, POSTER_SALT, ADMIN_SECRET.
+
+name = "aphesis-forum"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+[vars]
+# the site's origin(s), comma-separated; CORS answers only these
+ALLOWED_ORIGINS = "https://aphes.is"
+# requests per window for each IP hash
+RATE_POSTS = "4"
+RATE_THREADS = "1"
+RATE_WINDOW_SECONDS = "120"
+# threads kept on the board; older ones fall off and are deleted
+BOARD_LIMIT = "120"
+
+[[durable_objects.bindings]]
+name = "THREADS"
+class_name = "Thread"
+
+[[durable_objects.bindings]]
+name = "BOARD"
+class_name = "Board"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Thread", "Board"]
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "aphesis-forum-images"   # placeholder: create it with `wrangler r2 bucket create`

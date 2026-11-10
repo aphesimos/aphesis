@@ -1,0 +1,52 @@
+<title>aphes.is forum</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="forum · ἀγορά: an anonymous board where every voice is a sigil and every picture is fog.">
+<meta name="forum-api" content="">
+<meta name="forum-turnstile" content="">
+<style>
+/*__CSS__*/
+</style>
+<!--__BODY__-->
+<canvas id="fog" aria-hidden="true"></canvas>
+
+<a id="seal" href="#home" aria-label="aphes.is · back to the center" data-tip="back to the center" data-cursor=".9"></a>
+
+<div id="scroller" tabindex="-1">
+  <main id="forum" class="aph-on-fog">
+    <header id="head">
+      <h1 tabindex="-1"><span class="gloss" lang="grc">ἀγορά</span><span class="w">forum</span></h1>
+      <p class="lede">talk without names. each voice gets a sigil, the same one all through a thread; every picture arrives as fog.</p>
+      <p class="tools aph-meta">
+        <button id="bImages" type="button" aria-pressed="true" data-cursor=".55" data-tip="pictures as fog, or words only">images · on</button>
+        <span id="note" hidden></span>
+      </p>
+    </header>
+    <div id="view"></div>
+  </main>
+</div>
+
+<div id="viewer" hidden>
+  <canvas id="vcanvas" class="layer" aria-hidden="true"></canvas>
+  <div id="vstill" class="vstill" aria-hidden="true"></div>
+  <div id="vbar" class="aph-on-fog" role="dialog" aria-modal="true" aria-labelledby="vcap">
+    <p id="vcap" class="aph-meta"></p>
+    <p class="vctl aph-meta">
+      <a id="vorig" href="#" target="_blank" rel="noopener noreferrer" data-cursor=".55" aria-label="the original image, in a new tab">original</a>
+      <button id="vclose" type="button" data-cursor=".55">close</button>
+    </p>
+  </div>
+</div>
+
+<div class="corner" id="controls">
+  <button id="bTheme" type="button" aria-label="switch between light and dark" data-tip="open · close the eye" data-cursor=".55"><span class="eye open"></span><span class="eye closed"></span></button>
+</div>
+
+<div class="aph-tip quote-tip" id="qtip" aria-hidden="true"></div>
+<div class="sr" id="announce" aria-live="polite"></div>
+
+<script>
+/*__BUNDLE__*/
+</script>
+<script>
+/*__SCRIPT__*/
+</script>

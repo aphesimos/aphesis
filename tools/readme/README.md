@@ -10,7 +10,12 @@ Inputs:
   `node -e "global.window={};global.matchMedia=()=>({matches:false,addEventListener(){}});require('./bundle.js');const A=window.Aphesis;const o={phi:A.PHI};[['eye0','eye',0],['eye1','eye',1],['sol','sol',0],['luna','luna',0],['term0','terminator',0],['term1','terminator',1],['thr0','threshold',0],['thr1','threshold',1]].forEach(([k,n,s])=>o[k]=A.ICONS[n](s));require('fs').writeFileSync('marks.json',JSON.stringify(o))"`;
 - `AphesisScript-VF.ttf` from `font` (`dist/variable/`);
 - Special Elite (Apache 2.0) from Google Fonts;
-- the density maps from `design-system` (`system/assets/Simulacra/`).
+- the density maps from `design-system` (`system/assets/Simulacra/`);
+- `engine_frames.json` (here): the φ as the brush engine draws it on the home, one outline per frame. The hero and the
+  `mark` image play these frames back, so the README shows exactly the site's gesture: the stem rising from its tip at
+  the bottom, then the ring swept around to the free end. To record it again from a checkout of `mark`:
+  `node tools/readme/engine_frames.js <mark>/engine 30 && python3 tools/readme/simplify_frames.py 0.7`, then add
+  `"bbox": [173, 45, 829, 955]` (the φ's box in engine units) to the result.
 
 ```bash
 python3 tools/readme/make_readme_svgs.py --tokens <tokens.json> --aphesis <AphesisScript-VF.ttf> --elite <SpecialElite.ttf> --maps <Simulacra/> --out assets/readme

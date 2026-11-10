@@ -33,6 +33,7 @@ ap.add_argument('--marks', default=os.path.join(HERE, 'marks.json'))
 ap.add_argument('--aphesis', default=os.path.join(HERE, 'AphesisScript-VF.ttf'))
 ap.add_argument('--elite', default=os.path.join(HERE, 'SpecialElite.ttf'))
 ap.add_argument('--maps', default=os.path.join(HERE, 'maps'))
+ap.add_argument('--frames', default=os.path.join(HERE, 'engine_frames.json'))
 ap.add_argument('--out', default=os.path.join(HERE, 'out'))
 ARGS = ap.parse_args()
 os.makedirs(ARGS.out, exist_ok=True)
@@ -172,6 +173,26 @@ def phi_group(x, y, h, color, draw=True, dur=14, boil=True, fid='boil'):
     return ('<defs>%s%s</defs><g transform="translate(%s %s) scale(%s)">%s<path d="%s" fill="%s" fill-rule="evenodd"%s%s/></g>'
             % (filt, mask, f(tx), f(ty), f(s), fade, PHI['d'], color, ' filter="url(#%s)"' % fid if boil else '', ' mask="url(#pen)"' if draw else ''))
 
+ENGINE = None
+def phi_drawn(x, y, h, color, dur=14, start=.6, fid='boilE'):
+    """the φ drawn by the brush engine itself: the outlines it produces on the home, recorded frame by frame
+    (engine_frames.json, see tools/readme/README.md) and played back with a discrete SMIL animation of `d`.
+    Same gesture, same timing (minimum-jerk pen, 2/3 power law), same boil."""
+    global ENGINE
+    if ENGINE is None: ENGINE = json.load(open(ARGS.frames))
+    fr = [p or 'M%d %dl0 0z' % (ENGINE['bbox'][0] + 326, ENGINE['bbox'][3]) for p in ENGINE['frames']]   # an empty path is an invalid SMIL value
+    n = len(fr) - 1; draw = ENGINE['dur']
+    x0, y0, x1, y1 = ENGINE['bbox']; s = h / (y1 - y0); tx, ty = x - x0 * s, y - y0 * s
+    kt = [0] + [(start + i / n * draw) / dur for i in range(n + 1)]
+    vals = [fr[0]] + fr
+    filt = ('<filter id="%s" x="-5%%" y="-5%%" width="110%%" height="110%%"><feTurbulence type="fractalNoise" baseFrequency=".03" numOctaves="1" seed="2">'
+            '<animate attributeName="seed" dur="1s" repeatCount="indefinite" calcMode="discrete" values="2;7;13;21;34;55;89;144"/></feTurbulence>'
+            '<feDisplacementMap in="SourceGraphic" scale="7" xChannelSelector="R" yChannelSelector="G"/></filter>' % fid)
+    return ('<defs>%s</defs><g transform="translate(%s %s) scale(%s)">'
+            '<animate attributeName="opacity" dur="%ss" repeatCount="indefinite" keyTimes="0;.86;.93;1" values="1;1;0;0"/>'
+            '<path fill="%s" filter="url(#%s)" d="%s"><animate attributeName="d" dur="%ss" repeatCount="indefinite" calcMode="discrete" keyTimes="%s" values="%s"/></path></g>'
+            % (filt, f(tx), f(ty), f(s), dur, color, fid, fr[0], dur, ';'.join(f(k) for k in kt), ';'.join(vals)))
+
 def icon(name, x, y, size, color, inner=''):
     g = MARKS[name]; s = size / 24
     return '<g transform="translate(%s %s) scale(%s)">%s<path d="%s" fill="%s"/>%s</g>' % (f(x), f(y), f(s), inner, g['strokes'], color,
@@ -231,7 +252,7 @@ def hero():
     tag = 'what is loosed below is loosed above.'   # the Emerald Tablet, turned toward the name: aphesis, a loosing
     passage = 'solve et coagula'
     def body(T, tid):
-        return (fog_svg(layers, T['fog']) + phi_group(190, 40, 420, T['seal']) +
+        return (fog_svg(layers, T['fog']) + phi_drawn(190, 40, 420, T['seal']) +
                 '<text x="560" y="262" class="aphu halo" font-size="150" fill="%s">aφesis</text>' % T['ink'] +
                 '<text x="566" y="318" class="elite halo" font-size="19" letter-spacing="1.5" fill="%s">%s</text>' % (T['ink-soft'], tag.replace('φ', '<tspan class="aphu">φ</tspan>')) +
                 typed('>> ' + passage, 1176, 476, 13, T['accent-text'], 14, 3.2, 5.5, anchor='end', spacing=1.6) +
@@ -352,7 +373,7 @@ def mark():
     W, H = 1200, 520
     layers = fog_layers(W, H, 4, 31, [(600, 260, 230, 270)], amount=.8)
     def body(T, tid):
-        return fog_svg(layers, T['fog']) + phi_group(600 - 170, 30, 460, T['seal'], dur=10)
+        return fog_svg(layers, T['fog']) + phi_drawn(600 - 166, 30, 460, T['seal'], dur=10)
     svg('mark', W, H, body, '', '', 'the φ, drawn')
 
 # ------------------------------------------------------------------ 9. site (site): the home, small

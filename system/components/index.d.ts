@@ -14,7 +14,9 @@ interface EyeProps { size?: number; gaze?: 'auto' | 'pointer' | Element; follow?
 interface EyeHandle { el: Element; blink(): void; close(ticks?: number): void; open(): void; wide(ticks?: number): void; squint(ticks?: number): void; look(x: number, y: number): void; typed(): void; on(fn: (s: { blink: EyeBlink; gaze: EyeGaze; frame: number; tick: number }) => void): void; readonly state: { blink: EyeBlink; gaze: EyeGaze; frame: number; tick: number }; readonly drawn: boolean; start(): void; stop(): void; destroy(): void }
 interface SimulacrumSource { src: string | HTMLImageElement | HTMLCanvasElement; gain?: number; scatter?: number; erosion?: number; ceiling?: number }
 interface SimulacrumProps { sound?: boolean; source?: string | HTMLImageElement | HTMLCanvasElement | SimulacrumSource; scatter?: number; erosion?: number; ceiling?: number; fit?: 'contain' | 'cover'; gain?: number; cell?: number; accent?: number; margin?: number; ground?: boolean; legible?: boolean | number }
-interface IconsProps { name: 'eye' | 'sol' | 'luna' | 'terminator' | 'threshold' | 'ear'; state?: 0 | 1 }
+type SectionIcon = 'book' | 'descent' | 'archive' | 'laboratory' | 'works' | 'wall' | 'forum' | 'music';
+/** state: 0 at rest, 1 the second drawing (for a section icon: chosen, its stipple gathered) */
+interface IconsProps { name: 'eye' | 'sol' | 'luna' | 'terminator' | 'threshold' | 'ear' | SectionIcon; state?: 0 | 1 }
 interface BrushProps { points: Pt[]; width: number; seed: number; taper?: number; wobble?: number }
 interface SealProps { boil?: boolean }
 interface TypistProps { el: Element; caret?: Element }
@@ -60,6 +62,8 @@ interface Aphesis {
   line(x0: number, y0: number, x1: number, y1: number, n?: number): Pt[];
   stipple(test: (x: number, y: number) => boolean, seed: number, count: number, size?: number, box?: number): string;
   icon(name: IconsProps['name'], state?: 0 | 1): string;
+  /** the eight sections in the home's order, each also an icon name */
+  SECTIONS: SectionIcon[];
   seal(el: Element, opts?: SealProps): { stop(): void };
   Fog(canvas: HTMLCanvasElement, opts?: FogProps): { zones(list: (Element | FogZone)[]): void; set(o: FogProps): void; stop(): void; start(): void; destroy(): void };
   Simulacrum(canvas: HTMLCanvasElement, opts?: SimulacrumProps): { show(src?: SimulacrumProps['source'], done?: () => void): void; hide(done?: () => void): void; set(src: SimulacrumProps['source'], done?: () => void): void; stop(): void; start(): void; drawn(cb: () => void): void; destroy(): void };

@@ -98,10 +98,14 @@
       return { strokes: d, dots: st ? stipple(function (x, y) { return (y > 10.5 && x > 7.6 && x < 16.4 && y < 20.4) || (inC(12, 10.5, 4.4)(x, y) && y <= 10.5); }, 66, 1600) : '' };
     }
   };
-  /* icon(name, state) -> inline SVG markup. Size it with CSS; color it with `color`. */
+  /* icon(name, state) -> inline SVG markup. Size it with CSS; color it with `color`. The stipple comes as one group
+     (.aph-st) of two interleaved paths, so a hover can stir them against each other (CSS: .aph-icon); the group's origin
+     is the point the cells gather toward. */
   function icon(name, st) {
-    var g = ICONS[name](st || 0);
-    return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="overflow:visible"><path d="' + g.strokes + '" fill="currentColor"/>' + (g.dots ? '<path d="' + g.dots + '" fill="currentColor" opacity=".85"/>' : '') + '</svg>';
+    var g = ICONS[name](st || 0), o = g.gather || [12, 12], a = '', b = '';
+    if (g.dots) g.dots.split('M').slice(1).forEach(function (q, j) { if (j % 2) b += 'M' + q; else a += 'M' + q; });
+    return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="overflow:visible"><path d="' + g.strokes + '" fill="currentColor"/>' +
+      (g.dots ? '<g class="aph-st" opacity=".85" style="transform-origin:' + o[0] + 'px ' + o[1] + 'px"><path d="' + a + '" fill="currentColor"/>' + (b ? '<path d="' + b + '" fill="currentColor"/>' : '') + '</g>' : '') + '</svg>';
   }
 
   /* ================= SEAL ================= */
@@ -1006,6 +1010,126 @@
   })();
   ICONS.ear = function (st) { return st ? { strokes: EAR.ear + EAR.slash, dots: EAR.loose } : { strokes: EAR.ear, dots: EAR.waves.join('') }; };
   /* note: state 0 is listening, 1 muted (as the eye: 0 open, 1 closed) */
+
+  /* ================= SECTION ICONS ================= */
+  /* the eight sections as marks, for where their names would crowd (the home's inscription on a phone). Each is one to
+     three brush strokes and a little stipple on the 24-unit grid. State 0 is at rest; state 1 is chosen (the first tap):
+     the same cells gather toward the mark's heart, closer and a little denser. Hovering or focusing stirs the stipple
+     (CSS: .aph-icon). Seeds 201 to 299 belong to them. */
+  /* grain(x, y): a fixed value 0..1 per point, so a stipple can thin with a gradient and stay the same on every visit */
+  function grain(x, y) { var s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); }
+  /* sow(test, seed, count, size, g, k): stipple() whose cells are drawn toward g by the factor k (1 = where they fell) */
+  function sow(test, seed, count, size, g, k) {
+    var r = rng(seed), d = '';
+    for (var i = 0; i < count; i++) {
+      var x = r() * 24, y = r() * 24;
+      if (test(x, y)) {
+        var s = size * (0.7 + r() * 0.6), X = g[0] + (x - g[0]) * k, Y = g[1] + (y - g[1]) * k;
+        d += 'M' + (X - s / 2).toFixed(2) + ' ' + (Y - s / 2).toFixed(2) + 'h' + s.toFixed(2) + 'v' + s.toFixed(2) + 'h' + (-s).toFixed(2) + 'z';
+      }
+    }
+    return d;
+  }
+  function chain() { var p = arguments[0].slice(); for (var i = 1; i < arguments.length; i++) p = p.concat(arguments[i].slice(1)); return p; }
+  function inE(cx, cy, rx, ry) { return function (x, y) { var u = (x - cx) / rx, v = (y - cy) / ry; return u * u + v * v < 1; }; }
+  /* a section icon: strokes drawn once; fields [test, seed, tries, size], sown loose (0) or gathered (1) toward g by k */
+  function sectionIcon(strokes, fields, g, k) {
+    k = k || 0.72;
+    var memo = {};
+    return function (st) {
+      st = st ? 1 : 0;
+      if (!memo[st]) memo[st] = { strokes: strokes, dots: fields.map(function (f) { return sow(f[0], f[1], st ? Math.round(f[2] * 1.25) : f[2], f[3], g, st ? k : 1); }).join(''), gather: g };
+      return memo[st];
+    };
+  }
+  var SECTIONS = ['book', 'descent', 'archive', 'laboratory', 'works', 'wall', 'forum', 'music'];
+
+  /* book (liber): an open codex, two leaves bowing into the spine, a few lines of text in stipple on each */
+  (function () {
+    var left = chain(bez([12, 7.6], [9.4, 5.4], [6, 5.3], [3.2, 6.4], 18), line(3.2, 6.4, 3.4, 17.6, 14), bez([3.4, 17.6], [6.2, 16.6], [9.6, 16.8], [12, 18.9], 18));
+    var right = chain(bez([12, 7.6], [14.6, 5.4], [18, 5.3], [20.8, 6.4], 18), line(20.8, 6.4, 20.6, 17.6, 14), bez([20.6, 17.6], [17.8, 16.6], [14.4, 16.8], [12, 18.9], 18));
+    var strokes = brush(left, 1.6, 201, 0.1) + brush(right, 1.6, 203, 0.1) + brush(line(12, 8.4, 12, 18.2, 16), 1.05, 205, 0.3, 0.05);
+    function text(x, y) {
+      var u = x < 12 ? (12 - x) / 8.8 : (x - 12) / 8.8; if (u < 0.12 || u > 0.86) return false;
+      var b = y - (1.5 * (1 - u) * (1 - u)); /* the lines bow down into the spine, as the leaves do */
+      return (b > 8.3 && b < 9.3) || (b > 10.7 && b < 11.7) || (b > 13.1 && b < 14.1 && u > 0.3);
+    }
+    ICONS.book = sectionIcon(strokes, [[text, 207, 2200, 0.52]], [12, 12]);
+  })();
+
+  /* descent (κατάβασις): the threshold's arch with steps going down inside it, and the night thickening below them */
+  (function () {
+    var arch = chain(line(6.6, 21, 6.6, 10.6, 12), arc(12, 10.6, 5.4, 180, 360, 24), line(17.4, 10.6, 17.4, 21, 12));
+    var steps = [[8, 12.6], [10.2, 12.6], [10.2, 15.2], [12.6, 15.2], [12.6, 17.8], [15, 17.8], [15, 20.6]], sp = [steps[0]];
+    for (var i = 1; i < steps.length; i++) sp = sp.concat(line(steps[i - 1][0], steps[i - 1][1], steps[i][0], steps[i][1], 8).slice(1));
+    var strokes = brush(arch, 1.8, 211, 0.12) + brush(sp, 1.1, 213, 0.28, 0.05);
+    function under(x) { return x < 10.2 ? 12.6 : x < 12.6 ? 15.2 : x < 15 ? 17.8 : 20.6; }
+    function night(x, y) { return x > 7.6 && x < 16.4 && y < 20.8 && y > under(x) + 0.8 && grain(x, y) < 0.25 + (y - 12) / 9; }
+    ICONS.descent = sectionIcon(strokes, [[night, 217, 1500, 0.62]], [12, 18]);
+  })();
+
+  /* archive (codex): a pile of leaves seen from above and aside, the top one written on */
+  (function () {
+    var top = chain(line(3.6, 9.4, 13.4, 5.6, 14), line(13.4, 5.6, 20.6, 9.2, 12), line(20.6, 9.2, 10.8, 13.2, 14), line(10.8, 13.2, 3.6, 9.4, 12));
+    var strokes = brush(top, 1.6, 221, 0.06) +
+      brush(chain(line(3.6, 12.6, 10.8, 16.6, 12), line(10.8, 16.6, 20.6, 12.6, 14)), 1.5, 223, 0.25) +
+      brush(chain(line(3.6, 15.9, 10.8, 19.9, 12), line(10.8, 19.9, 20.6, 15.9, 14)), 1.5, 225, 0.25);
+    /* the top leaf in its own coordinates: s along its long side (3.6,9.4 to 13.4,5.6), t along its short one (to 10.8,13.2) */
+    function written(x, y) {
+      var dx = x - 3.6, dy = y - 9.4, det = 9.8 * 3.8 + 3.8 * 7.2, s = (dx * 3.8 - dy * 7.2) / det, t = (9.8 * dy + 3.8 * dx) / det;
+      return s > 0.2 && s < 0.86 && ((t > 0.24 && t < 0.36) || (t > 0.48 && t < 0.6) || (t > 0.72 && t < 0.83 && s < 0.6));
+    }
+    ICONS.archive = sectionIcon(strokes, [[written, 227, 1500, 0.6]], [12.1, 9.4]);
+  })();
+
+  /* laboratory (officina): a flask with a rim, matter settled in its belly and two bubbles rising */
+  (function () {
+    var flask = chain(line(10.2, 4.4, 10.2, 9.4, 10), bez([10.2, 9.4], [8.4, 12.6], [4.6, 17.2], [5.2, 19], 16), bez([5.2, 19], [5.8, 20.6], [18.2, 20.6], [18.8, 19], 16), bez([18.8, 19], [19.4, 17.2], [15.6, 12.6], [13.8, 9.4], 16), line(13.8, 9.4, 13.8, 4.4, 10));
+    var strokes = brush(flask, 1.7, 231, 0.1) + brush(line(8.6, 4, 15.4, 4, 14), 1.15, 233, 0.32, 0.05);
+    function matter(x, y) {
+      var surf = 14.6 + 0.4 * Math.sin(x * 0.9); if (y < surf || y > 19.6) return false;
+      var half = 1.8 + (y - 9.4) * 0.62; return Math.abs(x - 12) < half - 1.1;
+    }
+    function bubbles(x, y) { return inC(12.8, 12, 0.85)(x, y) || inC(11.2, 9.4, 0.6)(x, y); }
+    ICONS.laboratory = sectionIcon(strokes, [[matter, 237, 1300, 0.62], [bubbles, 239, 700, 0.5]], [12, 16.4]);
+  })();
+
+  /* works (opera): a pair of compasses, open, and the arc they have just drawn, still in stipple */
+  (function () {
+    var strokes = brush(arc(12, 4.4, 1.35, -90, 270, 18), 1.05, 241, 0, 0.04) +
+      brush(line(11.3, 5.8, 6.3, 19.8, 24), 1.7, 243, 0.32) + brush(line(12.7, 5.8, 17.7, 19.8, 24), 1.7, 245, 0.32) +
+      brush(line(12, 1.6, 12, 3, 4), 1.1, 247, 0.3, 0.04);
+    var drawn = annulus(12, 4.4, 15.6, 16.6, 180); /* every angle, then kept to the span below */
+    function trace(x, y) { var a = Math.atan2(y - 4.4, x - 12) * 180 / Math.PI; return a > 56 && a < 124 && drawn(x, y); }
+    ICONS.works = sectionIcon(strokes, [[trace, 249, 2000, 0.64]], [12, 14]);
+  })();
+
+  /* wall (paries): courses of stone, the joints brushed, a few stones filled with stipple */
+  (function () {
+    var strokes = brush(line(3, 6, 21, 5.8, 24), 1.6, 251, 0.12) + brush(line(3.2, 12, 20.8, 12.2, 24), 1.6, 253, 0.12) + brush(line(3, 18, 21, 17.9, 24), 1.6, 255, 0.12) +
+      brush(line(10, 6.6, 10, 11.4, 6), 1.1, 257, 0.25, 0.04) + brush(line(16.6, 6.5, 16.6, 11.5, 6), 1.1, 258, 0.25, 0.04) +
+      brush(line(6.6, 12.7, 6.6, 17.4, 6), 1.1, 259, 0.25, 0.04) + brush(line(13.4, 12.8, 13.4, 17.3, 6), 1.1, 261, 0.25, 0.04);
+    function stones(x, y) { return (x > 10.9 && x < 15.8 && y > 7 && y < 11) || (x > 3.4 && x < 5.8 && y > 13 && y < 17) || (x > 14.3 && x < 20.6 && y > 13 && y < 17); }
+    ICONS.wall = sectionIcon(strokes, [[stones, 263, 1400, 0.62]], [12, 12], 0.94);
+  })();
+
+  /* forum (ἀγορά): two voices, one speaking (three grains), one answering in stipple */
+  (function () {
+    var a = arc(9.4, 8.6, 6.6, 128, 458, 52, 4.6), b = arc(16, 16.6, 4.6, 75, 395, 44, 3.3);
+    var strokes = brush(a, 1.6, 271, 0.16) + brush(line(6.6, 12.6, 4.2, 16.4, 10), 1.35, 273, 0.36, 0.05) +
+      brush(b, 1.5, 275, 0.16) + brush(line(18.6, 19.2, 20.8, 22, 10), 1.2, 277, 0.4, 0.05);
+    function grains(x, y) { return inC(6.7, 8.6, 0.95)(x, y) || inC(9.4, 8.6, 0.95)(x, y) || inC(12.1, 8.6, 0.95)(x, y); }
+    ICONS.forum = sectionIcon(strokes, [[grains, 279, 1400, 0.62], [inE(16, 16.6, 3.3, 2.1), 281, 900, 0.55]], [12.4, 12.4]);
+  })();
+
+  /* music (phonotheca): the record ring as the deck draws it, grooves in stipple, a small centre, and the arm on it */
+  (function () {
+    var strokes = brush(arc(12, 12.4, 8, -60, 290, 64), 1.8, 291) + brush(arc(12, 12.4, 1.5, 0, 360, 16), 1.05, 293, 0, 0.04) +
+      brush(chain(line(21.2, 2.6, 17.8, 9.8, 14), line(17.8, 9.8, 15.4, 11.6, 6)), 1.3, 295, 0.3, 0.05);
+    var grooves = function (x, y) { var r = Math.hypot(x - 12, y - 12.4); return (r > 3 && r < 4) || (r > 5 && r < 6.2); };
+    ICONS.music = sectionIcon(strokes, [[grooves, 297, 1500, 0.55]], [12, 12.4]);
+  })();
+
   function mountEar(el) {
     var b = el && el.tagName === 'BUTTON' ? el : document.createElement('button');
     if (b !== el && el) el.appendChild(b);
@@ -1207,7 +1331,7 @@
   window.Aphesis = {
     reducedMotion: REDUCED, MJ: MJ, cellPx: cellPx, lerp: lerp, clamp: clamp, tween: tween, rng: rng, cssColor: cssColor,
     brush: brush, arc: arc, line: line, stipple: stipple, inC: inC,
-    icon: icon, ICONS: ICONS, PHI: PHI, seal: seal, Eye: Eye,
+    icon: icon, ICONS: ICONS, SECTIONS: SECTIONS, PHI: PHI, seal: seal, Eye: Eye,
     Fog: Fog, Simulacrum: Simulacrum, Typist: Typist, tooltip: tooltip, cursor: cursor, letters: letters, themeShift: themeShift, themeColor: themeColor, Sound: Sound
   };
 })();

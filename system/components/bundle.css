@@ -87,6 +87,15 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
 @keyframes aph-stir { 0% { transform: translate(0, 0); } 30% { transform: translate(.45px, -.3px); } 65% { transform: translate(-.3px, .35px); } 100% { transform: translate(.25px, .15px); } }
 .aph-ear:hover .w path + path, .aph-ear:focus-visible .w path + path { animation-direction: alternate-reverse; animation-duration: 1.45s; }
 
+/* an icon in a control (Aphesis.icon inside .aph-icon, as the section icons sit on the phone's home): hovering or
+   focusing stirs the stipple, its two halves against each other; .aph-gather draws the cells toward the icon's heart
+   (the first tap on a section icon). Aphesis.icon(name, 1) is the same gathering, still, for places without motion. */
+.aph-icon .aph-st { transition: transform var(--duration-slow) var(--easing-settle); }
+.aph-icon .aph-st path { transform-box: fill-box; }
+.aph-icon:hover .aph-st path, .aph-icon:focus-visible .aph-st path { animation: aph-stir 1.7s ease-in-out infinite alternate; }
+.aph-icon:hover .aph-st path + path, .aph-icon:focus-visible .aph-st path + path { animation-direction: alternate-reverse; animation-duration: 1.45s; }
+.aph-icon.aph-gather .aph-st { transform: scale(.8); }
+
 /* ================= browser defaults =================
    Everything the browser would draw in its own colours is brought into the system here: selection, scrollbars,
    caret, native controls, autofill, placeholders, markers, backdrops. Tokens only, both themes. See "Browser

@@ -1,10 +1,24 @@
-<!-- @dsCard group="Marks" height=250 subtitle="brush strokes and stipple, two states each; click one to switch" -->
+<!-- @dsCard group="Marks" height=640 subtitle="brush strokes and stipple, two states each; click one to switch. The eight sections at 24, 32 and 48px: hover stirs, a tap gathers" -->
 <div class="g" id="g"></div>
+<div class="s">
+  <p class="aph-meta head">sections · at rest 24 · 32 · 48, then chosen at 32</p>
+  <div class="t" id="t"></div>
+</div>
 <style>
 .g{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:var(--space-4);padding:var(--space-5)}
-button{background:none;border:0;padding:var(--space-3);color:var(--accent);font:inherit;display:flex;flex-direction:column;align-items:center;gap:var(--space-3);cursor:pointer}
-button svg{width:64px;height:64px;display:block}
-button span{color:var(--ink-soft)}
+.g button{background:none;border:0;padding:var(--space-3);color:var(--accent);font:inherit;display:flex;flex-direction:column;align-items:center;gap:var(--space-3);cursor:pointer}
+.g button svg{width:64px;height:64px;display:block}
+.g button span{color:var(--ink-soft)}
+.s{padding:0 var(--space-5) var(--space-5)}
+.head{margin:0 0 var(--space-4);color:var(--ink-soft)}
+.t{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:var(--space-4)}
+.sec{display:flex;flex-direction:column;gap:var(--space-2)}
+.row{display:flex;align-items:flex-end;gap:var(--space-3);color:var(--accent)}
+.row .aph-icon{background:none;border:0;padding:0;color:inherit;font:inherit;cursor:pointer;display:block}
+.row svg{display:block}
+.s24{width:24px;height:24px}.s32{width:32px;height:32px}.s48{width:48px;height:48px}
+.row .still{margin-left:var(--space-2)}
+.sec .aph-meta{color:var(--ink-soft)}
 </style>
 <script>
 var I=[['eye','oculus · the theme switch','open','closed'],['sol','sol','',''],['luna','luna','',''],['terminator','linea lucis','light','dark'],['threshold','limen','open','night'],['ear','auris · the sound switch','listening','muted']];
@@ -12,4 +26,12 @@ var g=document.getElementById('g');
 I.forEach(function(it){var b=document.createElement('button');b.type='button';var st=0;
   function r(){b.innerHTML=Aphesis.icon(it[0],st)+'<span class="aph-meta">'+it[1]+(it[2]?' · '+(st?it[3]:it[2]):'')+'</span>';b.setAttribute('aria-label',it[0]+(it[2]?', '+(st?it[3]:it[2]):''));}
   r();if(it[2])b.onclick=function(){st=1-st;r();};g.appendChild(b);});
+/* the eight sections: three sizes at rest (hover or focus stirs them; a click gathers and lets go), and the still chosen state */
+var GL={book:'liber',descent:'κατάβασις',archive:'codex',laboratory:'officina',works:'opera',wall:'paries',forum:'ἀγορά',music:'phonotheca'};
+var t=document.getElementById('t');
+Aphesis.SECTIONS.forEach(function(n){var d=document.createElement('div');d.className='sec';var row='<div class="row">';
+  [24,32,48].forEach(function(px){row+='<button type="button" class="aph-icon s'+px+'" aria-label="'+n+'" data-tip="'+n+' · '+GL[n]+'">'+Aphesis.icon(n,0)+'</button>';});
+  row+='<span class="still s32" aria-hidden="true">'+Aphesis.icon(n,1)+'</span></div>';
+  d.innerHTML=row+'<span class="aph-meta">'+n+' · '+GL[n]+'</span>';t.appendChild(d);});
+t.addEventListener('click',function(e){var b=e.target.closest('.aph-icon');if(b)b.classList.toggle('aph-gather');});
 </script>

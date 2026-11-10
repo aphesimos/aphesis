@@ -119,7 +119,7 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
 .pic { float: left; margin: var(--space-2) var(--space-4) var(--space-2) 0; max-width: 45%; }
 .pic .open { display: block; color: var(--fog); line-height: 0; }
 .pic .open svg { display: block; max-width: 100%; height: auto; }
-.pic figcaption { margin-top: var(--space-1); max-width: 200px; }
+.pic figcaption { margin-top: var(--space-1); max-width: 260px; }
 .pic figcaption a, .textpic a { color: var(--ink-soft); text-decoration: none; }
 .pic figcaption a:hover { color: var(--accent-text); }
 .textpic { margin: var(--space-2) 0 0; }

@@ -127,19 +127,19 @@ input, textarea, select, progress, meter, [contenteditable] { caret-color: var(-
 /* the canvas cells and the drawn marks never take a selection veil */
 svg ::selection, canvas::selection { background: transparent; }
 
-/* scrollbars. Firefox (and any engine without the WebKit pseudo-elements) draws the standard thin bar in soft ink.
+/* scrollbars. Firefox (and any engine without the WebKit pseudo-elements) draws the standard thin bar in accent.
    The standard properties stay out of WebKit and Blink on purpose: once scrollbar-width or scrollbar-color is set
    on an element, Chromium ignores ::-webkit-scrollbar for it, and the stipple below is lost. */
 @supports not selector(::-webkit-scrollbar) {
-  * { scrollbar-width: thin; scrollbar-color: color-mix(in oklch, var(--ink-soft) 55%, transparent) transparent; }
+  * { scrollbar-width: thin; scrollbar-color: color-mix(in oklch, var(--accent) 55%, transparent) transparent; }
 }
-/* Chromium and Safari: a thin, empty track and a thumb made of stipple: 2px square cells in soft ink, laid by four
+/* Chromium and Safari: a thin, empty track and a thumb made of stipple: 2px square cells in accent (rubedo), laid by five
    grids whose periods never line up, so the cells read as scattered rather than ruled. Hover adds two more grids. */
 ::-webkit-scrollbar { width: 8px; height: 8px; background: transparent; }
 ::-webkit-scrollbar-track, ::-webkit-scrollbar-track-piece, ::-webkit-scrollbar-corner { background: transparent; }
 ::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 ::-webkit-scrollbar-thumb {
-  --c: color-mix(in oklch, var(--ink-soft) 80%, transparent);
+  --c: color-mix(in oklch, var(--accent) 80%, transparent);
   border: 0; border-radius: var(--radius-none);
   background-color: transparent;
   background-image:
@@ -156,7 +156,7 @@ svg ::selection, canvas::selection { background: transparent; }
   background-position: 0 0, 4px 4px, 8px 6px, 12px 2px, 16px 4px;
 }
 ::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active {
-  --c: var(--ink-soft);
+  --c: var(--accent);
   background-image:
     conic-gradient(at 2px 2px, transparent 75%, var(--c) 0),
     conic-gradient(at 2px 2px, transparent 75%, var(--c) 0),
@@ -377,7 +377,7 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
 .pic { float: left; margin: var(--space-2) var(--space-4) var(--space-2) 0; max-width: 45%; }
 .pic .open { display: block; color: var(--fog); line-height: 0; }
 .pic .open svg { display: block; max-width: 100%; height: auto; }
-.pic figcaption { margin-top: var(--space-1); max-width: 200px; }
+.pic figcaption { margin-top: var(--space-1); max-width: 260px; }
 .pic figcaption a, .textpic a { color: var(--ink-soft); text-decoration: none; }
 .pic figcaption a:hover { color: var(--accent-text); }
 .textpic { margin: var(--space-2) 0 0; }
@@ -494,7 +494,7 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
 <div class="sr" id="announce" aria-live="polite"></div>
 
 <script>
-/* @ds-bundle: {"format":4,"namespace":"Aphesis","components":[{"name":"Seal"},{"name":"Brush"},{"name":"Icons"},{"name":"Fog"},{"name":"Simulacrum"},{"name":"Typist"},{"name":"Tooltip"},{"name":"Cursor"},{"name":"LetterWave"},{"name":"ThemeShift"},{"name":"Sound"}]} */
+/* @ds-bundle: {"format":4,"namespace":"Aphesis","components":[{"name":"Seal"},{"name":"Brush"},{"name":"Icons"},{"name":"Fog"},{"name":"Simulacrum"},{"name":"Typist"},{"name":"Tooltip"},{"name":"Cursor"},{"name":"LetterWave"},{"name":"ThemeShift"},{"name":"Sound"},{"name":"Eye"}]} */
 /* aphes.ist design system runtime. Plain JavaScript, no framework: every screen of the site loads this one script.
    Everything visible is made of two marks: the BRUSH (a centerline with a width profile, tapered, with unsure edges)
    and the STIPPLE (small square cells that light up where a density field passes a fixed threshold). Nothing is solid. */
@@ -704,22 +704,36 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
   }
 
   /* ---------- Fog ----------
-     Fog(canvas, {density, light, cell}) -> {zones(rects), set({density, light}), stop(), start()}
+     Fog(canvas, {density, light, clear, clearWidth, cell}) -> {zones(rects), set({density, light, clear, clearWidth}), stop(), start()}
      the stippled ground of every screen. density 0..1 (home 1, inside a section .62); light: the soft rise of dots
-     around the pointer (home 1, section .4). zones: up to 12 calm rectangles behind text (elements or DOMRects). */
+     around the pointer (home 1, section .4). zones: up to 12 calm rectangles behind text (elements or DOMRects).
+     clear 0..1 (home 0, a section 1): the clearing. The fog drifts out of a central band to the sides, which keep
+     their fog, and leaves a sparse residue (about 12%) drifting in the band. Every change of clear is eased with
+     minimum jerk over 1.8s, never snapped. clearWidth: the band's width as a share of the screen's width; left out
+     (or null), it follows the screen: .66 on a wide one, .94 on a phone. */
   function Fog(cv, o) {
-    o = o || {}; var P = glField(cv, 'precision highp float;uniform vec2 R;uniform float T,D,C,S,X;uniform vec3 F,N,F2,N2;uniform vec2 P;uniform vec4 Z[12];' + NOISE + SWITCH_GLSL +
-      'void main(){vec2 cel=floor(gl_FragCoord.xy/S);vec2 uv=(cel*S-R*.5)/min(R.x,R.y);float d=fog(uv,T);' +
+    o = o || {}; var P = glField(cv, 'precision highp float;uniform vec2 R;uniform float T,D,C,S,X;uniform vec3 F,N,F2,N2;uniform vec2 P,Q;uniform vec4 Z[12];' + NOISE + SWITCH_GLSL +
+      'void main(){vec2 cel=floor(gl_FragCoord.xy/S);vec2 uv=(cel*S-R*.5)/min(R.x,R.y);' +
+      /* the clearing: Q = (clear, the band's half-width in uv). The noise is read from nearer the centre line, so the
+         masses are seen drifting out to the sides as clear rises; the band thins to a residue that keeps moving */
+      'float ax=abs(uv.x)/Q.y,ex=exp(-ax*ax);float d=fog(vec2(uv.x*(1.-Q.x*.6*ex),uv.y),T);' +
+      'float cl=Q.x*(1.-smoothstep(Q.x*.7,Q.x*.7+.45,ax));' +
       'float vin=smoothstep(1.45,.35,length(uv*vec2(.9,1.)))*.85+.15;vec2 pp=(P-R*.5)/min(R.x,R.y);float luz=exp(-dot(uv-pp,uv-pp)*7.)*.35;' +
       'float m=smoothstep(.44,.74,d);float dens=(m*.8+.012)*vin*D+luz*vin*C*m;' +
       'for(int i=0;i<12;i++){vec4 z=Z[i];if(z.z>0.){vec2 q=abs(gl_FragCoord.xy-z.xy)/z.zw;dens*=1.-.8*(1.-smoothstep(.45,1.05,length(q)));}}' +
+      'dens*=(1.-.88*cl)*(1.+.14*Q.x*smoothstep(.85,1.3,ax));' +
       /* a theme change spreads through the fog in soft patches with grainy edges */
       'float s=sw(cel,uv,X);vec3 Fc=mix(F,F2,s),Nc=mix(N,N2,s);' +
-      'gl_FragColor=vec4(mix(Fc,Nc,step(h(cel),dens)*.55),1.);}', ['R', 'T', 'D', 'C', 'S', 'X', 'F', 'N', 'F2', 'N2', 'P', 'Z', 'SO', 'SF']);
+      'gl_FragColor=vec4(mix(Fc,Nc,step(h(cel),dens)*.55),1.);}', ['R', 'T', 'D', 'C', 'S', 'X', 'F', 'N', 'F2', 'N2', 'P', 'Q', 'Z', 'SO', 'SF']);
     if (!P) return { zones: function () {}, set: function () {}, stop: function () {}, start: function () {}, destroy: function () {} };
     var gl = P.gl, U = P.U, colors = palette(cv, ['--bg', '--fog']);
     var ptr = null, sm = null, t = 0, last = performance.now(), zEls = [], ZB = new Float32Array(48);
     var dens = o.density === undefined ? 1 : o.density, light = o.light === undefined ? 1 : o.light, dpr = 1;
+    /* the clearing eases from where it is to its new target with minimum jerk; setting the same value again
+       (a shell that sets every frame) does not restart it */
+    var CLEAR_MS = 1800, clr = { from: o.clear || 0, to: o.clear || 0, t0: -1 }, clearW = o.clearWidth == null ? null : o.clearWidth;
+    function clearAt(now) { if (clr.t0 < 0) return clr.to; var k = REDUCED ? 1 : clamp((now - clr.t0) / CLEAR_MS); if (k >= 1) { clr.t0 = -1; clr.from = clr.to; return clr.to; } return lerp(clr.from, clr.to, MJ(k)); }
+    function setClear(v) { v = clamp(+v || 0); if (Math.abs(v - clr.to) < 1e-4) return; var now = performance.now(); clr.from = clearAt(now); clr.to = v; clr.t0 = now; }
     function onMove(e) { var r = cv.getBoundingClientRect(); ptr = [e.clientX - r.left, e.clientY - r.top]; }
     window.addEventListener('pointermove', onMove);
     var L = loop(function (now) {
@@ -734,12 +748,15 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
       var c = colors(now);
       gl.uniform4fv(U.Z, ZB); gl.uniform2f(U.R, cv.width, cv.height); gl.uniform1f(U.T, t); gl.uniform1f(U.S, 1);
       gl.uniform3fv(U.F, c.a[0]); gl.uniform3fv(U.N, c.a[1]); gl.uniform3fv(U.F2, c.b[0]); gl.uniform3fv(U.N2, c.b[1]); gl.uniform1f(U.X, c.x); waveUniforms(gl, U, cv, dpr, c); gl.uniform2f(U.P, sm[0] * dpr, cv.height - sm[1] * dpr); gl.uniform1f(U.D, dens); gl.uniform1f(U.C, light);
+      var cw = clearW == null ? lerp(0.94, 0.66, clamp((R.width - 480) / 720)) : clamp(clearW, 0.05, 1);
+      gl.uniform2f(U.Q, clearAt(now), Math.max(1e-3, cw * 0.5 * cv.width / Math.min(cv.width, cv.height)));
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     });
     L.start();
     return {
       zones: function (list) { zEls = (list || []).map(function (z) { return z instanceof Element ? { el: z } : z; }); },
-      set: function (k) { if (k.density !== undefined) dens = k.density; if (k.light !== undefined) light = k.light; },
+      set: function (k) { if (!k) return; if (k.density !== undefined) dens = k.density; if (k.light !== undefined) light = k.light;
+        if (k.clear !== undefined) setClear(k.clear); if (k.clearWidth !== undefined) clearW = k.clearWidth; },
       stop: L.stop, start: function () { if (P.released) return; last = performance.now(); L.start(); },
       /* destroy(): stop for good: the loop, the pointer and theme listeners, and the WebGL context */
       destroy: function () { L.stop(); window.removeEventListener('pointermove', onMove); colors.off(); P.release(); }
@@ -771,7 +788,7 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
       x.texImage2D(x.TEXTURE_2D, 0, x.LUMINANCE, 1, 1, 0, x.LUMINANCE, x.UNSIGNED_BYTE, new Uint8Array([0]));
       return q;
     }
-    var P = glField(cv, 'precision highp float;uniform vec2 R,P;uniform float T,S,K,G,M,A,FIT,SC,ER,CE,GR,X;uniform vec3 F,N,AC,F2,N2,AC2;uniform vec2 IA;uniform sampler2D I,I2;' + NOISE + SWITCH_GLSL +
+    var P = glField(cv, 'precision highp float;uniform vec2 R,P;uniform float T,S,K,G,M,A,FIT,SC,ER,CE,GR,X,LG;uniform vec3 F,N,AC,F2,N2,AC2;uniform vec2 IA;uniform sampler2D I,I2;' + NOISE + SWITCH_GLSL +
       'void main(){vec2 cel=floor(gl_FragCoord.xy/S);vec2 c=cel*S+S*.5;vec2 uv=(c-R*.5)/min(R.x,R.y);' +
       'float d=fog(uv*.8,T);' +
       /* fit the image in the canvas */
@@ -779,7 +796,7 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
       /* the picture breathes: before it settles its cells are pushed around by the fog */
       'vec2 jit=(vec2(fb(uv*3.+T*.05),fb(uv*3.+7.3-T*.04))-.5)*(1.-K)*.18*min(R.x,R.y);' +
       'vec2 iu=(c+jit-(R-sz)*.5)/sz;iu.y=1.-iu.y;float inside=step(0.,iu.x)*step(iu.x,1.)*step(0.,iu.y)*step(iu.y,1.);' +
-      'vec2 e=min(iu,1.-iu);float feather=smoothstep(0.,.07,min(e.x,e.y));' +
+      'vec2 e=min(iu,1.-iu);float feather=smoothstep(0.,mix(.07,.025,LG),min(e.x,e.y));' +
       'float img=pow(texture2D(I,clamp(iu,0.,1.)).r,1.15)*inside*feather;' +
       'vec2 pp=(P-R*.5)/min(R.x,R.y);float luz=exp(-dot(uv-pp,uv-pp)*9.);' +
       'float kk=clamp(K+luz*.35*K,0.,1.);' +
@@ -787,19 +804,21 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
       /* never picture-perfect: erosion opens fog-shaped holes in the figure, the ceiling keeps even the lightest
          areas from going solid, and scatter lets some of the picture drift loose as lost points around it */
       'float er=smoothstep(.28,.78,fb(uv*4.2+vec2(T*.012,-T*.009)+3.1));' +
-      'float pic=img*G*(.82+.36*d)*mix(1.,.3+.7*er,ER)*CE;' +
+      /* legible (LG, informational pictures): the fog's own modulation of the tones, its mist and the organic part of
+         the threshold are reduced, not removed, so a cover reads at a glance and is still conjured stipple */
+      'float pic=img*G*mix(.82+.36*d,.94+.12*d,LG)*mix(1.,.3+.7*er,ER)*CE;' +
       /* the glow: a heavily blurred copy of the picture, padded by half its size on every side, so lost points
          thin out from the figure into the fog instead of stopping at its edge */
       'vec2 gu=(iu-.5)/2.+.5;gu.y=gu.y;float glow=texture2D(I2,clamp(gu,0.,1.)).r;' +
       'float stray=SC*(pow(glow,.8)*(.45+.8*d)*.75+.02*smoothstep(.36,.8,d))*clamp(1.-img*1.6,0.,1.);' +
-      'float dens=mix(mist,pic+stray+mist*.12,kk);' +
+      'float dens=mix(mist,pic+stray+mist*mix(.12,.05,LG),kk);' +
       /* threshold: interleaved gradient noise (even, blue-ish) mixed with a hash (organic), so tones read as tones */
-      'float ign=fract(52.9829189*fract(dot(cel,vec2(.06711056,.00583715))));float lit=step(mix(ign,h(cel),.35),dens);' +
+      'float ign=fract(52.9829189*fract(dot(cel,vec2(.06711056,.00583715))));float lit=step(mix(ign,h(cel),mix(.35,.12,LG)),dens);' +
       'float red=step(h(cel+31.7),A*img*kk);' +
       /* a theme change spreads in the same patches as the fog's */
       'float s=sw(cel,uv,X);vec3 Fc=mix(F,F2,s),Nc=mix(N,N2,s),Ac=mix(AC,AC2,s);' +
-      'vec3 col=mix(Nc,Ac,red);gl_FragColor=GR>.5?vec4(mix(Fc,col,lit*.72),1.):vec4(col,lit*.72);}',
-      ['R', 'P', 'T', 'S', 'K', 'G', 'M', 'A', 'FIT', 'SC', 'ER', 'CE', 'GR', 'X', 'F', 'N', 'AC', 'F2', 'N2', 'AC2', 'IA', 'I', 'I2', 'SO', 'SF'],
+      'float al=lit*mix(.72,.84,LG);vec3 col=mix(Nc,Ac,red);gl_FragColor=GR>.5?vec4(mix(Fc,col,al),1.):vec4(col,al);}',
+      ['R', 'P', 'T', 'S', 'K', 'G', 'M', 'A', 'FIT', 'SC', 'ER', 'CE', 'GR', 'X', 'LG', 'F', 'N', 'AC', 'F2', 'N2', 'AC2', 'IA', 'I', 'I2', 'SO', 'SF'],
       function (x) { tex = texture(x, x.TEXTURE0); tex2 = texture(x, x.TEXTURE1); x.activeTexture(x.TEXTURE0); if (lastImg) upload(lastImg); });
     var noop = function () {};
     if (!P) return { show: function (s, d) { d && d(); }, hide: function (d) { d && d(); }, set: function (s, d) { d && d(); }, stop: noop, start: noop, drawn: function (cb) { cb(); }, destroy: noop };
@@ -808,6 +827,7 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
     window.addEventListener('pointermove', onMove);
     function upload(img) {
       lastImg = img;
+      if (legible()) img = prepare(img);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, img); IA = [img.naturalWidth || img.width, img.naturalHeight || img.height];
       /* glow texture: the picture at half size in the middle of a canvas twice as large, blurred wide */
       var g = document.createElement('canvas'), W = 192, H = Math.max(8, Math.round(192 * IA[1] / IA[0])); g.width = W; g.height = H; var x = g.getContext('2d');
@@ -815,7 +835,8 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
       gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, tex2); gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, g); gl.activeTexture(gl.TEXTURE0);
     }
     var cur = {};   /* per-source overrides: {src, gain, scatter, erosion, ceiling} */
-    function opt(k, d) { return cur[k] !== undefined ? cur[k] : (o[k] !== undefined ? o[k] : d); }
+    function legible() { var v = cur.legible !== undefined ? cur.legible : o.legible; return v === true ? 1 : +v || 0; }
+    function opt(k, d) { return cur[k] !== undefined ? cur[k] : (o[k] !== undefined ? o[k] : (legible() && LEGIBLE[k] !== undefined ? LEGIBLE[k] : d)); }
     function load(src, cb) {
       if (src && src.src) { cur = src; src = src.src; } else cur = {};
       if (typeof src !== 'string') { if (!P.lost) upload(src); else lastImg = src; cb && cb(); return; }
@@ -824,9 +845,9 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
     var L = loop(function (now) {
       var dt = Math.min(0.05, Math.max(0, now - last) / 1000); last = now; if (!REDUCED) t += dt;
       if (P.lost) return false;
-      var dpr = fit(cv, gl, o.cell || 2), c = colors(now);
+      var dpr = fit(cv, gl, o.cell || (legible() ? LEGIBLE.cell : 2)), c = colors(now);
       gl.uniform2f(U.R, cv.width, cv.height); gl.uniform2f(U.P, ptr[0] * dpr, cv.height - ptr[1] * dpr); gl.uniform1f(U.T, t);
-      gl.uniform1f(U.S, 1); gl.uniform1f(U.K, MJ(k)); gl.uniform1f(U.G, opt('gain', 1)); gl.uniform1f(U.SC, opt('scatter', 0.5)); gl.uniform1f(U.ER, opt('erosion', 0.45)); gl.uniform1f(U.CE, opt('ceiling', 0.8)); gl.uniform1f(U.M, o.margin === undefined ? 0.08 : o.margin);
+      gl.uniform1f(U.S, 1); gl.uniform1f(U.K, MJ(k)); gl.uniform1f(U.G, opt('gain', 1)); gl.uniform1f(U.SC, opt('scatter', 0.5)); gl.uniform1f(U.ER, opt('erosion', 0.45)); gl.uniform1f(U.CE, opt('ceiling', 0.8)); gl.uniform1f(U.LG, legible()); gl.uniform1f(U.M, o.margin === undefined ? 0.08 : o.margin);
       gl.uniform1f(U.A, o.accent || 0); gl.uniform1f(U.FIT, o.fit === 'cover' ? 1 : 0); gl.uniform1f(U.GR, o.ground === false ? 0 : 1); gl.uniform3fv(U.F, c.a[0]); gl.uniform3fv(U.N, c.a[1]); gl.uniform3fv(U.AC, c.a[2]); gl.uniform3fv(U.F2, c.b[0]); gl.uniform3fv(U.N2, c.b[1]); gl.uniform3fv(U.AC2, c.b[2]); gl.uniform1f(U.X, c.x); waveUniforms(gl, U, cv, dpr, c);
       gl.uniform2f(U.IA, IA[0], IA[1]); gl.uniform1i(U.I, 0); gl.uniform1i(U.I2, 1);
       if (o.ground === false) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); }
@@ -853,6 +874,35 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
     return api;
   }
   /* a density map drawn with the brush: draw(ctx, w, h) paints white on black; returns a canvas to pass as source */
+  /* informational pictures (album covers, uploads): recognisable at a glance, still conjured stipple. About a third of
+     the hermetic erosion and scatter, a ceiling a little under 1, finer cells, and a map prepared to keep its detail */
+  var LEGIBLE = { legible: true, erosion: 0.15, scatter: 0.18, ceiling: 0.93, cell: 1.25 };
+  /* prepare(img): the legible map: auto levels (1st to 99.5th percentile), a gentle contrast curve and a mild unsharp
+     mask, at most 720px on the long side; no blur */
+  function prepare(img) {
+    var iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height, sc = Math.min(1, 720 / Math.max(iw, ih));
+    var w = Math.max(1, Math.round(iw * sc)), h = Math.max(1, Math.round(ih * sc));
+    var c = document.createElement('canvas'); c.width = w; c.height = h; var x = c.getContext('2d', { willReadFrequently: true });
+    x.drawImage(img, 0, 0, w, h);
+    var id = x.getImageData(0, 0, w, h), px = id.data, n = w * h, g = new Float32Array(n), hist = new Uint32Array(256), i;
+    for (i = 0; i < n; i++) { var v = (px[i * 4] * 0.299 + px[i * 4 + 1] * 0.587 + px[i * 4 + 2] * 0.114); g[i] = v; hist[v | 0]++; }
+    function pct(p) { var acc = 0, lim = n * p; for (var j = 0; j < 256; j++) { acc += hist[j]; if (acc >= lim) return j; } return 255; }
+    var lo = pct(0.01), hi = Math.max(lo + 1, pct(0.995));
+    var b = new Float32Array(n), y, xx;
+    for (y = 0; y < h; y++) for (xx = 0; xx < w; xx++) {
+      var s = 0, k = 0;
+      for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) { var yy = y + dy, xq = xx + dx; if (yy >= 0 && yy < h && xq >= 0 && xq < w) { s += g[yy * w + xq]; k++; } }
+      b[y * w + xx] = s / k;
+    }
+    for (i = 0; i < n; i++) {
+      var t = clamp(((g[i] + 0.6 * (g[i] - b[i])) - lo) / (hi - lo));
+      t = t * t * (3 - 2 * t) * 0.35 + t * 0.65;
+      var o8 = Math.round(t * 255); px[i * 4] = px[i * 4 + 1] = px[i * 4 + 2] = o8; px[i * 4 + 3] = 255;
+    }
+    x.putImageData(id, 0, 0);
+    return c;
+  }
+  Simulacrum.LEGIBLE = Object.freeze(LEGIBLE);
   Simulacrum.fromBrush = function (draw, w, h) {
     var c = document.createElement('canvas'); c.width = w || 512; c.height = h || 512; var x = c.getContext('2d');
     x.fillStyle = '#000'; x.fillRect(0, 0, c.width, c.height); x.fillStyle = '#fff'; draw(x, c.width, c.height);
@@ -1357,11 +1407,14 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
       ['play', 'pause', 'ended'].forEach(function (k) { document.addEventListener(k, onMedia, true); });
     }
     function paintEars() { ears.forEach(function (b) { earState(b, !muted); }); }
+    /* aph:sound on window, {detail: {muted}}: once at start and on every change of the mute, so anything else that
+       sounds in the page (the music player) can follow the ear */
+    function announce() { try { dispatchEvent(new CustomEvent('aph:sound', { detail: { muted: muted } })); } catch (e) {} }
     var api = {
       /* start({fade, scene, chamber}): call once at load. Muted visitors stay silent and nothing is created. */
       start: function (o) {
         o = o || {}; if (o.fade) fadeMs = o.fade; if (o.scene) { want.name = o.scene; want.o = o; }
-        hook(); if (muted || !AC) return api;
+        hook(); announce(); if (muted || !AC) return api;
         if (!ensure()) return api;
         if (document.hidden) { arm(); return api; }
         resume(); if (!running()) arm();
@@ -1379,7 +1432,7 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
       duck: function (level, ms) { if (E) E.duck.go(clamp(level === undefined ? 0.2 : level), (ms || 1500) / 1000); return api; },
       /* mute(true|false): a slow fade (1.2 s), remembered for the next visit */
       mute: function (m) {
-        m = m === undefined ? !muted : !!m; muted = m; store(); paintEars();
+        m = m === undefined ? !muted : !!m; var changed = m !== muted; muted = m; store(); paintEars(); if (changed) announce();
         var hush = cssMs('--duration-hush', 1200) / 1000;
         if (m) { if (E) { E.mute.go(0, hush); disarm(); clearTimeout(sleepT); sleepT = setTimeout(function () { if (E && muted) try { E.ctx.suspend(); } catch (e) {} }, 1800); } }
         else {
@@ -1464,10 +1517,193 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
     b.dataset.tip = on ? 'listening · close the ear' : 'silent · open the ear';
   }
 
+  /* ================= EYE ================= */
+  /* Eye(el, opts): the theme switch's eye (ICONS.eye: two brushed lids and a stippled iris; closed, one lid and three
+     lashes) drawn large and alive, as the gate shows it. It draws itself in, stroke by stroke, the way the φ draws
+     itself; then it never stops trembling: every 125 ms (8 fps) its strokes are redrawn from one of three drawings of
+     the same state and the feTurbulence seed is swapped, as the seal's boil. Nothing is tweened: each state is its
+     own drawing, cut to on a tick and held for whole ticks.
+       blinks  open, half (the lid lowered), closed (lid and lashes), squint, wide
+       gaze    centre, left, right, up, down, the four diagonals, narrow (a small pupil), dilated (a wide one)
+     Blinks and gaze are two tracks on their own clocks, so a blink lands on any gaze. The gaze moves in saccades: a
+     cut to a fixation, then a hold of irregular length. Every drawing is made at the size the eye is shown (strokes,
+     boil and stipple cells tuned to it, cells of about 3 CSS px), and made again when that size changes.
+     opts: size (CSS px of the box's width; else the element's), gaze ('auto' saccades that sometimes follow the
+     pointer and `follow`; 'pointer' follows the pointer; an Element follows it), follow (an Element or a function
+     returning [x, y]: something 'auto' glances at, a caret say), blink (true: blinks on its own), drawIn (true), start (true: begins at once; false waits for start()).
+     The box's height is 14/24 of its width: the eye's own band of the icon grid. */
+  var EYE_BLINKS = ['open', 'half', 'closed', 'squint', 'wide'];
+  var EYE_GAZES = ['centre', 'left', 'right', 'up', 'down', 'up-left', 'up-right', 'down-left', 'down-right', 'narrow', 'dilated'];
+  var EYE_DIR = { centre: [0, 0], left: [-2.3, 0], right: [2.3, 0], up: [0, -1.5], down: [0, 1.5], 'up-left': [-1.75, -1.15], 'up-right': [1.75, -1.15],
+    'down-left': [-1.75, 1.15], 'down-right': [1.75, 1.15], narrow: [0, 0], dilated: [0, 0] };
+  var EYE_PUPIL = { narrow: 0.62, dilated: 2.15 }, EYE_IRIS = 3.1, EYE_PUPIL_R = 1.25, EYE_W = 0.62, EYE_LASH = 0.45, EYE_VARIANTS = 3, eyeCount = 0;
+  /* an upper lid is the lower half of an ellipse centred below the eye, a lower lid the upper half of one centred
+     above; top(x) and bottom(x) are the opening the iris is cut to. One upper lid per state, never a fold or crease
+     that could read as a second one. */
+  function eyeUpper(cy, ry, r, a0, a1) { r = r || 9; return { pts: arc(12, cy, r, a0 === undefined ? -160 : a0, a1 === undefined ? -20 : a1, 48, ry), y: function (x) { return cy - ry * Math.sqrt(Math.max(0, 1 - Math.pow((x - 12) / r, 2))); } }; }
+  function eyeLower(cy, ry, r, a0, a1) { r = r || 9; return { pts: arc(12, cy, r, a0 === undefined ? 20 : a0, a1 === undefined ? 160 : a1, 48, ry), y: function (x) { return cy + ry * Math.sqrt(Math.max(0, 1 - Math.pow((x - 12) / r, 2))); } }; }
+  var EYE_LIDS = {
+    open: function () { var u = eyeUpper(15.5, 7), l = eyeLower(8.5, 7); return { strokes: [[u.pts, EYE_W, 31], [l.pts, EYE_W, 33]], top: u.y, bottom: l.y }; },
+    wide: function () { var u = eyeUpper(15.6, 8.8, 9.4, -162, -18), l = eyeLower(8.4, 7.9, 9.4, 18, 162); return { strokes: [[u.pts, EYE_W * 1.05, 31], [l.pts, EYE_W, 33]], top: u.y, bottom: l.y }; },
+    half: function () { var u = eyeUpper(15.5, 3.4), l = eyeLower(8.5, 7); return { strokes: [[u.pts, EYE_W * 1.1, 35], [l.pts, EYE_W, 33]], top: u.y, bottom: l.y }; },
+    squint: function () { var u = eyeUpper(15.5, 5.0), l = eyeLower(8.5, 4.9); return { strokes: [[u.pts, EYE_W * 1.05, 43], [l.pts, EYE_W, 45]], top: u.y, bottom: l.y }; },
+    closed: function () {
+      var s = [[arc(12, 8, 9, 25, 155, 48, 6), EYE_W * 1.1, 37]];
+      [-0.55, 0, 0.55].forEach(function (k, i) { var x = 12 + k * 9.5; s.push([line(x, 14.2 - Math.abs(k) * 1.2, x + k * 1.8, 17.2 - Math.abs(k), 12), EYE_LASH, 41 + i, 0.35, 0.05]); });
+      return { strokes: s, top: function () { return 99; }, bottom: function () { return -99; } };
+    }
+  };
+  function eyeIris(blink, gaze, v, u) {
+    var L = EYE_LIDS[blink](), d0 = EYE_DIR[gaze], pr = EYE_PUPIL[gaze] || EYE_PUPIL_R, cx = 12 + d0[0], cy = 12 + d0[1];
+    var r = rng(1000 + EYE_BLINKS.indexOf(blink) * 97 + EYE_GAZES.indexOf(gaze) * 13 + v * 7919);
+    var cell = Math.max(2, Math.round(u * 24 / 150)), step = cell * 1.5 / u, c = cell / u, iris = '', pupil = '';
+    function sq(x, y, k) { var S = c * k * u, X = x * u - S / 2, Y = y * u - S / 2; return 'M' + X.toFixed(1) + ' ' + Y.toFixed(1) + 'h' + S.toFixed(1) + 'v' + S.toFixed(1) + 'h' + (-S).toFixed(1) + 'z'; }
+    for (var gy = -EYE_IRIS; gy <= EYE_IRIS; gy += step) for (var gx = -EYE_IRIS; gx <= EYE_IRIS; gx += step) {
+      var x = cx + gx + (r() - 0.5) * step * 0.3, y = cy + gy + (r() - 0.5) * step * 0.3, d = Math.hypot(gx, gy);
+      if (d > EYE_IRIS || !(y > L.top(x) + 0.45 && y < L.bottom(x) - 0.45)) continue;
+      if (d < pr) { if (r() < 0.86) pupil += sq(x, y, 0.9 + r() * 0.25); } else if (r() < 0.5 - 0.22 * (d / EYE_IRIS)) iris += sq(x, y, 0.75 + r() * 0.3);
+    }
+    return { iris: iris, pupil: pupil };
+  }
+  function eyeScaled(pts, u) { return pts.map(function (p) { return [p[0] * u, p[1] * u]; }); }
+  function eyeDrawings(u) {
+    var lids = {}, irises = {};
+    EYE_BLINKS.forEach(function (b) {
+      var L = EYE_LIDS[b](); lids[b] = []; irises[b] = {};
+      for (var v = 0; v < EYE_VARIANTS; v++) lids[b].push(L.strokes.map(function (s) { return brush(eyeScaled(s[0], u), s[1] * u, s[2] + v * 211, s[3], s[4]); }).join(''));
+      EYE_GAZES.forEach(function (g) { irises[b][g] = []; for (var v = 0; v < EYE_VARIANTS; v++) irises[b][g].push(eyeIris(b, g, v, u)); });
+    });
+    return { lids: lids, irises: irises, u: u };
+  }
+  function Eye(el, o) {
+    o = o || {};
+    var id = 'aph-eye-boil-' + (++eyeCount);
+    if (o.size) el.style.width = o.size + 'px';
+    if (!el.style.aspectRatio) el.style.aspectRatio = '24 / 14';
+    el.innerHTML = '<svg aria-hidden="true" focusable="false" style="display:block;width:100%;height:100%;overflow:visible">' +
+      '<filter id="' + id + '" x="-6%" y="-6%" width="112%" height="112%"><feTurbulence type="fractalNoise" baseFrequency="0.055" numOctaves="1" seed="1" result="r"/>' +
+      '<feDisplacementMap in="SourceGraphic" in2="r" xChannelSelector="R" yChannelSelector="G"/></filter>' +
+      '<g filter="url(#' + id + ')" fill="currentColor"><path class="lids"/><path class="iris" opacity=".72"/><path class="pupil"/></g></svg>';
+    var svg = el.firstChild, turb = svg.querySelector('feTurbulence'), disp = svg.querySelector('feDisplacementMap');
+    var P = { lids: svg.querySelector('.lids'), iris: svg.querySelector('.iris'), pupil: svg.querySelector('.pupil') };
+    var D = null, rnd = Math.random, tick = 0, frame = 0, timer = 0, drawn = false, drawing = false, dead = false;
+    var blinkQ = [], blinkState = 'open', rest = 'open', gaze = 'centre', gazeUntil = 0, forced = null;
+    var pointer = null, pointerAt = -1e9, typedAt = -1e9, listeners = [], resizeT = 0;
+    var auto = o.blink !== false, mode = o.gaze || 'auto';
+    function hold(median, spread) { return Math.max(1, Math.round(median * Math.exp((rnd() + rnd() + rnd() - 1.5) * spread))); }
+    var nextBlink = hold(26, 0.55);
+    function size() {
+      var w = Math.max(48, o.size || el.getBoundingClientRect().width || 240), u = w / 24;
+      if (D && Math.abs(D.u - u) / D.u < 0.1) return;
+      svg.setAttribute('viewBox', '0 ' + (5 * u).toFixed(1) + ' ' + w.toFixed(1) + ' ' + (14 * u).toFixed(1));
+      disp.setAttribute('scale', (w * 0.0095).toFixed(2));
+      D = eyeDrawings(u); api.drawings = D;
+      if (drawn) render();
+    }
+    function render() {
+      if (!el.isConnected) return;
+      var ir = D.irises[blinkState][gaze][frame];
+      P.lids.setAttribute('d', D.lids[blinkState][frame]); P.iris.setAttribute('d', ir.iris); P.pupil.setAttribute('d', ir.pupil);
+      el.dataset.blink = blinkState; el.dataset.gaze = gaze; el.dataset.frame = String(frame);
+      listeners.forEach(function (f) { f({ blink: blinkState, gaze: gaze, frame: frame, tick: tick }); });
+    }
+    function centreOf(t) { var r = t.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }
+    function toward(x, y) {
+      var r = el.getBoundingClientRect(), dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
+      if (Math.hypot(dx, dy) < r.width * 0.2) return 'centre';
+      var a = Math.atan2(dy, dx) * 180 / Math.PI, names = ['right', 'down-right', 'down', 'down-left', 'left', 'up-left', 'up', 'up-right'];
+      return names[((Math.round(a / 45) % 8) + 8) % 8];
+    }
+    function followPoint() { var f = o.follow; if (!f) return null; if (typeof f === 'function') return f(); return f.isConnected ? centreOf(f) : null; }
+    function stepBlink() {
+      if (blinkQ.length) { blinkState = blinkQ[0][0]; if (--blinkQ[0][1] <= 0) blinkQ.shift(); return; }
+      blinkState = rest;
+      if (!auto || rest !== 'open' || --nextBlink > 0) return;
+      var u = rnd();
+      if (u < 0.7) blinkQ = [['half', 1], ['closed', 2], ['half', 1]];
+      else if (u < 0.82) blinkQ = [['half', 1], ['closed', 1], ['half', 1], ['open', 2], ['half', 1], ['closed', 2], ['half', 1]];
+      else if (u < 0.93) blinkQ = [['squint', hold(12, 0.4)]];
+      else blinkQ = [['half', 2], ['closed', 4], ['half', 2]];
+      nextBlink = hold(30, 0.6);
+      stepBlink();
+    }
+    function stepGaze() {
+      if (forced) { gaze = forced.gaze; if (--forced.ticks <= 0) { forced = null; gazeUntil = 0; } return; }
+      if (mode === 'pointer') { if (pointer) gaze = toward(pointer[0], pointer[1]); return; }
+      if (mode && mode.nodeType === 1) { if (mode.isConnected) { var c = centreOf(mode); gaze = toward(c[0], c[1]); } return; }
+      if (tick < gazeUntil) return;
+      var u = rnd(), fp = followPoint(), next;
+      if (tick - typedAt < 10 && u < 0.62) next = fp ? toward(fp[0], fp[1]) : 'down';
+      else if (pointer && tick - pointerAt < 24 && u < 0.45) next = toward(pointer[0], pointer[1]);
+      else if (fp && u < 0.52) next = toward(fp[0], fp[1]);
+      else if (u < 0.62) next = rnd() < 0.8 ? 'centre' : 'dilated';
+      else if (u < 0.67) next = 'narrow';
+      else next = EYE_GAZES[1 + Math.floor(rnd() * 8)];
+      gaze = next;
+      gazeUntil = tick + (next === 'centre' || next === 'dilated' ? hold(14, 0.7) : hold(6, 0.75));
+    }
+    function step() {
+      if (!el.isConnected) return;   /* a detached eye (a section at rest) holds still */
+      tick++;
+      frame = (frame + 1 + Math.floor(rnd() * (EYE_VARIANTS - 1))) % EYE_VARIANTS;   /* never the same drawing twice in a row */
+      turb.setAttribute('seed', String(1 + Math.floor(rnd() * 997)));
+      stepBlink(); stepGaze(); render();
+    }
+    function drawIn(done) {
+      var open = EYE_LIDS.open(), ir = D.irises.open.centre[0], u = D.u, t0 = performance.now(), DUR = 2100;
+      function cells(s) { return s.split('M').slice(1).map(function (c) { return 'M' + c; }); }
+      var iris = cells(ir.iris), pupil = cells(ir.pupil);
+      function part(pts, k) { return pts.slice(0, Math.max(2, Math.round(pts.length * k))); }
+      (function f(now) {
+        if (dead) return;
+        var t = Math.min(1, (now - t0) / DUR), a = MJ(t / 0.42), b = MJ((t - 0.34) / 0.4), c = clamp((t - 0.7) / 0.3);
+        var d = a > 0 ? brush(eyeScaled(part(open.strokes[0][0], a), u), EYE_W * u, 31) : '';
+        if (b > 0) d += brush(eyeScaled(part(open.strokes[1][0], b), u), EYE_W * u, 33);
+        P.lids.setAttribute('d', d);
+        P.iris.setAttribute('d', iris.slice(0, Math.round(iris.length * c)).join(''));
+        P.pupil.setAttribute('d', pupil.slice(0, Math.round(pupil.length * Math.min(1, c * 1.6))).join(''));
+        if (t < 1) requestAnimationFrame(f); else done();
+      })(t0);
+    }
+    function onMove(e) { pointer = [e.clientX, e.clientY]; pointerAt = tick; }
+    function onResize() { clearTimeout(resizeT); resizeT = setTimeout(size, 200); }
+    function start() {
+      if (timer || drawing || dead) return;
+      size();
+      function go() { drawing = false; drawn = true; render(); timer = setInterval(step, 125); }
+      if (o.drawIn === false) go(); else { drawing = true; el.dataset.blink = 'drawing'; drawIn(go); }
+    }
+    var api = {
+      el: el, drawings: null,
+      /* one blink now */
+      blink: function () { blinkQ = [['half', 1], ['closed', 2], ['half', 1]]; },
+      /* a hard cut to the closed lid; held for `ticks` ticks if given, else until open() */
+      close: function (ticks) { blinkQ = ticks ? [['closed', ticks]] : []; if (!ticks) rest = 'closed'; blinkState = 'closed'; if (ticks) forced = { gaze: 'narrow', ticks: ticks + 5 }; if (drawn) render(); },
+      open: function () { rest = 'open'; blinkQ = []; blinkState = 'open'; if (drawn) render(); },
+      /* a hard cut to wide open with a dilated pupil, held for `ticks` (10) */
+      wide: function (ticks) { ticks = ticks || 10; blinkQ = [['wide', ticks]]; blinkState = 'wide'; forced = { gaze: 'dilated', ticks: ticks }; gaze = 'dilated'; if (drawn) render(); },
+      squint: function (ticks) { blinkQ = [['squint', ticks || 10]]; blinkState = 'squint'; if (drawn) render(); },
+      /* a saccade toward a point on screen, held a moment */
+      look: function (x, y) { forced = { gaze: toward(x, y), ticks: hold(8, 0.5) }; gaze = forced.gaze; if (drawn) render(); },
+      /* something was typed: 'auto' glances toward `follow` */
+      typed: function () { typedAt = tick; if (tick >= gazeUntil - 2) gazeUntil = tick; },
+      on: function (f) { listeners.push(f); },
+      get state() { return { blink: blinkState, gaze: gaze, frame: frame, tick: tick }; },
+      get drawn() { return drawn; },
+      start: start,
+      stop: function () { clearInterval(timer); timer = 0; },
+      destroy: function () { dead = true; clearInterval(timer); timer = 0; removeEventListener('pointermove', onMove); removeEventListener('resize', onResize); el.innerHTML = ''; }
+    };
+    addEventListener('pointermove', onMove, { passive: true });
+    addEventListener('resize', onResize);
+    if (o.start !== false) start();
+    return api;
+  }
+
   window.Aphesis = {
     reducedMotion: REDUCED, MJ: MJ, cellPx: cellPx, lerp: lerp, clamp: clamp, tween: tween, rng: rng, cssColor: cssColor,
     brush: brush, arc: arc, line: line, stipple: stipple, inC: inC,
-    icon: icon, ICONS: ICONS, PHI: PHI, seal: seal,
+    icon: icon, ICONS: ICONS, PHI: PHI, seal: seal, Eye: Eye,
     Fog: Fog, Simulacrum: Simulacrum, Typist: Typist, tooltip: tooltip, cursor: cursor, letters: letters, themeShift: themeShift, themeColor: themeColor, Sound: Sound
   };
 })();
@@ -1773,12 +2009,45 @@ function sigilSVG(token, A) {
 
 return { sigilSpec, sigilLabel, sigilSVG };
 })();
+/* ---- legible.js ---- */
+M["legible.js"] = (function () {
+/* legible: how the forum's pictures are rendered. Forum pictures carry information (a face, a screenshot, a page),
+   so they are not hermetic simulacra: they stay stipple and still coalesce out of the fog, but they read at a glance.
+   The middle the owner asked for: recognisable faces, text and composition; cells visible as cells; a little erosion
+   and a few lost points. Most of the gain comes from the map (density.js), not from stripping the stipple.
+
+   The live viewer uses the design system's preset as it is: Simulacrum(canvas, {legible: true}), whose defaults are
+   Aphesis.Simulacrum.LEGIBLE (erosion .15, scatter .18, ceiling .93, cells of 1.25px). The still simulacra in thumb.js
+   follow the same shader terms (legible branch: the fog's modulation .94 + .12d, threshold 12% hash, cells at .84),
+   so a thumbnail and its opened picture look like one thing.
+
+   HERMETIC is the system's default look and CLEAN is past the line (no lost points, no holes, full areas, ordered
+   threshold): both are kept only for comparisons. */
+
+const A = window.Aphesis;
+const PRESET = Object.assign({ erosion: 0.15, scatter: 0.18, ceiling: 0.93, cell: 1.25 }, (A.Simulacrum && A.Simulacrum.LEGIBLE) || {});
+
+const HERMETIC = { scatter: 0.5, erosion: 0.45, ceiling: 0.8, gain: 1, cell: 2, threshold: 0.35, fogMod: 0.36, curve: 1.15, feather: 0.07, alpha: 0.72, prepare: false };
+const MIDDLE = { scatter: PRESET.scatter, erosion: PRESET.erosion, ceiling: PRESET.ceiling, gain: 1, cell: PRESET.cell,
+  threshold: 0.12, fogMod: 0.12, curve: 1.15, feather: 0.025, alpha: 0.84, prepare: true };
+const CLEAN = { scatter: 0, erosion: 0, ceiling: 1, gain: 1, cell: 1, threshold: 0, fogMod: 0, curve: 1, feather: 0, alpha: 0.9, prepare: true };
+
+/* the options for the live Aphesis.Simulacrum: the system's preset */
+function liveOptions() { return { legible: true }; }
+
+/* the options for a still (thumb.js) */
+function stillOptions() { return Object.assign({}, MIDDLE); }
+
+return { HERMETIC, MIDDLE, CLEAN, liveOptions, stillOptions };
+})();
 /* ---- thumb.js ---- */
 M["thumb.js"] = (function () {
 /* thumb: a still simulacrum. A density map rendered once into an SVG of square cells, for thread lists and posts,
    where a live WebGL canvas each would be too heavy. It follows the Simulacrum's rules, frozen at one moment:
    lost points around the figure (scatter), fog-shaped holes inside it (erosion), no area completely full (ceiling),
-   and a threshold mixed from interleaved gradient noise and a hash. Cells are 2 CSS pixels, square, never smoothed;
+   and a threshold mixed from interleaved gradient noise and a hash. The forum renders it legibly (legible.js:
+   little erosion and scatter, a nearly full ceiling, a threshold closer to ordered dither, so tones and edges read).
+   Cells are square CSS-pixel cells (2 by default), never smoothed;
    the SVG fills with currentColor at .72, so it takes the theme's fog color and changes with it, without redrawing. */
 
 const A = window.Aphesis;
@@ -1804,22 +2073,50 @@ function noise(x, y) {
 function fbm(x, y) { let s = 0, a = 0.5; for (let i = 0; i < 4; i++) { s += a * noise(x, y); x = x * 1.6 + y * 1.2; y = -x * 0.75 + y * 1.6; a *= 0.5; } return s / 0.94; }
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
+/* the legible map, as the runtime prepares it for {legible: true} (bundle.js, prepare): auto levels from the 1st to
+   the 99.5th percentile, a mild unsharp mask (.6) and a gentle contrast curve, at most 720px on the long side */
+function prepare(img) {
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height, sc = Math.min(1, 720 / Math.max(iw, ih));
+  const w = Math.max(1, Math.round(iw * sc)), h = Math.max(1, Math.round(ih * sc));
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.drawImage(img, 0, 0, w, h);
+  const id = x.getImageData(0, 0, w, h), px = id.data, n = w * h, g = new Float32Array(n), hist = new Uint32Array(256);
+  for (let i = 0; i < n; i++) { const v = px[i * 4] * 0.299 + px[i * 4 + 1] * 0.587 + px[i * 4 + 2] * 0.114; g[i] = v; hist[v | 0]++; }
+  const pct = (p) => { let acc = 0; const lim = n * p; for (let j = 0; j < 256; j++) { acc += hist[j]; if (acc >= lim) return j; } return 255; };
+  const lo = pct(0.01), hi = Math.max(lo + 1, pct(0.995));
+  const b = new Float32Array(n);
+  for (let y = 0; y < h; y++) for (let xx = 0; xx < w; xx++) {
+    let s = 0, k = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const yy = y + dy, xq = xx + dx; if (yy >= 0 && yy < h && xq >= 0 && xq < w) { s += g[yy * w + xq]; k++; } }
+    b[y * w + xx] = s / k;
+  }
+  for (let i = 0; i < n; i++) {
+    let t = Math.max(0, Math.min(1, ((g[i] + 0.6 * (g[i] - b[i])) - lo) / (hi - lo)));
+    t = t * t * (3 - 2 * t) * 0.35 + t * 0.65;
+    px[i * 4] = px[i * 4 + 1] = px[i * 4 + 2] = Math.round(t * 255); px[i * 4 + 3] = 255;
+  }
+  x.putImageData(id, 0, 0);
+  return c;
+}
+
 /* img: a loaded density map (white = dense). box: [width, height] in CSS pixels; the picture keeps its aspect
    inside it, with room around for its lost points. Returns {svg, width, height}. */
 function stillSimulacrum(img, box, o = {}) {
   const gain = o.gain ?? 1, scatter = o.scatter ?? 0.5, erosion = o.erosion ?? 0.45, ceiling = o.ceiling ?? 0.8, seed = o.seed ?? 1;
-  const c = A.cellPx(2);
+  const alpha = o.alpha ?? 0.72, mixT = o.threshold ?? 0.35, edge = o.feather ?? 0.07, fogMod = o.fogMod ?? 0.36, curve = o.curve ?? 1.15;
+  const c = A.cellPx(o.cell || 2);
   const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
   const k = Math.min(box[0] / iw, box[1] / ih);
   const gw = Math.max(8, Math.round(iw * k / c)), gh = Math.max(8, Math.round(ih * k / c));
-  const pad = Math.round(Math.min(gw, gh) * 0.08);
+  const pad = Math.round(Math.min(gw, gh) * (scatter > 0.3 ? 0.08 : 0.04));
   const W = gw, H = gh;
   /* the picture in the middle, inset by pad cells, so stray points have somewhere to drift */
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const x = cv.getContext('2d', { willReadFrequently: true });
   x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
   x.imageSmoothingQuality = 'high';
-  x.drawImage(img, pad, pad, W - 2 * pad, H - 2 * pad);
+  x.drawImage(o.prepare ? prepare(img) : img, pad, pad, W - 2 * pad, H - 2 * pad);
   const px = x.getImageData(0, 0, W, H).data;
   /* the glow: the same picture blurred wide, for the lost points */
   const g = document.createElement('canvas'); g.width = W; g.height = H;
@@ -1838,15 +2135,15 @@ function stillSimulacrum(img, box, o = {}) {
         const q = (j * W + i) * 4;
         const u = (i - pad) / (W - 2 * pad), v = (j - pad) / (H - 2 * pad);
         const inside = u >= 0 && u <= 1 && v >= 0 && v <= 1;
-        const feather = inside ? smooth(0, 0.07, Math.min(u, 1 - u, v, 1 - v)) : 0;
-        const im = Math.pow(px[q] / 255, 1.15) * feather;
+        const feather = inside ? smooth(0, edge, Math.min(u, 1 - u, v, 1 - v)) : 0;
+        const im = Math.pow(px[q] / 255, curve) * feather;
         const fog = fbm(i * 0.07 + sx, j * 0.07 + sy);
         const er = smooth(0.28, 0.78, fbm(i * 0.11 + 3.1 + sy, j * 0.11 + sx));
-        const pic = gain * im * (0.82 + 0.36 * fog) * (1 + (0.3 + 0.7 * er - 1) * erosion) * ceiling;
+        const pic = gain * im * (1 - fogMod / 2 + fogMod * fog) * (1 + (0.3 + 0.7 * er - 1) * erosion) * ceiling;
         const glow = gp[q] / 255;
         const stray = scatter * (Math.pow(glow, 0.8) * (0.45 + 0.8 * fog) * 0.75 + 0.02 * smooth(0.36, 0.8, fog)) * Math.max(0, Math.min(1, 1 - im * 1.6));
         const ign = fract(52.9829189 * fract(i * 0.06711056 + j * 0.00583715));
-        lit = pic + stray > ign + (hash(i + seed, j) - ign) * 0.35;
+        lit = pic + stray > ign + (hash(i + seed, j) - ign) * mixT;
       }
       if (lit && run < 0) run = i;
       if (!lit && run >= 0) { d += 'M' + run + ' ' + j + 'h' + (i - run) + 'v1h' + (run - i) + 'z'; run = -1; }
@@ -1854,7 +2151,7 @@ function stillSimulacrum(img, box, o = {}) {
   }
   const width = +(W * c).toFixed(2), height = +(H * c).toFixed(2);
   const svg = '<svg class="still" viewBox="0 0 ' + W + ' ' + H + '" width="' + width + '" height="' + height +
-    '" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><path d="' + d + '" fill="currentColor" opacity=".72"/></svg>';
+    '" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><path d="' + d + '" fill="currentColor" opacity="' + alpha + '"/></svg>';
   return { svg, width, height };
 }
 
@@ -1863,17 +2160,27 @@ return { image, stillSimulacrum };
 /* ---- density.js ---- */
 M["density.js"] = (function () {
 /* density: an uploaded picture becomes a density map in the browser, before anything is sent.
-   The design system's rules for maps (system/README.md, "Simulacra"):
-   - grayscale, white = dense, 480 to 640px on the long side (here 560, never enlarged past the source);
-   - crop to the figure: flat borders and frames are trimmed, and the picture is cut to no more than 3:2 either way;
-   - levels: black point at the 30th percentile, white point at the 97.5th, gamma 0.8 (lifts the half-tones);
-   - a light ground (an engraving, a photo on white) is inverted, blurred 1px first so hatching becomes tone,
-     because a simulacrum needs its figure light on a dark ground.
+   Forum pictures carry information, so the map is prepared to stay legible (the owner's rule: only hermetic
+   simulacra keep "never picture-perfect"; a forum picture must read at a glance, while staying stipple):
+   - grayscale, white = dense, 640px on the long side (the Worker's limit; never enlarged past the source, at
+     least 480), cut to no more than 2:1 either way so a screenshot keeps its edges;
+   - flat borders and frames are trimmed, at most 12% a side;
+   - a light ground (a screenshot, a page, an engraving, a photo on white) is inverted, so the figure or the text
+     becomes light on dark, the way a simulacrum draws it;
+   - auto levels: black point at the 1st percentile, white at the 99.5th, gamma set so the median tone lands near
+     0.42 (dark pictures are lifted, flat ones spread);
+   - an unsharp mask (radius 1px, amount .4; the runtime's legible preset adds its own mild one on top, with auto
+     levels and a contrast curve, when it uploads the map) so edges and letters survive the stipple; except for hatching (an
+     engraving, a halftone: fine detail everywhere, mean high-frequency energy above .05), which is softened instead
+     (a ~1.5px blur) so its lines become tone, as the design system says;
+   - a black margin of 5% around the picture, so the simulacrum's soft edge falls on the margin, not on the content.
+   prepareMap(file, {mode: 'hermetic'}) gives the design system's original preparation instead (30th percentile,
+   gamma 0.8, a 1px blur on light grounds), kept for comparison.
    The original file goes up beside the map, untouched, so it stays a click away. */
 
 const ACCEPT = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_BYTES = 4 * 1024 * 1024;
-const LONG = 560, MIN_LONG = 480;
+const LONG = 640, MIN_LONG = 480, MAX_MAP = 380 * 1024;
 
 function checkFile(file) {
   if (!file) return 'no file';
@@ -1912,10 +2219,49 @@ function trimBox(lum, w, h) {
   return [l, t, r - l + 1, b - t + 1];
 }
 
+/* soften: one 3×3 binomial blur in place */
+function soften(lum, w, h) {
+  const tmp = new Float32Array(lum.length);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x; tmp[i] = (lum[i - (x > 0 ? 1 : 0)] + 2 * lum[i] + lum[i + (x < w - 1 ? 1 : 0)]) / 4;
+  }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x; lum[i] = (tmp[i - (y > 0 ? w : 0)] + 2 * tmp[i] + tmp[i + (y < h - 1 ? w : 0)]) / 4;
+  }
+}
+
+/* high-frequency energy: the mean difference between each pixel and its 3×3 neighbourhood */
+function energy(lum, w, h) {
+  let sum = 0, n = 0;
+  for (let y = 1; y < h - 1; y += 2) for (let x = 1; x < w - 1; x += 2) {
+    const i = y * w + x;
+    const m = (lum[i - 1] + lum[i + 1] + lum[i - w] + lum[i + w] + lum[i - w - 1] + lum[i - w + 1] + lum[i + w - 1] + lum[i + w + 1] + lum[i]) / 9;
+    sum += Math.abs(lum[i] - m); n++;
+  }
+  return n ? sum / n : 0;
+}
+
+/* unsharp mask on a luminance array: v + amount * (v - blur3x3(v)), twice-separable box blur for a ~1px radius */
+function sharpen(lum, w, h, amount) {
+  const tmp = new Float32Array(lum.length), bl = new Float32Array(lum.length);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x, a = lum[i - (x > 0 ? 1 : 0)], b = lum[i + (x < w - 1 ? 1 : 0)];
+    tmp[i] = (a + 2 * lum[i] + b) / 4;
+  }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x, a = tmp[i - (y > 0 ? w : 0)], b = tmp[i + (y < h - 1 ? w : 0)];
+    bl[i] = (a + 2 * tmp[i] + b) / 4;
+  }
+  for (let i = 0; i < lum.length; i++) lum[i] = Math.max(0, Math.min(1, lum[i] + amount * (lum[i] - bl[i])));
+}
+
 function percentile(sorted, p) { return sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(p * (sorted.length - 1))))]; }
 
 /* file -> {blob (image/jpeg), url (a data: URL of the map), width, height} */
-async function toDensity(file) {
+function toDensity(file) { return prepareMap(file, {}); }
+
+async function prepareMap(file, { mode = 'legible' } = {}) {
+  const hermetic = mode === 'hermetic';
   const src = await decode(file);
   const sw = src.width || src.naturalWidth, sh = src.height || src.naturalHeight;
   if (!sw || !sh) throw new Error('decode');
@@ -1937,34 +2283,52 @@ async function toDensity(file) {
   /* back to source pixels, then cut to 3:2 at most, about the centre */
   let cx = bx / ws, cy = by / ws, cw = bw / ws, ch = bh / ws;
   const ratio = cw / ch;
-  if (ratio > 1.5) { const nw = ch * 1.5; cx += (cw - nw) / 2; cw = nw; }
-  if (ratio < 2 / 3) { const nh = cw * 1.5; cy += (ch - nh) / 2; ch = nh; }
-  const long = Math.min(LONG, Math.max(MIN_LONG, Math.max(cw, ch)));
-  const s = long / Math.max(cw, ch);
-  const W = Math.max(1, Math.round(cw * s)), H = Math.max(1, Math.round(ch * s));
+  const maxR = hermetic ? 1.5 : 2;
+  if (ratio > maxR) { const nw = ch * maxR; cx += (cw - nw) / 2; cw = nw; }
+  if (ratio < 1 / maxR) { const nh = cw * maxR; cy += (ch - nh) / 2; ch = nh; }
+  const long = Math.min(hermetic ? 560 : LONG, Math.max(MIN_LONG, Math.max(cw, ch)));
+  const PAD = hermetic ? 0 : 0.05;
+  const s = long / (1 + 2 * PAD) / Math.max(cw, ch);
+  const IW = Math.max(1, Math.round(cw * s)), IH = Math.max(1, Math.round(ch * s));
+  const P = Math.round(Math.max(IW, IH) * PAD), W = IW + 2 * P, H = IH + 2 * P;
   const out = document.createElement('canvas'); out.width = W; out.height = H;
   const ox = out.getContext('2d', { willReadFrequently: true });
   ox.imageSmoothingQuality = 'high';
-  if (lightGround) ox.filter = 'blur(1px)';
-  ox.drawImage(src, cx, cy, cw, ch, 0, 0, W, H);
+  if (lightGround && hermetic) ox.filter = 'blur(1px)';
+  ox.fillStyle = lightGround ? '#fff' : '#000'; ox.fillRect(0, 0, W, H);   /* the margin reads as ground */
+  ox.drawImage(src, cx, cy, cw, ch, P, P, IW, IH);
   ox.filter = 'none';
   if (src.close) src.close();
   const img = ox.getImageData(0, 0, W, H);
   const lum = luminance(img.data);
   if (lightGround) for (let i = 0; i < lum.length; i++) lum[i] = 1 - lum[i];
+  if (!hermetic) {
+    if (energy(lum, W, H) > 0.05) { for (let k = 0; k < 3; k++) soften(lum, W, H); } else sharpen(lum, W, H, 0.4);
+  }
   const sorted = Float32Array.from(lum).sort();
-  const lo = percentile(sorted, 0.30), hi = Math.max(lo + 0.02, percentile(sorted, 0.975));
+  const lo = percentile(sorted, hermetic ? 0.30 : 0.01);
+  const hi = Math.max(lo + 0.02, percentile(sorted, hermetic ? 0.975 : 0.995));
+  let gamma = 0.8;
+  if (!hermetic) {
+    const med = Math.max(0.02, Math.min(0.98, (percentile(sorted, 0.5) - lo) / (hi - lo)));
+    gamma = Math.max(0.55, Math.min(1.6, Math.log(0.42) / Math.log(med)));
+  }
   for (let i = 0; i < lum.length; i++) {
-    const v = Math.pow(Math.max(0, Math.min(1, (lum[i] - lo) / (hi - lo))), 0.8) * 255;
+    const v = Math.pow(Math.max(0, Math.min(1, (lum[i] - lo) / (hi - lo))), gamma) * 255;
     img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = v; img.data[i * 4 + 3] = 255;
   }
   ox.putImageData(img, 0, 0);
-  const blob = await new Promise((resolve, reject) => out.toBlob((b) => (b ? resolve(b) : reject(new Error('encode'))), 'image/jpeg', 0.86));
-  const url = out.toDataURL('image/jpeg', 0.86);
+  /* the lightest JPEG that keeps the map under the Worker's limit */
+  let q = 0.88, blob = null;
+  for (; q >= 0.5; q -= 0.08) {
+    blob = await new Promise((resolve, reject) => out.toBlob((b) => (b ? resolve(b) : reject(new Error('encode'))), 'image/jpeg', q));
+    if (blob.size <= MAX_MAP) break;
+  }
+  const url = out.toDataURL('image/jpeg', Math.max(0.5, q));
   return { blob, url, width: W, height: H, inverted: lightGround };
 }
 
-return { ACCEPT, MAX_BYTES, checkFile, toDensity };
+return { ACCEPT, MAX_BYTES, checkFile, toDensity, prepareMap };
 })();
 /* ---- mock.js ---- */
 M["mock.js"] = (function () {
@@ -2339,6 +2703,7 @@ M["composer.js"] = (function () {
 const { checkFile, toDensity, ACCEPT } = M["density.js"];
 const { image, stillSimulacrum } = M["thumb.js"];
 const { esc } = M["text.js"];
+const { stillOptions } = M["legible.js"];
 const A = window.Aphesis;
 const MAX_TEXT = 2000;
 let formN = 0;
@@ -2421,7 +2786,7 @@ function createComposer({ api, thread, onPosted, label }) {
       const density = await toDensity(f);
       picked = { original: f, density };
       const im = await image(density.url);
-      pv.innerHTML = stillSimulacrum(im, [120, 120], { seed: 5 }).svg;
+      pv.innerHTML = stillSimulacrum(im, [160, 160], Object.assign(stillOptions(), { seed: 5 })).svg;
       chosen.hidden = false;
       say('this is how it will appear. the original goes with it, a click away.');
     } catch (_) {
@@ -2483,6 +2848,7 @@ M["viewer.js"] = (function () {
    Without WebGL it shows the still simulacrum instead, large. The original is a link away; Escape or close returns. */
 
 const { image, stillSimulacrum } = M["thumb.js"];
+const { liveOptions, stillOptions } = M["legible.js"];
 const A = window.Aphesis;
 const $ = (id) => document.getElementById(id);
 const HAS_GL = (() => { try { return !!document.createElement('canvas').getContext('webgl'); } catch (_) { return false; } })();
@@ -2502,9 +2868,9 @@ function createViewer({ scroller, ground, announce }) {
     requestAnimationFrame(() => bar.classList.add('on'));
     close.focus({ preventScroll: true });
     announce('picture open: ' + (pic.caption || 'a picture'));
-    const src = { src: pic.density, scatter: pic.scatter, erosion: pic.erosion, ceiling: pic.ceiling };
+    const src = pic.density;
     if (HAS_GL) {
-      if (!sim) sim = A.Simulacrum(canvas, { ground: false, fit: 'contain', margin: 0.16, accent: 0.03 });
+      if (!sim) sim = A.Simulacrum(canvas, Object.assign(liveOptions(), { ground: false, fit: 'contain', margin: 0.12, accent: 0.01 }));
       else sim.start();
       sim.show(src);
       sim.drawn(() => { if (open && my === token) canvas.classList.add('on'); });
@@ -2512,7 +2878,7 @@ function createViewer({ scroller, ground, announce }) {
       image(pic.density).then((im) => {
         if (!open || my !== token) return;
         const box = [Math.min(innerWidth - 32, 720), Math.min(innerHeight - 200, 720)];
-        still.innerHTML = stillSimulacrum(im, box, pic).svg;
+        still.innerHTML = stillSimulacrum(im, box, Object.assign(stillOptions(), { seed: 7 })).svg;
         requestAnimationFrame(() => still.classList.add('on'));
       }).catch(() => {});
     }
@@ -2552,17 +2918,18 @@ return { createViewer };
 /* ---- views.js ---- */
 M["views.js"] = (function () {
 /* views: the board (a list of threads) and a thread (its posts in order), as markup in the text face.
-   Pictures are still simulacra (SVGs of square cells, rendered once from the density map), drawn after the words
+   Pictures are still simulacra (SVGs of square cells, rendered once from the density map, legibly: legible.js), drawn after the words
    and faded in only once they exist; with images off, a line of words stands in their place. */
 
 const { esc, render, firstLine, age } = M["text.js"];
 const { sigilSVG, sigilLabel } = M["sigil.js"];
 const { image, stillSimulacrum } = M["thumb.js"];
 const { createComposer } = M["composer.js"];
+const { stillOptions } = M["legible.js"];
 /* a still simulacrum into el, once its map has loaded; nothing shows before it is drawn */
-function still(el, pic, box, seed, gain = 1.15) {
+function still(el, pic, box, seed) {
   image(pic.density).then((im) => {
-    el.innerHTML = stillSimulacrum(im, box, Object.assign({ seed, gain }, pic)).svg;
+    el.innerHTML = stillSimulacrum(im, box, Object.assign(stillOptions(), { seed })).svg;
     const svg = el.firstChild;
     svg.classList.add('enter');
     requestAnimationFrame(() => requestAnimationFrame(() => { svg.classList.add('in'); svg.classList.remove('enter'); }));
@@ -2626,7 +2993,7 @@ function boardView(data, ctx) {
       if (!e.isIntersecting || !pics.has(e.target)) return;
       const [t, seed] = pics.get(e.target);
       pics.delete(e.target); near.unobserve(e.target);
-      still(e.target.querySelector('.thumb'), t.image, [88, 88], seed, 1.3);
+      still(e.target.querySelector('.thumb'), t.image, [88, 88], seed);
     });
   }, { root: ctx.scroller || null, rootMargin: '400px 0px' }) : null;
 
@@ -2638,7 +3005,7 @@ function boardView(data, ctx) {
       if (t.image) {
         if (!ctx.images()) li.querySelector('.thumb').innerHTML = '<span class="noimg">[picture]</span>';
         else if (near) { pics.set(li, [t, seed]); near.observe(li); }
-        else still(li.querySelector('.thumb'), t.image, [88, 88], seed, 1.3);
+        else still(li.querySelector('.thumb'), t.image, [88, 88], seed);
       }
       frag.appendChild(li); rows.push(li);
     });
@@ -2743,7 +3110,7 @@ function threadView(t, ctx) {
       (removed ? '<p class="body">removed.</p>' :
         (p.image ? picture(p, t, ctx) : '') + '<p class="body">' + render(p.text, t.id) + '</p>') +
       '</article>';
-    if (!removed && p.image && ctx.images()) still(li.querySelector('.open'), p.image, innerWidth < 520 ? [Math.min(280, innerWidth - 32), 240] : [190, 220], p.n + 11);
+    if (!removed && p.image && ctx.images()) still(li.querySelector('.open'), p.image, innerWidth < 520 ? [Math.min(320, innerWidth - 32), 280] : [240, 260], p.n + 11);
     list.appendChild(li);
   });
   root.appendChild(list);

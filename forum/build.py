@@ -64,7 +64,7 @@ def tokens_css(tok):
 
 
 # ---------- modules ----------
-ORDER = ['assets.js', 'hash.js', 'store.js', 'motion.js', 'text.js', 'sigil.js', 'thumb.js', 'density.js',
+ORDER = ['assets.js', 'hash.js', 'store.js', 'motion.js', 'text.js', 'sigil.js', 'legible.js', 'thumb.js', 'density.js',
          'mock.js', 'api.js', 'ground.js', 'composer.js', 'viewer.js', 'views.js', 'main.js']
 
 MAPS = {  # density maps from system/assets/Simulacra, for the example threads of the local mock

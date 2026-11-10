@@ -23,7 +23,7 @@ click away.
   age, `reply` (adds `>>n` to the form and moves the keyboard there) and `report`. A reply by the thread's opener says
   so. `>>n` in a post is a link: hover or focus shows the quoted post beside it (sigil, number, its first words),
   following it brings the post to the reader with minimum jerk and its sigil turns rubedo for a moment.
-- **Pictures**: still simulacra in the column (SVGs of 2px square cells, rendered once). Opening one fades the thread
+- **Pictures**: still simulacra in the column (SVGs of square cells, rendered once, legibly). Opening one fades the thread
   into the fog and the picture coalesces as a live `Aphesis.Simulacrum` on the one canvas kept for it, caption and
   `original` in the top-right corner, `close` or Escape to return. With `images · off`, or without WebGL, the page
   is words only (a `[picture: caption]` line with the original's link) or the still simulacrum, large.
@@ -47,6 +47,7 @@ click away.
 | --- | --- |
 | `hash.js` | deterministic string hashes (FNV-1a + murmur3 finish) and a bit reader, for drawing only |
 | `sigil.js` | the sigil generator (below) |
+| `legible.js` | the legible look for forum pictures, on the design system's preset |
 | `thumb.js` | still simulacra: a density map rendered once into an SVG of square cells |
 | `density.js` | an uploaded picture → a density map, by the design system's rules |
 | `text.js` | escaping, `>>n` references, quoted lines, first lines, ages |
@@ -59,13 +60,29 @@ click away.
 | `views.js` | the board and a thread as markup |
 | `main.js` | the shell, the routes, quotes, reports |
 
-## Density maps in the browser
+## Legible pictures
 
-`density.js` follows *Simulacra: pictures made of fog* in `system/README.md`: flat borders and frames are trimmed
-(at most 12% a side), the picture is cut to no more than 3:2 either way and scaled to 560px on the long side (never
-past the source), turned to luminance, levels set with the black point at the 30th percentile and the white at the
-97.5th, gamma 0.8. A picture on a light ground (an engraving, a photo on white) is blurred 1px and inverted first,
-so its figure becomes light on dark. The result is a grayscale JPEG; the original goes up untouched beside it.
+Forum pictures carry information, so they are not hermetic simulacra: the owner's rule keeps "never picture-perfect"
+for the hermetic ones only. A forum picture reads at a glance (faces, text, composition) and is still stipple: it
+coalesces out of the fog, keeps a little erosion and a few lost points, and its cells stay visible as cells.
+
+- **The viewer** opens the picture with the design system's preset, `Aphesis.Simulacrum(canvas, {legible: true})`
+  (`Simulacrum.LEGIBLE`: erosion .15, scatter .18, ceiling .93, cells of 1.25px, the map prepared again on upload
+  with auto levels, a contrast curve and a mild sharpen), accent .01.
+- **The still simulacra** (`thumb.js`) follow the same terms: the same map preparation, the fog's modulation of the
+  tones at .94 + .12, a threshold with 12% hash, cells at .84, the preset's cell size. `legible.js` holds them, with
+  the hermetic and a too-clean set kept for comparison.
+- **The map** (`density.js`) is made in the browser before upload:
+  - flat borders trimmed (at most 12% a side); cut to no more than 2:1, so a screenshot keeps its edges;
+  - 640px on the long side (the Worker's limit), at least 480, never enlarged past the source;
+  - a 5% black margin, so the simulacrum's soft edge falls on the margin, not on the content;
+  - a light ground (a screenshot, a page, an engraving, a photo on white) inverted, so text and figures become light
+    on dark;
+  - hatching (mean high-frequency energy above .05: engravings, halftones) softened by a ~1.5px blur so it becomes
+    tone; everything else sharpened (unsharp mask, radius 1px, amount .4);
+  - auto levels from the 1st to the 99.5th percentile, with a gamma that puts the median near .42;
+  - a grayscale JPEG under 380 KB. The original goes up untouched beside it.
+  `prepareMap(file, {mode: 'hermetic'})` gives the system's hermetic preparation, for comparison.
 
 ## The sigil
 

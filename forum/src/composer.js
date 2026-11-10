@@ -5,6 +5,7 @@
 import { checkFile, toDensity, ACCEPT } from './density.js';
 import { image, stillSimulacrum } from './thumb.js';
 import { esc } from './text.js';
+import { stillOptions } from './legible.js';
 
 const A = window.Aphesis;
 export const MAX_TEXT = 2000;
@@ -88,7 +89,7 @@ export function createComposer({ api, thread, onPosted, label }) {
       const density = await toDensity(f);
       picked = { original: f, density };
       const im = await image(density.url);
-      pv.innerHTML = stillSimulacrum(im, [120, 120], { seed: 5 }).svg;
+      pv.innerHTML = stillSimulacrum(im, [160, 160], Object.assign(stillOptions(), { seed: 5 })).svg;
       chosen.hidden = false;
       say('this is how it will appear. the original goes with it, a click away.');
     } catch (_) {

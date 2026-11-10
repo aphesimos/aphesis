@@ -1,15 +1,25 @@
 /* density: an uploaded picture becomes a density map in the browser, before anything is sent.
-   The design system's rules for maps (system/README.md, "Simulacra"):
-   - grayscale, white = dense, 480 to 640px on the long side (here 560, never enlarged past the source);
-   - crop to the figure: flat borders and frames are trimmed, and the picture is cut to no more than 3:2 either way;
-   - levels: black point at the 30th percentile, white point at the 97.5th, gamma 0.8 (lifts the half-tones);
-   - a light ground (an engraving, a photo on white) is inverted, blurred 1px first so hatching becomes tone,
-     because a simulacrum needs its figure light on a dark ground.
+   Forum pictures carry information, so the map is prepared to stay legible (the owner's rule: only hermetic
+   simulacra keep "never picture-perfect"; a forum picture must read at a glance, while staying stipple):
+   - grayscale, white = dense, 640px on the long side (the Worker's limit; never enlarged past the source, at
+     least 480), cut to no more than 2:1 either way so a screenshot keeps its edges;
+   - flat borders and frames are trimmed, at most 12% a side;
+   - a light ground (a screenshot, a page, an engraving, a photo on white) is inverted, so the figure or the text
+     becomes light on dark, the way a simulacrum draws it;
+   - auto levels: black point at the 1st percentile, white at the 99.5th, gamma set so the median tone lands near
+     0.42 (dark pictures are lifted, flat ones spread);
+   - an unsharp mask (radius 1px, amount .4; the runtime's legible preset adds its own mild one on top, with auto
+     levels and a contrast curve, when it uploads the map) so edges and letters survive the stipple; except for hatching (an
+     engraving, a halftone: fine detail everywhere, mean high-frequency energy above .05), which is softened instead
+     (a ~1.5px blur) so its lines become tone, as the design system says;
+   - a black margin of 5% around the picture, so the simulacrum's soft edge falls on the margin, not on the content.
+   prepareMap(file, {mode: 'hermetic'}) gives the design system's original preparation instead (30th percentile,
+   gamma 0.8, a 1px blur on light grounds), kept for comparison.
    The original file goes up beside the map, untouched, so it stays a click away. */
 
 export const ACCEPT = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 export const MAX_BYTES = 4 * 1024 * 1024;
-const LONG = 560, MIN_LONG = 480;
+const LONG = 640, MIN_LONG = 480, MAX_MAP = 380 * 1024;
 
 export function checkFile(file) {
   if (!file) return 'no file';
@@ -48,10 +58,49 @@ function trimBox(lum, w, h) {
   return [l, t, r - l + 1, b - t + 1];
 }
 
+/* soften: one 3×3 binomial blur in place */
+function soften(lum, w, h) {
+  const tmp = new Float32Array(lum.length);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x; tmp[i] = (lum[i - (x > 0 ? 1 : 0)] + 2 * lum[i] + lum[i + (x < w - 1 ? 1 : 0)]) / 4;
+  }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x; lum[i] = (tmp[i - (y > 0 ? w : 0)] + 2 * tmp[i] + tmp[i + (y < h - 1 ? w : 0)]) / 4;
+  }
+}
+
+/* high-frequency energy: the mean difference between each pixel and its 3×3 neighbourhood */
+function energy(lum, w, h) {
+  let sum = 0, n = 0;
+  for (let y = 1; y < h - 1; y += 2) for (let x = 1; x < w - 1; x += 2) {
+    const i = y * w + x;
+    const m = (lum[i - 1] + lum[i + 1] + lum[i - w] + lum[i + w] + lum[i - w - 1] + lum[i - w + 1] + lum[i + w - 1] + lum[i + w + 1] + lum[i]) / 9;
+    sum += Math.abs(lum[i] - m); n++;
+  }
+  return n ? sum / n : 0;
+}
+
+/* unsharp mask on a luminance array: v + amount * (v - blur3x3(v)), twice-separable box blur for a ~1px radius */
+function sharpen(lum, w, h, amount) {
+  const tmp = new Float32Array(lum.length), bl = new Float32Array(lum.length);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x, a = lum[i - (x > 0 ? 1 : 0)], b = lum[i + (x < w - 1 ? 1 : 0)];
+    tmp[i] = (a + 2 * lum[i] + b) / 4;
+  }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x, a = tmp[i - (y > 0 ? w : 0)], b = tmp[i + (y < h - 1 ? w : 0)];
+    bl[i] = (a + 2 * tmp[i] + b) / 4;
+  }
+  for (let i = 0; i < lum.length; i++) lum[i] = Math.max(0, Math.min(1, lum[i] + amount * (lum[i] - bl[i])));
+}
+
 function percentile(sorted, p) { return sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(p * (sorted.length - 1))))]; }
 
 /* file -> {blob (image/jpeg), url (a data: URL of the map), width, height} */
-export async function toDensity(file) {
+export function toDensity(file) { return prepareMap(file, {}); }
+
+export async function prepareMap(file, { mode = 'legible' } = {}) {
+  const hermetic = mode === 'hermetic';
   const src = await decode(file);
   const sw = src.width || src.naturalWidth, sh = src.height || src.naturalHeight;
   if (!sw || !sh) throw new Error('decode');
@@ -73,29 +122,47 @@ export async function toDensity(file) {
   /* back to source pixels, then cut to 3:2 at most, about the centre */
   let cx = bx / ws, cy = by / ws, cw = bw / ws, ch = bh / ws;
   const ratio = cw / ch;
-  if (ratio > 1.5) { const nw = ch * 1.5; cx += (cw - nw) / 2; cw = nw; }
-  if (ratio < 2 / 3) { const nh = cw * 1.5; cy += (ch - nh) / 2; ch = nh; }
-  const long = Math.min(LONG, Math.max(MIN_LONG, Math.max(cw, ch)));
-  const s = long / Math.max(cw, ch);
-  const W = Math.max(1, Math.round(cw * s)), H = Math.max(1, Math.round(ch * s));
+  const maxR = hermetic ? 1.5 : 2;
+  if (ratio > maxR) { const nw = ch * maxR; cx += (cw - nw) / 2; cw = nw; }
+  if (ratio < 1 / maxR) { const nh = cw * maxR; cy += (ch - nh) / 2; ch = nh; }
+  const long = Math.min(hermetic ? 560 : LONG, Math.max(MIN_LONG, Math.max(cw, ch)));
+  const PAD = hermetic ? 0 : 0.05;
+  const s = long / (1 + 2 * PAD) / Math.max(cw, ch);
+  const IW = Math.max(1, Math.round(cw * s)), IH = Math.max(1, Math.round(ch * s));
+  const P = Math.round(Math.max(IW, IH) * PAD), W = IW + 2 * P, H = IH + 2 * P;
   const out = document.createElement('canvas'); out.width = W; out.height = H;
   const ox = out.getContext('2d', { willReadFrequently: true });
   ox.imageSmoothingQuality = 'high';
-  if (lightGround) ox.filter = 'blur(1px)';
-  ox.drawImage(src, cx, cy, cw, ch, 0, 0, W, H);
+  if (lightGround && hermetic) ox.filter = 'blur(1px)';
+  ox.fillStyle = lightGround ? '#fff' : '#000'; ox.fillRect(0, 0, W, H);   /* the margin reads as ground */
+  ox.drawImage(src, cx, cy, cw, ch, P, P, IW, IH);
   ox.filter = 'none';
   if (src.close) src.close();
   const img = ox.getImageData(0, 0, W, H);
   const lum = luminance(img.data);
   if (lightGround) for (let i = 0; i < lum.length; i++) lum[i] = 1 - lum[i];
+  if (!hermetic) {
+    if (energy(lum, W, H) > 0.05) { for (let k = 0; k < 3; k++) soften(lum, W, H); } else sharpen(lum, W, H, 0.4);
+  }
   const sorted = Float32Array.from(lum).sort();
-  const lo = percentile(sorted, 0.30), hi = Math.max(lo + 0.02, percentile(sorted, 0.975));
+  const lo = percentile(sorted, hermetic ? 0.30 : 0.01);
+  const hi = Math.max(lo + 0.02, percentile(sorted, hermetic ? 0.975 : 0.995));
+  let gamma = 0.8;
+  if (!hermetic) {
+    const med = Math.max(0.02, Math.min(0.98, (percentile(sorted, 0.5) - lo) / (hi - lo)));
+    gamma = Math.max(0.55, Math.min(1.6, Math.log(0.42) / Math.log(med)));
+  }
   for (let i = 0; i < lum.length; i++) {
-    const v = Math.pow(Math.max(0, Math.min(1, (lum[i] - lo) / (hi - lo))), 0.8) * 255;
+    const v = Math.pow(Math.max(0, Math.min(1, (lum[i] - lo) / (hi - lo))), gamma) * 255;
     img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = v; img.data[i * 4 + 3] = 255;
   }
   ox.putImageData(img, 0, 0);
-  const blob = await new Promise((resolve, reject) => out.toBlob((b) => (b ? resolve(b) : reject(new Error('encode'))), 'image/jpeg', 0.86));
-  const url = out.toDataURL('image/jpeg', 0.86);
+  /* the lightest JPEG that keeps the map under the Worker's limit */
+  let q = 0.88, blob = null;
+  for (; q >= 0.5; q -= 0.08) {
+    blob = await new Promise((resolve, reject) => out.toBlob((b) => (b ? resolve(b) : reject(new Error('encode'))), 'image/jpeg', q));
+    if (blob.size <= MAX_MAP) break;
+  }
+  const url = out.toDataURL('image/jpeg', Math.max(0.5, q));
   return { blob, url, width: W, height: H, inverted: lightGround };
 }

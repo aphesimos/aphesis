@@ -1,16 +1,17 @@
 /* views: the board (a list of threads) and a thread (its posts in order), as markup in the text face.
-   Pictures are still simulacra (SVGs of square cells, rendered once from the density map), drawn after the words
+   Pictures are still simulacra (SVGs of square cells, rendered once from the density map, legibly: legible.js), drawn after the words
    and faded in only once they exist; with images off, a line of words stands in their place. */
 
 import { esc, render, firstLine, age } from './text.js';
 import { sigilSVG, sigilLabel } from './sigil.js';
 import { image, stillSimulacrum } from './thumb.js';
 import { createComposer } from './composer.js';
+import { stillOptions } from './legible.js';
 
 /* a still simulacrum into el, once its map has loaded; nothing shows before it is drawn */
-function still(el, pic, box, seed, gain = 1.15) {
+function still(el, pic, box, seed) {
   image(pic.density).then((im) => {
-    el.innerHTML = stillSimulacrum(im, box, Object.assign({ seed, gain }, pic)).svg;
+    el.innerHTML = stillSimulacrum(im, box, Object.assign(stillOptions(), { seed })).svg;
     const svg = el.firstChild;
     svg.classList.add('enter');
     requestAnimationFrame(() => requestAnimationFrame(() => { svg.classList.add('in'); svg.classList.remove('enter'); }));
@@ -74,7 +75,7 @@ export function boardView(data, ctx) {
       if (!e.isIntersecting || !pics.has(e.target)) return;
       const [t, seed] = pics.get(e.target);
       pics.delete(e.target); near.unobserve(e.target);
-      still(e.target.querySelector('.thumb'), t.image, [88, 88], seed, 1.3);
+      still(e.target.querySelector('.thumb'), t.image, [88, 88], seed);
     });
   }, { root: ctx.scroller || null, rootMargin: '400px 0px' }) : null;
 
@@ -86,7 +87,7 @@ export function boardView(data, ctx) {
       if (t.image) {
         if (!ctx.images()) li.querySelector('.thumb').innerHTML = '<span class="noimg">[picture]</span>';
         else if (near) { pics.set(li, [t, seed]); near.observe(li); }
-        else still(li.querySelector('.thumb'), t.image, [88, 88], seed, 1.3);
+        else still(li.querySelector('.thumb'), t.image, [88, 88], seed);
       }
       frag.appendChild(li); rows.push(li);
     });
@@ -191,7 +192,7 @@ export function threadView(t, ctx) {
       (removed ? '<p class="body">removed.</p>' :
         (p.image ? picture(p, t, ctx) : '') + '<p class="body">' + render(p.text, t.id) + '</p>') +
       '</article>';
-    if (!removed && p.image && ctx.images()) still(li.querySelector('.open'), p.image, innerWidth < 520 ? [Math.min(280, innerWidth - 32), 240] : [190, 220], p.n + 11);
+    if (!removed && p.image && ctx.images()) still(li.querySelector('.open'), p.image, innerWidth < 520 ? [Math.min(320, innerWidth - 32), 280] : [240, 260], p.n + 11);
     list.appendChild(li);
   });
   root.appendChild(list);

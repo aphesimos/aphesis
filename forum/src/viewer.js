@@ -4,6 +4,7 @@
    Without WebGL it shows the still simulacrum instead, large. The original is a link away; Escape or close returns. */
 
 import { image, stillSimulacrum } from './thumb.js';
+import { liveOptions, stillOptions } from './legible.js';
 
 const A = window.Aphesis;
 const $ = (id) => document.getElementById(id);
@@ -24,9 +25,9 @@ export function createViewer({ scroller, ground, announce }) {
     requestAnimationFrame(() => bar.classList.add('on'));
     close.focus({ preventScroll: true });
     announce('picture open: ' + (pic.caption || 'a picture'));
-    const src = { src: pic.density, scatter: pic.scatter, erosion: pic.erosion, ceiling: pic.ceiling };
+    const src = pic.density;
     if (HAS_GL) {
-      if (!sim) sim = A.Simulacrum(canvas, { ground: false, fit: 'contain', margin: 0.16, accent: 0.03 });
+      if (!sim) sim = A.Simulacrum(canvas, Object.assign(liveOptions(), { ground: false, fit: 'contain', margin: 0.12, accent: 0.01 }));
       else sim.start();
       sim.show(src);
       sim.drawn(() => { if (open && my === token) canvas.classList.add('on'); });
@@ -34,7 +35,7 @@ export function createViewer({ scroller, ground, announce }) {
       image(pic.density).then((im) => {
         if (!open || my !== token) return;
         const box = [Math.min(innerWidth - 32, 720), Math.min(innerHeight - 200, 720)];
-        still.innerHTML = stillSimulacrum(im, box, pic).svg;
+        still.innerHTML = stillSimulacrum(im, box, Object.assign(stillOptions(), { seed: 7 })).svg;
         requestAnimationFrame(() => still.classList.add('on'));
       }).catch(() => {});
     }

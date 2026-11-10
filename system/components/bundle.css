@@ -1,0 +1,53 @@
+/* aphes.is components. Every value comes from tokens.css (generated from tokens.json). */
+/* Special Elite is the text face, EB Garamond italic sets the dead languages (Latin and Greek glosses);
+   Aphesis Script ships from fonts/ as a file. */
+@import url("https://fonts.googleapis.com/css2?family=Special+Elite&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap");
+
+body { background: var(--bg); color: var(--ink); font-family: var(--font-text); }
+:focus-visible { outline: 1px solid var(--accent); outline-offset: 4px; }
+
+/* tooltip: page ground, a hairline of accent on the left, small text typed fast */
+.aph-tip {
+  position: fixed; left: 0; top: 0; z-index: var(--z-tip); pointer-events: none;
+  max-width: min(320px, calc(100vw - 32px)); padding: var(--space-2) var(--space-3);
+  background: var(--bg); color: var(--ink-soft); border-left: 1px solid var(--accent);
+  font: 400 11px/1.6 var(--font-text); letter-spacing: .06em;
+  opacity: 0; filter: blur(4px); transform: translateY(4px);
+  transition: opacity var(--duration-quick) ease, filter var(--duration-quick) ease, transform var(--duration-quick) var(--easing-settle);
+}
+.aph-tip.on { opacity: 1; filter: none; transform: none; }
+
+/* cursor: a white disc in difference blend, the negative of whatever it covers */
+@media (hover: hover) and (pointer: fine) {
+  .aph-has-cursor, .aph-has-cursor *, .aph-has-cursor *::before, .aph-has-cursor *::after { cursor: none !important; }
+}
+.aph-cursor {
+  position: fixed; left: 0; top: 0; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: var(--radius-disc);
+  background: #fff; mix-blend-mode: difference; pointer-events: none; z-index: var(--z-cursor);
+  transform: translate(-100px, -100px) scale(.2); opacity: 0; transition: opacity var(--duration-quick) ease;
+}
+.aph-cursor.on { opacity: 1; }
+
+/* letter wave: letters lift a hair, one after another; nothing around them moves */
+.ltr { display: inline-block; transition: transform var(--duration-slow) var(--easing-settle); transition-delay: calc(var(--i) * 22ms); }
+.aph-wave:hover .ltr, .aph-wave:focus-visible .ltr { transform: translateY(-2px); }
+
+/* typist caret: solid while typing, blinking when idle, fading when done */
+.aph-caret { display: inline-block; width: .55em; height: 1.05em; margin-left: .12em; vertical-align: -.18em; background: currentColor; opacity: .75; }
+.aph-caret.blink { animation: aph-blink 1.06s steps(1, end) infinite; }
+.aph-caret.gone { opacity: 0; transition: opacity 1.2s ease; }
+@keyframes aph-blink { 50% { opacity: 0; } }
+
+/* type roles as classes (the same roles tokens.json lists) */
+.aph-display { font-family: var(--font-display); font-weight: 400; font-variation-settings: "wght" 400, "slnt" 0; text-transform: lowercase; line-height: .95; }
+.aph-gloss { font-family: var(--font-gloss); font-style: italic; letter-spacing: .04em; color: var(--ink-soft); }
+.aph-label { font-family: var(--font-text); font-size: 13px; letter-spacing: .22em; text-transform: lowercase; }
+.aph-meta { font-family: var(--font-text); font-size: 11px; letter-spacing: .14em; color: var(--ink-soft); }
+
+/* text on fog keeps a halo of ground so it never sits on dots */
+.aph-on-fog { text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ltr { transition: none !important; transform: none !important; }
+  .aph-caret.blink { animation: none; }
+}

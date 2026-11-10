@@ -1,0 +1,12 @@
+<!-- @dsCard group="Voice" height=150 subtitle="types like a person: rhythm, typos, a rethought word; erases like a held delete key" -->
+<div class="p"><p class="line"><span class="pre" aria-hidden="true">&gt;&gt;</span><span id="t"></span><span class="aph-caret" id="k" aria-hidden="true"></span></p><p class="aph-meta" id="tr"></p></div>
+<style>
+.p{padding:var(--space-6) var(--space-5)}
+.line{margin:0;font-family:var(--font-text);font-size:19px;letter-spacing:.06em;color:var(--accent-text);min-height:1.6em}
+.pre{margin-right:.5em;opacity:.8}
+#tr{margin:var(--space-3) 0 0}
+</style>
+<script>
+var P=[{text:'Solve et coagula',t:'dissolve and coagulate'},{text:'Quod est inferius est sicut quod est superius',t:'that which is below is as that which is above · Emerald Tablet'},{text:'ἓν τὸ πᾶν',t:'the one is the all · Chrysopoeia of Cleopatra'},{text:'Obscurum per obscurius',t:'the obscure by the more obscure'}];
+new Aphesis.Typist(document.getElementById('t'),document.getElementById('k')).loop(P,4200,function(l){document.getElementById('tr').textContent=l.t;});
+</script>

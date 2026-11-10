@@ -1,0 +1,358 @@
+/* @ds-bundle: {"format":4,"namespace":"Aphesis","components":[{"name":"Seal"},{"name":"Brush"},{"name":"Icons"},{"name":"Fog"},{"name":"Simulacrum"},{"name":"Typist"},{"name":"Tooltip"},{"name":"Cursor"},{"name":"LetterWave"}]} */
+/* aphes.is design system runtime. Plain JavaScript, no framework: every screen of the site loads this one script.
+   Everything visible is made of two marks: the BRUSH (a centerline with a width profile, tapered, with unsure edges)
+   and the STIPPLE (small square cells that light up where a density field passes a fixed threshold). Nothing is solid. */
+(function () {
+  'use strict';
+  var REDUCED = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var FINE = typeof matchMedia === 'function' && matchMedia('(hover:hover) and (pointer:fine)').matches;
+
+  /* ---------- math ---------- */
+  function clamp(x, a, b) { a = a === undefined ? 0 : a; b = b === undefined ? 1 : b; return Math.max(a, Math.min(b, x)); }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  /* minimum-jerk easing: the curve a relaxed hand follows between two points. The only easing for things that travel. */
+  function MJ(t) { t = clamp(t); return t * t * t * (10 - 15 * t + 6 * t * t); }
+  function rng(seed) { var s = (seed >>> 0) || 1; return function () { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; }
+  function gauss() { var u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+  function tween(dur, fn, done) {
+    var t0 = null, id = 0;
+    function q(now) { if (t0 === null) t0 = now; var k = clamp((now - t0) / Math.max(1, dur)); fn(k); if (k < 1) id = requestAnimationFrame(q); else if (done) done(); }
+    id = requestAnimationFrame(q); return function () { cancelAnimationFrame(id); };
+  }
+
+  /* ---------- tokens read back from CSS (canvas-based graphics take the theme's colors) ---------- */
+  var probe = null;
+  function cssColor(name, el) {
+    if (!probe) probe = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+    var s = getComputedStyle(el || document.documentElement).getPropertyValue(name).trim() || '#000';
+    probe.clearRect(0, 0, 1, 1); probe.fillStyle = '#000'; probe.fillStyle = s; probe.fillRect(0, 0, 1, 1);
+    var d = probe.getImageData(0, 0, 1, 1).data; return [d[0] / 255, d[1] / 255, d[2] / 255];
+  }
+  function onTheme(fn) {
+    if (typeof matchMedia === 'function') matchMedia('(prefers-color-scheme: dark)').addEventListener('change', fn);
+    new MutationObserver(fn).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  }
+
+  /* ================= BRUSH ================= */
+  /* brush(points, width, seed, taper, wobble) -> SVG path data.
+     points: the centerline, densely sampled (use arc() and line()). width: the stroke at its fullest.
+     taper: the share of the length that swells in at the start and thins out at the end (0 = blunt).
+     wobble: how unsure the hand is; each edge drifts on its own, so the two sides never mirror. */
+  function brush(pts, w, seed, taper, amp) {
+    taper = taper === undefined ? 0.22 : taper; amp = amp === undefined ? 0.08 : amp;
+    var r = rng(seed || 1), n = pts.length, L = [], R = [], ph = [r() * 6, r() * 6, r() * 6];
+    for (var i = 0; i < n; i++) {
+      var a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)], tx = b[0] - a[0], ty = b[1] - a[1], l = Math.hypot(tx, ty) || 1; tx /= l; ty /= l;
+      var u = i / (n - 1), k = 1;
+      if (taper > 0 && u < taper) k = Math.sin(u / taper * Math.PI / 2);
+      if (taper > 0 && u > 1 - taper) k = Math.min(k, Math.sin((1 - u) / taper * Math.PI / 2));
+      var wob = 1 + amp * (Math.sin(u * 9 + ph[0]) + 0.5 * Math.sin(u * 23 + ph[1]));
+      var wl = w * k * wob * (1 + 0.06 * Math.sin(u * 31 + ph[2])), wr = w * k * wob * (1 - 0.05 * Math.sin(u * 27 + ph[1]));
+      L.push([pts[i][0] - ty * wl / 2, pts[i][1] + tx * wl / 2]); R.push([pts[i][0] + ty * wr / 2, pts[i][1] - tx * wr / 2]);
+    }
+    var f = function (v) { return v.toFixed(2); }, d = 'M' + f(L[0][0]) + ' ' + f(L[0][1]);
+    for (i = 1; i < n; i++) d += 'L' + f(L[i][0]) + ' ' + f(L[i][1]);
+    for (i = n - 1; i >= 0; i--) d += 'L' + f(R[i][0]) + ' ' + f(R[i][1]);
+    return d + 'Z';
+  }
+  function arc(cx, cy, r, a0, a1, n, ry) { n = n || 64; var p = []; for (var i = 0; i <= n; i++) { var a = (a0 + (a1 - a0) * i / n) * Math.PI / 180; p.push([cx + r * Math.cos(a), cy + (ry || r) * Math.sin(a)]); } return p; }
+  function line(x0, y0, x1, y1, n) { n = n || 24; var p = []; for (var i = 0; i <= n; i++) { var t = i / n; p.push([x0 + (x1 - x0) * t, y0 + (y1 - y0) * t]); } return p; }
+  /* stipple(test, seed, count, size, box) -> SVG path data of small squares inside a region.
+     test(x, y): inside or not. box: the square [0, box] the cells are scattered over (24 for icons). */
+  function stipple(test, seed, count, size, box) {
+    size = size || 0.42; box = box || 24; var r = rng(seed), d = '';
+    for (var i = 0; i < count; i++) {
+      var x = r() * box, y = r() * box;
+      if (test(x, y)) { var s = size * (0.7 + r() * 0.6); d += 'M' + (x - s / 2).toFixed(2) + ' ' + (y - s / 2).toFixed(2) + 'h' + s.toFixed(2) + 'v' + s.toFixed(2) + 'h' + (-s).toFixed(2) + 'z'; }
+    }
+    return d;
+  }
+  function inC(cx, cy, r) { return function (x, y) { return (x - cx) * (x - cx) + (y - cy) * (y - cy) < r * r; }; }
+
+  /* ================= ICONS ================= */
+  /* 24-unit grid, brush strokes in currentColor, stipple as fill. Each icon has two states where it means something. */
+  var ICONS = {
+    eye: function (st) {
+      if (!st) return { strokes: brush(arc(12, 15.5, 9, -160, -20, 40, 7), 1.7, 31) + brush(arc(12, 8.5, 9, 20, 160, 40, 7), 1.7, 33), dots: stipple(inC(12, 12, 3.1), 36, 260, 0.95) };
+      var d = brush(arc(12, 8, 9, 25, 155, 40, 6), 1.8, 37);
+      [-0.55, 0, 0.55].forEach(function (k, i) { var x = 12 + k * 9.5; d += brush(line(x, 14.2 - Math.abs(k) * 1.2, x + k * 1.8, 17.2 - Math.abs(k), 10), 1.2, 41 + i, 0.35, 0.05); });
+      return { strokes: d, dots: '' };
+    },
+    sol: function () { return { strokes: brush(arc(12, 12, 7.4, -80, 272), 1.9, 3) + brush(arc(12, 12, 1.05, 0, 360, 16), 1.6, 9, 0, 0), dots: '' }; },
+    luna: function () {
+      return { strokes: brush(arc(12, 12, 7.4, -80, 272), 1.9, 3) + brush(arc(15.2, 10.6, 6.2, -105, 155), 1.7, 11),
+        dots: stipple(function (x, y) { return inC(12, 12, 7)(x, y) && !inC(15.2, 10.6, 6.4)(x, y); }, 5, 900) };
+    },
+    terminator: function (st) {
+      var half = st ? function (x) { return x > 12; } : function (x) { return x < 12; };
+      return { strokes: brush(arc(12, 12, 7.6, -95, 268), 1.8, 21), dots: stipple(function (x, y) { return inC(12, 12, 6.4)(x, y) && half(x); }, 8, 1400) };
+    },
+    threshold: function (st) {
+      var d = brush([].concat(line(6.5, 21, 6.5, 10.5, 12), arc(12, 10.5, 5.5, 180, 360, 24).slice(1), line(17.5, 10.5, 17.5, 21, 12).slice(1)), 1.8, 61, 0.12) + brush(line(4.5, 21.2, 19.5, 21.2, 16), 1.5, 63, 0.2);
+      return { strokes: d, dots: st ? stipple(function (x, y) { return (y > 10.5 && x > 7.6 && x < 16.4 && y < 20.4) || (inC(12, 10.5, 4.4)(x, y) && y <= 10.5); }, 66, 1600) : '' };
+    }
+  };
+  /* icon(name, state) -> inline SVG markup. Size it with CSS; color it with `color`. */
+  function icon(name, st) {
+    var g = ICONS[name](st || 0);
+    return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="overflow:visible"><path d="' + g.strokes + '" fill="currentColor"/>' + (g.dots ? '<path d="' + g.dots + '" fill="currentColor" opacity=".85"/>' : '') + '</svg>';
+  }
+
+  /* ================= SEAL ================= */
+  /* the φ as drawn by hand. The live drawing (φ -> Φ) lives in the brush engine on the `mark` branch;
+     this is the still mark with its boil: a turbulence that is reseeded 8 times a second, so the ink never sits still. */
+  var PHI = { viewBox: '69 -6 385 533', d: '__PHI_D__' };
+  var sealN = 0;
+  function seal(el, opts) {
+    opts = opts || {}; var id = 'aphesis-boil-' + (++sealN), boil = opts.boil !== false && !REDUCED;
+    el.innerHTML = '<svg viewBox="' + PHI.viewBox + '" aria-hidden="true" style="width:100%;height:100%;display:block;overflow:visible">' +
+      '<filter id="' + id + '" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.030" numOctaves="1" seed="1"/>' +
+      '<feDisplacementMap in="SourceGraphic" scale="' + (boil ? 7 : 0) + '" xChannelSelector="R" yChannelSelector="G"/></filter>' +
+      '<path d="' + PHI.d + '" fill="currentColor" fill-rule="evenodd" filter="url(#' + id + ')"/></svg>';
+    var turb = el.querySelector('feTurbulence'), t = boil ? setInterval(function () { turb.setAttribute('seed', 1 + Math.floor(Math.random() * 997)); }, 125) : 0;
+    return { stop: function () { clearInterval(t); } };
+  }
+
+  /* ================= STIPPLE FIELDS (WebGL) ================= */
+  var NOISE = 'float h(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}' +
+    'float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}' +
+    'float fb(vec2 p){float s=0.,a=.5;for(int i=0;i<5;i++){s+=a*n(p);p=mat2(1.6,1.2,-1.2,1.6)*p;a*=.5;}return s;}' +
+    'mat2 rot(float a){float c=cos(a),s=sin(a);return mat2(c,-s,s,c);}' +
+    /* the fog: three layers of fractal noise rotated by the golden angle, drifting at speeds in the ratio φ */
+    'float fog(vec2 uv,float T){float d=0.;for(int i=0;i<3;i++){float fi=float(i);vec2 q=rot(fi*2.39996)*uv*(1.6*pow(1.618,fi))+vec2(T*.013*pow(1.618,fi),-T*.008*pow(1.618,fi));' +
+    'vec2 w=vec2(fb(q+vec2(0.,T*.01)),fb(q+vec2(5.2,1.3)));d+=fb(q+1.7*w)/(1.+fi*.6);}return d/1.9;}';
+  function glProgram(cv, fs) {
+    var gl = cv.getContext('webgl', { premultipliedAlpha: false, antialias: false, preserveDrawingBuffer: true });
+    if (!gl) return null;
+    function sh(t, s) { var o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(o)); return o; }
+    var pr = gl.createProgram(); gl.attachShader(pr, sh(gl.VERTEX_SHADER, 'attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}')); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(pr); gl.useProgram(pr);
+    var b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    var lp = gl.getAttribLocation(pr, 'p'); gl.enableVertexAttribArray(lp); gl.vertexAttribPointer(lp, 2, gl.FLOAT, false, 0, 0);
+    return { gl: gl, u: function (k) { return gl.getUniformLocation(pr, k); } };
+  }
+  /* size a canvas to its CSS box in device pixels, capped so a cell stays a crisp square */
+  function fit(cv, gl) { var r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1); var w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr)); if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; gl.viewport(0, 0, w, h); } return dpr; }
+
+  /* ---------- Fog ----------
+     Fog(canvas, {density, light, cell}) -> {zones(rects), stop()}
+     the stippled ground of every screen. density 0..1 (home 1, inside a section .62); light: the soft rise of dots
+     around the pointer (home 1, section .4). zones: up to 12 calm rectangles behind text (elements or DOMRects). */
+  function Fog(cv, o) {
+    o = o || {}; var P = glProgram(cv, 'precision highp float;uniform vec2 R;uniform float T,D,C,S;uniform vec3 F,N;uniform vec2 P;uniform vec4 Z[12];' + NOISE +
+      'void main(){vec2 cel=floor(gl_FragCoord.xy/S);vec2 uv=(cel*S-R*.5)/min(R.x,R.y);float d=fog(uv,T);' +
+      'float vin=smoothstep(1.45,.35,length(uv*vec2(.9,1.)))*.85+.15;vec2 pp=(P-R*.5)/min(R.x,R.y);float luz=exp(-dot(uv-pp,uv-pp)*7.)*.35;' +
+      'float m=smoothstep(.44,.74,d);float dens=(m*.8+.012)*vin*D+luz*vin*C*m;' +
+      'for(int i=0;i<12;i++){vec4 z=Z[i];if(z.z>0.){vec2 q=abs(gl_FragCoord.xy-z.xy)/z.zw;dens*=1.-.8*(1.-smoothstep(.45,1.05,length(q)));}}' +
+      'gl_FragColor=vec4(mix(F,N,step(h(cel),dens)*.55),1.);}');
+    if (!P) return { zones: function () {}, stop: function () {} };
+    var gl = P.gl, U = {}; ['R', 'T', 'D', 'C', 'S', 'F', 'N', 'P', 'Z'].forEach(function (k) { U[k] = P.u(k); });
+    var F = [0, 0, 0], Nc = [1, 1, 1], ptr = null, sm = null, t = 0, last = performance.now(), raf = 0, zEls = [], ZB = new Float32Array(48);
+    var dens = o.density === undefined ? 1 : o.density, light = o.light === undefined ? 1 : o.light, dpr = 1;
+    function colors() { F = cssColor('--bg', cv); Nc = cssColor('--fog', cv); }
+    colors(); onTheme(function () { setTimeout(colors, 30); [200, 500, 850].forEach(function (ms) { setTimeout(colors, ms); }); });
+    cv.addEventListener('pointermove', function (e) { var r = cv.getBoundingClientRect(); ptr = [e.clientX - r.left, e.clientY - r.top]; });
+    window.addEventListener('pointermove', function (e) { var r = cv.getBoundingClientRect(); ptr = [e.clientX - r.left, e.clientY - r.top]; });
+    function frame(now) {
+      var dt = Math.min(0.05, (now - last) / 1000); last = now; if (!REDUCED) t += dt; dpr = fit(cv, gl);
+      var R = cv.getBoundingClientRect(); if (!ptr) ptr = [R.width / 2, R.height / 2]; if (!sm) sm = ptr.slice();
+      sm[0] += (ptr[0] - sm[0]) * Math.min(1, dt * 3); sm[1] += (ptr[1] - sm[1]) * Math.min(1, dt * 3);
+      ZB.fill(0); var i = 0;
+      zEls.forEach(function (z) { if (i >= 12) return; var r = z.el ? z.el.getBoundingClientRect() : z; if (!r.width) return; var pad = z.pad || 12;
+        ZB.set([(r.left - R.left + r.width / 2) * dpr, cv.height - (r.top - R.top + r.height / 2) * dpr, (r.width / 2 + pad) * dpr, (r.height / 2 + pad) * dpr], i * 4); i++; });
+      gl.uniform4fv(U.Z, ZB); gl.uniform2f(U.R, cv.width, cv.height); gl.uniform1f(U.T, t); gl.uniform1f(U.S, 2 * dpr);
+      gl.uniform3fv(U.F, F); gl.uniform3fv(U.N, Nc); gl.uniform2f(U.P, sm[0] * dpr, cv.height - sm[1] * dpr); gl.uniform1f(U.D, dens); gl.uniform1f(U.C, light);
+      gl.drawArrays(gl.TRIANGLES, 0, 3); raf = requestAnimationFrame(frame);
+    }
+    raf = requestAnimationFrame(frame);
+    return {
+      zones: function (list) { zEls = (list || []).map(function (z) { return z instanceof Element ? { el: z } : z; }); },
+      set: function (k) { if (k.density !== undefined) dens = k.density; if (k.light !== undefined) light = k.light; },
+      stop: function () { cancelAnimationFrame(raf); }
+    };
+  }
+
+  /* ---------- Simulacrum ----------
+     a picture that exists only as fog: an image becomes a density field, and the same square cells as the fog
+     light up where it is dense. It coalesces out of the fog and dissolves back into it.
+     Simulacrum(canvas, {source, fit:'contain'|'cover', gain, cell, accent, margin}) -> {show(src?), hide(), set(src), stop()}
+     source: an image URL, an <img>/<canvas>, or Simulacrum.fromBrush(draw, w, h).
+     The density map is grayscale: white = full, black = empty. Prepare engravings inverted, so their lines become light. */
+  function Simulacrum(cv, o) {
+    o = o || {};
+    var P = glProgram(cv, 'precision highp float;uniform vec2 R,P;uniform float T,S,K,G,M,A,FIT;uniform vec3 F,N,AC;uniform vec2 IA;uniform sampler2D I;' + NOISE +
+      'void main(){vec2 cel=floor(gl_FragCoord.xy/S);vec2 c=cel*S+S*.5;vec2 uv=(c-R*.5)/min(R.x,R.y);' +
+      'float d=fog(uv*.8,T);' +
+      /* fit the image in the canvas */
+      'vec2 box=R*(1.-M);float sc=FIT>.5?max(box.x/IA.x,box.y/IA.y):min(box.x/IA.x,box.y/IA.y);vec2 sz=IA*sc;' +
+      /* the picture breathes: before it settles its cells are pushed around by the fog */
+      'vec2 jit=(vec2(fb(uv*3.+T*.05),fb(uv*3.+7.3-T*.04))-.5)*(1.-K)*.18*min(R.x,R.y);' +
+      'vec2 iu=(c+jit-(R-sz)*.5)/sz;iu.y=1.-iu.y;float inside=step(0.,iu.x)*step(iu.x,1.)*step(0.,iu.y)*step(iu.y,1.);' +
+      'vec2 e=min(iu,1.-iu);float feather=smoothstep(0.,.07,min(e.x,e.y));' +
+      'float img=pow(texture2D(I,clamp(iu,0.,1.)).r,1.15)*inside*feather;' +
+      'vec2 pp=(P-R*.5)/min(R.x,R.y);float luz=exp(-dot(uv-pp,uv-pp)*9.);' +
+      'float kk=clamp(K+luz*.35*K,0.,1.);' +
+      'float mist=smoothstep(.44,.78,d)*.5;' +
+      'float pic=img*G*(.82+.36*d);' +
+      'float dens=mix(mist,pic+mist*.12,kk);' +
+      /* threshold: interleaved gradient noise (even, blue-ish) mixed with a hash (organic), so tones read as tones */
+      'float ign=fract(52.9829189*fract(dot(cel,vec2(.06711056,.00583715))));float lit=step(mix(ign,h(cel),.35),dens);' +
+      'float red=step(h(cel+31.7),A*img*kk);' +
+      'vec3 col=mix(N,AC,red);gl_FragColor=vec4(mix(F,col,lit*.72),1.);}');
+    if (!P) return { show: function () {}, hide: function () {}, set: function () {}, stop: function () {} };
+    var gl = P.gl, U = {}; ['R', 'P', 'T', 'S', 'K', 'G', 'M', 'A', 'FIT', 'F', 'N', 'AC', 'IA', 'I'].forEach(function (k) { U[k] = P.u(k); });
+    var tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, 1, 1, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, new Uint8Array([0]));
+    var IA = [1, 1], k = 0, t = Math.random() * 50, last = performance.now(), raf = 0, ptr = [-1e4, -1e4], cancel = null;
+    var F = [0, 0, 0], Nc = [1, 1, 1], AC = [1, 0, 0];
+    function colors() { F = cssColor('--bg', cv); Nc = cssColor('--fog', cv); AC = cssColor('--accent', cv); }
+    colors(); onTheme(function () { setTimeout(colors, 30); [200, 500, 850].forEach(function (ms) { setTimeout(colors, ms); }); });
+    window.addEventListener('pointermove', function (e) { var r = cv.getBoundingClientRect(); ptr = [e.clientX - r.left, e.clientY - r.top]; });
+    function upload(img) { gl.bindTexture(gl.TEXTURE_2D, tex); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, img); IA = [img.naturalWidth || img.width, img.naturalHeight || img.height]; }
+    function load(src, cb) {
+      if (typeof src !== 'string') { upload(src); cb && cb(); return; }
+      var im = new Image(); if (/^https?:/.test(src) && src.indexOf(location.origin) !== 0) im.crossOrigin = 'anonymous'; im.onload = function () { upload(im); cb && cb(); }; im.src = src;
+    }
+    function frame(now) {
+      var dt = Math.min(0.05, (now - last) / 1000); last = now; if (!REDUCED) t += dt; var dpr = fit(cv, gl);
+      gl.uniform2f(U.R, cv.width, cv.height); gl.uniform2f(U.P, ptr[0] * dpr, cv.height - ptr[1] * dpr); gl.uniform1f(U.T, t);
+      gl.uniform1f(U.S, (o.cell || 2) * dpr); gl.uniform1f(U.K, MJ(k)); gl.uniform1f(U.G, o.gain === undefined ? 1 : o.gain); gl.uniform1f(U.M, o.margin === undefined ? 0.08 : o.margin);
+      gl.uniform1f(U.A, o.accent || 0); gl.uniform1f(U.FIT, o.fit === 'cover' ? 1 : 0); gl.uniform3fv(U.F, F); gl.uniform3fv(U.N, Nc); gl.uniform3fv(U.AC, AC);
+      gl.uniform2f(U.IA, IA[0], IA[1]); gl.uniform1i(U.I, 0); gl.drawArrays(gl.TRIANGLES, 0, 3); raf = requestAnimationFrame(frame);
+    }
+    raf = requestAnimationFrame(frame);
+    function to(target, dur, done) { if (cancel) cancel(); var k0 = k; if (REDUCED) { k = target; done && done(); return; } cancel = tween(dur, function (e) { k = lerp(k0, target, e); }, done); }
+    var api = {
+      /* coalesce out of the fog (2.6 s); with a source, swap it in first */
+      show: function (src, done) { if (src) load(src, function () { to(1, 2600, done); }); else to(1, 2600, done); },
+      /* dissolve back into the fog (1.8 s) */
+      hide: function (done) { to(0, 1800, done); },
+      /* dissolve, swap, coalesce */
+      set: function (src, done) { to(0, 1500, function () { load(src, function () { to(1, 2600, done); }); }); },
+      stop: function () { cancelAnimationFrame(raf); if (cancel) cancel(); }
+    };
+    if (o.source) api.show(o.source);
+    return api;
+  }
+  /* a density map drawn with the brush: draw(ctx, w, h) paints white on black; returns a canvas to pass as source */
+  Simulacrum.fromBrush = function (draw, w, h) {
+    var c = document.createElement('canvas'); c.width = w || 512; c.height = h || 512; var x = c.getContext('2d');
+    x.fillStyle = '#000'; x.fillRect(0, 0, c.width, c.height); x.fillStyle = '#fff'; draw(x, c.width, c.height);
+    return c;
+  };
+
+  /* ================= TYPIST ================= */
+  /* types a line the way a person does. rhythm: each keystroke varies around a base pace (log-normal), slower at the
+     start of a word, on capitals and after punctuation. errors: now and then a neighbouring key, noticed a letter or two
+     later, deleted and retyped. once in a while it rethinks a whole word. erasing: a few taps that speed up, then whole
+     words at a time, like a held delete key. The caret is solid while typing and blinks when idle. */
+  var ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'], NEAR = {};
+  ROWS.forEach(function (r, y) { r.split('').forEach(function (c, x) { var nb = []; [[y, x - 1], [y, x + 1], [y - 1, x], [y - 1, x + 1], [y + 1, x], [y + 1, x - 1]].forEach(function (p) { if (ROWS[p[0]] && ROWS[p[0]][p[1]]) nb.push(ROWS[p[0]][p[1]]); }); NEAR[c] = nb; }); });
+  function isLetter(c) { return /\p{L}/u.test(c); }
+  function wrongKey(c, pool) { var lo = c.toLowerCase(); if (NEAR[lo]) { var nk = NEAR[lo][Math.floor(Math.random() * NEAR[lo].length)]; return c === lo ? nk : nk.toUpperCase(); } var p = pool.filter(function (x) { return isLetter(x) && x !== c; }); return p.length ? p[Math.floor(Math.random() * p.length)] : c; }
+  function plan(text, pace) {
+    var ch = Array.from(text), ops = [], rethought = false;
+    function key(c, prev) { var d = pace * Math.exp(gauss() * 0.32); if (prev === ' ' || prev === undefined) d *= 1.3; if (c !== c.toLowerCase()) d += pace * 0.6; if (/[,;:]/.test(prev)) d += 140 + Math.random() * 180; if (/[.!?]/.test(prev)) d += 260 + Math.random() * 300; if (Math.random() < 0.03) d += 200 + Math.random() * 380; return d; }
+    for (var i = 0; i < ch.length; i++) {
+      var c = ch[i], prev = ch[i - 1];
+      if (!rethought && c === ' ' && i > ch.length / 3 && i < ch.length - 3 && Math.random() < 0.22) {
+        rethought = true; var j = i - 1; while (j >= 0 && ch[j] !== ' ') j--; var word = ch.slice(j + 1, i);
+        ops.push(['wait', '', 520 + Math.random() * 420]); word.forEach(function (_, q) { ops.push(['del', '', q === 0 ? 160 : 55 + Math.random() * 35]); });
+        ops.push(['wait', '', 260 + Math.random() * 300]); word.forEach(function (w, q) { ops.push(['add', w, key(w, q ? word[q - 1] : ' ') * 0.9]); });
+      }
+      if (i > 0 && isLetter(c) && Math.random() < 0.045) {
+        var extra = Math.random() < 0.55 ? Math.min(1 + Math.floor(Math.random() * 2), ch.length - 1 - i) : 0;
+        ops.push(['add', wrongKey(c, ch), key(c, prev)]); for (var q = 1; q <= extra; q++) ops.push(['add', ch[i + q], key(ch[i + q], ch[i + q - 1]) * 0.85]);
+        ops.push(['wait', '', 180 + Math.random() * 320]); for (q = 0; q <= extra; q++) ops.push(['del', '', q === 0 ? 120 : 50 + Math.random() * 30]);
+        ops.push(['add', c, pace * (1.1 + Math.random() * 0.5)]); for (q = 1; q <= extra; q++) ops.push(['add', ch[i + q], key(ch[i + q], ch[i + q - 1])]);
+        i += extra; continue;
+      }
+      ops.push(['add', c, key(c, prev)]);
+    }
+    return ops;
+  }
+  function Typist(el, caret) { this.el = el; this.caret = caret; this.t = null; this.buf = []; }
+  Typist.prototype.stop = function () { clearTimeout(this.t); };
+  Typist.prototype._show = function () { this.el.textContent = this.buf.join(''); };
+  Typist.prototype.type = function (text, done) {
+    var self = this, ca = this.caret; this.stop(); this.buf = []; this._show();
+    if (REDUCED) { this.buf = Array.from(text); this._show(); done && done(); return; }
+    var ops = plan(text, 44 + Math.random() * 26), i = 0; ca && ca.classList.add('blink');
+    function step() {
+      if (i >= ops.length) { ca && ca.classList.add('blink'); done && done(); return; }
+      var op = ops[i++];
+      self.t = setTimeout(function () { if (op[0] === 'add') self.buf.push(op[1]); else if (op[0] === 'del') self.buf.pop();
+        if (op[0] !== 'wait') { self._show(); ca && ca.classList.remove('blink'); } else ca && ca.classList.add('blink'); step(); }, op[2]);
+    }
+    this.t = setTimeout(function () { ca && ca.classList.remove('blink'); step(); }, 900 + Math.random() * 700);
+  };
+  Typist.prototype.erase = function (done) {
+    var self = this, ca = this.caret, taps = 3 + Math.floor(Math.random() * 4), d = 150; this.stop();
+    function step() {
+      if (!self.buf.length) { ca && ca.classList.add('blink'); done && done(); return; }
+      ca && ca.classList.remove('blink');
+      if (taps > 0) { self.buf.pop(); taps--; self._show(); d = Math.max(55, d * 0.78); self.t = setTimeout(step, d * Math.exp(gauss() * 0.15)); return; }
+      while (self.buf.length && self.buf[self.buf.length - 1] === ' ') self.buf.pop();
+      while (self.buf.length && self.buf[self.buf.length - 1] !== ' ') self.buf.pop();
+      self._show(); self.t = setTimeout(step, 170 + Math.random() * 120);
+    }
+    this.t = setTimeout(step, 0);
+  };
+  /* loop(lines, hold): type a random line, rest, erase, type another; forever */
+  Typist.prototype.loop = function (lines, hold, onLine) {
+    var self = this, last = -1; hold = hold || 6500;
+    function next() { var i; do { i = Math.floor(Math.random() * lines.length); } while (lines.length > 1 && i === last); last = i; onLine && onLine(lines[i], i);
+      var txt = typeof lines[i] === 'string' ? lines[i] : lines[i].text;
+      self.type(txt, function () { if (REDUCED) return; self.t = setTimeout(function () { self.erase(function () { self.t = setTimeout(next, 900 + Math.random() * 900); }); }, hold + Math.random() * 3500); }); }
+    next();
+  };
+
+  /* ================= TOOLTIP ================= */
+  /* any element with data-tip. waits 420 ms, appears beside the pointer, types its text quickly. never the browser's title. */
+  var tipEl = null;
+  function tooltip(root) {
+    if (tipEl) return; root = root || document.body;
+    tipEl = document.createElement('div'); tipEl.className = 'aph-tip'; tipEl.setAttribute('aria-hidden', 'true'); root.appendChild(tipEl);
+    var target = null, wait = null, typing = null, mx = 0, my = 0;
+    function place() { var r = tipEl.getBoundingClientRect(), pad = 16, x = mx + 18, y = my + 20; if (x + r.width > innerWidth - pad) x = mx - 18 - r.width; if (y + r.height > innerHeight - pad) y = my - 20 - r.height; tipEl.style.left = Math.max(pad, x) + 'px'; tipEl.style.top = Math.max(pad, y) + 'px'; }
+    function show(t) { clearTimeout(typing); var txt = t.dataset.tip || ''; tipEl.textContent = ''; tipEl.classList.add('on'); place();
+      if (REDUCED) { tipEl.textContent = txt; place(); return; }
+      var i = 0, ch = Array.from(txt); (function step() { tipEl.textContent = ch.slice(0, ++i).join(''); place(); if (i < ch.length) typing = setTimeout(step, 12 + Math.random() * 16); })(); }
+    function hide() { clearTimeout(wait); clearTimeout(typing); tipEl.classList.remove('on'); target = null; }
+    addEventListener('pointermove', function (e) { mx = e.clientX; my = e.clientY; var t = e.target.closest && e.target.closest('[data-tip]');
+      if (t !== target) { hide(); if (t) { target = t; wait = setTimeout(function () { show(t); }, 420); } } else if (tipEl.classList.contains('on')) place(); });
+    addEventListener('pointerdown', hide); addEventListener('blur', hide);
+  }
+
+  /* ================= CURSOR ================= */
+  /* a disc in difference blend: always the negative of what it covers. small at rest (.2), it opens over anything you
+     can act on (1), tightens on press (x.78). Only on fine pointers; elsewhere the system cursor stays. */
+  var curEl = null;
+  function cursor(root) {
+    if (curEl || !FINE) return; root = root || document.body;
+    curEl = document.createElement('div'); curEl.className = 'aph-cursor'; curEl.setAttribute('aria-hidden', 'true'); root.appendChild(curEl);
+    document.documentElement.classList.add('aph-has-cursor');
+    var x = -100, y = -100, tx = -100, ty = -100, s = 0.2, ts = 0.2, down = false, last = performance.now();
+    addEventListener('pointermove', function (e) { tx = e.clientX; ty = e.clientY; curEl.classList.add('on'); var t = e.target.closest && e.target.closest('a,button,[data-cursor]'); ts = t ? (+(t.dataset.cursor || 1)) : 0.2; });
+    document.addEventListener('pointerleave', function () { curEl.classList.remove('on'); });
+    addEventListener('pointerdown', function () { down = true; }); addEventListener('pointerup', function () { down = false; });
+    (function step(now) { var dt = Math.min(0.05, (now - last) / 1000); last = now; var k = REDUCED ? 1 : Math.min(1, dt * 22), ks = REDUCED ? 1 : Math.min(1, dt * 10);
+      x += (tx - x) * k; y += (ty - y) * k; s += ((down ? ts * 0.78 : ts) - s) * ks;
+      curEl.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) scale(' + s.toFixed(3) + ')'; requestAnimationFrame(step); })(last);
+  }
+
+  /* ================= LETTER WAVE ================= */
+  /* split a short label into letters so a hover can lift them one after another (CSS: .aph-wave). */
+  function letters(el) {
+    if (!el || el.dataset.split) return; var txt = el.textContent; el.dataset.split = 1; el.setAttribute('aria-label', txt); el.textContent = '';
+    Array.from(txt).forEach(function (c, i) { var s = document.createElement('span'); s.className = 'ltr'; s.setAttribute('aria-hidden', 'true'); s.style.setProperty('--i', i); s.textContent = c === ' ' ? ' ' : c; el.appendChild(s); });
+  }
+
+  window.Aphesis = {
+    reducedMotion: REDUCED, MJ: MJ, lerp: lerp, clamp: clamp, tween: tween, rng: rng, cssColor: cssColor,
+    brush: brush, arc: arc, line: line, stipple: stipple, inC: inC,
+    icon: icon, ICONS: ICONS, PHI: PHI, seal: seal,
+    Fog: Fog, Simulacrum: Simulacrum, Typist: Typist, tooltip: tooltip, cursor: cursor, letters: letters
+  };
+})();

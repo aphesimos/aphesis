@@ -1,0 +1,38 @@
+<!-- @dsCard group="Fields" height=560 subtitle="pictures that exist only as fog; they coalesce and dissolve" -->
+<div class="s">
+  <canvas id="c" role="img" aria-label="a stippled image forming out of fog"></canvas>
+  <nav id="n" aria-label="images"></nav>
+  <p class="aph-meta cap" id="cap" aria-live="polite"></p>
+</div>
+<style>
+.s{position:relative;height:560px;overflow:hidden}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+nav{position:absolute;left:var(--space-4);top:var(--space-4);display:flex;flex-direction:column;gap:2px;z-index:2}
+nav button{background:none;border:0;padding:var(--space-1) 0;text-align:left;color:var(--ink-soft);cursor:pointer;font-family:var(--font-text);font-size:11px;letter-spacing:.14em;text-shadow:0 0 6px var(--bg),0 0 12px var(--bg)}
+nav button[aria-pressed="true"]{color:var(--accent-text)}
+.cap{position:absolute;right:var(--space-4);bottom:var(--space-4);margin:0;max-width:300px;text-align:right;text-shadow:0 0 6px var(--bg),0 0 12px var(--bg)}
+</style>
+<script>
+var A=Aphesis;
+/* John Dee's monas hieroglyphica, drawn with the brush: a density map made from strokes, not from a picture */
+function monad(){return A.Simulacrum.fromBrush(function(x,w,h){x.save();x.scale(w/24,h/24);
+  var d=A.brush(A.arc(12,10,3.6,-90,268,48),1.1,1)+A.brush(A.arc(12,10,.5,0,360,12),1,2,0,0)+A.brush(A.arc(12,5.3,3.4,20,160,32,1.9),1,3)
+   +A.brush(A.line(12,13.6,12,21.5,20),1,4,.12)+A.brush(A.line(8.8,17,15.2,17,16),1,5,.18)
+   +A.brush(A.arc(10.4,21.5,1.6,-180,-10,20),.9,6)+A.brush(A.arc(13.6,21.5,1.6,190,360,20),.9,7);
+  x.fill(new Path2D(d));x.restore();},420,520);}
+var L=[
+ ['the creation of adam','Michelangelo, Sistine Chapel ceiling, c. 1512','/_blob/822fd174e665c5f4c96333fd69a6d488'],
+ ['the two hands','detail of the same','/_blob/85c79195a27c9932c5ac228cab319f4c'],
+ ['ouroboros','Chrysopoeia of Cleopatra, copied 1478. ἓν τὸ πᾶν','/_blob/a7f39affc5ec3fe5ca7e0e4a90db4f97'],
+ ['hermes trismegistus','Siena Cathedral pavement, 1488','/_blob/8b0bf6b93d4a4f67926fcc34fc183762'],
+ ['hermes','Hermes of Praxiteles, Olympia','/_blob/c50ff6f63b09e2c4fa783b13323bb1c1'],
+ ['the edge of the sky','Flammarion engraving, 1888','/_blob/3dfa00b69b3c8400299c1007c0769182'],
+ ['oratory and laboratory','Khunrath, Amphitheatrum Sapientiae Aeternae, 1595','/_blob/ad64b4c9811d918c55b0fde47e10e654'],
+ ['monas hieroglyphica','John Dee, 1564, redrawn with the brush',null]];
+var S=A.Simulacrum(document.getElementById('c'),{accent:.05}),n=document.getElementById('n'),cap=document.getElementById('cap'),cur=-1,timer=0;
+function go(i){cur=i;clearTimeout(timer);[].forEach.call(n.children,function(b,j){b.setAttribute('aria-pressed',j===i);});
+  cap.textContent=L[i][0]+' · '+L[i][1];var src=L[i][2]||monad();
+  (cur===i&&S._started?S.set:S.show)(src,function(){timer=setTimeout(function(){go((cur+1)%L.length);},6500);});S._started=1;}
+L.forEach(function(it,i){var b=document.createElement('button');b.type='button';b.textContent=it[0];b.onclick=function(){go(i);};n.appendChild(b);});
+go(0);
+</script>

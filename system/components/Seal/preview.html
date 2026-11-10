@@ -1,0 +1,15 @@
+<!-- @dsCard group="Identity" height=300 subtitle="the φ with its boil, and the wordmark" -->
+<div class="wrap">
+  <div class="mark" id="m" role="img" aria-label="φ, the seal of aphes.is"></div>
+  <div class="txt">
+    <p class="aph-display word">aφesis</p>
+    <p class="aph-meta">the seal is always rubedo red · the boil reseeds 8 times a second</p>
+  </div>
+</div>
+<style>
+.wrap{display:flex;align-items:center;gap:var(--space-6);padding:var(--space-5) var(--space-5);flex-wrap:wrap}
+.mark{width:150px;height:208px;color:var(--seal)}
+.word{margin:0;font-size:110px;color:var(--seal)}
+.txt p.aph-meta{margin:var(--space-3) 0 0}
+</style>
+<script>Aphesis.seal(document.getElementById('m'));</script>

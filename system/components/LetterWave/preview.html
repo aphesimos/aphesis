@@ -1,0 +1,9 @@
+<!-- @dsCard group="Voice" height=170 subtitle="hover a name: its letters lift one after another, its gloss turns red" -->
+<nav class="w" aria-label="sections"><a href="#" class="n aph-wave"><span class="aph-label nm">archive</span><span class="aph-gloss gl">codex</span></a><a href="#" class="n aph-wave"><span class="aph-label nm">experimental</span><span class="aph-gloss gl">ἄδυτον</span></a><a href="#" class="n aph-wave"><span class="aph-label nm">forum</span><span class="aph-gloss gl">ἀγορά</span></a></nav>
+<style>
+.w{display:flex;gap:var(--space-6);flex-wrap:wrap;padding:var(--space-6) var(--space-5)}
+.n{text-decoration:none;color:var(--ink);display:flex;flex-direction:column;gap:var(--space-2)}
+.gl{transition:color var(--duration-slow) ease,transform var(--duration-slow) var(--easing-settle)}
+.n:hover .gl,.n:focus-visible .gl{color:var(--accent-text);transform:translateY(-1px)}
+</style>
+<script>document.querySelectorAll('.nm').forEach(Aphesis.letters);document.querySelectorAll('.n').forEach(function(a){a.onclick=function(e){e.preventDefault();};});</script>

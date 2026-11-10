@@ -1,0 +1,15 @@
+<!-- @dsCard group="Marks" height=250 subtitle="brush strokes and stipple, two states each; click one to switch" -->
+<div class="g" id="g"></div>
+<style>
+.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:var(--space-4);padding:var(--space-5)}
+button{background:none;border:0;padding:var(--space-3);color:var(--accent);font:inherit;display:flex;flex-direction:column;align-items:center;gap:var(--space-3);cursor:pointer}
+button svg{width:64px;height:64px;display:block}
+button span{color:var(--ink-soft)}
+</style>
+<script>
+var I=[['eye','oculus · the theme switch','open','closed'],['sol','sol','',''],['luna','luna','',''],['terminator','linea lucis','light','dark'],['threshold','limen','open','night']];
+var g=document.getElementById('g');
+I.forEach(function(it){var b=document.createElement('button');b.type='button';var st=0;
+  function r(){b.innerHTML=Aphesis.icon(it[0],st)+'<span class="aph-meta">'+it[1]+(it[2]?' · '+(st?it[3]:it[2]):'')+'</span>';b.setAttribute('aria-label',it[0]+(it[2]?', '+(st?it[3]:it[2]):''));}
+  r();if(it[2])b.onclick=function(){st=1-st;r();};g.appendChild(b);});
+</script>

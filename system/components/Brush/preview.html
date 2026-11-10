@@ -1,0 +1,27 @@
+<!-- @dsCard group="Marks" height=340 subtitle="the only way anything is drawn" -->
+<div class="b">
+  <svg viewBox="0 0 600 150" id="s" aria-label="brush strokes with different taper and wobble" role="img"></svg>
+  <div class="row"><span class="aph-meta">taper .22 · wobble .08 (default)</span><span class="aph-meta">taper .45 · wobble .18</span><span class="aph-meta">taper 0 · wobble .02</span></div>
+  <p class="aph-meta hint">draw on the ground below: your line becomes a brush stroke</p>
+  <svg viewBox="0 0 600 110" id="pad" class="pad" aria-label="drawing pad"></svg>
+</div>
+<style>
+.b{padding:var(--space-4) var(--space-5)}
+svg{display:block;width:100%;height:auto;color:var(--ink)}
+.row{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3)}
+.hint{margin:var(--space-5) 0 var(--space-2)}
+.pad{touch-action:none;color:var(--accent);border-top:1px dashed var(--line)}
+</style>
+<script>
+var A=Aphesis,s=document.getElementById('s'),d='';
+function wave(x0,amp,ph){var p=[];for(var i=0;i<=80;i++){var t=i/80;p.push([x0+t*160,75+Math.sin(t*Math.PI*2+ph)*amp]);}return p;}
+d+=A.brush(wave(20,40,0),14,3);d+=A.brush(wave(220,40,1),14,5,.45,.18);d+=A.brush(wave(420,40,2),14,7,0,.02);
+s.innerHTML='<path fill="currentColor" d="'+d+'"/>';
+var pad=document.getElementById('pad'),pts=[],strokes='',drawing=false,seed=11;
+function xy(e){var r=pad.getBoundingClientRect();return [(e.clientX-r.left)/r.width*600,(e.clientY-r.top)/r.height*110];}
+function smooth(p){var o=[];for(var i=0;i<p.length;i++){var a=p[Math.max(0,i-2)],b=p[i],c=p[Math.min(p.length-1,i+2)];o.push([(a[0]+2*b[0]+c[0])/4,(a[1]+2*b[1]+c[1])/4]);}return o;}
+function render(){var cur=pts.length>2?A.brush(smooth(pts),9,seed):'';pad.innerHTML='<path fill="currentColor" d="'+strokes+cur+'"/>';}
+pad.addEventListener('pointerdown',function(e){drawing=true;pts=[xy(e)];pad.setPointerCapture(e.pointerId);});
+pad.addEventListener('pointermove',function(e){if(!drawing)return;var p=xy(e),l=pts[pts.length-1];if(Math.hypot(p[0]-l[0],p[1]-l[1])>2){pts.push(p);render();}});
+pad.addEventListener('pointerup',function(){drawing=false;if(pts.length>2)strokes+=A.brush(smooth(pts),9,seed++);pts=[];render();});
+</script>

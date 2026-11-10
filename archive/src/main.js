@@ -79,14 +79,14 @@ function route() {
     figures.enter(post);
     const h = post.querySelector('.post-title');
     h.focus({ preventScroll: true });
-    document.title = 'aphes.is archive · ' + h.textContent;
+    document.title = 'aphes.ist archive · ' + h.textContent;
     announce(h.textContent);
   } else {
     if (views.current === list) return;
     const first = !views.current;
     figures.leave();
     views.go(list, first ? 0 : listScroll);
-    document.title = 'aphes.is archive';
+    document.title = 'aphes.ist archive';
     if (!first) {
       const link = lastSlug && list.querySelector('.entry-link[data-slug="' + lastSlug + '"]');
       if (link) link.focus({ preventScroll: true });

@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
-  <title>aphes.is · archive</title>
+  <title>aphes.ist · archive</title>
   <subtitle>writing about anything, from draft to finished.</subtitle>
-  <link rel="alternate" type="text/html" href="https://aphes.is/archive"/>
-  <link rel="self" type="application/atom+xml" href="https://aphes.is/archive/feed.xml"/>
-  <id>https://aphes.is/archive</id>
+  <link rel="alternate" type="text/html" href="https://aphes.ist/archive"/>
+  <link rel="self" type="application/atom+xml" href="https://aphes.ist/archive/feed.xml"/>
+  <id>https://aphes.ist/archive</id>
   <updated>2026-11-06T00:00:00Z</updated>
   <author><name>aphesis</name></author>
   <entry>
     <title>a note on hermes trismegistus</title>
-    <link rel="alternate" type="text/html" href="https://aphes.is/archive#a-note-on-hermes-trismegistus"/>
-    <id>https://aphes.is/archive#a-note-on-hermes-trismegistus</id>
+    <link rel="alternate" type="text/html" href="https://aphes.ist/archive#a-note-on-hermes-trismegistus"/>
+    <id>https://aphes.ist/archive#a-note-on-hermes-trismegistus</id>
     <published>2026-11-06T00:00:00Z</published>
     <updated>2026-11-06T00:00:00Z</updated>
     <category term="nigredo" label="nigredo"/>
@@ -25,8 +25,8 @@
   </entry>
   <entry>
     <title>how the fog is made</title>
-    <link rel="alternate" type="text/html" href="https://aphes.is/archive#how-the-fog-is-made"/>
-    <id>https://aphes.is/archive#how-the-fog-is-made</id>
+    <link rel="alternate" type="text/html" href="https://aphes.ist/archive#how-the-fog-is-made"/>
+    <id>https://aphes.ist/archive#how-the-fog-is-made</id>
     <published>2026-10-28T00:00:00Z</published>
     <updated>2026-10-28T00:00:00Z</updated>
     <category term="rubedo" label="rubedo"/>
@@ -47,8 +47,8 @@ float dens = (m * .8 + .012) * vin * D;&lt;/code&gt;&lt;/pre&gt;
   </entry>
   <entry>
     <title>how a simulacrum is made</title>
-    <link rel="alternate" type="text/html" href="https://aphes.is/archive#how-a-simulacrum-is-made"/>
-    <id>https://aphes.is/archive#how-a-simulacrum-is-made</id>
+    <link rel="alternate" type="text/html" href="https://aphes.ist/archive#how-a-simulacrum-is-made"/>
+    <id>https://aphes.ist/archive#how-a-simulacrum-is-made</id>
     <published>2026-10-14T00:00:00Z</published>
     <updated>2026-10-14T00:00:00Z</updated>
     <category term="citrinitas" label="citrinitas"/>
@@ -66,8 +66,8 @@ float dens = (m * .8 + .012) * vin * D;&lt;/code&gt;&lt;/pre&gt;
   </entry>
   <entry>
     <title>the φ, drawn by hand</title>
-    <link rel="alternate" type="text/html" href="https://aphes.is/archive#the-phi-drawn-by-hand"/>
-    <id>https://aphes.is/archive#the-phi-drawn-by-hand</id>
+    <link rel="alternate" type="text/html" href="https://aphes.ist/archive#the-phi-drawn-by-hand"/>
+    <id>https://aphes.ist/archive#the-phi-drawn-by-hand</id>
     <published>2026-09-30T00:00:00Z</published>
     <updated>2026-09-30T00:00:00Z</updated>
     <category term="albedo" label="albedo"/>

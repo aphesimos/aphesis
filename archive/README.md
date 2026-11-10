@@ -1,6 +1,6 @@
 # archive · *codex*
 
-The blog of aphes.is: writing about anything, from draft (*nigredo*) to finished (*rubedo*).
+The blog of aphes.ist: writing about anything, from draft (*nigredo*) to finished (*rubedo*).
 
 - **The list.** Titles in the text face, each with its date and its stage: a brushed ring whose stipple rises from a sediment (*nigredo*) to full and red (*rubedo*). The stage icon is `src/stage-icon.js`, documented in `src/stage-icon.md` so it can move into the design system.
 - **A post.** Long-form reading at the `body` style, about 60 characters a line, on a calm zone of the fog. Headings in Aphesis Script, slanted. Footnotes show as the site's tooltip on hover, focus or a tap, and are listed again at the end. Pictures exist only as simulacra, inline in the column with a caption. Quotes carry a brushed rule, code a stippled rule above and below.

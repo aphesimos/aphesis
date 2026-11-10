@@ -22,7 +22,7 @@ import base64, datetime, html, json, os, re, subprocess, sys
 D = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(D)
 DS = 'design-system'
-SITE = 'https://aphes.is'
+SITE = 'https://aphes.ist'
 SECTION_URL = SITE + '/archive'          # a post lives at SECTION_URL#<slug>
 
 STAGES = ['nigredo', 'albedo', 'citrinitas', 'rubedo']
@@ -343,7 +343,7 @@ def feed_xml(posts):
     return (
         '<?xml version="1.0" encoding="utf-8"?>\n'
         '<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">\n'
-        '  <title>aphes.is · archive</title>\n'
+        '  <title>aphes.ist · archive</title>\n'
         '  <subtitle>writing about anything, from draft to finished.</subtitle>\n'
         f'  <link rel="alternate" type="text/html" href="{SECTION_URL}"/>\n'
         f'  <link rel="self" type="application/atom+xml" href="{SECTION_URL}/feed.xml"/>\n'
@@ -414,7 +414,7 @@ def build(posts, fragment):
     if not fragment:
         page = '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n' \
                '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n' \
-               '<link rel="alternate" type="application/atom+xml" title="aphes.is · archive" href="feed.xml">\n' + \
+               '<link rel="alternate" type="application/atom+xml" title="aphes.ist · archive" href="feed.xml">\n' + \
                page.replace('<!--__BODY__-->', '</head>\n<body>', 1) + '\n</body>\n</html>\n'
     else:
         page = '<meta charset="utf-8">\n' + page.replace('<!--__BODY__-->', '', 1)

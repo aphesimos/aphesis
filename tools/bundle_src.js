@@ -31,9 +31,12 @@
     probe.clearRect(0, 0, 1, 1); probe.fillStyle = '#000'; probe.fillStyle = s; probe.fillRect(0, 0, 1, 1);
     var d = probe.getImageData(0, 0, 1, 1).data; return [d[0] / 255, d[1] / 255, d[2] / 255];
   }
+  /* calls fn when the theme changes (system setting or data-theme); returns a function that stops listening */
   function onTheme(fn) {
-    if (typeof matchMedia === 'function') matchMedia('(prefers-color-scheme: dark)').addEventListener('change', fn);
-    new MutationObserver(fn).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    var mq = typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: dark)') : null;
+    if (mq) mq.addEventListener('change', fn);
+    var mo = new MutationObserver(fn); mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return function () { if (mq) mq.removeEventListener('change', fn); mo.disconnect(); };
   }
 
   /* ================= BRUSH ================= */
@@ -141,8 +144,10 @@
       if (init) init(gl);
     }
     cv.addEventListener('webglcontextlost', function (e) { e.preventDefault(); P.lost = true; });
-    cv.addEventListener('webglcontextrestored', function () { build(); P.lost = false; if (P.restored) P.restored(); });
+    cv.addEventListener('webglcontextrestored', function () { if (P.released) return; build(); P.lost = false; if (P.restored) P.restored(); });
     build();
+    /* give the context back to the browser for good (destroy) */
+    P.release = function () { P.released = true; P.lost = true; var x = gl.getExtension('WEBGL_lose_context'); if (x && !gl.isContextLost()) x.loseContext(); };
     return P;
   }
   /* CSS pixels per stipple cell on this screen: `cell` CSS pixels rounded to whole device pixels, so every cell covers
@@ -179,12 +184,15 @@
     var to = read(), from = to, t0 = -1, dur = 800, x = 1, wave = false;
     function same(a, b) { return a.every(function (c, i) { return c.every(function (v, j) { return Math.abs(v - b[i][j]) < 1e-3; }); }); }
     function retarget() { var next = read(); if (same(next, to)) return; from = x < 0.5 ? from : to; to = next; t0 = performance.now(); dur = ms(); x = 0; wave = !!SHIFT; }
-    onTheme(function () { retarget(); setTimeout(retarget, 120); });
-    return function (now) {
+    var later = 0, off = onTheme(function () { retarget(); clearTimeout(later); later = setTimeout(retarget, 120); });
+    function colors(now) {
       if (t0 >= 0 && wave) { if (SHIFT) x = SHIFT.p; else { t0 = -1; from = to; x = 1; wave = false; } }
       else if (t0 >= 0) { var k = REDUCED ? 1 : clamp((now - t0) / Math.max(1, dur)); x = MJ(k); if (k >= 1) { t0 = -1; from = to; x = 1; } }
       return { a: from, b: to, x: x, wave: wave && SHIFT ? SHIFT : null };
-    };
+    }
+    /* colors.off(): stop following the theme */
+    colors.off = function () { off(); clearTimeout(later); };
+    return colors;
   }
   /* the frame loop of a field: stop() halts it, start() resumes it, drawn(cb) calls back once the next frame is on
      the canvas (a canvas should stay invisible until then) */
@@ -212,11 +220,12 @@
       /* a theme change spreads through the fog in soft patches with grainy edges */
       'float s=sw(cel,uv,X);vec3 Fc=mix(F,F2,s),Nc=mix(N,N2,s);' +
       'gl_FragColor=vec4(mix(Fc,Nc,step(h(cel),dens)*.55),1.);}', ['R', 'T', 'D', 'C', 'S', 'X', 'F', 'N', 'F2', 'N2', 'P', 'Z', 'SO', 'SF']);
-    if (!P) return { zones: function () {}, set: function () {}, stop: function () {}, start: function () {} };
+    if (!P) return { zones: function () {}, set: function () {}, stop: function () {}, start: function () {}, destroy: function () {} };
     var gl = P.gl, U = P.U, colors = palette(cv, ['--bg', '--fog']);
     var ptr = null, sm = null, t = 0, last = performance.now(), zEls = [], ZB = new Float32Array(48);
     var dens = o.density === undefined ? 1 : o.density, light = o.light === undefined ? 1 : o.light, dpr = 1;
-    window.addEventListener('pointermove', function (e) { var r = cv.getBoundingClientRect(); ptr = [e.clientX - r.left, e.clientY - r.top]; });
+    function onMove(e) { var r = cv.getBoundingClientRect(); ptr = [e.clientX - r.left, e.clientY - r.top]; }
+    window.addEventListener('pointermove', onMove);
     var L = loop(function (now) {
       var dt = Math.min(0.05, Math.max(0, now - last) / 1000); last = now; if (!REDUCED) t += dt;
       if (P.lost) return false;
@@ -235,7 +244,9 @@
     return {
       zones: function (list) { zEls = (list || []).map(function (z) { return z instanceof Element ? { el: z } : z; }); },
       set: function (k) { if (k.density !== undefined) dens = k.density; if (k.light !== undefined) light = k.light; },
-      stop: L.stop, start: function () { last = performance.now(); L.start(); }
+      stop: L.stop, start: function () { if (P.released) return; last = performance.now(); L.start(); },
+      /* destroy(): stop for good: the loop, the pointer and theme listeners, and the WebGL context */
+      destroy: function () { L.stop(); window.removeEventListener('pointermove', onMove); colors.off(); P.release(); }
     };
   }
 
@@ -295,9 +306,10 @@
       ['R', 'P', 'T', 'S', 'K', 'G', 'M', 'A', 'FIT', 'SC', 'ER', 'CE', 'GR', 'X', 'F', 'N', 'AC', 'F2', 'N2', 'AC2', 'IA', 'I', 'I2', 'SO', 'SF'],
       function (x) { tex = texture(x, x.TEXTURE0); tex2 = texture(x, x.TEXTURE1); x.activeTexture(x.TEXTURE0); if (lastImg) upload(lastImg); });
     var noop = function () {};
-    if (!P) return { show: function (s, d) { d && d(); }, hide: function (d) { d && d(); }, set: function (s, d) { d && d(); }, stop: noop, start: noop, drawn: function (cb) { cb(); } };
+    if (!P) return { show: function (s, d) { d && d(); }, hide: function (d) { d && d(); }, set: function (s, d) { d && d(); }, stop: noop, start: noop, drawn: function (cb) { cb(); }, destroy: noop };
     var gl = P.gl, U = P.U, colors = palette(cv, ['--bg', '--fog', '--accent']);
-    window.addEventListener('pointermove', function (e) { var r = cv.getBoundingClientRect(); ptr = [e.clientX - r.left, e.clientY - r.top]; });
+    function onMove(e) { var r = cv.getBoundingClientRect(); ptr = [e.clientX - r.left, e.clientY - r.top]; }
+    window.addEventListener('pointermove', onMove);
     function upload(img) {
       lastImg = img;
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, img); IA = [img.naturalWidth || img.width, img.naturalHeight || img.height];
@@ -334,7 +346,9 @@
       /* dissolve, swap, coalesce */
       set: function (src, done) { to(0, 1500, function () { load(src, function () { to(1, 2600, done); }); }); },
       stop: function () { L.stop(); if (cancel) cancel(); cancel = null; },
-      start: function () { last = performance.now(); L.start(); },
+      /* destroy(): stop for good: the loop, any tween, the pointer and theme listeners, and the WebGL context */
+      destroy: function () { api.stop(); window.removeEventListener('pointermove', onMove); colors.off(); P.release(); },
+      start: function () { if (P.released) return; last = performance.now(); L.start(); },
       drawn: L.drawn
     };
     if (o.source) api.show(o.source);

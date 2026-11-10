@@ -20,3 +20,5 @@
 
 - Pause control for long animations (WCAG 2.2.2): clicking the passage could pause all motion.
 - Rename the Portuguese identifiers in the brush engine when it moves into `mark`.
+
+Waiting items are tracked in [`docs/backlog.md`](backlog.md).

@@ -9,7 +9,7 @@
 
 # mark
 
-The φ of aphes.is: the hand-drawn original and the brush engine that redraws it live.
+The φ of aphes.ist: the hand-drawn original and the brush engine that redraws it live.
 
 - `art/phi.svg`: the original hand-drawn φ (viewBox `69 -6 385 533`, fill `#FD1148`, even-odd). The source of truth for the mark, the brush and the font's φ.
 - `engine/model.js`: the measured model (`const M`): ring edges by angle, stem, tip profile, timing.

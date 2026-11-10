@@ -16,8 +16,9 @@
     translate var(--duration-scene) var(--easing-settle), visibility 0s linear var(--duration-scene), color var(--duration-theme) var(--easing-settle);
 }
 #aph-np.on { opacity: 1; filter: none; translate: none; visibility: visible; pointer-events: auto; transition-delay: 0s; }
-/* inside the music section, on a wide screen, the deck says all of this already */
-@media (min-width: 900px) { :root[data-sec="music"] #aph-np.on { opacity: 0; filter: blur(10px); visibility: hidden; pointer-events: none; } }
+/* inside the music section the deck says all of this already, and on a phone the line would lie over the text
+   scrolling beneath it */
+:root[data-sec="music"] #aph-np.on { opacity: 0; filter: blur(10px); visibility: hidden; pointer-events: none; }
 .aph-shifting #aph-np { text-shadow: none; }
 #aph-np button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; border-radius: var(--radius-none); }
 #aph-np .np-play { width: 22px; height: 22px; display: block; color: var(--ink); }

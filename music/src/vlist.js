@@ -62,6 +62,12 @@ export function createVList({ scroller, list, rowH, render, overscan = 8 }) {
     },
     scrollTo(y) { scroller.scrollTop = y; update(); },
     update,
-    destroy() { dead = true; scroller.removeEventListener('scroll', schedule); removeEventListener('resize', schedule); cancelAnimationFrame(queued); },
+    /* a list made again (the layout switched between wide and narrow) must not leave its rows behind: a new list
+       on the same element would draw its own beside them, a few pixels apart */
+    destroy() {
+      dead = true; scroller.removeEventListener('scroll', schedule); removeEventListener('resize', schedule); cancelAnimationFrame(queued);
+      for (const el of rows.values()) el.remove();
+      rows.clear(); free = [];
+    },
   };
 }

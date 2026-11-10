@@ -63,8 +63,8 @@ that mounts and unmounts, and the player as a core that outlives it.
   started cannot stop it.
 - **The line** sits top-right, the one corner the site leaves free: the seal is top-left, the eye (and soon an ear
   for sound) bottom-left, the passage bottom-right. Play · pause, the title and artist (a link to the track's
-  folder), the time, and a stippled progress. It hides on a wide screen while the section is mounted
-  (`:root[data-sec="music"]`, which the shell already sets), since the deck shows the same; on a phone it stays.
+  folder), the time, and a stippled progress. It hides while the section is mounted
+  (`:root[data-sec="music"]`, which the shell already sets), since the deck shows the same.
 - **This page** is its own small host: `#music…` (or no hash) mounts the section, any other route (the seal's
   `#home`) dissolves it piece by piece and shows a stand-in for the rest of the site, while the music plays on.
   `window.AphesisMusic` exposes `mount`, `unmount`, `player`, `view` and `library` for a host and for checks.

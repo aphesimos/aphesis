@@ -76,7 +76,7 @@ export function band(w, h, seed = 3) {
   let d = '';
   for (let j = 0; j < rows; j++) {
     const c = 1 - Math.abs((j + 0.5) / rows * 2 - 1);
-    const p = 0.18 + 0.72 * c;
+    const p = 0.08 + 0.42 * c;
     for (let i = 0; i < cols; i++) if (hash(i, j, seed) < p) d += 'M' + i * 2 + ' ' + j * 2 + 'h2v2h-2z';
   }
   return '<svg viewBox="0 0 ' + cols * 2 + ' ' + rows * 2 + '" width="' + cols * 2 + '" height="' + rows * 2 + '" aria-hidden="true" focusable="false" shape-rendering="crispEdges"><path d="' + d + '" fill="currentColor"/></svg>';

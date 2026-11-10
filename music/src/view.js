@@ -40,7 +40,7 @@ export function mountView(root, lib, core, opts = {}) {
   const s = lib.stats;
   $('.m-stats').textContent = [plural(s.tracks, 'track'), plural(lib.albumList.length, 'album'), plural(lib.artistList.length, 'artist'),
     hours(s.seconds), bytes(s.bytes)].join(' · ') + (lib.example ? ' · examples: generated tones, not music' : '');
-  if (!core.volumeSupported) root.querySelector('.m-vol').hidden = true;
+  if (!core.volumeSupported) root.querySelectorAll('.m-vol .c-vol, .m-vol .s-track').forEach((el) => { el.hidden = true; });
   if (!core.flacSupported) { bLoss.disabled = true; bLoss.dataset.tip = 'this browser cannot play flac: the stream it is'; }
 
   /* ---------- where we are: the route ---------- */
@@ -61,7 +61,7 @@ export function mountView(root, lib, core, opts = {}) {
     const p = { mode, crumbs: [], items: [], tracks: [], all: [], label: '', head: null, back: null };
     if (mode === 'folders') {
       const n = lib.nodes.get(rest.join('/')) || lib.root;
-      p.crumbs = [{ label: '~', href: '#music/folders' }];
+      p.crumbs = [{ label: '~/music', href: '#music/folders' }];
       let acc = []; for (const part of n.path) { acc = acc.concat(part); p.crumbs.push({ label: part, href: folderHref(lib.nodes.get(acc.join('/'))) }); }
       if (n.parent) { p.items.push({ k: 'up', href: folderHref(n.parent) }); p.back = folderHref(n.parent); }
       n.dirs.forEach((d) => p.items.push({ k: 'dir', ref: d, href: folderHref(d) }));
@@ -127,17 +127,17 @@ export function mountView(root, lib, core, opts = {}) {
     if (it.k === 'up') return ['<span class="r-g">' + glyph('up') + '</span><span class="r-n"></span>', ['..', 'up one folder']];
     if (it.k === 'dir') {
       const holds = cur() && cur().path.startsWith(t.path.join('/') + '/');
-      return ['<span class="r-g">' + glyph('folder', holds ? 1 : 0) + '</span><span class="r-n"></span><span class="r-t">' + clock(t.seconds) + '</span><span class="r-m">' + (t.dirs.length ? plural(t.dirs.length, 'folder') + ' · ' : '') + plural(t.count, 'track') + '</span>', t.name, holds];
+      return ['<span class="r-g">' + glyph('folder', holds ? 1 : 0) + '</span><span class="r-n"></span>' + group(t.seconds), [t.name, null, (t.dirs.length ? plural(t.dirs.length, 'folder') + ' · ' : '') + plural(t.count, 'track')], holds];
     }
     if (it.k === 'artist') {
       const holds = cur() && (cur().albumArtist || cur().artist || 'unknown artist') === t.name;
-      return ['<span class="r-g">' + glyph('artist', holds ? 1 : 0) + '</span><span class="r-n"></span><span class="r-t">' + clock(t.seconds) + '</span><span class="r-m">' + (t.albums.length ? plural(t.albums.length, 'album') + ' · ' : '') + plural(t.count, 'track') + '</span>', t.name, holds];
+      return ['<span class="r-g">' + glyph('artist', holds ? 1 : 0) + '</span><span class="r-n"></span>' + group(t.seconds), [t.name, null, (t.albums.length ? plural(t.albums.length, 'album') + ' · ' : '') + plural(t.count, 'track')], holds];
     }
     if (it.k === 'album') {
       const th = lib.thumbOf(t.cover);
       const holds = cur() && cur().albumKey === t.key;
-      return ['<span class="r-g' + (th ? ' r-thumb' : '') + '">' + (th ? thumb(th, 32) : glyph('disc')) + '</span><span class="r-n"></span><span class="r-t">' + clock(t.seconds) + '</span><span class="r-m">' + (t.year ? t.year + ' · ' : '') + plural(t.tracks.length, 'track') + '</span>',
-        it.withArtist ? [t.title, t.artist] : t.title, holds];
+      return ['<span class="r-g' + (th ? ' r-thumb' : '') + '">' + (th ? thumb(th, 32) : glyph('disc')) + '</span><span class="r-n"></span>' + group(t.seconds),
+        [t.title, it.withArtist ? t.artist : null, (t.year ? t.year + ' · ' : '') + plural(t.tracks.length, 'track')], holds];
     }
     const playing = cur() && cur().id === t.id;
     const tech = '<span class="r-t">' + clock(t.duration) + '</span><span class="r-f">' + fmt(t) + '</span><span class="r-d">' + (depth(t) || '·') + '</span><span class="r-r">' + (khz(t.rate) || '·') + '</span>' +
@@ -149,6 +149,8 @@ export function mountView(root, lib, core, opts = {}) {
     else name = t.shown;
     return ['<span class="r-g">' + glyph('file', playing ? 1 : 0) + '</span><span class="r-n"></span>' + tech, name, playing];
   }
+  /* a folder, an artist or an album: its length under time, nothing under format, depth and rate */
+  const group = (sec) => '<span class="r-t">' + clock(sec) + '</span><span class="r-x">' + clock(sec) + '</span>';
   function renderRow(i, el) {
     const it = items[i];
     const [html, name, on] = cellsFor(it);
@@ -158,13 +160,18 @@ export function mountView(root, lib, core, opts = {}) {
     el.setAttribute('aria-selected', i === active ? 'true' : 'false');
     el.innerHTML = html;
     const n = el.querySelector('.r-n');
-    if (Array.isArray(name)) { n.textContent = name[0]; if (name[1]) { const b = document.createElement('span'); b.className = 'r-by'; b.textContent = ' · ' + name[1]; n.append(b); } }
+    if (Array.isArray(name)) {
+      n.textContent = name[0];
+      if (name[1]) { const b = document.createElement('span'); b.className = 'r-by'; b.textContent = ' · ' + name[1]; n.append(b); }
+      if (name[2]) { const b = document.createElement('span'); b.className = 'r-sub'; b.textContent = name[2]; n.append(b); }
+    }
     else n.textContent = name;
     if (it.k === 'track' && on) el.setAttribute('aria-current', 'true'); else el.removeAttribute('aria-current');
   }
   let vl = null;
   function makeList() {
     if (vl) vl.destroy();
+    list.textContent = '';
     const narrow = narrowMq.matches;
     vl = createVList({ scroller: narrow ? root : pane, list, rowH: narrow ? ROW.narrow : ROW.wide, render: renderRow });
     vl.set(items.length, renderRow);
@@ -195,7 +202,7 @@ export function mountView(root, lib, core, opts = {}) {
     if (active >= items.length) active = items.length - 1;
     vl.set(items.length, renderRow);
     if (prevKey !== p.key && !how.keepScroll) vl.scrollTo(narrowMq.matches ? Math.min(root.scrollTop, list.offsetTop - 140) : 0);
-    if (active >= 0) { list.setAttribute('aria-activedescendant', 'mrow-' + active); if (how.reveal) vl.reveal(active); }
+    if (active >= 0) { list.setAttribute('aria-activedescendant', 'mrow-' + active); if (how.reveal && document.activeElement === list) vl.reveal(active); }
     else list.removeAttribute('aria-activedescendant');
     if (how.enter) entrance(Array.from(vl.rows().values()), 0, 28);
   }
@@ -258,7 +265,9 @@ export function mountView(root, lib, core, opts = {}) {
     else handled = false;
     if (handled) e.preventDefault();
   });
-  on(list, 'focus', () => { if (active < 0 && items.length) setActive(0); else if (active >= 0) vl.reveal(active); });
+  /* focus alone never scrolls: a pointer pressing a row focuses the list, and a scroll between press and release
+     would move the row from under it and lose the click */
+  on(list, 'focus', () => { if (active < 0 && items.length) setActive(0, false); });
   on(input, 'input', () => {
     query = input.value.trim();
     if (query) show(searchPlace(query), { keepScroll: false });
@@ -447,14 +456,24 @@ export function mountView(root, lib, core, opts = {}) {
   const deckZone = {
     pad: 0,
     get r() { return deck.getBoundingClientRect(); },
-    get width() { return narrowMq.matches ? 0 : this.r.width / 0.62; },
-    get left() { const r = this.r; return r.left + r.width / 2 - r.width / 0.62 / 2; },
+    get width() { return narrowMq.matches ? 0 : this.r.width / 0.5; },
+    get left() { const r = this.r; return r.left + r.width / 2 - r.width / 0.5 / 2; },
     get height() { return innerHeight / 0.6; },
     get top() { return innerHeight / 2 - innerHeight / 0.6 / 2; },
   };
-  if (opts.fog) opts.fog.zones(['.m-head', '.m-bar', '.m-crumbs', '.m-pane', '.m-cover', '.m-now', '.m-seek', '.m-ctl', '.m-queue']
-    .map((q) => ({ el: $(q), pad: 14 })).concat(opts.zones || [])
-    .reduce((a, z, i) => (i === 3 ? a.concat(deckZone, z) : a.concat(z)), []).slice(0, 12));
+  /* and the same behind the explorer's column; then each block of text gets its own, so no line sits on dense fog.
+     The column zones come first: a host that adds marks of its own keeps the first ones when it runs out */
+  const explorer = $('.m-explorer');
+  const exZone = {
+    pad: 0,
+    get r() { return explorer.getBoundingClientRect(); },
+    get width() { return this.r.width / 0.7; },
+    get left() { const r = this.r; return r.left + r.width / 2 - r.width / 0.7 / 2; },
+    get height() { return innerHeight / 0.6; },
+    get top() { return innerHeight / 2 - innerHeight / 0.6 / 2; },
+  };
+  if (opts.fog) opts.fog.zones([exZone, deckZone].concat(['.m-head', '.m-lede', '.m-stats', '.m-cols', '.m-pane', '.m-ctl', '.m-vol', '.m-queue']
+    .map((q) => ({ el: $(q), pad: 16 })), opts.zones || []).slice(0, 12));
 
   /* ---------- entrance: each piece on its own, so no ancestor of the .aph-ink text is ever faded or blurred ---------- */
   function entrance(els, delay = 0, step = 70) {
@@ -470,7 +489,7 @@ export function mountView(root, lib, core, opts = {}) {
   const ro = new ResizeObserver(() => {
     root.querySelectorAll('.m-seek .s-fill-cells, .m-vol .s-fill-cells').forEach((el, i) => {
       const w = Math.ceil(el.parentNode.getBoundingClientRect().width);
-      if (w && +el.dataset.w !== w) { el.dataset.w = w; el.innerHTML = band(w, 6, 371 + i); }
+      if (w && +el.dataset.w !== w) { el.dataset.w = w; el.innerHTML = band(w, 8, 371 + i); }
     });
   });
   root.querySelectorAll('.m-seek .s-track, .m-vol .s-track').forEach((el) => ro.observe(el));

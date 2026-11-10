@@ -32,7 +32,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
    leave; the view itself only turns visible, and stays visible after leaving long enough for its parts to go
    (--leave; the work also waits for its simulacrum to dissolve). */
 .view {
-  position: fixed; inset: 0; z-index: var(--z-main); overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  /* absolute with no z-index, not fixed: the view must not be a stacking context of its own, so the .aph-ink text in
+     it can blend with the fog beneath while the theme shifts. It paints over the fog by document order. */
+  position: absolute; inset: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
   padding-left: max(var(--space-4), calc(var(--space-3) + env(safe-area-inset-left, 0px)));
   padding-right: max(var(--space-4), calc(var(--space-3) + env(safe-area-inset-right, 0px)));
   padding-top: calc(var(--space-7) + env(safe-area-inset-top, 0px));
@@ -41,6 +43,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg);
 }
 .view.on { visibility: visible; transition-delay: 0s; }
+/* the halo is declared again on the .aph-ink text itself, so it reads the --bg the theme shift sets there (black,
+   which a difference blend leaves unseen) instead of inheriting the view's */
+.view .aph-ink { text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg); }
 #work { --leave: 2s; }
 .scene {
   opacity: 0; filter: blur(10px); transform: translateY(14px);
@@ -143,11 +148,6 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 @media (max-width: 760px) {
   #work { grid-template-columns: minmax(0, 1fr); justify-content: stretch; align-content: start; row-gap: var(--space-6); }
   #figure { height: clamp(200px, 32vh, 340px); }
-  /* the work scrolls on a phone: it fades out under the seal and the eye, so the corners stay free */
-  #work {
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--space-7), #000 calc(100% - var(--space-7)), transparent 100%);
-    mask-image: linear-gradient(to bottom, transparent 0, #000 var(--space-7), #000 calc(100% - var(--space-7)), transparent 100%);
-  }
 }
 
 /* ---------- corners ---------- */

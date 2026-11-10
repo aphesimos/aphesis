@@ -51,7 +51,7 @@ function showList() {
   if (shown === 'list') return;
   const from = shown, s = step();
   shown = 'list';
-  document.title = 'works · aphes.is';
+  document.title = 'works · aphes.ist';
   if (from) { picture.hide(); leave(workView); }
   /* the list returns while the picture is still dissolving, once the work's words have gone */
   s.wait(from ? SCENE() * 0.6 : 0, () => {
@@ -68,7 +68,7 @@ function showWork(w) {
   if (shown === w.id) return;
   const from = shown, s = step();
   shown = w.id;
-  document.title = w.name + ' · works · aphes.is';
+  document.title = w.name + ' · works · aphes.ist';
   picture.show(w, MAPS[w.id]);
   const open = () => {
     work.render(w);

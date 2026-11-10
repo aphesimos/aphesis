@@ -81,6 +81,6 @@ on the `section/works` branch (cut from `site`, merged back when finished).
 - **List grain.** The grain that marks a work on the line (stipple disc with a brush ring) is a new mark; it should
   be reviewed and added as an icon or ornament.
 - **The φ as a picture.** The seal rules forbid redrawing or recolouring the φ; a simulacrum of it, in fog colour,
-  is neither a seal nor a logo use. The system should say whether that is allowed (it is used here for aphes.is).
+  is neither a seal nor a logo use. The system should say whether that is allowed (it is used here for aphes.ist).
 - **Simulacrum mist.** With `ground: false` the canvas still draws its own mist while hidden, a second fog inside the
   figure box; the page fades the canvas out after a dissolve to avoid it. An option to switch the mist off would help.

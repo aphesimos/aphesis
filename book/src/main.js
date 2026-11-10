@@ -61,8 +61,19 @@ function prepare(img, e) {
   g.fillStyle = '#000'; g.fillRect(0, 0, c.width, c.height);
   const f = (e.blur ? 'blur(' + e.blur + 'px) ' : '') + (e.brightness ? 'brightness(' + e.brightness + ') ' : '') +
     (e.contrast ? 'contrast(' + e.contrast + ')' : '');
-  if (f) g.filter = f.trim();
+  /* Safari's 2D canvas has no filter: there the same steps by hand, in the filter's order (the runtime's box blur,
+     then brightness, then contrast) */
+  const viaFilter = typeof g.filter === 'string' || !A.blur2d;
+  if (f && viaFilter) g.filter = f.trim();
   g.drawImage(img, x, y, w, h, 0, 0, c.width, c.height);
+  if (f && !viaFilter) {
+    if (e.blur) A.blur2d(g, e.blur);
+    if (e.brightness || e.contrast) {
+      const b = e.brightness || 1, k = e.contrast || 1, id = g.getImageData(0, 0, c.width, c.height), d = id.data;
+      for (let i = 0; i < d.length; i += 4) for (let j = 0; j < 3; j++) d[i + j] = ((d[i + j] / 255 * b - 0.5) * k + 0.5) * 255;
+      g.putImageData(id, 0, 0);
+    }
+  }
   return c;
 }
 

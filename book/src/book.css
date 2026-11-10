@@ -79,9 +79,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   position: fixed; z-index: var(--z-main); left: 50vw; right: 0; top: 0; bottom: 0;
   display: flex; flex-direction: column; justify-content: center;
   padding: var(--space-7) var(--space-7) calc(var(--space-7) + var(--space-5)) var(--space-6);
-  overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: none;
+  overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
 }
-#leaf::-webkit-scrollbar { display: none; }
 #entry, #index { max-width: 34em; margin: auto 0; }
 #entry.leaving { opacity: 0; filter: blur(6px); transition: opacity var(--duration-quick) var(--easing-settle), filter var(--duration-quick) var(--easing-settle); }
 .heading {
@@ -168,7 +167,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   #spine { display: none; }
   #leaf {
     left: 0; top: calc(var(--space-4) + 64px + var(--space-3) + 38dvh + var(--space-4) + env(safe-area-inset-top, 0px));
-    bottom: calc(var(--space-7) + env(safe-area-inset-bottom, 0px));
+    bottom: calc(var(--space-7) + var(--space-6) + env(safe-area-inset-bottom, 0px));
     padding: var(--space-4) max(var(--space-4), env(safe-area-inset-right, 0px)) var(--space-5) max(var(--space-4), env(safe-area-inset-left, 0px));
     justify-content: flex-start;
     -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--space-4), #000 calc(100% - var(--space-5)), transparent);
@@ -176,7 +175,15 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   }
   #entry, #index { margin: 0 auto; width: 100%; }
   .heading { font-size: 36px; }
-  #foot { left: 50%; transform: translateX(-50%); bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px)); gap: var(--space-4); }
+  /* the bottom corners belong to the eye and ear (left) and the passage (right, up to two lines): the foot stands in a
+     row of its own above them, and the leaf ends above the foot */
+  #foot { left: 50%; transform: translateX(-50%); bottom: calc(var(--space-3) + var(--space-6) + env(safe-area-inset-bottom, 0px)); gap: var(--space-4); }
   .edge { top: calc(var(--space-4) + 64px + var(--space-3) + env(safe-area-inset-top, 0px)); height: 38vh; height: 38dvh; width: 48px; }
   .edge svg { width: 34px; height: 34px; }
+}
+
+/* ---------- a short landscape screen (a phone on its side): the foot clears the passage too ---------- */
+@media (min-aspect-ratio: 1/1) and (max-height: 520px) {
+  #foot { bottom: calc(var(--space-3) + var(--space-6) + env(safe-area-inset-bottom, 0px)); }
+  #leaf { padding-bottom: calc(var(--space-7) + var(--space-5) + var(--space-6)); }
 }

@@ -61,3 +61,28 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
 }
 /* the two frames around each switch: colours change without a transition (movement keeps its own) */
 .aph-still body, .aph-still .aph-ink, .aph-still .aph-ink * { transition-property: opacity, filter, transform !important; }
+
+/* the ear: the sound's switch, beside the eye. Listening, three arcs of stipple arrive at the ear and breathe with
+   the level (--aph-lvl, set by the runtime); muted, they disperse and fall, and one stroke crosses the ear, drawn in
+   from its end. Hovering stirs the points. */
+.aph-ear { background: none; border: 0; padding: 6px; color: var(--accent); cursor: pointer; font: inherit; }
+.aph-ear svg { width: 30px; height: 30px; display: block; overflow: visible; }
+.aph-ear path { fill: currentColor; }
+.aph-ear .w { opacity: calc(.6 + .4 * var(--aph-lvl, 1)); transform-origin: 9.6px 12.6px;
+  transition: opacity var(--duration-slow) ease, transform 1.1s var(--easing-settle); }
+.aph-ear .w2 { transition-delay: 60ms; } .aph-ear .w3 { transition-delay: 120ms; }
+.aph-ear .slash { transform-origin: 4.2px 4.6px; transform: scale(0); transition: transform .9s var(--easing-settle); }
+.aph-ear .loose { opacity: 0; transform: translate(-1.2px, -3px); transition: opacity var(--duration-slow) ease .25s, transform 1.1s var(--easing-settle) .2s; }
+.aph-ear[aria-pressed="false"] .w { opacity: 0; transform: translate(2.2px, 1.6px) scale(1.16); }
+.aph-ear[aria-pressed="false"] .w2 { transform: translate(2.8px, 2.6px) scale(1.12); }
+.aph-ear[aria-pressed="false"] .w3 { transform: translate(3.2px, 3.6px) scale(1.08); }
+.aph-ear[aria-pressed="false"] .slash { transform: none; transition-delay: .15s; }
+.aph-ear[aria-pressed="false"] .loose { opacity: .7; transform: none; }
+.aph-ear .w path, .aph-ear .loose path { transform-box: fill-box; }
+.aph-ear:hover .w path, .aph-ear:focus-visible .w path { animation: aph-stir 1.7s ease-in-out infinite alternate; }
+.aph-ear:hover .w2 path, .aph-ear:focus-visible .w2 path { animation-duration: 1.3s; animation-delay: -.4s; }
+.aph-ear:hover .w3 path, .aph-ear:focus-visible .w3 path { animation-duration: 2.1s; animation-delay: -.9s; }
+.aph-ear:hover .loose path { animation: aph-stir 1.9s ease-in-out infinite alternate; }
+.aph-still-ear * { transition: none !important; }
+@keyframes aph-stir { 0% { transform: translate(0, 0); } 30% { transform: translate(.45px, -.3px); } 65% { transform: translate(-.3px, .35px); } 100% { transform: translate(.25px, .15px); } }
+.aph-ear:hover .w path + path, .aph-ear:focus-visible .w path + path { animation-direction: alternate-reverse; animation-duration: 1.45s; }

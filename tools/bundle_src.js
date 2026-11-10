@@ -1,4 +1,4 @@
-/* @ds-bundle: {"format":4,"namespace":"Aphesis","components":[{"name":"Seal"},{"name":"Brush"},{"name":"Icons"},{"name":"Fog"},{"name":"Simulacrum"},{"name":"Typist"},{"name":"Tooltip"},{"name":"Cursor"},{"name":"LetterWave"},{"name":"ThemeShift"}]} */
+/* @ds-bundle: {"format":4,"namespace":"Aphesis","components":[{"name":"Seal"},{"name":"Brush"},{"name":"Icons"},{"name":"Fog"},{"name":"Simulacrum"},{"name":"Typist"},{"name":"Tooltip"},{"name":"Cursor"},{"name":"LetterWave"},{"name":"ThemeShift"},{"name":"Sound"}]} */
 /* aphes.ist design system runtime. Plain JavaScript, no framework: every screen of the site loads this one script.
    Everything visible is made of two marks: the BRUSH (a centerline with a width profile, tapered, with unsure edges)
    and the STIPPLE (small square cells that light up where a density field passes a fixed threshold). Nothing is solid. */
@@ -337,12 +337,14 @@
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     });
     L.start();
+    /* a picture coalescing or dissolving is heard as a soft swell (o.sound: false keeps it silent) */
+    function cue(k) { if (o.sound !== false) Sound.event(k); }
     function to(target, dur, done) { if (cancel) cancel(); var k0 = k; if (REDUCED) { k = target; done && done(); return; } cancel = tween(dur, function (e) { k = lerp(k0, target, e); }, done); }
     var api = {
       /* coalesce out of the fog (2.6 s); with a source, swap it in first */
-      show: function (src, done) { if (src) load(src, function () { to(1, 2600, done); }); else to(1, 2600, done); },
+      show: function (src, done) { cue('coalesce'); if (src) load(src, function () { to(1, 2600, done); }); else to(1, 2600, done); },
       /* dissolve back into the fog (1.8 s) */
-      hide: function (done) { to(0, 1800, done); },
+      hide: function (done) { cue('dissolve'); to(0, 1800, done); },
       /* dissolve, swap, coalesce */
       set: function (src, done) { to(0, 1500, function () { load(src, function () { to(1, 2600, done); }); }); },
       stop: function () { L.stop(); if (cancel) cancel(); cancel = null; },
@@ -483,7 +485,7 @@
     SHIFT = { o: org, far: far, p: 0 };
     /* colour transitions would smear the switch into and out of difference: hold them off for two frames at each end */
     function still() { root.classList.add('aph-still'); requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.remove('aph-still'); }); }); }
-    still(); apply();
+    still(); apply(); Sound.event('shift');
     var softB = cssColor('--ink-soft'), lineB = cssColor('--line');
     /* a grey under difference shows as itself on a dark ground and as its negative on a light one:
        take the grey that reads as each theme's own grey on its own ground */
@@ -510,10 +512,451 @@
     Array.from(txt).forEach(function (c, i) { var s = document.createElement('span'); s.className = 'ltr'; s.setAttribute('aria-hidden', 'true'); s.style.setProperty('--i', i); s.textContent = c === ' ' ? ' ' : c; el.appendChild(s); });
   }
 
+
+  /* ================= SOUND ================= */
+  /* Aphesis.Sound: the ambient sound of the site, synthesized in Web Audio with no files. One family of timbre for
+     every screen: low sine and triangle partials in slowly detuned pairs (they beat), a bed of filtered noise, and
+     sparse soft harmonics that bloom and fade. Each screen is a VOICE (root, mode, density, texture) played by one of
+     two fixed sets of nodes, so a change of route is a crossfade from one set to the other and the sound never stops.
+     Nothing is created per note or per frame: every oscillator runs from the start and only gains and frequencies
+     move. Its slow movements are oscillators at the fog's drift rate times powers of φ, so like the fog it never
+     repeats. It sits under attention: a quiet master through a gentle compressor and a limiter, nothing high. */
+  var SOUND_KEY = 'aphesis.sound', PHI_R = 1.6180339887;
+  /* the slow movements: the fog drifts at .013 and its layers at powers of φ; so do the voices' sways */
+  var SWAY = [0, 1, 2, 3, 4].map(function (k) { return 0.013 * Math.pow(PHI_R, k); });
+  /* a voice. drone: three pairs [ratio to root, detune between the two in cents, gain]; pair 0 is triangle, 1 and 2
+     sine. tone: lowpass cutoff and its sway. noise: [gain, band centre, Q, breath 0..1, sweep in Hz]. glint: sparse
+     harmonics [mean seconds apart, semitones of the mode, octave as a multiple of the root, gain, attack, release].
+     tick and throb: pulses [period s, gain, frequency or ratio, chance of a skipped beat]. send: share in the room. */
+  function V(o) {
+    return { root: o.root, drone: o.drone, tone: o.tone, sway: o.sway || o.tone * 0.32, q: o.q || 0.5, noise: o.noise,
+      glint: o.glint || null, tick: o.tick || null, throb: o.throb || null, send: o.send === undefined ? 0.3 : o.send,
+      width: o.width === undefined ? 0.3 : o.width, level: o.level || 1 };
+  }
+  var VOICES = {
+    /* the φ: an open fifth on D with no third, in the dorian's pentatonic, the fog's own breath */
+    home: V({ root: 73.42, drone: [[1, 4.5, 0.3], [1.5, 3, 0.15], [2, 6, 0.09]], tone: 900, noise: [0.05, 420, 0.9, 0.4, 120],
+      glint: [5.5, [0, 2, 7, 9, 12, 14], 4, 0.05, 1.4, 5], send: 0.35 }),
+    /* the codex: warm F major, a major third and a twelfth, paper breathing in the noise */
+    book: V({ root: 87.31, drone: [[1, 3, 0.27], [1.25, 2.5, 0.12], [3, 4, 0.06]], tone: 1100, noise: [0.045, 900, 1.1, 0.3, 200],
+      glint: [6.5, [0, 4, 7, 11, 12, 16], 4, 0.045, 1, 4.5], send: 0.3 }),
+    /* the adyton: phrygian C#, a minor second beating against the root, a slow heart; darker chamber by chamber */
+    experimental: V({ root: 69.3, drone: [[1, 7, 0.32], [16 / 15, 3, 0.09], [Math.SQRT2, 5, 0.05]], tone: 540, noise: [0.06, 260, 1.2, 0.5, 90],
+      glint: [9, [0, 1, 6, 7, 12, 13], 2, 0.05, 2.2, 7], throb: [2.2, 0.04, 1], send: 0.45, level: 1.3 }),
+    /* the archive: deep A aeolian, still and far, long sparse harmonics */
+    archive: V({ root: 55, drone: [[1, 2.5, 0.36], [2, 2, 0.14], [3, 1.5, 0.05]], tone: 640, noise: [0.035, 340, 0.8, 0.3, 80],
+      glint: [11, [0, 3, 7, 10, 12], 4, 0.04, 1.8, 7], send: 0.5, level: 1.15 }),
+    /* the officina: dry G, little beating and little room, a clock ticking and a slow pulse */
+    laboratory: V({ root: 98, drone: [[1, 1.5, 0.2], [2, 0.8, 0.12], [3, 0.5, 0.07]], tone: 1400, sway: 200, noise: [0.015, 1200, 2.5, 0.1, 100],
+      glint: [7, [0, 2, 4, 6, 8, 10], 8, 0.02, 0.25, 2.2], tick: [0.72, 0.05, 1050, 0.18], throb: [2.88, 0.06, 2], send: 0.08, width: 0.12, level: 0.85 }),
+    /* the opera: E lydian, finished and open, fifths and a major tenth */
+    works: V({ root: 82.41, drone: [[1, 4, 0.27], [1.5, 3, 0.13], [2.5, 3, 0.07]], tone: 1250, noise: [0.04, 600, 0.9, 0.3, 150],
+      glint: [5, [0, 4, 6, 7, 11, 14], 4, 0.045, 1, 4.5], send: 0.3 }),
+    /* the wall: B flat, a thin drone and a lot of wind, breath in gusts */
+    wall: V({ root: 58.27, drone: [[1, 5, 0.2], [2, 6, 0.08], [3, 4, 0.04]], tone: 760, noise: [0.12, 520, 0.7, 0.85, 380],
+      glint: [13, [0, 5, 7, 12], 4, 0.03, 2.5, 6], send: 0.4, width: 0.45 }),
+    /* the agora: F# dorian, rough beating like many voices, a murmur in the noise, more frequent small harmonics */
+    forum: V({ root: 92.5, drone: [[1, 9, 0.25], [1.2, 7, 0.1], [1.5, 8, 0.08]], tone: 980, noise: [0.07, 700, 1.4, 0.55, 220],
+      glint: [3.6, [0, 2, 3, 7, 9, 10, 12], 4, 0.03, 0.8, 3], send: 0.25 }),
+    /* music: the home's root, almost nothing, so a track can play over it (it also ducks while one plays) */
+    music: V({ root: 73.42, drone: [[1, 3, 0.12], [2, 2, 0.03], [3, 2, 0]], tone: 600, noise: [0.02, 400, 0.8, 0.2, 80], send: 0.3 })
+  };
+  /* the nine chambers of experimental, in their order; 0 is the door */
+  var CHAMBERS = ['door', 'ouroboros', 'hands', 'scholar', 'tablet', 'fortune', 'veil', 'alchemist', 'sky', 'ending'];
+  var CH_RATIO = [Math.SQRT2, 1.5, 4 / 3, 16 / 15, Math.SQRT2, 1.2, 1.4983, 1.0595, Math.SQRT2, 16 / 15];
+  var CH_V = [];
+  function chamberVoice(c) {
+    if (CH_V[c]) return CH_V[c];
+    var b = VOICES.experimental, k = c / 9, end = c === 9, v = JSON.parse(JSON.stringify(b));
+    v.root = b.root * Math.pow(2, -(end ? 5 : 2.4 * k) / 12);
+    v.drone[0][1] = 7 + 6 * k; v.drone[1][2] = 0.09 + 0.04 * k; v.drone[2][0] = CH_RATIO[c]; v.drone[2][1] = 5 + 4 * k;
+    v.tone = b.tone * (1 - 0.5 * k) * (end ? 0.8 : 1); v.sway = v.tone * 0.3;
+    v.noise[0] = b.noise[0] * (1 + 0.7 * k); v.noise[1] = b.noise[1] * (1 - 0.3 * k);
+    v.throb = c === 0 ? null : [2.6 - 0.8 * k, 0.03 + 0.06 * k, 1];
+    v.glint[0] = b.glint[0] * (1 + k); if (c >= 5) v.glint[1] = [0, 1, 6, 12, 13]; if (end) { v.glint[1] = [0, 1, 6]; v.glint[3] = 0.035; }
+    v.send = 0.45 + 0.15 * k;
+    return (CH_V[c] = v);
+  }
+  function voiceOf(name, o) {
+    if (name === 'experimental' && o && o.chamber !== undefined) {
+      var c = typeof o.chamber === 'string' ? CHAMBERS.indexOf(o.chamber) : +o.chamber;
+      if (c >= 0 && c <= 9) return chamberVoice(Math.round(c));
+    }
+    return VOICES[name] || VOICES.home;
+  }
+
+  /* a gain or frequency that is only ever moved by setTargetAtTime from the value it holds now, worked out here, so
+     a mute, a duck or a crossfade can interrupt another at any moment without a step (and without cancelAndHold,
+     which not every browser has) */
+  function Lane(ctx, param, v) { this.c = ctx; this.p = param; this.s = [{ t0: 0, v0: v, v1: v, tau: 0 }]; param.value = v; }
+  Lane.prototype.at = function (t) {
+    var s = this.s[0]; for (var i = this.s.length - 1; i >= 0; i--) if (this.s[i].t0 <= t) { s = this.s[i]; break; }
+    return !s.tau || t <= s.t0 ? (s.tau ? s.v0 : s.v1) : s.v1 + (s.v0 - s.v1) * Math.exp(-(t - s.t0) / s.tau);
+  };
+  Lane.prototype.target = function () { return this.s[this.s.length - 1].v1; };
+  Lane.prototype._push = function (v, sec, t) {
+    var cur = this.at(t), tau = Math.max(0.003, sec / 4); this.p.setTargetAtTime(v, t, tau);
+    this.s = this.s.filter(function (x) { return x.t0 < t; }).slice(-3); this.s.push({ t0: t, v0: cur, v1: v, tau: tau });
+  };
+  /* go(value, seconds, at): from what it holds at `at` (now by default), settle on value in about `seconds` */
+  Lane.prototype.go = function (v, sec, t) {
+    t = t === undefined ? this.c.currentTime : t; var cur = this.at(t);
+    this.p.cancelScheduledValues(t); this.p.setValueAtTime(cur, t); this._push(v, sec, t);
+  };
+  /* then(value, seconds, at): a later move, after the one under way */
+  Lane.prototype.then = function (v, sec, t) { this._push(v, sec, t); };
+
+  function noiseBuffer(ctx) {
+    /* pinkish noise (Kellet's filter), 6.18 s, looped */
+    var n = Math.floor(ctx.sampleRate * 6.18), b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0), r = rng(1618), b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+    for (var i = 0; i < n; i++) { var w = r() * 2 - 1; b0 = 0.99886 * b0 + w * 0.0555179; b1 = 0.99332 * b1 + w * 0.0750759; b2 = 0.969 * b2 + w * 0.153852; b3 = 0.8665 * b3 + w * 0.3104856; b4 = 0.55 * b4 + w * 0.5329522; b5 = -0.7616 * b5 - w * 0.016898; d[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11; b6 = w * 0.115926; }
+    /* the loop seam: cross the last 50 ms into the first */
+    var m = Math.floor(ctx.sampleRate * 0.05); for (i = 0; i < m; i++) { var u = i / m; d[n - m + i] = d[n - m + i] * (1 - u) + d[i] * u; }
+    return b;
+  }
+  function roomBuffer(ctx) {
+    /* the room: 2.8 s of decaying noise, darkened as it decays, a little different in each ear */
+    var sr = ctx.sampleRate, n = Math.floor(sr * 2.8), b = ctx.createBuffer(2, n, sr);
+    for (var c = 0; c < 2; c++) { var d = b.getChannelData(c), r = rng(31 + c * 7), lp = 0;
+      for (var i = 0; i < n; i++) { var t = i / sr, a = Math.exp(-t * 2.3) * Math.min(1, t / 0.02), k = 0.5 * Math.exp(-t * 1.2) + 0.04; lp += (r() * 2 - 1 - lp) * k; d[i] = lp * a * 0.5; } }
+    return b;
+  }
+
+  /* the engine: the whole fixed graph on one context (live, or offline for analysis) */
+  function SoundEngine(ctx) {
+    var E = this, c = ctx, now = function () { return c.currentTime; };
+    E.ctx = c;
+    function G(v) { var g = c.createGain(); g.gain.value = v === undefined ? 1 : v; return g; }
+    /* sources start together once the context runs (a suspended context in Chrome complains about every start) */
+    var srcs = E.srcs = [];
+    function O(type, f) { var o = c.createOscillator(); o.type = type; o.frequency.value = f; srcs.push(o); return o; }
+    function F(type, f, q) { var b = c.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q === undefined ? 0.7 : q; return b; }
+    var noise = c.createBufferSource(); noise.buffer = noiseBuffer(c); noise.loop = true; srcs.push(noise);
+    /* master: bus -> pointer tone -> pointer pan -> duck -> visibility -> mute -> start (two in series: a slow creep)
+       -> compressor -> limiter -> level -> out */
+    E.bus = G(1);
+    E.tone = F('lowpass', 2600, 0.5);
+    E.pan = c.createStereoPanner ? c.createStereoPanner() : G(1);
+    E.duckG = G(1); E.visG = G(1); E.muteG = G(1); E.s1 = G(0); E.s2 = G(0);
+    var comp = c.createDynamicsCompressor(); comp.threshold.value = -20; comp.knee.value = 12; comp.ratio.value = 2; comp.attack.value = 0.08; comp.release.value = 0.6;
+    var lim = c.createDynamicsCompressor(); lim.threshold.value = -4; lim.knee.value = 2; lim.ratio.value = 20; lim.attack.value = 0.003; lim.release.value = 0.3;
+    var hush = F('highshelf', 3500, 0); hush.gain.value = -9;
+    E.out = G(0.12);
+    E.an = c.createAnalyser(); E.an.fftSize = 1024;
+    [E.bus, E.tone, E.pan, E.duckG, E.visG, E.muteG, E.s1, E.s2, hush, comp, lim, E.out].reduce(function (a, b) { a.connect(b); return b; });
+    E.out.connect(c.destination); E.out.connect(E.an);
+    E.duck = new Lane(c, E.duckG.gain, 1); E.vis = new Lane(c, E.visG.gain, 1); E.mute = new Lane(c, E.muteG.gain, 1);
+    E.st1 = new Lane(c, E.s1.gain, 0); E.st2 = new Lane(c, E.s2.gain, 0);
+    E.toneL = new Lane(c, E.tone.frequency, 2600); E.panL = E.pan.pan ? new Lane(c, E.pan.pan, 0) : null;
+    /* the room, shared */
+    var room = c.createConvolver(); room.buffer = roomBuffer(c); var wet = G(0.9); room.connect(wet); wet.connect(E.bus);
+    /* the slow movements, shared: oscillators at the fog's rates, never touched again */
+    var lfo = SWAY.map(function (f) { return O('sine', f); });
+    function depth(src, param, d) { var g = G(d); src.connect(g); g.connect(param); return g; }
+    /* the two players */
+    function slot() {
+      var S = { out: G(0), send: G(0), osc: [], og: [], gl: [], glg: [], busy: [0, 0, 0], v: null, next: 0, nextTick: 0, nextThrob: 0 };
+      S.lane = new Lane(c, S.out.gain, 0);
+      S.lp = F('lowpass', 900, 0.5); S.sp = c.createStereoPanner ? c.createStereoPanner() : G(1);
+      S.lp.connect(S.sp); S.sp.connect(S.out);
+      for (var i = 0; i < 6; i++) { var o = O(i < 2 ? 'triangle' : 'sine', 110), g = G(0); o.connect(g); g.connect(S.lp); S.osc.push(o); S.og.push(g); }
+      S.nbp = F('bandpass', 400, 1); S.ng = G(0); noise.connect(S.nbp); S.nbp.connect(S.ng); S.ng.connect(S.sp);
+      for (i = 0; i < 3; i++) { var go = O('sine', 300), gg = G(0); go.connect(gg); gg.connect(S.sp); S.gl.push(go); S.glg.push(gg); }
+      S.th = O('sine', 70); S.thg = G(0); S.th.connect(S.thg); S.thg.connect(S.lp);
+      S.tbp = F('bandpass', 1000, 6); S.tg = G(0); noise.connect(S.tbp); S.tbp.connect(S.tg); S.tg.connect(S.sp);
+      /* sways: cutoff, breath of the noise, sweep of its band, width, and the drift of each pair's beating */
+      S.dCut = depth(lfo[1], S.lp.frequency, 0); S.dBreath = depth(lfo[4], S.ng.gain, 0); S.dSweep = depth(lfo[2], S.nbp.frequency, 0);
+      S.dPan = S.sp.pan ? depth(lfo[3], S.sp.pan, 0) : null; S.dDet = depth(lfo[0], S.osc[1].detune, 3);
+      depth(lfo[2], S.osc[3].detune, 2.5); depth(lfo[3], S.osc[5].detune, 2);
+      S.out.connect(E.bus); S.out.connect(S.send); S.send.connect(room);
+      /* lanes for everything a voice sets */
+      S.L = { cut: new Lane(c, S.lp.frequency, 900), q: new Lane(c, S.lp.Q, 0.5), ng: new Lane(c, S.ng.gain, 0), nf: new Lane(c, S.nbp.frequency, 400), nq: new Lane(c, S.nbp.Q, 1),
+        send: new Lane(c, S.send.gain, 0), dCut: new Lane(c, S.dCut.gain, 0), dBreath: new Lane(c, S.dBreath.gain, 0), dSweep: new Lane(c, S.dSweep.gain, 0),
+        dPan: S.dPan ? new Lane(c, S.dPan.gain, 0) : null, f: [], det: [], g: [] };
+      for (i = 0; i < 6; i++) { S.L.f.push(new Lane(c, S.osc[i].frequency, 110)); S.L.det.push(new Lane(c, S.osc[i].detune, 0)); S.L.g.push(new Lane(c, S.og[i].gain, 0)); }
+      S.L.th = new Lane(c, S.th.frequency, 70); S.L.tf = new Lane(c, S.tbp.frequency, 1000);
+      return S;
+    }
+    E.slots = [slot(), slot()];
+    /* the event voice: a pair of sines and a band of noise, retuned for each event */
+    var ev = { a: O('sine', 150), b: O('sine', 150), ag: G(0), nbp: F('bandpass', 400, 1.2), ng: G(0), lp: F('lowpass', 1800, 0.5), send: G(0.5) };
+    ev.a.connect(ev.ag); ev.b.connect(ev.ag); ev.ag.connect(ev.lp); noise.connect(ev.nbp); ev.nbp.connect(ev.ng); ev.ng.connect(ev.lp);
+    ev.lp.connect(E.bus); ev.lp.connect(ev.send); ev.send.connect(room);
+    ev.L = { fa: new Lane(c, ev.a.frequency, 150), fb: new Lane(c, ev.b.frequency, 150), ag: new Lane(c, ev.ag.gain, 0), ng: new Lane(c, ev.ng.gain, 0), nf: new Lane(c, ev.nbp.frequency, 400) };
+    E.ev = ev;
+    E.active = 0; E.voice = null; E.name = null;
+  }
+  SoundEngine.prototype.ignite = function () { if (this.lit) return; this.lit = true; this.srcs.forEach(function (o) { o.start(); }); };
+  /* put voice v on slot S; glide when it is sounding, jump when it is silent */
+  SoundEngine.prototype.tune = function (S, v, t) {
+    var sounding = S.lane.at(t) > 0.002, sec = sounding ? 3 : 0.02, L = S.L, i;
+    for (i = 0; i < 3; i++) {
+      var p = v.drone[i], f = v.root * p[0], g = p[2] * v.level;
+      L.f[2 * i].go(f, sec, t); L.f[2 * i + 1].go(f, sec, t);
+      L.det[2 * i].go(-p[1] / 2, sec, t); L.det[2 * i + 1].go(p[1] / 2, sec, t);
+      var bal = i === 0 ? 0.4 : 1.4; L.g[2 * i].go(g * bal, sec, t); L.g[2 * i + 1].go(g * bal, sec, t);
+    }
+    L.cut.go(v.tone * 1.3, sec, t); L.q.go(v.q, sec, t); L.dCut.go(v.sway, sec, t);
+    var nz = v.noise[0] * v.level * 1.8; L.ng.go(nz, sec, t); L.nf.go(v.noise[1], sec, t); L.nq.go(v.noise[2], sec, t);
+    L.dBreath.go(nz * v.noise[3] * 0.9, sec, t); L.dSweep.go(v.noise[4], sec, t);
+    if (L.dPan) L.dPan.go(v.width, sec, t);
+    L.send.go(v.send, sec, t);
+    L.th.go(v.throb ? v.root * v.throb[2] : v.root, sec, t); if (v.tick) L.tf.go(v.tick[2], sec, t);
+    /* harmonics and pulses already planned for the old voice are let go */
+    if (S.v && S.v !== v) for (i = 0; i < 3; i++) { if (S.busy[i] > t) { S.glg[i].gain.cancelScheduledValues(t); S.glg[i].gain.setTargetAtTime(0, t, 0.25); S.busy[i] = t + 2; } }
+    S.v = v; S.next = t + 0.5 + Math.random() * (v.glint ? v.glint[0] : 1); S.nextTick = t + 0.3; S.nextThrob = t + 0.8;
+  };
+  /* scene: crossfade to voice v over sec seconds */
+  SoundEngine.prototype.scene = function (v, sec, t) {
+    t = t === undefined ? this.ctx.currentTime : t;
+    var A = this.slots[this.active], B = this.slots[1 - this.active];
+    if (A.v === v) { A.lane.go(1, sec, t); B.lane.go(0, sec, t); return; }
+    if (A.lane.at(t) < 0.002 && !A.v) { this.tune(A, v, t); A.lane.go(1, Math.max(0.05, sec), t); return; }
+    this.tune(B, v, t);
+    B.lane.go(1, sec * 0.9, t); A.lane.go(0, sec, t);
+    this.active = 1 - this.active;
+  };
+  /* plan the sparse harmonics and pulses a little ahead of time (called every quarter of a second) */
+  SoundEngine.prototype.tick = function (ahead) {
+    var t = this.ctx.currentTime, h = t + (ahead || 1.2);
+    this.slots.forEach(function (S) {
+      var v = S.v; if (!v || S.lane.target() < 0.01) return;
+      var gl = v.glint;
+      while (gl && S.next < h) {
+        var at = Math.max(S.next, t + 0.02), j = -1;
+        for (var i = 0; i < 3; i++) if (S.busy[i] <= at) { j = i; break; }
+        if (j >= 0) {
+          var deg = gl[1][Math.floor(Math.random() * gl[1].length)], f = v.root * gl[2] * Math.pow(2, deg / 12), pk = gl[3] * 2.4 * (0.55 + 0.45 * Math.random()) * v.level;
+          var att = gl[4] * (0.7 + 0.6 * Math.random()), hold = att * 0.6, rel = gl[5] * (0.7 + 0.6 * Math.random()), g = S.glg[j].gain;
+          S.gl[j].frequency.setValueAtTime(f, at); S.gl[j].detune.setValueAtTime((Math.random() - 0.5) * 8, at);
+          g.setTargetAtTime(pk, at, att / 3); g.setTargetAtTime(0, at + att + hold, rel / 4);
+          S.busy[j] = at + att + hold + rel * 1.7;
+        }
+        S.next = at + gl[0] * (0.35 + 1.3 * Math.random());
+      }
+      var tk = v.tick;
+      while (tk && S.nextTick < h) {
+        var a2 = Math.max(S.nextTick, t + 0.02);
+        if (Math.random() > tk[3]) { var p2 = tk[1] * (0.6 + 0.4 * Math.random()) * v.level; S.tg.gain.setTargetAtTime(p2, a2, 0.0015); S.tg.gain.setTargetAtTime(0, a2 + 0.006, 0.022); }
+        S.nextTick = a2 + tk[0] * (0.97 + 0.06 * Math.random());
+      }
+      var th = v.throb;
+      while (th && S.nextThrob < h) {
+        var a3 = Math.max(S.nextThrob, t + 0.02), p3 = th[1] * v.level;
+        S.thg.gain.setTargetAtTime(p3, a3, 0.05); S.thg.gain.setTargetAtTime(0, a3 + 0.12, 0.16);
+        S.thg.gain.setTargetAtTime(p3 * 0.6, a3 + 0.34, 0.05); S.thg.gain.setTargetAtTime(0, a3 + 0.44, 0.22);
+        S.nextThrob = a3 + th[0] * (0.95 + 0.1 * Math.random());
+      }
+    });
+  };
+  /* events: swells and impacts on the event voice, in the key of the voice that is playing */
+  var EVENTS = {
+    /* [sine pair: ratio a, ratio b, gain, attack, release, glide-to ratio], [noise: gain, band from, band to, attack, release] */
+    swell: [[2, 3, 0.05, 1.6, 3.2], [0.05, 220, 700, 1.6, 3]],
+    door: [[2, 3, 0.06, 1.8, 3.6, 1.5], [0.07, 180, 900, 2, 3.4]],
+    coalesce: [[4, 6, 0.035, 1.3, 3.4], [0.025, 500, 900, 1.2, 2.6]],
+    dissolve: [[3, 4, 0.025, 0.6, 2.4, 2], [0.04, 900, 260, 0.5, 2.2]],
+    impact: [[2, 2.01, 0.12, 0.012, 1.4, 0.5], [0.05, 300, 140, 0.01, 0.9]],
+    turn: [null, [0.05, 1200, 600, 0.05, 0.45]],
+    shift: [[6, 8, 0.02, 2.4, 4], [0.02, 700, 1400, 2.4, 3.5]],
+    passage: [[1.5, 2, 0.03, 1.4, 3], [0.03, 300, 600, 1.4, 2.6]]
+  };
+  SoundEngine.prototype.event = function (kind, t) {
+    var e = EVENTS[kind] || EVENTS.swell, ev = this.ev, L = ev.L, v = this.slots[this.active].v || VOICES.home, r = v.root;
+    t = t === undefined ? this.ctx.currentTime : t;
+    var o = e[0], n = e[1];
+    if (o) {
+      L.fa.go(r * o[0], 0.03, t); L.fb.go(r * o[1], 0.03, t);
+      if (o[5]) { L.fa.then(r * o[5], o[3] + o[4], t + 0.05); L.fb.then(r * o[5] * o[1] / o[0], o[3] + o[4], t + 0.05); }
+      L.ag.go(o[2], o[3], t); L.ag.then(0, o[4], t + o[3]);
+    }
+    if (n) {
+      L.nf.go(n[1], 0.03, t); L.nf.then(n[2], n[3] + n[4] * 0.6, t + 0.04);
+      L.ng.go(n[0], n[3], t); L.ng.then(0, n[4], t + n[3]);
+    }
+  };
+  SoundEngine.prototype.level = function () {
+    var a = this.an, d = this._buf || (this._buf = new Float32Array(a.fftSize)); a.getFloatTimeDomainData(d);
+    var s = 0, p = 0; for (var i = 0; i < d.length; i++) { s += d[i] * d[i]; p = Math.max(p, Math.abs(d[i])); } return { rms: Math.sqrt(s / d.length), peak: p };
+  };
+
+  /* the live sound: autoplay, the first gesture, mute, visibility, the pointer, the ear */
+  var Sound = (function () {
+    var AC = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext);
+    var E = null, started = false, want = { name: 'home', o: null }, timer = 0, sleepT = 0, armed = false, ears = [], fadeMs = 7000, lastPtr = 0, media = 0;
+    function stored() { try { return localStorage.getItem(SOUND_KEY) === 'off'; } catch (e) { return false; } }
+    var muted = stored();
+    function store() { try { localStorage.setItem(SOUND_KEY, muted ? 'off' : 'on'); } catch (e) {} }
+    function running() { return E && E.ctx.state === 'running'; }
+    function ensure() {
+      if (E || !AC) return E;
+      /* polite on iPhone: an ambient session obeys the silent switch and mixes with what else is playing */
+      try { if (navigator.audioSession) navigator.audioSession.type = 'ambient'; } catch (e) {}
+      var ctx; try { ctx = new AC({ latencyHint: 'playback' }); } catch (e) { try { ctx = new AC(); } catch (e2) { return null; } }
+      E = new SoundEngine(ctx);
+      E.scene(voiceOf(want.name, want.o), 0.05, ctx.currentTime); E.name = want.name;
+      ctx.addEventListener ? ctx.addEventListener('statechange', onState) : (ctx.onstatechange = onState);
+      timer = setInterval(function () { if (running()) E.tick(); }, 250);
+      return E;
+    }
+    /* the context is running: the first time, creep in (the φ draws itself meanwhile) */
+    function onState() {
+      if (!running()) return;
+      disarm(); E.ignite(); E.tick();
+      if (!started) { started = true; var t = E.ctx.currentTime, s = fadeMs / 1000; E.st1.go(1, s * 4 / 3, t); E.st2.go(1, s * 4 / 3, t); }
+    }
+    function resume() {
+      if (!E) return;
+      try { var p = E.ctx.resume(); if (p && p.then) p.then(onState, function () {}); } catch (e) {}
+      setTimeout(onState, 300);
+    }
+    /* the first gesture of any kind wakes it; no prompt, nothing to click on purpose */
+    function gesture() {
+      if (muted || !E) return disarm();
+      /* iOS unlocks on a sound started inside the gesture: a silent one */
+      try { var b = E.ctx.createBufferSource(); b.buffer = E.ctx.createBuffer(1, 1, E.ctx.sampleRate); b.connect(E.ctx.destination); b.start(0); } catch (e) {}
+      resume(); if (!document.hidden) awake(true);
+    }
+    var GESTURES = ['pointerdown', 'keydown', 'touchend', 'click', 'mousedown'];
+    function arm() { if (armed) return; armed = true; GESTURES.forEach(function (k) { addEventListener(k, gesture, { capture: true, passive: true }); }); }
+    function disarm() { if (!armed) return; armed = false; GESTURES.forEach(function (k) { removeEventListener(k, gesture, { capture: true, passive: true }); }); }
+    /* hidden pages and muted ones fade out, then the context sleeps; shown again, it wakes and fades back in */
+    function awake(on) {
+      if (!E) return; clearTimeout(sleepT);
+      if (on) { E.vis.go(1, 2.4); if (E.ctx.state !== 'running') { resume(); if (E.ctx.state !== 'running') arm(); } }
+      else { E.vis.go(0, 1.6); sleepT = setTimeout(function () { if (E && (document.hidden || muted)) try { E.ctx.suspend(); } catch (e) {} }, 2200); }
+    }
+    function onVis() { if (!E || muted) return; awake(!document.hidden); }
+    function onPointer(e) {
+      if (!E || !running()) return; var n = performance.now(); if (n - lastPtr < 80) return; lastPtr = n;
+      var x = e.clientX / Math.max(1, innerWidth), y = e.clientY / Math.max(1, innerHeight);
+      /* toward the top a little brighter, the sound leaning a little toward the pointer */
+      E.toneL.go(1900 + 1500 * (1 - y), 0.9); if (E.panL) E.panL.go((x - 0.5) * 0.24, 0.9);
+    }
+    /* a track playing anywhere in the page (an <audio> or <video>) ducks the ambience almost to silence */
+    function onMedia(e) {
+      if (!e.target || !/^(AUDIO|VIDEO)$/.test(e.target.tagName) || e.target.muted) return;
+      media = Math.max(0, media + (e.type === 'play' ? 1 : -1)); api.duck(media ? 0.05 : 1, media ? 1500 : 3000);
+    }
+    var hooked = false;
+    function hook() {
+      if (hooked || typeof document === 'undefined') return; hooked = true;
+      document.addEventListener('visibilitychange', onVis);
+      addEventListener('pointermove', onPointer, { passive: true });
+      ['play', 'pause', 'ended'].forEach(function (k) { document.addEventListener(k, onMedia, true); });
+    }
+    function paintEars() { ears.forEach(function (b) { earState(b, !muted); }); }
+    var api = {
+      /* start({fade, scene, chamber}): call once at load. Muted visitors stay silent and nothing is created. */
+      start: function (o) {
+        o = o || {}; if (o.fade) fadeMs = o.fade; if (o.scene) { want.name = o.scene; want.o = o; }
+        hook(); if (muted || !AC) return api;
+        if (!ensure()) return api;
+        if (document.hidden) { arm(); return api; }
+        resume(); if (!running()) arm();
+        return api;
+      },
+      /* scene(name, {transition, chamber}): crossfade to a screen's voice (3.6 s by default) */
+      scene: function (name, o) {
+        o = o || {}; want.name = name || 'home'; want.o = o;
+        if (E) { E.scene(voiceOf(want.name, o), Math.max(0.05, (o.transition === undefined ? cssMs('--duration-voice', 3600) : o.transition) / 1000)); if (o.transition !== 0 && running() && E.name !== want.name) E.event('passage'); E.name = want.name; }
+        return api;
+      },
+      /* event(kind): a swell or an impact: swell, door, coalesce, dissolve, impact, turn, shift, passage */
+      event: function (kind) { if (running() && !muted) E.event(kind); return api; },
+      /* duck(level, ms): lower everything to level (0..1) over ms; duck(1) restores */
+      duck: function (level, ms) { if (E) E.duck.go(clamp(level === undefined ? 0.2 : level), (ms || 1500) / 1000); return api; },
+      /* mute(true|false): a slow fade (1.2 s), remembered for the next visit */
+      mute: function (m) {
+        m = m === undefined ? !muted : !!m; muted = m; store(); paintEars();
+        var hush = cssMs('--duration-hush', 1200) / 1000;
+        if (m) { if (E) { E.mute.go(0, hush); disarm(); clearTimeout(sleepT); sleepT = setTimeout(function () { if (E && muted) try { E.ctx.suspend(); } catch (e) {} }, 1800); } }
+        else {
+          hook(); var first = !E; if (!ensure()) return api;
+          clearTimeout(sleepT);
+          if (first) { fadeMs = hush * 1000; E.mute.go(1, 0.05); } else E.mute.go(1, hush);
+          E.vis.go(1, 0.3); gesture();
+        }
+        return api;
+      },
+      get muted() { return muted; },
+      get state() { return E ? E.ctx.state : 'none'; },
+      get context() { return E ? E.ctx : null; },
+      /* level(): {rms, peak} of what is playing now, for a meter */
+      level: function () { return running() ? E.level() : { rms: 0, peak: 0 }; },
+      /* ear(el): mount the ear in a button (or a new button inside el) */
+      ear: function (el) { var b = mountEar(el); ears.push(b); earState(b, !muted, true); b.addEventListener('click', function () { api.mute(!muted); }); breathe(); return b; },
+      voices: Object.keys(VOICES), chambers: CHAMBERS.slice(),
+      /* render(seconds, {scene, chamber, timeline, sampleRate}): the same engine on an OfflineAudioContext, for
+         analysis. timeline: [{at, scene, chamber, transition} | {at, event} | {at, mute} | {at, duck, ms}]. */
+      render: function (sec, o) {
+        o = o || {}; var sr = o.sampleRate || 48000, OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext, ctx = new OAC(2, Math.ceil(sr * sec), sr), e = new SoundEngine(ctx); e.ignite(); e.ignite();
+        e.st1.go(1, 0.01, 0); e.st2.go(1, 0.01, 0); e.scene(voiceOf(o.scene || 'home', o), 0.05, 0); e.tick();
+        var tl = (o.timeline || []).slice().sort(function (a, b) { return a.at - b.at; }), step = Math.round(0.25 * sr / 128) * 128 / sr;
+        for (var t = step; t < sec - step; t += step) (function (t) {
+          ctx.suspend(t).then(function () {
+            while (tl.length && tl[0].at <= t + 1e-6) { var a = tl.shift();
+              if (a.scene) e.scene(voiceOf(a.scene, a), (a.transition === undefined ? 3600 : a.transition) / 1000);
+              if (a.event) e.event(a.event);
+              if (a.mute !== undefined) e.mute.go(a.mute ? 0 : 1, 1.2);
+              if (a.duck !== undefined) e.duck.go(a.duck, (a.ms || 1500) / 1000);
+            }
+            e.tick(); ctx.resume();
+          });
+        })(t);
+        return ctx.startRendering();
+      }
+    };
+    /* the ear's stipple breathes with the level while it sounds */
+    var breathing = false;
+    function breathe() {
+      if (breathing) return; breathing = true; var n = 0;
+      (function f() {
+        requestAnimationFrame(f); if (++n % 4 || !ears.length) return;
+        var l = running() && !muted ? clamp(E.level().rms * 18) : 0;
+        ears.forEach(function (b) { b.style.setProperty('--aph-lvl', l.toFixed(2)); });
+      })();
+    }
+    return api;
+  })();
+
+  /* the ear: an ear drawn by the brush, with three arcs of stipple arriving at it. Listening, the arcs are there;
+     muted, they disperse and fall, and one stroke crosses the ear. */
+  function bez(a, b, c2, d, n) { n = n || 24; var p = []; for (var i = 0; i <= n; i++) { var t = i / n, u = 1 - t; p.push([u * u * u * a[0] + 3 * u * u * t * b[0] + 3 * u * t * t * c2[0] + t * t * t * d[0], u * u * u * a[1] + 3 * u * u * t * b[1] + 3 * u * t * t * c2[1] + t * t * t * d[1]]); } return p; }
+  function annulus(cx, cy, r0, r1, a) { return function (x, y) { var dx = x - cx, dy = y - cy, r = Math.hypot(dx, dy), t = Math.abs(Math.atan2(dy, dx)) * 180 / Math.PI; return r > r0 && r < r1 && t < a; }; }
+  var EAR = (function () {
+    var helix = [].concat(arc(9.6, 9.2, 4.6, 168, 395, 40), bez([13.37, 11.84], [12.9, 14.6], [11.7, 15.4], [11.2, 17.7], 16).slice(1), bez([11.2, 17.7], [10.8, 19.7], [8.7, 20.3], [7.8, 18.7], 14).slice(1));
+    var anti = [].concat(arc(9.9, 9.7, 2.2, 200, 345, 20), bez([12.03, 9.13], [12.3, 11.4], [10.5, 12.1], [10.1, 14.0], 14).slice(1));
+    var ear = brush(helix, 1.75, 71, 0.2) + brush(anti, 1.1, 73, 0.35, 0.05) + brush(bez([6.7, 12.3], [7.7, 12.4], [8.0, 13.5], [7.3, 14.6], 10), 1.05, 75, 0.4, 0.05);
+    var c = [9.6, 12.6];
+    return {
+      ear: ear,
+      slash: brush(line(4.2, 4.6, 20.2, 20.4, 32), 1.5, 79, 0.36, 0.06),
+      waves: [stipple(annulus(c[0], c[1], 7, 7.9, 38), 81, 940, 0.8), stipple(annulus(c[0], c[1], 9.3, 10.2, 32), 83, 1000, 0.78), stipple(annulus(c[0], c[1], 11.6, 12.5, 26), 85, 1050, 0.74)],
+      loose: stipple(function (x, y) { return x > 15 && x < 23 && y > 17.5 && y < 22.5; }, 87, 160, 0.62)
+    };
+  })();
+  ICONS.ear = function (st) { return st ? { strokes: EAR.ear + EAR.slash, dots: EAR.loose } : { strokes: EAR.ear, dots: EAR.waves.join('') }; };
+  /* note: state 0 is listening, 1 muted (as the eye: 0 open, 1 closed) */
+  function mountEar(el) {
+    var b = el && el.tagName === 'BUTTON' ? el : document.createElement('button');
+    if (b !== el && el) el.appendChild(b);
+    b.type = 'button'; b.classList.add('aph-ear'); b.setAttribute('aria-label', 'sound on/off'); b.dataset.cursor = b.dataset.cursor || '.55';
+    b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path class="ear" d="' + EAR.ear + '"/><path class="slash" d="' + EAR.slash + '"/>' +
+      EAR.waves.map(function (d, i) { var sq = d.split('M').slice(1), ev = '', od = ''; sq.forEach(function (q, j) { if (j % 2) od += 'M' + q; else ev += 'M' + q; });
+        return '<g class="w w' + (i + 1) + '"><path d="' + ev + '"/><path d="' + od + '"/></g>'; }).join('') + '<g class="loose"><path d="' + EAR.loose + '"/></g></svg>';
+    return b;
+  }
+  function earState(b, on, now) {
+    if (now) { b.classList.add('aph-still-ear'); requestAnimationFrame(function () { requestAnimationFrame(function () { b.classList.remove('aph-still-ear'); }); }); }
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.dataset.tip = on ? 'listening · close the ear' : 'silent · open the ear';
+  }
+
   window.Aphesis = {
     reducedMotion: REDUCED, MJ: MJ, cellPx: cellPx, lerp: lerp, clamp: clamp, tween: tween, rng: rng, cssColor: cssColor,
     brush: brush, arc: arc, line: line, stipple: stipple, inC: inC,
     icon: icon, ICONS: ICONS, PHI: PHI, seal: seal,
-    Fog: Fog, Simulacrum: Simulacrum, Typist: Typist, tooltip: tooltip, cursor: cursor, letters: letters, themeShift: themeShift
+    Fog: Fog, Simulacrum: Simulacrum, Typist: Typist, tooltip: tooltip, cursor: cursor, letters: letters, themeShift: themeShift, Sound: Sound
   };
 })();

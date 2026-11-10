@@ -7,7 +7,7 @@ button svg{width:64px;height:64px;display:block}
 button span{color:var(--ink-soft)}
 </style>
 <script>
-var I=[['eye','oculus · the theme switch','open','closed'],['sol','sol','',''],['luna','luna','',''],['terminator','linea lucis','light','dark'],['threshold','limen','open','night']];
+var I=[['eye','oculus · the theme switch','open','closed'],['sol','sol','',''],['luna','luna','',''],['terminator','linea lucis','light','dark'],['threshold','limen','open','night'],['ear','auris · the sound switch','listening','muted']];
 var g=document.getElementById('g');
 I.forEach(function(it){var b=document.createElement('button');b.type='button';var st=0;
   function r(){b.innerHTML=Aphesis.icon(it[0],st)+'<span class="aph-meta">'+it[1]+(it[2]?' · '+(st?it[3]:it[2]):'')+'</span>';b.setAttribute('aria-label',it[0]+(it[2]?', '+(st?it[3]:it[2]):''));}

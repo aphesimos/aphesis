@@ -79,6 +79,7 @@ Brush strokes in `accent` with stipple fill, on a 24-unit grid, drawn at 28 to 6
 - **sol · luna**: the alchemical sun and moon.
 - **terminator** (*linea lucis*): a ring with one half stippled; the lit half follows the theme.
 - **threshold** (*limen*): an arched doorway, empty when open, filled with stippled night when closed. Use it for entering a chamber.
+- **ear** (*auris*): the sound switch, beside the eye. Listening, three arcs of stipple arrive at the ear; muted, they disperse and fall, and one stroke crosses it. The switch is the arcs scattering and gathering; hovering stirs them.
 
 Render them with `Aphesis.icon(name, state)`; the SVG files under assets are for places that cannot run the script, in the light-theme rubedo `#ab0d19`.
 
@@ -102,11 +103,23 @@ The φ is the only logo. It is always `seal` red, with a boil that reseeds 8 tim
 - **Typist** (`Aphesis.Typist`): the voice of the site. Passages, chamber inscriptions, anything that should feel written now.
 - **Navigation** is one document with hash routes: the seal returns home, section names sit around the center as an inscription, sections enter without a reload.
 
+## Sound
+
+The site has a sound: one ambient voice per screen, made in Web Audio (`Aphesis.Sound`), with no audio files. It is part of the work, like the motion.
+
+- **On by default.** Every screen starts it at load. It creeps in under the φ while the φ draws itself, or, where the browser holds it back, from the visitor's first gesture of any kind. There is no prompt and no "enable sound". The ear in the bottom-left corner turns it off, and the choice is remembered.
+- **One family.** Low sine and triangle partials in slowly beating pairs, a bed of filtered noise, sparse soft harmonics, one shared room. A screen changes the mode, root, density and texture, never the instruments. A new section gets a new voice in `VOICES`, not a new kind of sound.
+- **Under attention.** The master sits around −30 dBFS RMS with peaks near −20 dBFS, through a gentle compressor and a limiter. Keep it low and soft: nothing above 4 kHz, no sharp attacks except a soft tick, no melody that asks to be followed.
+- **Living, not looping.** Slow movements run at the fog's drift rate times powers of φ, so the sound never repeats. The pointer brightens and leans it a little.
+- **Continuous.** The page never reloads, so a route change is a crossfade between voices (`scene`, `duration-voice`), never a restart. Moments of the visuals are heard as soft swells (`event`): a door, a picture coalescing or dissolving, a leaf turning, the eye's theme shift. Simulacra and the theme shift trigger theirs on their own.
+- **Kind.** Mute and unmute fade over `duration-hush`, never a cut. A hidden page fades out and sleeps. Anything that must be heard (a track in music) ducks the ambience almost to silence.
+- **Mobile.** On iPhone the silent switch silences it, by design.
+
 ## Layout
 
 - Spacing follows Fibonacci steps of 4px: `space-1` 4 to `space-8` 136. Gutters are at least 16px plus the safe-area insets.
 - No containers with borders or fills: group by space and by calm zones in the fog.
-- Corners: bottom-left holds the eye, bottom-right the passage, top-left the seal (inside a section). Keep them free on every screen.
+- Corners: bottom-left holds the eye and the ear, bottom-right the passage, top-left the seal (inside a section). Keep them free on every screen.
 - Layers by `zIndex` tokens: fog 0, ray 1, content 2, seal 3, corners 4, inscription 5, tooltip 15, cursor 20.
 - `radius-none` everywhere; `radius-disc` only for the cursor.
 

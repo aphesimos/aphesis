@@ -11,7 +11,8 @@ python3 laboratory/build.py --fragment OUT  # the same page without <!doctype>/<
 
 The build reads the design system from the `design-system` branch with `git show` (tokens, runtime, fonts) and
 generates `tokens.css`. Serve `index.html` over http to try it. Routes: `#laboratory` (the index) and
-`#laboratory/<slug>` (one experiment).
+`#laboratory/<slug>` (one experiment). The `--fragment` build is published at
+https://claude.ai/artifact/QRZieEZnGQTHg4FGeBmBvr (private until shared).
 
 ## Files
 

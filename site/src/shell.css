@@ -1,0 +1,59 @@
+/* aphes.is: the shell of the one page. Its marks carry ids of their own (aph-*), so no section's stylesheet ever
+   touches them and none of these rules touches a section. Layout: the fog on a fixed canvas, the φ seal in the
+   center (in the corner inside a section), the sections as an inscription around the seal, the passage in the
+   bottom-right corner, the eye in the bottom-left. The mounted section lives in #aph-host, a plain block with no
+   position, filter, opacity or z-index, so its .aph-ink text blends straight with the fog during the eye's wave. */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--font-text);
+  transition:background-color var(--duration-theme) ease,color var(--duration-theme) ease}
+/* the home never scrolls; a section's own stylesheet decides for itself (the laboratory scrolls the page) */
+:root:not([data-sec]) body{overflow:hidden}
+.aph-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+#aph-fog{position:fixed;inset:0;width:100%;height:100%;display:block;pointer-events:none;z-index:var(--z-fog)}
+/* a section's own fog, seal and eye are the shell's: its copies stay in its markup (its script finds them) but never show */
+#aph-host #fog,#aph-host #seal,#aph-host #controls{display:none!important}
+
+/* the seal: one element that travels from the center to the corner */
+#aph-seal{position:fixed;left:0;top:0;width:100px;height:100px;z-index:var(--z-seal);
+  display:block;border:0;padding:0;background:none;color:var(--seal);pointer-events:none}
+#aph-seal.in-corner{pointer-events:auto}
+#aph-seal svg{width:100%;height:100%;display:block;overflow:visible}
+#aph-seal path{fill:currentColor;transition:fill var(--duration-theme) ease}
+
+/* the inscription: sections around the seal */
+#aph-ring{position:fixed;inset:0;z-index:var(--z-nav);pointer-events:none}
+#aph-ring a{position:absolute;left:0;top:0;pointer-events:auto;text-decoration:none;white-space:nowrap;
+  font:400 14px/1 var(--font-text);letter-spacing:.22em;text-transform:lowercase;color:var(--ink);
+  opacity:0;filter:blur(6px);padding:10px 8px;visibility:hidden;
+  transition:opacity .9s ease,color .4s ease,filter .9s ease,visibility 0s linear .9s;
+  text-shadow:0 0 4px var(--bg),0 0 10px var(--bg),0 0 18px var(--bg)}
+#aph-ring a .gl{display:block;margin-top:8px;font:400 20px/1 var(--font-display);font-variation-settings:"wght" 400,"slnt" -12;letter-spacing:.02em;color:var(--ink-soft);text-transform:lowercase;transition:transform .6s var(--easing-settle),color .6s ease}
+#aph-ring.visible a{opacity:1;filter:none;visibility:visible;transition-delay:0s}
+#aph-ring.focus a:not(.on){opacity:.28}
+#aph-ray{position:fixed;inset:0;z-index:var(--z-ray);pointer-events:none;width:100%;height:100%}
+#aph-ray line{stroke:var(--ink-soft);stroke-width:1;stroke-dasharray:2 6;opacity:0;transition:opacity .4s ease}
+/* text hovers: each letter lifts a hair, in a slow wave from the first; nothing around it moves */
+#aph-ring .ltr{transition:transform .7s var(--easing-settle),opacity .7s ease;transition-delay:calc(var(--i)*22ms)}
+#aph-ring a:hover .ltr,#aph-ring a:focus-visible .ltr{transform:translateY(-2px)}
+#aph-ring a:hover .gl,#aph-ring a:focus-visible .gl{transform:translateY(-1px);color:var(--accent-text)}
+:focus-visible{outline:1px solid var(--accent);outline-offset:4px}
+
+/* the passage: one line, small, bottom-right, typed by a person who is not in a hurry */
+#aph-passage{position:fixed;z-index:var(--z-corner);right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));
+  max-width:min(230px,calc(100vw - 140px));text-align:right;user-select:none;
+  font:400 11px/1.7 var(--font-text);letter-spacing:.14em;color:var(--accent-text);
+  text-shadow:0 0 4px var(--bg),0 0 10px var(--bg),0 0 18px var(--bg)}
+#aph-passage .pre{letter-spacing:0;margin-right:.5em;opacity:.8}
+#aph-passage .caret{display:inline-block;width:.55em;height:1.05em;margin-left:.12em;vertical-align:-.18em;background:currentColor;opacity:.75}
+#aph-passage .caret.blink{animation:aph-shell-blink 1.06s steps(1,end) infinite}
+#aph-passage .caret.gone{opacity:0;transition:opacity 1.2s ease}
+@keyframes aph-shell-blink{50%{opacity:0}}
+
+/* the eye, bottom-left */
+#aph-controls{position:fixed;z-index:var(--z-corner);left:max(12px,env(safe-area-inset-left,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));
+  display:flex;gap:6px;font:400 11px/1 var(--font-text);letter-spacing:.2em;color:var(--ink-soft);text-transform:lowercase}
+#aph-controls svg{width:30px;height:30px;display:block;overflow:visible;color:var(--accent)}
+#aph-controls svg path{fill:currentColor;transition:opacity .5s ease,transform .7s var(--easing-settle);transform-origin:12px 12px}
+#aph-eye{font:inherit;letter-spacing:inherit;color:inherit;background:none;border:1px solid transparent;padding:6px;margin:0;border-radius:var(--radius-none);cursor:pointer}
+#aph-eye:focus-visible{outline:1px solid var(--accent);outline-offset:2px}

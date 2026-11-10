@@ -74,8 +74,11 @@ function route() {
 }
 
 let current = { thread: null, data: null, comp: null }, seq = 0, first = true;
+let board = null;   /* the board's pages gathered so far, kept for a redraw in place */
 const ctx = {
   api,
+  scroller,
+  announce,
   images: () => imagesOn,
   onPosted: (r) => {
     const h = '#forum/' + r.thread + '/' + r.n;
@@ -106,7 +109,9 @@ async function show(r, opts = {}) {
   if (!first && !opts.quiet) view.classList.add('leaving');
   const leave = new Promise((res) => setTimeout(res, first || opts.quiet ? 0 : 320));
   let data = null, err = null;
-  try { data = await (r.thread ? api.thread(r.thread) : api.board()); } catch (e) { err = e; }
+  /* a redraw in place (images on or off) keeps every page of the board already gathered, and the scroll with it */
+  if (!r.thread && opts.quiet && board) data = board;
+  else { try { data = await (r.thread ? api.thread(r.thread) : api.board()); } catch (e) { err = e; } }
   await leave;
   if (my !== seq) return;
   root.classList.toggle('is-thread', !!r.thread);
@@ -118,6 +123,7 @@ async function show(r, opts = {}) {
     v = { el, items: Array.from(el.children) };
     current = { thread: null, data: null, comp: null };
   } else {
+    if (!r.thread) board = data;
     v = r.thread ? threadView(data, ctx) : boardView(data, ctx);
     current = { thread: r.thread, data: r.thread ? data : null, comp: v.comp || null };
   }

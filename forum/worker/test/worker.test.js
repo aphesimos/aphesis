@@ -7,9 +7,13 @@ function storage() {
   const m = new Map(); let alarm = null;
   const clone = (v) => (v === undefined ? v : structuredClone(v));
   return {
-    async get(k) { return clone(m.get(k)); },
+    async get(k) { return Array.isArray(k) ? new Map(k.filter((x) => m.has(x)).map((x) => [x, clone(m.get(x))])) : clone(m.get(k)); },
     async put(k, v) { if (typeof k === 'object') for (const [a, b] of Object.entries(k)) m.set(a, clone(b)); else m.set(k, clone(v)); },
-    async list({ prefix = '' } = {}) { return new Map([...m.keys()].filter((k) => k.startsWith(prefix)).sort().map((k) => [k, clone(m.get(k))])); },
+    async list({ prefix = '', start, end, reverse = false, limit = Infinity } = {}) {
+      let keys = [...m.keys()].filter((k) => k.startsWith(prefix) && (start === undefined || k >= start) && (end === undefined || k < end)).sort();
+      if (reverse) keys.reverse();
+      return new Map(keys.slice(0, limit).map((k) => [k, clone(m.get(k))]));
+    },
     async delete(k) { (Array.isArray(k) ? k : [k]).forEach((x) => m.delete(x)); },
     async deleteAll() { m.clear(); },
     async getAlarm() { return alarm; }, async setAlarm(t) { alarm = t; },
@@ -150,4 +154,64 @@ test('turnstile, when configured, is required', async () => {
     r = await req(env, '/api/threads', { method: 'POST', headers: H('1.0.0.2'), body: form({ text: 'x', turnstile: 'good' }) });
     assert.equal(r.status, 201);
   } finally { globalThis.fetch = real; }
+});
+
+test('the board keeps every thread and is read page by page', async () => {
+  const env = makeEnv({ RATE_THREADS: '1000', RATE_POSTS: '1000', BOARD_LIMIT: '2' });
+  const made = [];
+  for (let i = 0; i < 130; i++) {
+    const fields = { text: 'thread ' + i };
+    if (i % 50 === 0) Object.assign(fields, { image: jpeg(900, 600), density: jpeg(560, 373) });
+    const r = await req(env, '/api/threads', { method: 'POST', headers: H('5.0.0.' + (i % 250)), body: form(fields) });
+    assert.equal(r.status, 201);
+    made.push((await r.json()).thread);
+  }
+  assert.equal(env.IMAGES.m.size, 6);
+  const first = await (await req(env, '/api/board')).json();
+  assert.deepEqual(Object.keys(first), ['threads', 'next']);
+  assert.equal(first.threads.length, 40);
+  assert.match(first.next, /^\d+-\d+$/);
+  for (const limit of [undefined, 100, 1000, 7]) {
+    const seen = [];
+    let next = null, pages = 0;
+    do {
+      const q = new URLSearchParams();
+      if (next) q.set('cursor', next);
+      if (limit) q.set('limit', String(limit));
+      const b = await (await req(env, '/api/board' + (q.size ? '?' + q : ''))).json();
+      seen.push(...b.threads.map((t) => t.id));
+      next = b.next; pages++;
+    } while (next);
+    assert.equal(seen.length, 130, 'limit ' + limit);
+    assert.equal(new Set(seen).size, 130);
+    assert.equal(pages, Math.ceil(130 / Math.min(limit || 40, 100)));
+    assert.equal(seen[seen.length - 1], made[0], 'the first thread is still there');
+  }
+  /* a reply moves the oldest to the top */
+  await req(env, '/api/threads/' + made[0] + '/posts', { method: 'POST', headers: H('5.1.0.1'), body: form({ text: 'up' }) });
+  const top = await (await req(env, '/api/board?limit=1')).json();
+  assert.deepEqual([top.threads[0].id, top.threads[0].replies], [made[0], 1]);
+  assert.ok(top.threads[0].created < top.threads[0].bumped || top.threads[0].created === top.threads[0].bumped);
+  assert.equal((await req(env, '/api/threads/' + made[1])).status, 200);
+  assert.equal(env.IMAGES.m.size, 6, 'no picture deleted');
+  const r = await req(env, '/api/board?cursor=abc');
+  assert.deepEqual([r.status, await r.json()], [400, { error: 'bad cursor' }]);
+  assert.deepEqual(await (await req(env, '/api/board?cursor=0-0')).json(), { threads: [], next: null });
+});
+
+test('an index kept by the first version (one array) becomes a key per thread, in its order', async () => {
+  const st = storage();
+  const t = (id, bumped) => ({ id, first: id, replies: 0, created: bumped, bumped, image: null });
+  await st.put('index', [t('c', 300), t('b', 200), t('a', 100)]);
+  const b = new Board({ storage: st }, {});
+  const list = async (q = '') => (await b.fetch(new Request('https://do/list' + q))).json();
+  let r = await list('?limit=2');
+  assert.deepEqual(r.threads.map((x) => x.id), ['c', 'b']);
+  assert.equal(await st.get('index'), undefined, 'the array is gone, its threads kept');
+  r = await list('?cursor=' + r.next);
+  assert.deepEqual([r.threads.map((x) => x.id), r.next], [['a'], null]);
+  /* a touch after the upgrade goes on from the seq the upgrade reached */
+  await b.fetch(new Request('https://do/touch', { method: 'POST', body: JSON.stringify({ id: 'a', entry: { bumped: 400, replies: 1, first: 'a', image: null } }) }));
+  r = await list();
+  assert.deepEqual(r.threads.map((x) => [x.id, x.created]), [['a', 100], ['c', 300], ['b', 200]]);
 });

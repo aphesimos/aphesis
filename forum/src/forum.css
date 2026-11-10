@@ -90,6 +90,8 @@ h1 .w { display: inline-block; }
 .row .meta { display: block; margin-top: var(--space-1); }
 .row .noimg { color: var(--ink-soft); font-size: var(--type-meta-size); letter-spacing: var(--type-meta-tracking); }
 .empty { color: var(--ink-soft); }
+/* the end of the list: older threads gathered here, then the board's beginning */
+.board-end { margin: var(--space-4) 0 0; color: var(--ink-soft); min-height: 1lh; }
 
 /* ---------- a thread ---------- */
 .crumbs { margin: var(--space-5) 0 0; }

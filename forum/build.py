@@ -10,8 +10,8 @@ loads it from Google Fonts; it is vendored here so the page carries both faces.
   python3 forum/build.py --fragment OUT  # writes the same page without <!doctype>/<html>/<head>/<body>
 
 The page talks to the Worker in forum/worker when <meta name="forum-api"> carries its URL; built as it is, it runs on
-the local mock (four example threads, new posts kept in this browser only). The example pictures are density maps
-from the design system.
+the local mock (four example threads and an archive of older ones, paged like the Worker; new posts kept in this
+browser only). The example pictures are density maps from the design system.
 
 The modules in src/ are plain ES modules with named exports. For this page they are concatenated in
 dependency order into one script, each in its own function scope (imports read from a registry); in the Astro site they can be

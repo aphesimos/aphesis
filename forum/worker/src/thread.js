@@ -68,13 +68,6 @@ export class Thread {
         await this.storage.put(key(body.n), { n: p.n, created: p.created, removed: true });
         return json({ gone: false, keys });
       }
-      case '/purge': {
-        const keys = [];
-        const all = await this.storage.list({ prefix: 'p:' });
-        for (const q of all.values()) if (q.image) keys.push(q.image.density, q.image.original);
-        await this.storage.deleteAll();
-        return json({ keys });
-      }
       default:
         return json({ error: 'not found' }, 404);
     }

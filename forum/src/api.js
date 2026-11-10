@@ -5,7 +5,9 @@
    <meta name="forum-turnstile" content="SITE KEY">, or with window.AphesisForum = {api, turnstile} before the script.
 
    Every client answers:
-     board()                         -> {threads: [{id, first, replies, created, bumped, example?, image?}]}
+     board(cursor?)                  -> {threads: [{id, first, replies, created, bumped, example?, image?}], next}
+                                        one page, newest activity first; next is the cursor of the page after it,
+                                        null at the end. The board keeps every thread, so pages go back to the first.
      thread(id)                      -> {id, created, posts: [{n, poster, text, created, image?, removed?, reported?}]}
      post({thread?, text, image?, turnstile?}) -> {thread, n}   image: {original: File, density: {blob, url, width, height}}
      report(thread, n)               -> {ok}
@@ -33,10 +35,11 @@ function createRemote(base, turnstile) {
     preview: false,
     turnstile,
     persisted: true,
-    async board() {
-      const b = await json(await fetch(base + '/api/board'));
+    async board(cursor) {
+      const b = await json(await fetch(base + '/api/board' + (cursor ? '?cursor=' + encodeURIComponent(cursor) : '')));
       b.threads.forEach((t) => { t.image = fixImage(t.image); });
-      return b;
+      /* a Worker from before pages answers threads alone: one page, the last */
+      return { threads: b.threads, next: b.next || null };
     },
     async thread(id) {
       const t = await json(await fetch(base + '/api/threads/' + encodeURIComponent(id)));

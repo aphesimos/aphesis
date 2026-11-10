@@ -26,6 +26,21 @@ export function enter(items) {
 const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
 
 /* ---------- the board ---------- */
+/* The board keeps every thread. It arrives a page at a time ({threads, next}, newest activity first): the first page
+   is drawn at once, older pages are gathered as the reader nears the end of the list (or presses `older threads`,
+   the same thing by keyboard), until `next` runs out. Rows stay light for thousands of threads: each is one link,
+   its still simulacrum is drawn only once the row comes near the screen, and rows far from it are skipped by the
+   browser (content-visibility). data is kept and grown in place, so a redraw (images on or off) keeps every page. */
+function row(t, now) {
+  const li = document.createElement('li');
+  const meta = [plural(t.replies, 'reply', 'replies'), age(t.bumped, now)].concat(t.example ? ['example'] : []);
+  li.innerHTML = '<a class="row" href="#forum/' + esc(t.id) + '">' +
+    '<span class="thumb" aria-hidden="true"></span>' +
+    '<span class="txt"><span class="first">' + esc(firstLine(t.first) || 'a picture') + '</span>' +
+    '<span class="meta aph-meta">' + esc(meta.join(' · ')) + (t.image ? '<span class="sr"> · with a picture</span>' : '') + '</span></span></a>';
+  return li;
+}
+
 export function boardView(data, ctx) {
   const root = document.createElement('section');
   root.className = 'board';
@@ -50,23 +65,90 @@ export function boardView(data, ctx) {
   const list = document.createElement('ol');
   list.className = 'threads';
   if (!data.threads.length) list.innerHTML = '<li class="empty">no threads yet. the first line is yours.</li>';
-  const now = Date.now();
-  data.threads.forEach((t, i) => {
-    const li = document.createElement('li');
-    const meta = [plural(t.replies, 'reply', 'replies'), age(t.bumped, now)].concat(t.example ? ['example'] : []);
-    li.innerHTML = '<a class="row" href="#forum/' + esc(t.id) + '">' +
-      '<span class="thumb" aria-hidden="true"></span>' +
-      '<span class="txt"><span class="first">' + esc(firstLine(t.first) || 'a picture') + '</span>' +
-      '<span class="meta aph-meta">' + esc(meta.join(' · ')) + (t.image ? '<span class="sr"> · with a picture</span>' : '') + '</span></span></a>';
-    const thumb = li.querySelector('.thumb');
-    if (t.image) {
-      if (ctx.images()) still(thumb, t.image, [88, 88], i + 3, 1.3);
-      else thumb.innerHTML = '<span class="noimg">[picture]</span>';
-    }
-    list.appendChild(li);
-  });
   root.appendChild(list);
-  return { el: root, items: [top].concat(Array.from(list.children)) };
+
+  /* still simulacra, drawn when their row nears the screen */
+  const pics = new Map();
+  const near = typeof IntersectionObserver === 'function' ? new IntersectionObserver((es) => {
+    es.forEach((e) => {
+      if (!e.isIntersecting || !pics.has(e.target)) return;
+      const [t, seed] = pics.get(e.target);
+      pics.delete(e.target); near.unobserve(e.target);
+      still(e.target.querySelector('.thumb'), t.image, [88, 88], seed, 1.3);
+    });
+  }, { root: ctx.scroller || null, rootMargin: '400px 0px' }) : null;
+
+  /* threads at position base onwards of the board: each simulacrum's seed is its position, as it always was */
+  function add(threads, base) {
+    const now = Date.now(), frag = document.createDocumentFragment(), rows = [];
+    threads.forEach((t, i) => {
+      const li = row(t, now), seed = base + i + 3;
+      if (t.image) {
+        if (!ctx.images()) li.querySelector('.thumb').innerHTML = '<span class="noimg">[picture]</span>';
+        else if (near) { pics.set(li, [t, seed]); near.observe(li); }
+        else still(li.querySelector('.thumb'), t.image, [88, 88], seed, 1.3);
+      }
+      frag.appendChild(li); rows.push(li);
+    });
+    list.appendChild(frag);
+    return rows;
+  }
+  const first = add(data.threads, 0);
+
+  /* the end of the list: `older threads` while there are more, then the board's beginning */
+  const foot = document.createElement('p');
+  foot.className = 'board-end aph-meta';
+  root.appendChild(foot);
+  let loading = false, watch = null;
+  function footState(failed) {
+    if (data.next) {
+      foot.innerHTML = '<button type="button" class="act older" data-cursor=".55">' + (failed ? 'older threads · try again' : 'older threads') + '</button>';
+      foot.firstChild.addEventListener('click', () => more(true));
+    } else {
+      foot.textContent = data.threads.length > 1 ? 'the board begins here.' : '';
+      if (watch) { watch.disconnect(); watch = null; }
+    }
+  }
+  async function more(byHand) {
+    if (loading || !data.next) return;
+    loading = true;
+    const btn = foot.querySelector('.older');
+    if (btn) btn.setAttribute('aria-busy', 'true');
+    let page = null;
+    try { page = await ctx.api.board(data.next); } catch (_) { /* below */ }
+    loading = false;
+    if (!root.isConnected) return;
+    /* the button is about to be redrawn: whoever was on it goes on from the first new row */
+    const focused = byHand || foot.contains(document.activeElement);
+    if (!page) {
+      footState(true);
+      if (focused && foot.firstChild) foot.firstChild.focus();
+      if (ctx.announce) ctx.announce('older threads did not arrive');
+      return;
+    }
+    /* a thread answered meanwhile moved to the top: never show one twice */
+    const have = new Set(data.threads.map((t) => t.id));
+    const fresh = page.threads.filter((t) => !have.has(t.id));
+    const base = data.threads.length;
+    data.threads.push(...fresh);
+    data.next = page.next || null;
+    const rows = add(fresh, base);
+    enter(rows);
+    footState(false);
+    if (ctx.announce) ctx.announce(plural(fresh.length, 'older thread', 'older threads') + (data.next ? '' : ', back to the first'));
+    /* the keyboard goes on from the first of the new rows, not past them */
+    const target = rows[0] ? rows[0].querySelector('a') : foot.querySelector('.older');
+    if (focused && target) target.focus();
+    /* still near the end (a tall screen, a short page): keep gathering */
+    if (data.next && watch) { watch.unobserve(foot); watch.observe(foot); }
+  }
+  footState(false);
+  if (data.next && typeof IntersectionObserver === 'function') {
+    watch = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) more(false); },
+      { root: ctx.scroller || null, rootMargin: '0px 0px 800px 0px' });
+    watch.observe(foot);
+  }
+  return { el: root, items: [top].concat(first, [foot]) };
 }
 
 /* ---------- a thread ---------- */

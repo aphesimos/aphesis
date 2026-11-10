@@ -1,7 +1,7 @@
 /* forum · ἀγορά: the Worker. Routes, CORS for the site's origin, Turnstile, rate limits per IP hash, upload checks,
    R2 for pictures (the original and its density map), reports, and removal behind the admin secret.
 
-   GET    /api/board                          the threads, newest activity first
+   GET    /api/board[?cursor=&limit=]         a page of threads, newest activity first, and the next page's cursor
    GET    /api/threads/:id                    one thread, its posts in order
    POST   /api/threads                        a new thread   (multipart: text, image?, density?, w?, h?, turnstile?)
    POST   /api/threads/:id/posts              a reply        (the same fields)
@@ -11,10 +11,13 @@
    DELETE /api/threads/:id/posts/:n           remove a post; post 1 removes the thread (admin)
 
    Bindings: THREADS, BOARD (Durable Objects), IMAGES (R2). Secrets: IP_SALT, POSTER_SALT, TURNSTILE_SECRET,
-   ADMIN_SECRET. Vars: ALLOWED_ORIGINS, RATE_POSTS, RATE_THREADS, RATE_WINDOW_SECONDS, BOARD_LIMIT. */
+   ADMIN_SECRET. Vars: ALLOWED_ORIGINS, RATE_POSTS, RATE_THREADS, RATE_WINDOW_SECONDS.
+
+   The board is permanent: no thread, post or picture is ever deleted on its own. Only the admin's
+   DELETE /api/threads/:id/posts/:n removes anything; reports only count. */
 
 import { Thread } from './thread.js';
-import { Board } from './board.js';
+import { Board, cursorKey } from './board.js';
 import { checkText, checkOriginal, checkDensity, EXT } from './validate.js';
 import { ipHash, posterToken, randomId, sameSecret } from './crypto.js';
 import { verifyTurnstile } from './turnstile.js';
@@ -121,11 +124,7 @@ async function handlePost(request, env, threadId) {
   const entry = threadId
     ? { id, bumped: post.created, replies: r.body.summary.replies, first: r.body.summary.first, image: r.body.summary.firstImage }
     : { id, created: post.created, bumped: post.created, replies: 0, first: post.text, image: post.image || null };
-  const t = await call(boardOf(env), '/touch', { id, entry });
-  for (const old of t.body.dropped || []) {
-    const p = await call(threadOf(env, old), '/purge', {});
-    if (p.body.keys && p.body.keys.length) await env.IMAGES.delete(p.body.keys);
-  }
+  await call(boardOf(env), '/touch', { id, entry });
   return json(request, env, { thread: id, n: r.body.n }, 201);
 }
 
@@ -139,7 +138,12 @@ export default {
     const [, a, b, c, d, e] = parts;
     try {
       if (request.method === 'GET' && a === 'board' && !b) {
-        const r = await call(boardOf(env), '/list');
+        const cursor = url.searchParams.get('cursor') || '';
+        if (cursor && !cursorKey(cursor)) return fail(request, env, 400, 'bad cursor');
+        const q = new URLSearchParams();
+        if (cursor) q.set('cursor', cursor);
+        if (url.searchParams.has('limit')) q.set('limit', url.searchParams.get('limit'));
+        const r = await call(boardOf(env), '/list' + (q.size ? '?' + q : ''));
         return json(request, env, r.body, 200, { 'cache-control': 'public, max-age=5' });
       }
       if (a === 'threads' && b && !ID.test(b)) return fail(request, env, 404, 'this thread is gone');

@@ -1,6 +1,8 @@
-/* mock: the board as it stands in the preview, with no server. Four example threads (marked as examples) and
-   whatever is posted here, kept in this browser only (localStorage, wrapped: blocked storage keeps it for the visit).
-   It answers the same calls as the server client in api.js, with the same shapes. */
+/* mock: the board as it stands in the preview, with no server. Four example threads, an archive of older example
+   threads behind them (all marked as examples), and whatever is posted here, kept in this browser only
+   (localStorage, wrapped: blocked storage keeps it for the visit). It answers the same calls as the server client in
+   api.js, with the same shapes: the board a page at a time, newest activity first, with a cursor to the next page,
+   and every thread kept, so pages go back to the first. */
 
 import { MAPS } from './assets.js';
 import { load, save } from './store.js';
@@ -8,6 +10,9 @@ import { hex } from './hash.js';
 
 const KEY = 'aphesis.forum.preview.v1';
 const H = 3600e3;
+const PAGE = 40;
+/* the examples' times are counted from the moment the page opened, so a cursor stays put while the reader pages */
+const T0 = Date.now();
 
 const SEARCH = (q) => 'https://en.wikipedia.org/w/index.php?search=' + encodeURIComponent(q);
 const PIC = {
@@ -47,8 +52,58 @@ const EXAMPLES = [
   ] },
 ];
 
+/* the archive: older threads, one every day or two, back more than a year, so the preview pages like the real board.
+   Built from a few lines, the same on every visit. */
+const OPENINGS = [
+  'is there a word for the moment a thing becomes a symbol of itself?',
+  'reading the corpus hermeticum in a bad translation. is a bad translation still a door?',
+  'the lamp, the skull, the book: why do the same three objects keep returning to the painted desk?',
+  'what is the smallest ritual you keep without believing in it?',
+  'a street at five in the morning, before anyone has decided what it is for.',
+  'nigredo first. everyone wants the gold and skips the blackening.',
+  'is a pseudonym a mask or a second face?',
+  'the moon in a puddle is still the moon. or is it?',
+  'what did you unlearn this year?',
+  'as above, so below, so where does the middle live?',
+  'a library is a room where the dead keep talking. which voice there do you return to?',
+  'fog makes every city older.',
+  'is attention a kind of prayer, or is prayer a kind of attention?',
+  'tell me about a door you never opened.',
+  'the mercury in old thermometers, the mercury in old books. same metal, different fever.',
+  'what does your handwriting know that you do not?',
+  'quiet places are not empty. they are full of things waiting to be heard.',
+  'the green lion devouring the sun: has anyone found a reading that is not chemistry?',
+  'an hour with no screen, every morning, for a month. what changed?',
+  'is a ruin finished or unfinished?',
+  'how do you keep a question open without letting it go stale?',
+  'the candle eats itself to make the room visible. is that generosity?',
+  'what object would you keep if the house burned and the people were safe?',
+  'a word you carry in another language because yours has none for it.',
+];
+const ANSWERS = [
+  '>>1\nthe moment someone stops using it.',
+  '>>1\nyes, if you walk through it slowly.',
+  '>>1\nbecause they are the whole argument: light, end, words.',
+  '>>1\nwatering a plant i was told is plastic.',
+  '>>1\nand after five it belongs to the bakers.',
+  '>>1\nthe blackening is the part that cannot be bought.',
+  '>>2\nthis. it took me years to see it.',
+  '>>1\nboth, depending on who is looking.',
+  '>>1\nthat everything needs an answer by tonight.',
+  '>>2\n>slowly\nalways slowly.',
+  '>>1\nmy grandmother kept one by the window. i understand it now.',
+  '>>1\nask it again in a year.',
+];
+const OLDER = Array.from({ length: 240 }, (_, k) => {
+  const hours = 190 + k * 37 + ((k * 7) % 11);
+  const posts = [['ex-o' + k, hours, OPENINGS[k % OPENINGS.length], k % 9 === 4 ? Object.keys(PIC)[k % 5] : undefined]];
+  for (let j = 0; j < k % 4; j++) posts.push(['ex-o' + k + '-' + (j % 2), hours - 3 - j * 5, ANSWERS[(k + j * 5) % ANSWERS.length]]);
+  return { id: 'vetus-' + String(k + 1).padStart(3, '0'), posts };
+});
+const ALL_EXAMPLES = EXAMPLES.concat(OLDER);
+
 function examples(now) {
-  return EXAMPLES.map((t) => {
+  return ALL_EXAMPLES.map((t) => {
     const posts = t.posts.map(([poster, h, text, pic], i) => ({
       n: i + 1, poster, text, created: now - h * H, image: pic ? Object.assign({}, PIC[pic]) : null,
     }));
@@ -73,9 +128,9 @@ let persisted = true;
 const keep = () => { persisted = save(KEY, state); };
 const originals = new Map();   /* originals too large to keep, for this visit only */
 
-function all(now) {
+function all() {
   const s = local();
-  const ex = examples(now).map((t) => {
+  const ex = examples(T0).map((t) => {
     const extra = (s.replies[t.id] || []).map((p, i) => Object.assign({}, p, { n: t.posts.length + i + 1 }));
     return Object.assign(t, { posts: t.posts.concat(extra) });
   });
@@ -93,9 +148,9 @@ export function createMock() {
     preview: true,
     turnstile: '',
     get persisted() { return persisted; },
-    board() {
-      const now = Date.now();
-      const threads = all(now).map((t) => {
+    /* one page below cursor ("<bumped>-<id>", the last thread of the page before), newest activity first */
+    board(cursor) {
+      const sorted = all().map((t) => {
         const live = t.posts.filter((p) => !p.removed);
         const op = t.posts[0];
         return {
@@ -103,11 +158,21 @@ export function createMock() {
           bumped: Math.max(...live.map((p) => p.created)),
           replies: live.length - 1, first: op.text, image: op.image || null,
         };
-      }).sort((a, b) => b.bumped - a.bumped);
-      return wait({ threads });
+      }).sort((a, b) => b.bumped - a.bumped || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
+      let from = 0;
+      if (cursor) {
+        const i = String(cursor).indexOf('-'), cb = +String(cursor).slice(0, i), cid = String(cursor).slice(i + 1);
+        if (i < 1 || !Number.isFinite(cb)) return Promise.reject(Object.assign(new Error('bad cursor'), { status: 400 }));
+        from = sorted.findIndex((t) => t.bumped < cb || (t.bumped === cb && t.id < cid));
+        if (from < 0) from = sorted.length;
+      }
+      const threads = sorted.slice(from, from + PAGE);
+      const last = threads[threads.length - 1];
+      const next = from + PAGE < sorted.length && last ? last.bumped + '-' + last.id : null;
+      return wait({ threads, next });
     },
     thread(id) {
-      const t = all(Date.now()).find((x) => x.id === id);
+      const t = all().find((x) => x.id === id);
       if (!t) return Promise.reject(Object.assign(new Error('this thread is gone'), { status: 404 }));
       const reported = local().reports;
       t.posts.forEach((p) => {
@@ -136,7 +201,7 @@ export function createMock() {
         n = s.threads[thread].posts.length + 1;
         s.threads[thread].posts.push(Object.assign({ n }, post));
       } else {
-        const ex = EXAMPLES.find((t) => t.id === thread);
+        const ex = ALL_EXAMPLES.find((t) => t.id === thread);
         if (!ex) throw Object.assign(new Error('this thread is gone'), { status: 404 });
         s.replies[thread] = (s.replies[thread] || []).concat([post]);
         n = ex.posts.length + s.replies[thread].length;

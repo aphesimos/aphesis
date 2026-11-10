@@ -14,7 +14,10 @@ click away.
 ## The screen
 
 - **Board** (`#forum`): the title with its gloss, one line of lede, `images · on/off`, and the threads, newest
-  activity first. A thread shows its opening post's first line, its replies, its age and, when it opens with a
+  activity first. The board keeps every thread: the first page (40) arrives at once, older pages as the reader nears
+  the end of the list, or presses `older threads` (the same by keyboard, which then goes on from the first new row),
+  back to `the board begins here.` Rows stay light for thousands: a still simulacrum is drawn only when its row nears
+  the screen, and the fog measures only the blocks near it. `#forum/<id>` opens any thread, however old. A thread shows its opening post's first line, its replies, its age and, when it opens with a
   picture, a still simulacrum 88px wide. `start a thread` unfolds the form.
 - **Thread** (`#forum/<id>`, `#forum/<id>/<n>` for a post): the posts in order. Each carries its sigil, its number, its
   age, `reply` (adds `>>n` to the form and moves the keyboard there) and `report`. A reply by the thread's opener says
@@ -27,8 +30,9 @@ click away.
 - **Posting**: a text area whose only line is a brushed baseline (rubedo while it has focus), `add an image`,
   a count, `post` / `reply`, Ctrl or Cmd + Enter. A chosen picture is turned into its density map at once and shown as
   it will appear. Turnstile renders only when a site key is configured.
-- **The preview**: with no API configured the page runs on a local mock: four example threads (marked
-  `example`, pictures from the design system's maps) and whatever is posted, kept in this browser's storage only;
+- **The preview**: with no API configured the page runs on a local mock: four example threads and an archive of 240
+  older ones going back more than a year (all marked `example`, pictures from the design system's maps), paged like
+  the real board, and whatever is posted, kept in this browser's storage only;
   `preview` under the lede and the send button say so in a tooltip.
 - **Shell**: the section's fog (density .62, light .4) whose calm zones follow the text in view, the seal in the
   top-left corner, the eye in the bottom-left (switching through `Aphesis.themeShift` when the runtime has it), the
@@ -47,8 +51,8 @@ click away.
 | `density.js` | an uploaded picture → a density map, by the design system's rules |
 | `text.js` | escaping, `>>n` references, quoted lines, first lines, ages |
 | `store.js` | localStorage wrapped in try/catch, with a memory fallback |
-| `mock.js` | the local mock and its example threads |
-| `api.js` | the client: the Worker when `<meta name="forum-api">` (or `window.AphesisForum.api`) is set, else the mock |
+| `mock.js` | the local mock, its example threads and their archive, paged like the Worker |
+| `api.js` | the client (`board(cursor)` a page at a time): the Worker when `<meta name="forum-api">` (or `window.AphesisForum.api`) is set, else the mock |
 | `ground.js` | the fog and its calm zones |
 | `composer.js` | the form |
 | `viewer.js` | the one live simulacrum |

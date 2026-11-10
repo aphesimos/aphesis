@@ -31,6 +31,8 @@ button { font: inherit; letter-spacing: inherit; color: inherit; background: non
 }
 
 /* ---------- the column ---------- */
+/* .aph-ink sits on #scroller, not on #forum inside it: the scroller is the stacking context, so only it can blend
+   with the fog beneath while the eye's wave runs */
 #scroller {
   position: fixed; inset: 0; z-index: var(--z-main); overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
   transition: opacity var(--duration-scene) var(--easing-settle), filter var(--duration-scene) var(--easing-settle);
@@ -186,3 +188,7 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
 #bTheme .eye.closed { opacity: 0; transform: scaleY(.2) translateY(-4px); }
 .is-dark #bTheme .eye.open { opacity: 0; transform: scaleY(.08); }
 .is-dark #bTheme .eye.closed { opacity: 1; transform: none; }
+
+/* during the eye's wave, still simulacra are ink too: their cells become white, so the difference blend keeps them
+   the negative of the ground beneath, like the text (the runtime's .aph-ink rule leaves --fog as it is) */
+.aph-shifting .aph-ink { --fog: #fff; }

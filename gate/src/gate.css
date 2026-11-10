@@ -56,11 +56,11 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   -webkit-text-fill-color: transparent; z-index: 1;
 }
 .gate-line input::selection { background: transparent; }
-.gate-line .marks { position: absolute; left: 0; bottom: 16px; display: flex; gap: 4px; color: var(--ink); pointer-events: none; }
-.gate-line .marks svg { width: 14px; height: 14px; display: block; }
+.gate-line .marks { position: absolute; left: 0; bottom: 18px; display: flex; gap: 3px; color: var(--ink); pointer-events: none; }
+.gate-line .marks svg { width: 7px; height: 7px; display: block; }
 .gate-line .mirror {
   position: absolute; left: 0; bottom: 14px; white-space: pre; pointer-events: none; color: var(--ink);
-  font: 400 var(--type-lede-size)/1.2 var(--font-text); letter-spacing: .04em; max-width: 100%; overflow: hidden;
+  font: 400 var(--type-lede-size)/1.2 var(--font-text); letter-spacing: .02em; max-width: 100%; overflow: hidden;
 }
 .gate-line .caret {
   position: absolute; left: 0; bottom: 14px; color: var(--accent); font: 400 var(--type-lede-size)/1.2 var(--font-text);
@@ -68,6 +68,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 .gate-line .caret.blink { animation: caret 1.06s steps(1, end) infinite; }
 @keyframes caret { 50% { opacity: 0; } }
+@media (max-width: 560px) { .gate-line .mirror { font-size: var(--type-body-size); letter-spacing: 0; } }
 .gate-line .baseline { position: absolute; left: 0; right: 0; bottom: 0; height: 14px; color: var(--ink-soft); pointer-events: none; }
 .gate-line .baseline svg { width: 100%; height: 100%; display: block; overflow: visible; }
 .gate-line:focus-within .baseline { color: var(--accent); }

@@ -57,19 +57,51 @@ export function createLine(form, { secret }) {
   const marks = form.querySelector('.marks');
   const caret = form.querySelector('.caret');
   const mirror = form.querySelector('.mirror');
-  let frame = 0, shake = 0;
+  let frame = 0, shake = 0, amp = 4, cap = 32;
   const drawings = [];
   for (let v = 0; v < VARIANTS; v++) drawings.push(A.brush(A.line(2, 7.4, 238, 6.6, 90), 1.6, 301 + v * 17, 0.18, 0.12));
   base.innerHTML = '<svg viewBox="0 0 240 14" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path fill="currentColor"/></svg>';
   const path = base.querySelector('path');
-  /* grains: a few cells each, fixed per position, so a character always lands as the same grain */
-  const GRAIN = [];
-  for (let i = 0; i < 64; i++) GRAIN.push(A.stipple(A.inC(5, 5, 2.6), 900 + i * 7, 60, 1.25, 10));
+  /* grains: three or four cells of 2 CSS px on a 7 px square, fixed per position, so a character always lands as the
+     same grain; 7 px and a 3 px gap make an advance of 10 px, so 32 fit on the line of a 390 px phone */
+  const GRAIN = [], rand = A.rng(907);
+  const SPOTS = [[0, 0], [2.5, 0], [5, 0], [0, 2.5], [2.5, 2.5], [5, 2.5], [0, 5], [2.5, 5], [5, 5]];
+  for (let i = 0; i < 64; i++) {
+    const pick = SPOTS.filter(() => rand() < 0.42);
+    if (pick.length < 3) pick.push(SPOTS[4], SPOTS[(i * 5) % 9]);
+    GRAIN.push(pick.map(([x, y]) => `M${x} ${y}h2v2h-2z`).join(''));
+  }
+
+  /* the cap: as many characters as the line holds at the current size, the caret's room kept */
+  function advance() {
+    if (secret) return 10;
+    const cs = getComputedStyle(mirror), g = document.createElement('canvas').getContext('2d');
+    g.font = cs.fontSize + ' ' + cs.fontFamily;
+    const ls = parseFloat(cs.letterSpacing) || 0;
+    return Math.max(g.measureText('m').width, g.measureText('w').width) + ls;
+  }
+  function measure() {
+    const w = form.getBoundingClientRect().width || 420, caretRoom = 14;
+    cap = Math.max(8, Math.floor((w - caretRoom) / advance()));
+    input.maxLength = cap;
+    form.dataset.cap = String(cap);
+  }
+  /* a tiny tremor: the line says no more, and nothing is written */
+  function tremor() { shake = 3; amp = 1; }
+  input.addEventListener('beforeinput', (e) => {
+    if (!/^insert/.test(e.inputType) || e.inputType === 'insertLineBreak') return;
+    const sel = input.selectionEnd - input.selectionStart;
+    const adding = (e.data || '').length || 1;
+    if (input.value.length - sel + adding > cap && input.value.length - sel >= cap) { e.preventDefault(); tremor(); }
+  });
+  input.addEventListener('keydown', (e) => { if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && input.value.length >= cap && input.selectionStart === input.selectionEnd) tremor(); });
 
   function show() {
+    /* a paste longer than the line is cut to it */
+    if (input.value.length > cap) { input.value = input.value.slice(0, cap); tremor(); }
     const v = input.value;
     if (secret) {
-      marks.innerHTML = [...v].map((_, i) => '<svg viewBox="0 0 10 10" aria-hidden="true" focusable="false"><path fill="currentColor" d="' + GRAIN[i % 64] + '"/></svg>').join('');
+      marks.innerHTML = [...v].map((_, i) => '<svg viewBox="0 0 7 7" aria-hidden="true" focusable="false" shape-rendering="crispEdges"><path fill="currentColor" d="' + GRAIN[i % 64] + '"/></svg>').join('');
     } else {
       mirror.textContent = v;
     }
@@ -83,7 +115,9 @@ export function createLine(form, { secret }) {
     caret.classList.remove('blink'); void caret.offsetWidth; caret.classList.add('blink');
   }
   input.addEventListener('input', show);
-  addEventListener('resize', place);
+  addEventListener('resize', () => { measure(); place(); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
+  measure();
 
   return {
     input,
@@ -92,18 +126,21 @@ export function createLine(form, { secret }) {
       path.setAttribute('d', drawings[frame]);
       if (shake > 0) {
         shake--;
-        const dx = shake ? (Math.random() < 0.5 ? -1 : 1) * (2 + Math.floor(Math.random() * 4)) : 0;
-        const dy = shake ? Math.round((Math.random() - 0.5) * 3) : 0;
+        const dx = shake ? (Math.random() < 0.5 ? -1 : 1) * (amp === 1 ? 1 : 2 + Math.floor(Math.random() * 4)) : 0;
+        const dy = shake && amp > 1 ? Math.round((Math.random() - 0.5) * 3) : 0;
         /* left and top, not a transform: the line stays in no stacking context of its own (its words are ink) */
         form.style.left = dx + 'px'; form.style.top = dy + 'px';
-        form.dataset.tremble = shake ? '1' : '';
+        form.dataset.tremble = shake ? (amp === 1 ? 'cap' : '1') : '';
+        if (!shake) amp = 4;
       }
     },
     /* the caret's place on screen, for the eye */
     caretPoint() { const r = caret.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; },
-    tremble() { shake = 7; },
+    tremble() { shake = 7; amp = 4; },
+    get cap() { return cap; },
+    measure,
     clear() { input.value = ''; show(); },
     show,
-    focus() { input.focus({ preventScroll: true }); place(); },
+    focus() { measure(); input.focus({ preventScroll: true }); place(); },
   };
 }

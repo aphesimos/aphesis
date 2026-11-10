@@ -11,7 +11,9 @@ dashboard and its gate").
 **Step 1.** The eye, the design system's `Aphesis.Eye` (components/Eye on `design-system`): the theme switch's eye (the shell's `EYE` and `Aphesis.ICONS.eye`: two brushed lids and a
 stippled iris; closed, one lid and three lashes), stands above a single brushed baseline. No label, no word. The
 typewriter's underscore blinks on the line as the caret; each character of the password lands on it as a grain of
-stipple; Enter sends it.
+stipple (three or four 2 px cells on 7 px, 10 px apart); Enter sends it. Nothing can leave the line: each line holds
+as many characters as fit its width at the current size (33 on a 390 px phone, 40 on a desktop; the words' line about
+30), its input takes no more (maxlength, a paste is cut), and a key past the end only makes the line shiver once.
 
 - **It draws itself first**, stroke by stroke, the way the φ draws itself on the home: the upper lid, the lower
   lid, then the iris cell by cell (continuous, 2.1 s).

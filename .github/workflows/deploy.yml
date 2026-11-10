@@ -26,11 +26,11 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       PROJECT: aphesist
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Assemble what is served
         run: |
@@ -40,9 +40,9 @@ jobs:
 
       - name: Create the Pages project the first time
         run: |
-          if ! npx --yes wrangler@3.114.0 pages project list | grep -q "\b$PROJECT\b"; then
-            npx --yes wrangler@3.114.0 pages project create "$PROJECT" --production-branch site
+          if ! npx --yes wrangler@4.153.0 pages project list | grep -q "\b$PROJECT\b"; then
+            npx --yes wrangler@4.153.0 pages project create "$PROJECT" --production-branch site
           fi
 
       - name: Deploy
-        run: npx --yes wrangler@3.114.0 pages deploy dist --project-name "$PROJECT" --branch site --commit-hash "$GITHUB_SHA" --commit-message "$(git log -1 --format=%s)"
+        run: npx --yes wrangler@4.153.0 pages deploy dist --project-name "$PROJECT" --branch site --commit-hash "$GITHUB_SHA" --commit-message "$(git log -1 --format=%s)"

@@ -20,6 +20,7 @@ Published at https://claude.ai/artifact/XdYZE8XBH9vX6psPWHbc2y (private until sh
 python3 site/build.py                    # site/index.html, a self-contained page
 python3 site/build.py --fragment OUT     # the same page without <!doctype>/<html>/<head>/<body>, for an artifact
 python3 site/build.py experimental=REF   # build one section from another ref (a commit, origin/section/...)
+python3 site/build.py --local           # the sections from the local branches (by default: what origin has)
 ```
 
 The build copies nothing from other branches; it reads them with git:
@@ -72,6 +73,16 @@ A section's script runs once, on its first visit; after that the section rests a
 So book returns to its leaf, the archive to its post and scroll, works to its work, the descent to its chamber.
 Only the mounted section draws or listens, and the page never holds more than the fog and two simulacrum canvases.
 
+## The clearing
+
+Inside a section the fog drifts out of a central band to the sides (`fog.set({clear})`: 1 for every section, 0.4
+for the descent, 0 at the home; `CLEAR` in `site/src/shell.js`), and the fog eases each change itself over 1.8 s.
+A section can set its own through its scoped `fog.set`.
+
+The fog never changes in one frame. Calm zones carry a weight that travels to 1 or 0 over 1.2 s with minimum jerk
+(the zone grows from its centre with it), keep their place among the fog's twelve until they have shrunk away, and
+follow a block's change of size gently; density and light move to their targets in minimum-jerk segments of 1.8 s.
+
 ## Music
 
 The music section reads its library from R2 (`https://music.aphes.ist/index.json`; `--music-index URL` builds against
@@ -116,6 +127,14 @@ python3 site/build.py && python3 site/build.py --fragment /tmp/aphesis-fragment.
 
 (or `python3 site/build.py experimental=<commit>` without moving the branch). The built page lists the commit of
 each section in a comment at the top of the body.
+
+## How the build treats a section's script
+
+Sections are built from what origin has (`git ls-remote`), so another agent's unpushed work on a local branch never
+ships; `--local` builds from the local branches. Each section's own build wires its modules as
+`const { a, b } = M["m.js"];`; the site build mends a renamed import (`a as b` becomes `a: b`) and wires namespace and
+default imports, then checks every section script with `node --check` as it will run in the page, so a bad
+rewrite stops the build instead of shipping.
 
 ## Adding a section
 

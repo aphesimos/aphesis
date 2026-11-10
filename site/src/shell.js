@@ -47,6 +47,13 @@ setInterval(() => $('aph-turb').setAttribute('seed', 1 + Math.floor(Math.random(
 const fog = A.Fog($('aph-fog'), { density: 0, light: 1 });
 let dens = 0, light = 1;
 const target = { d: 1, l: 1 };
+/* density and light travel to their targets in minimum-jerk segments of 1.8 s: a new target starts a new segment
+   from wherever the value is, so nothing in the fog ever changes in one frame */
+function mover(v, ms) {
+  let from = v, to = v, t = 1, cur = v;
+  return { at(target, dt) { if (Math.abs(target - to) > 1e-4) { from = cur; to = target; t = 0; } t = Math.min(1, t + dt * 1000 / ms); cur = from + (to - from) * MJ(t); return cur; } };
+}
+const densM = mover(0, 1800), lightM = mover(1, 1800);
 
 /* ---------- the seal: φ is drawn; entering a section, it closes into Φ and moves to the corner ---------- */
 const ANC = 'isolada';
@@ -336,7 +343,8 @@ function makeSandbox(name) {
   /* the scoped runtime */
   const SA = Object.create(A);
   SA.Fog = function (canvas, o) {
-    const set = (k) => { if (!ctx.active || !k) return; if (k.density !== undefined) target.d = k.density; if (k.light !== undefined) target.l = k.light; };
+    const set = (k) => { if (!ctx.active || !k) return; if (k.density !== undefined) target.d = k.density; if (k.light !== undefined) target.l = k.light;
+      if (k.clear !== undefined || k.clearWidth !== undefined) fog.set({ clear: k.clear, clearWidth: k.clearWidth }); };
     set(o || {});
     return {
       zones(list) { if (ctx.active) ctx.zones = (list || []).map((z) => (z instanceof Element ? { el: z } : z)).filter(Boolean); },
@@ -363,7 +371,7 @@ function makeSandbox(name) {
       stop() { st.running = false; s.stop(); }, start() { st.running = true; s.start(); }, drawn: (cb) => s.drawn(cb),
       destroy() { st.running = false; st.want = false; s.destroy(); },
     };
-  }, { fromBrush: A.Simulacrum.fromBrush });
+  }, A.Simulacrum);   /* its statics too: fromBrush, LEGIBLE */
   /* window and document as the section sees them */
   const bound = new Map();
   const bindTo = (t, k, v) => { let b = bound.get(k); if (!b || b.v !== v) { b = { v, f: v.bind(t) }; bound.set(k, b); } return b.f; };
@@ -579,23 +587,50 @@ function tryMount() {
   if (route === n && !cur) enter(n);
 }
 
-/* ---------- calm zones behind text: the shell's marks and the mounted section's blocks, twelve at most ---------- */
-const ZB = [];
+/* ---------- calm zones behind text: the shell's marks and the mounted section's blocks, twelve at most ----------
+   A zone never appears or goes at once: each has a weight that travels to 1 when its block is there and to 0 when it
+   is not, over ZONE_MS with minimum jerk, and the zone grows from its centre with it (the fog has no weight per
+   zone, so its size carries it). A leaving section's zones shrink away while its text dissolves; an entering
+   section's grow in as it condenses; the home's names weigh as much as they are visible. */
+const ZONE_MS = 1200, ZW = new Map(), ZB = [];
 function rectOf(z) {
   const r = z.el ? z.el.getBoundingClientRect() : z;
   return r && r.width ? { left: r.left, top: r.top, width: r.width, height: r.height, pad: z.pad || 12 } : null;
 }
-function zones() {
+function zones(dt) {
+  const want = new Map();   /* key -> [rect, weight wanted] */
+  const el = (e, pad, w) => { if (!e) return; const r = e.getBoundingClientRect(); if (r.width) want.set(e, [{ left: r.left, top: r.top, width: r.width, height: r.height, pad }, w]); };
+  links.forEach((a) => el(a, 10, route === '' ? +getComputedStyle(a).opacity : 0));
+  el($('aph-seal'), 10, route === '' ? 0 : 1);
+  el($('aph-passage'), 14, 1); el($('aph-controls'), 8, 1);
+  for (const [c, w] of [[cur, 1], [leaving, 0]]) if (c) for (const z of c.zones) { const r = rectOf(z); if (r) want.set(z.el || z, [r, w]); }
+  const step = dt * 1000 / ZONE_MS, ease = Math.min(1, dt / 0.35), glide = Math.min(1, dt / 0.2);
+  want.forEach(([r, w], k) => { const e = ZW.get(k); if (e) { e.r = r; e.to = w; } else ZW.set(k, { r, to: w, w: 0, sw: r.width, sh: r.height, sx: r.left + r.width / 2, sy: r.top + r.height / 2, slot: false }); });
+  /* the fog takes twelve zones: a zone keeps its place until it has shrunk away, and a new one waits for a free
+     place, so the set never changes in one frame */
+  let used = 0;
+  ZW.forEach((e, k) => { if (!want.has(k)) e.to = 0; if (e.slot && e.to <= 0 && e.w <= 0) ZW.delete(k); else if (e.slot) used++; });
+  [...ZW.values()].filter((e) => !e.slot && e.to > 0).forEach((e) => { if (used < 12) { e.slot = true; used++; } });
+  ZW.forEach((e, k) => {
+    if (!e.slot) { if (e.to <= 0) ZW.delete(k); return; }
+    e.w = e.w < e.to ? Math.min(e.to, e.w + step) : Math.max(e.to, e.w - step);
+    /* a block that changes size or place (its content arrives, the layout reflows) takes its calm zone along gently */
+    e.sw += (e.r.width - e.sw) * ease; e.sh += (e.r.height - e.sh) * ease;
+    e.sx += (e.r.left + e.r.width / 2 - e.sx) * glide; e.sy += (e.r.top + e.r.height / 2 - e.sy) * glide;
+  });
   ZB.length = 0;
-  const add = (el, pad) => { if (!el) return; const r = el.getBoundingClientRect(); if (!r.width || +getComputedStyle(el).opacity < 0.05) return; ZB.push({ left: r.left, top: r.top, width: r.width, height: r.height, pad }); };
-  if (route === '') links.forEach((a) => add(a, 10)); else add($('aph-seal'), 10);
-  add($('aph-passage'), 14); add($('aph-controls'), 8);
-  const c = cur || leaving;
-  if (c) for (const z of c.zones) { if (ZB.length >= 12) break; const r = rectOf(z); if (r) ZB.push(r); }
-  return ZB.slice(0, 12);
+  ZW.forEach((e) => {
+    const k = MJ(e.w); if (!e.slot || k <= 0) return;
+    const cx = e.sx, cy = e.sy, w = e.sw * k, h = e.sh * k;
+    ZB.push({ left: cx - w / 2, top: cy - h / 2, width: w, height: h, pad: e.r.pad * k });
+  });
+  return ZB;
 }
 
 /* ---------- moving between the home and the sections ---------- */
+/* the clearing: inside a section the fog drifts out of a central band to the sides (1), the descent keeps more of
+   it (0.4), the home none (0). The fog eases each change itself, over 1.8 s; a section may set its own (fog.set). */
+const CLEAR = { experimental: 0.4 };
 let route = null, raf = null;
 function tween(dur, fn, fim) { cancelAnimationFrame(raf); let t0 = null; const q = (now) => { if (t0 === null) t0 = now; const k = clamp((now - t0) / Math.max(1, dur)); fn(k); if (k < 1) raf = requestAnimationFrame(q); else fim && fim(); }; raf = requestAnimationFrame(q); }
 function goTo(next, first) {
@@ -605,6 +640,7 @@ function goTo(next, first) {
   /* the ambient sound crossfades per screen, where the runtime has it */
   try { if (A.Sound) { const d = next && DORMANT[next]; if (d && d.scene) A.Sound.scene(d.scene[0], d.scene[1]); else A.Sound.scene(next || 'home'); } } catch (err) { console.error(err); }
   $('aph-seal').classList.toggle('in-corner', next !== '');
+  fog.set({ clear: next === '' ? 0 : (CLEAR[next] ?? 1) });
   if (cur) leave();
   if (next === '') {
     target.d = 1; target.l = 1;
@@ -663,10 +699,9 @@ addEventListener('keydown', (e) => {
 let last = performance.now();
 function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
-  dens += (target.d - dens) * Math.min(1, dt * 1.5);
-  light += (target.l - light) * Math.min(1, dt * 1.5);
+  dens = densM.at(target.d, dt); light = lightM.at(target.l, dt);
   fog.set({ density: dens, light });
-  fog.zones(zones());
+  fog.zones(zones(dt));
   if (route === '' && !$('aph-ring').classList.contains('focus')) spin += dt * 0.012;
   placeInscription();
   requestAnimationFrame(loop);

@@ -70,6 +70,8 @@ em { font-style: normal; color: var(--ink); text-decoration: underline; text-dec
 .part p + p { margin-top: var(--space-4); }
 .part-result p { font-size: var(--type-lede-size); line-height: var(--type-lede-line); }
 .v { color: var(--ink); white-space: nowrap; }
+/* a value that is a phrase (a state, a verdict) wraps like the sentence around it, or it would run off a phone */
+.part-result .v { white-space: normal; }
 .v.fresh { animation: aph-arrive var(--duration-slow) var(--easing-settle); }
 @keyframes aph-arrive { from { opacity: .45; } to { opacity: 1; } }
 
@@ -117,6 +119,40 @@ em { font-style: normal; color: var(--ink); text-decoration: underline; text-dec
 .slider input::-moz-range-thumb { width: 18px; height: 44px; border: 0; }
 .slider-value { min-width: 9ch; text-align: right; font-size: var(--type-label-size); letter-spacing: .06em; }
 
+/* ---------- the simulacrum's bench: the render beside its controls (above them on a phone), the measure under both ---------- */
+.sim .bench-grid { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: var(--space-6); }
+.sim .controls { display: grid; gap: var(--space-6); margin-top: 0; align-items: start; }
+.sim .plot { margin-top: var(--space-6); }
+.sim-left { justify-items: stretch; }
+.sim-stage { position: relative; width: 100%; height: clamp(300px, 56vh, 520px); display: grid; place-items: center; touch-action: pan-y; }
+.sim-canvas { touch-action: pan-y; }
+.sim .specimen-cap { text-align: left; max-width: none; }
+.sim-map { width: min(100%, 220px); justify-self: start; }
+.sim-map[hidden] { display: none; }
+.sim-group { display: grid; gap: var(--space-3); }
+.sim-group-name { margin: 0; font-family: var(--font-display); font-size: var(--type-gloss-size); line-height: 1.2; font-weight: 400;
+  font-variation-settings: "wght" 400, "slnt" -12; color: var(--ink-soft); padding: 0 .2em 0 0; text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg); }
+.sim-row { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); align-items: center; }
+.sim-presets { gap: var(--space-1) var(--space-4); }
+.sim-note, .sim-settings { color: var(--ink-soft); overflow-wrap: anywhere; }
+.sim-settings { display: block; color: var(--ink); min-height: calc(var(--type-meta-size) * var(--type-meta-line)); }
+.sim-note:empty { display: none; }
+.sim .slider-value, .sim .slider-name, .act-val, .sim-note, .sim-settings { text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg); }
+.sim .slider { grid-template-columns: minmax(0, 1fr) auto; gap: 0 var(--space-4); }
+.sim .slider-name { grid-column: 1; grid-row: 1; }
+.sim .slider-value { grid-column: 2; grid-row: 1; min-width: 0; }
+.sim .slider-track { grid-column: 1 / -1; grid-row: 2; }
+.act.tog { grid-template-columns: auto auto; column-gap: var(--space-2); align-items: baseline; }
+.act.tog svg { grid-column: 1 / -1; }
+.act-val { color: var(--ink-soft); letter-spacing: var(--type-meta-tracking); font-size: var(--type-meta-size); }
+.act[aria-pressed="true"] svg, .act[aria-current="true"] svg { opacity: 1; }
+.act[aria-current="true"] { color: var(--accent-text); }
+.sim.drop .sim-canvas { opacity: .35; }
+/* tall enough: the render stays in view while the controls beside it scroll */
+@media (min-width: 900px) and (min-height: 700px) {
+  .sim-left { position: sticky; top: calc(var(--space-7) + var(--space-2) + env(safe-area-inset-top, 0px)); }
+}
+
 /* ---------- corners ---------- */
 #controls {
   position: fixed; z-index: var(--z-corner); display: flex; align-items: center; gap: var(--space-2);
@@ -138,4 +174,6 @@ em { font-style: normal; color: var(--ink); text-decoration: underline; text-dec
   .view { padding-top: calc(var(--space-7) + var(--space-4) + env(safe-area-inset-top, 0px)); }
   .slider { grid-template-columns: minmax(0, 1fr) auto; }
   .slider-name { grid-column: 1 / -1; }
+  .sim .bench-grid { grid-template-columns: minmax(0, 1fr); }
+  .sim-stage { height: min(105vw, 58vh); }
 }

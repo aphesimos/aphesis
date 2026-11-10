@@ -9,8 +9,8 @@ python3 laboratory/build.py                 # writes laboratory/index.html (a fu
 python3 laboratory/build.py --fragment OUT  # the same page without <!doctype>/<html>/<head>/<body>
 ```
 
-The build reads the design system from the `design-system` branch with `git show` (tokens, runtime, fonts) and
-generates `tokens.css`. Serve `index.html` over http to try it. Routes: `#laboratory` (the index) and
+The build reads the design system from the `design-system` branch with `git show` (tokens, runtime, fonts, and the
+density maps the simulacrum offers as presets) and generates `tokens.css`. Serve `index.html` over http to try it. Routes: `#laboratory` (the index) and
 `#laboratory/<slug>` (one experiment). The `--fragment` build is published at
 https://claude.ai/artifact/QRZieEZnGQTHg4FGeBmBvr (private until shared).
 
@@ -20,6 +20,7 @@ https://claude.ai/artifact/QRZieEZnGQTHg4FGeBmBvr (private until shared).
 | --- | --- |
 | `content/NN-name.md` | one experiment: front matter and body |
 | `src/experiments/<module>.js` | its live piece: exports `mount(host, ctx)` |
+| `src/experiments/simulacrum.js` | the simulacrum lab: a picture turned into a density map and rendered by `Aphesis.Simulacrum` |
 | `src/chart.js` | the chart module: brush and stipple charts (documented below) |
 | `src/stipple.js` | stipple fields on a 2D canvas, lit by the fog's rule |
 | `src/slider.js` | the brushed slider (a native range input under a brush drawing) |
@@ -142,3 +143,25 @@ it (also a polite live region).
 3. **the golden angle**: Vogel's sunflower model, 300 seeds; unevenness = coefficient of variation of
    nearest-neighbour distances, swept over 130°–145° and refined around its minimum. The brushed slider places
    the seeds for any angle.
+
+## The simulacrum lab
+
+No. 4, **the simulacrum** (*εἴδωλον*, the Greek that Lucretius rendered as *simulacra*: a likeness peeling off a
+thing), is not an example: it is a public bench for the site's stipple engine. A visitor brings a picture (file,
+drop or paste; it never leaves the browser) or starts from one of the design system's own maps, and sets:
+
+- **the map**, the forum's in-browser preparation (`forum/src/density.js`) opened up as sliders: crop from each
+  side, invert (with the levels mirrored, so the map becomes its exact negative), black and white points (auto: the
+  30th and 97.5th percentiles), gamma, a gaussian blur and contrast (the book's CSS factors). A new picture starts
+  from the forum's own guess; a preset starts at rest, where the map is the design system's file pixel for pixel.
+  "show the map" draws the map itself as stipple under a plain threshold.
+- **the render**, `Aphesis.Simulacrum`'s own options object, written live: gain, scatter, erosion, ceiling, cell,
+  margin, accent, fit and ground, plus coalesce and dissolve.
+
+Output: "copy settings" (`{src, gain, scatter, erosion, ceiling}`, the per-source form the runtime reads), the
+prepared map as a PNG (480 to 560px for a new picture, the preset's own size otherwise), a still frame, and reset.
+The measure reads the canvas back once a picture has settled: cells inside the picture, past its feather, are binned
+by the map's density under them (the engine's own fit, bilinear like the texture) and the lit share of each bin is
+plotted against it. The presets are `PRESETS` in `build.py`: six maps, inlined as they are (about 0.75 MB).
+Downloads use the viewer's `downloads` capability when the page runs inside a claude.ai artifact, a plain link
+otherwise.

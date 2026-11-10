@@ -12,6 +12,8 @@ loads it from Google Fonts; it is vendored here so the page carries both faces.
 Content: one file per experiment in content/ (front matter + body, see README.md). They become src/assets.js's
 EXPERIMENTS, in the order given by `order`. The experiment named in `module:` is the module in src/experiments/.
 
+The simulacrum experiment's presets are the design system's own density maps (PRESETS), inlined as data: URLs.
+
 The fog experiment measures the fog's own hash. Its GLSL is not copied: it is cut out of bundle.js here (HASH_GLSL),
 so the page always measures the hash the fog really uses. The build fails if the fog stops using it the same way.
 
@@ -135,9 +137,34 @@ LIB = ['assets.js', 'motion.js', 'ground.js', 'stipple.js', 'chart.js', 'slider.
 TAIL = ['views.js', 'main.js']
 
 
+# ---------- the design system's own density maps, for the simulacrum's presets ----------
+# Each is read from design-system:system/assets/Simulacra/ as it is (never re-encoded), with the caption and the
+# per-source settings the Simulacrum preview gives it. They are inlined only if an experiment uses the simulacrum.
+PRESETS = [
+    ('creation.png', 'the creation of adam', 'Michelangelo, Sistine Chapel ceiling, c. 1512', {}),
+    ('cagnacci.jpg', 'the ouroboros', 'allegory of human life · Guido Cagnacci, c. 1650', {}),
+    ('trismegistus.png', 'hermes trismegistus', 'Siena Cathedral pavement, 1488', {}),
+    ('jerome.jpg', 'saint jerome writing', 'Caravaggio, 1605–06', {}),
+    ('veiled.jpg', 'the veiled virgin', 'Giovanni Strazza, c. 1850s', {'erosion': .5, 'scatter': .85, 'ceiling': .76}),
+    ('flammarion.png', 'the edge of the sky', 'the Flammarion engraving, 1888', {}),
+]
+
+
+def simulacra(items):
+    if not any(e['module'] == 'simulacrum' for e in items):
+        return []
+    out = []
+    for f, name, caption, settings in PRESETS:
+        mime = 'image/png' if f.endswith('.png') else 'image/jpeg'
+        out.append({'file': f, 'name': name, 'caption': caption, 'settings': settings,
+                    'data': f'data:{mime};base64,' + b64(ds('assets/Simulacra/' + f, True))})
+    return out
+
+
 def assets_module(items, bundle):
     return ('export const EXPERIMENTS = ' + json.dumps(items, ensure_ascii=False, indent=1) + ';\n'
-            'export const HASH_GLSL = ' + json.dumps(fog_hash(bundle)) + ';\n')
+            'export const HASH_GLSL = ' + json.dumps(fog_hash(bundle)) + ';\n'
+            'export const SIMULACRA = ' + json.dumps(simulacra(items), ensure_ascii=False) + ';\n')
 
 
 def scope_module(name, src):

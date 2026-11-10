@@ -95,6 +95,17 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
 .aph-icon:hover .aph-st path, .aph-icon:focus-visible .aph-st path { animation: aph-stir 1.7s ease-in-out infinite alternate; }
 .aph-icon:hover .aph-st path + path, .aph-icon:focus-visible .aph-st path + path { animation-direction: alternate-reverse; animation-duration: 1.45s; }
 .aph-icon.aph-gather .aph-st { transform: scale(.8); }
+/* the forum's three eyes: each a film of six drawings 24 units apart (0 rest, 1 and 2 other gazes, 3 half, 4 closed,
+   5 on the centre). Hover runs the three films on their own rhythms at 8 fps in hard cuts (2s, 1.625s, 1.375s), so
+   they never blink together; the hover ending returns them to rest. Gathering closes them and opens them on the centre. */
+.aph-icon:hover .aph-film-a, .aph-icon:focus-visible .aph-film-a { animation: aph-eyes-a 2s step-end infinite; }
+.aph-icon:hover .aph-film-b, .aph-icon:focus-visible .aph-film-b { animation: aph-eyes-b 1.625s step-end infinite; }
+.aph-icon:hover .aph-film-c, .aph-icon:focus-visible .aph-film-c { animation: aph-eyes-c 1.375s step-end infinite; }
+.aph-icon.aph-gather .aph-film { animation: aph-eyes-look .375s step-end forwards; }
+@keyframes aph-eyes-a { 0% { transform: translateX(0); } 31.25% { transform: translateX(-24px); } 50% { transform: translateX(-72px); } 56.25% { transform: translateX(-96px); } 62.5% { transform: translateX(-72px); } 68.75% { transform: translateX(-24px); } 87.5% { transform: translateX(-48px); } 100% { transform: translateX(-48px); } }
+@keyframes aph-eyes-b { 0% { transform: translateX(0); } 23.08% { transform: translateX(-48px); } 46.15% { transform: translateX(-24px); } 69.23% { transform: translateX(-72px); } 76.92% { transform: translateX(-96px); } 84.62% { transform: translateX(-72px); } 92.31% { transform: translateX(0); } 100% { transform: translateX(0); } }
+@keyframes aph-eyes-c { 0% { transform: translateX(0); } 18.18% { transform: translateX(-72px); } 27.27% { transform: translateX(-96px); } 36.36% { transform: translateX(-72px); } 45.45% { transform: translateX(-24px); } 72.73% { transform: translateX(-48px); } 100% { transform: translateX(-48px); } }
+@keyframes aph-eyes-look { 0% { transform: translateX(-96px); } 66.67% { transform: translateX(-120px); } 100% { transform: translateX(-120px); } }
 
 /* ================= browser defaults =================
    Everything the browser would draw in its own colours is brought into the system here: selection, scrollbars,

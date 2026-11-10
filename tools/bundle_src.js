@@ -103,6 +103,8 @@
      is the point the cells gather toward. */
   function icon(name, st) {
     var g = ICONS[name](st || 0), o = g.gather || [12, 12], a = '', b = '';
+    /* an icon that moves in drawings (the forum's eyes) brings its own film */
+    if (g.film) return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="overflow:visible">' + g.film() + '</svg>';
     if (g.dots) g.dots.split('M').slice(1).forEach(function (q, j) { if (j % 2) b += 'M' + q; else a += 'M' + q; });
     return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="overflow:visible"><path d="' + g.strokes + '" fill="currentColor"/>' +
       (g.dots ? '<g class="aph-st" opacity=".85" style="transform-origin:' + o[0] + 'px ' + o[1] + 'px"><path d="' + a + '" fill="currentColor"/>' + (b ? '<path d="' + b + '" fill="currentColor"/>' : '') + '</g>' : '') + '</svg>';
@@ -1114,14 +1116,56 @@
     ICONS.wall = sectionIcon(strokes, [[stones, 263, 1400, 0.62]], [12, 12], 0.94);
   })();
 
-  /* forum (ἀγορά): the stoa, a pediment over three columns on a step, and the assembly gathered between them in stipple */
+  /* forum (ἀγορά): three eyes, the gate's eye simplified to icon size: many voices, watching. One larger above, two
+     smaller below, each looking its own way. Seeds 301 to 360. Each eye is a film of six drawings laid side by side 24 units apart and
+     seen through its own clip: 0 at rest, 1 and 2 two other gazes, 3 half shut, 4 closed, 5 looking at the centre of
+     the three. At rest the film shows drawing 0; hovering runs each film on its own rhythm at 8 fps in hard cuts
+     (CSS: aph-eyes-a, -b, -c), so they blink at different moments and look different ways; .aph-gather closes them
+     and opens them on the centre, together. icon('forum', 1) is that last drawing, still. */
   (function () {
-    var strokes = brush(chain(line(2.8, 8.4, 12, 3.2, 18), line(12, 3.2, 21.2, 8.4, 18)), 1.6, 271, 0.12) +
-      brush(line(3, 9, 21, 9.1, 24), 1.6, 273, 0.1) + brush(line(2.6, 20.6, 21.4, 20.5, 26), 1.7, 275, 0.12) +
-      brush(line(6, 10.3, 6.1, 19.3, 12), 1.25, 277, 0.12, 0.05) + brush(line(12, 10.3, 12, 19.3, 12), 1.25, 278, 0.12, 0.05) +
-      brush(line(18, 10.3, 17.9, 19.3, 12), 1.25, 279, 0.12, 0.05);
-    function council(x, y) { return y > 13.4 && y < 19.6 && x > 3.4 && x < 20.6 && Math.abs(x - 6) > 1.2 && Math.abs(x - 12) > 1.2 && Math.abs(x - 18) > 1.2 && grain(x, y) < (y - 13) / 5; }
-    ICONS.forum = sectionIcon(strokes, [[council, 281, 1600, 0.6], [inC(12, 6.6, 0.9), 283, 300, 0.5]], [12, 16.6]);
+    var C = [12, 13]; /* the centre they turn to */
+    /* x, y, scale (of the eye's own 24-unit drawing), lid width, gaze at rest, gazes 1 and 2 (in the eye's own units) */
+    var EYES = [
+      [12, 7, 0.6, 1.35, [-0.5, 0.5], [1.9, 0.1], [-1.6, -0.6]],
+      [6.3, 16.8, 0.47, 1.2, [0.9, -0.3], [-1.8, 0.4], [1.4, 1]],
+      [17.7, 16.8, 0.47, 1.2, [-0.2, 0.8], [1.8, -0.5], [-1.9, 0.2]]
+    ];
+    var W = 24;
+    function drawing(e, i, k, dx) {
+      var x = e[0], y = e[1], s = e[2], seed = 301 + i * 20 + k * 3, d = '', top, bot;
+      function lid(cy, ry, a0, a1, w, sd) { return brush(arc(x + dx, y + cy * s, 9 * s, a0, a1, 22, ry * s), w, sd, 0.22, 0.06); }
+      if (k === 4) { d = lid(-4, 6, 25, 155, e[3] * 1.05, seed); top = function () { return 99; }; bot = function () { return -99; }; }
+      else {
+        var ru = k === 3 ? 3.4 : 7;
+        d = lid(3.5, ru, -160, -20, e[3], seed) + lid(-3.5, 7, 20, 160, e[3] * 0.92, seed + 1);
+        top = function (X) { return y + 3.5 * s - ru * s * Math.sqrt(Math.max(0, 1 - Math.pow((X - x) / (9 * s), 2))); };
+        bot = function (X) { return y - 3.5 * s + 7 * s * Math.sqrt(Math.max(0, 1 - Math.pow((X - x) / (9 * s), 2))); };
+      }
+      var gz = k === 1 ? e[5] : k === 2 ? e[6] : k === 5 ? [clamp((C[0] - x) / 2.4, -2.1, 2.1), clamp((C[1] - y) / 2.6, -1.4, 1.4)] : e[4];
+      var cx = x + gz[0] * s, cy = y + (k === 3 ? Math.max(gz[1], 0.9) : gz[1]) * s, r = rng(seed + 7), ir = 3.1 * s, st = 0.7, cells = '';
+      if (k !== 4) for (var gy = -ir; gy <= ir; gy += st) for (var gx = -ir; gx <= ir; gx += st) {
+        var px = cx + gx + (r() - 0.5) * 0.22, py = cy + gy + (r() - 0.5) * 0.22, q = Math.hypot(gx, gy);
+        if (q > ir || py < top(px) + 0.55 || py > bot(px) - 0.55 || r() > (q < 1.3 * s ? 0.95 : 0.68)) continue;
+        var z = q < 1.3 * s ? 0.7 + r() * 0.15 : 0.5 + r() * 0.15; cells += 'M' + (px + dx - z / 2).toFixed(2) + ' ' + (py - z / 2).toFixed(2) + 'h' + z.toFixed(2) + 'v' + z.toFixed(2) + 'h' + (-z).toFixed(2) + 'z';
+      }
+      return { strokes: d, dots: cells };
+    }
+    /* six drawings per eye, drawn once: strip[e] holds them side by side, still[k] gathers one drawing of all three */
+    var films = EYES.map(function (e, i) { var f = []; for (var k = 0; k < 6; k++) f.push(drawing(e, i, k, k * W)); return f; });
+    var still = [0, 5].map(function (k) { var e3 = EYES.map(function (e, i) { return drawing(e, i, k, 0); }); return { strokes: e3.map(function (g) { return g.strokes; }).join(''), dots: e3.map(function (g) { return g.dots; }).join(''), gather: C }; });
+    var ids = 0;
+    ICONS.forum = function (st) {
+      var g = still[st ? 1 : 0];
+      if (st) return g;
+      return { strokes: g.strokes, dots: g.dots, gather: C, film: function () {
+        var id = 'aph-eyes-' + (++ids);
+        return EYES.map(function (e, i) {
+          var x0 = e[0] - 9 * e[2] - 1.2, y0 = e[1] - 6 * e[2] - 1.2;
+          return '<clipPath id="' + id + '-' + i + '"><rect x="' + x0.toFixed(2) + '" y="' + y0.toFixed(2) + '" width="' + (18 * e[2] + 2.4).toFixed(2) + '" height="' + (12 * e[2] + 2.4).toFixed(2) + '"/></clipPath>' +
+            '<g clip-path="url(#' + id + '-' + i + ')"><g class="aph-film aph-film-' + 'abc'[i] + '"><path d="' + films[i].map(function (f) { return f.strokes; }).join('') + '" fill="currentColor"/><path d="' + films[i].map(function (f) { return f.dots; }).join('') + '" fill="currentColor" opacity=".85"/></g></g>';
+        }).join('');
+      } };
+    };
   })();
 
   /* music (phonotheca): Apollo's lyre: the sounding bowl, two arms rising from it and curling out at the tips, the yoke

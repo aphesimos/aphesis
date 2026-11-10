@@ -3,14 +3,15 @@
    - text: up to 2000 characters and 60 lines, control characters removed, line ends normalized;
    - the original picture: jpeg, png, webp or gif, up to 4 MB, its type read from its first bytes (never trusted
      from the upload's own label), with sane dimensions;
-   - the density map made in the browser: jpeg or png, up to 400 KB, 64 to 640 pixels on the long side. */
+   - the density map made in the browser: jpeg or png, up to 900 KB, 32 to 960 pixels on the long side (960 so the
+     small text of a wide screenshot still reads). */
 
 export const LIMITS = {
   text: 2000,
   lines: 60,
   original: 4 * 1024 * 1024,
-  density: 400 * 1024,
-  densityLong: 640,
+  density: 900 * 1024,
+  densityLong: 960,
   densityShort: 32,
   pixels: 40e6,
 };

@@ -86,7 +86,7 @@ export function createComposer({ api, thread, onPosted, label }) {
     if (bad) { say(bad, true); file.value = ''; return; }
     say('turning the picture into fog…');
     try {
-      const density = await toDensity(f);
+      const density = await toDensity(f, api.densityLimits ? await api.densityLimits() : null);
       picked = { original: f, density };
       const im = await image(density.url);
       pv.innerHTML = stillSimulacrum(im, [160, 160], Object.assign(stillOptions(), { seed: 5 })).svg;

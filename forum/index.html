@@ -102,6 +102,15 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
 @keyframes aph-stir { 0% { transform: translate(0, 0); } 30% { transform: translate(.45px, -.3px); } 65% { transform: translate(-.3px, .35px); } 100% { transform: translate(.25px, .15px); } }
 .aph-ear:hover .w path + path, .aph-ear:focus-visible .w path + path { animation-direction: alternate-reverse; animation-duration: 1.45s; }
 
+/* an icon in a control (Aphesis.icon inside .aph-icon, as the section icons sit on the phone's home): hovering or
+   focusing stirs the stipple, its two halves against each other; .aph-gather draws the cells toward the icon's heart
+   (the first tap on a section icon). Aphesis.icon(name, 1) is the same gathering, still, for places without motion. */
+.aph-icon .aph-st { transition: transform var(--duration-slow) var(--easing-settle); }
+.aph-icon .aph-st path { transform-box: fill-box; }
+.aph-icon:hover .aph-st path, .aph-icon:focus-visible .aph-st path { animation: aph-stir 1.7s ease-in-out infinite alternate; }
+.aph-icon:hover .aph-st path + path, .aph-icon:focus-visible .aph-st path + path { animation-direction: alternate-reverse; animation-duration: 1.45s; }
+.aph-icon.aph-gather .aph-st { transform: scale(.8); }
+
 /* ================= browser defaults =================
    Everything the browser would draw in its own colours is brought into the system here: selection, scrollbars,
    caret, native controls, autofill, placeholders, markers, backdrops. Tokens only, both themes. See "Browser
@@ -302,7 +311,9 @@ button { font: inherit; letter-spacing: inherit; color: inherit; background: non
 }
 @media (max-width: 820px) {
   #scroller {
-    top: calc(96px + env(safe-area-inset-top, 0px)); bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    /* the bottom stops above the corner band (the eye and ear, the passage up to three lines), so a post's reply and
+       report never sit under the passage */
+    top: calc(96px + env(safe-area-inset-top, 0px)); bottom: calc(var(--space-7) + env(safe-area-inset-bottom, 0px));
     -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--space-4), #000 calc(100% - var(--space-5)), transparent);
     mask-image: linear-gradient(to bottom, transparent, #000 var(--space-4), #000 calc(100% - var(--space-5)), transparent);
   }
@@ -337,6 +348,11 @@ h1 .w { display: inline-block; }
 .act { font-size: var(--type-label-size); letter-spacing: var(--type-label-tracking); line-height: 1; padding: var(--space-2) 0; color: var(--ink); text-decoration: none; display: inline-block; }
 .act:hover { color: var(--accent-text); }
 .act[disabled] { color: var(--ink-soft); }
+/* small labels that act keep their size; their hit area is at least 44px each way, so a finger can take them */
+.act, .tools button, .pm button, .pm .num { position: relative; }
+.act::after, .tools button::after, .pm button::after, .pm .num::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 100%; min-width: 44px; height: 44px; transform: translate(-50%, -50%);
+}
 
 /* ---------- the board ---------- */
 .board-top { margin-top: var(--space-6); }
@@ -361,7 +377,7 @@ h1 .w { display: inline-block; }
 .pm .sigil { width: 36px; height: 36px; color: var(--ink-soft); display: inline-block; margin-right: var(--space-1);
   transition: color var(--duration-slow) var(--easing-settle); }
 .pm .sigil svg { width: 100%; height: 100%; display: block; }
-.post.hit .sigil { color: var(--accent); }
+.post.hit .sigil, .post:focus-visible .sigil { color: var(--accent); }
 .pm .num { color: var(--ink); text-decoration: none; }
 .pm button, .pm .num { padding: var(--space-1) 0; }
 .pm button { color: var(--ink-soft); }
@@ -594,10 +610,14 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
       return { strokes: d, dots: st ? stipple(function (x, y) { return (y > 10.5 && x > 7.6 && x < 16.4 && y < 20.4) || (inC(12, 10.5, 4.4)(x, y) && y <= 10.5); }, 66, 1600) : '' };
     }
   };
-  /* icon(name, state) -> inline SVG markup. Size it with CSS; color it with `color`. */
+  /* icon(name, state) -> inline SVG markup. Size it with CSS; color it with `color`. The stipple comes as one group
+     (.aph-st) of two interleaved paths, so a hover can stir them against each other (CSS: .aph-icon); the group's origin
+     is the point the cells gather toward. */
   function icon(name, st) {
-    var g = ICONS[name](st || 0);
-    return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="overflow:visible"><path d="' + g.strokes + '" fill="currentColor"/>' + (g.dots ? '<path d="' + g.dots + '" fill="currentColor" opacity=".85"/>' : '') + '</svg>';
+    var g = ICONS[name](st || 0), o = g.gather || [12, 12], a = '', b = '';
+    if (g.dots) g.dots.split('M').slice(1).forEach(function (q, j) { if (j % 2) b += 'M' + q; else a += 'M' + q; });
+    return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="overflow:visible"><path d="' + g.strokes + '" fill="currentColor"/>' +
+      (g.dots ? '<g class="aph-st" opacity=".85" style="transform-origin:' + o[0] + 'px ' + o[1] + 'px"><path d="' + a + '" fill="currentColor"/>' + (b ? '<path d="' + b + '" fill="currentColor"/>' : '') + '</g>' : '') + '</svg>';
   }
 
   /* ================= SEAL ================= */
@@ -648,26 +668,28 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
   }
   /* CSS pixels per stipple cell on this screen: `cell` CSS pixels rounded to whole device pixels, so every cell covers
      the same whole number of device pixels at any devicePixelRatio and stays a crisp square. Size a stipple canvas,
-     and move it, in multiples of this. */
-  function cellPx(cell) { var d = window.devicePixelRatio || 1; return Math.max(1, Math.round((cell || 2) * d)) / d; }
+     and move it, in multiples of this. up1x: on a 1x screen, round a fractional cell up instead of to the nearest. */
+  function cellPx(cell, up1x) { var d = window.devicePixelRatio || 1, n = (cell || 2) * d; return Math.max(1, up1x && d < 1.5 ? Math.ceil(n) : Math.round(n)) / d; }
   /* one canvas pixel per stipple cell: the canvas is sized to the cell grid and the browser scales it up with hard
      edges, so a cell stays a crisp square and the shader runs once per cell instead of once per screen pixel.
-     Returns k, canvas pixels per CSS pixel, to convert pointer and zone positions. */
-  function fit(cv, gl, cell) {
-    var r = cv.getBoundingClientRect(), c = cellPx(cell), w = Math.max(1, Math.round(r.width / c)), h = Math.max(1, Math.round(r.height / c));
+     Returns k, canvas pixels per CSS pixel, to convert pointer and zone positions. r: the canvas's rect, when the
+     frame has already read it (one read per frame). */
+  function fit(cv, gl, cell, r, up1x) {
+    r = r || cv.getBoundingClientRect(); var c = cellPx(cell, up1x), w = Math.max(1, Math.round(r.width / c)), h = Math.max(1, Math.round(r.height / c));
     if (cv.style.imageRendering !== 'pixelated') cv.style.imageRendering = 'pixelated';
     if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; gl.viewport(0, 0, w, h); }
     return w / Math.max(1, r.width);
   }
   /* the eye's theme shift (themeShift) drives the same switch as a wave instead: each cell turns when the wave from
      the origin reaches it, loosened by a hash and the fog's noise so the front is grainy and uneven. SO: the origin in
-     canvas pixels, z = 1 while a wave runs; SF: the distance to the farthest corner. */
+     canvas pixels, z = 1 while a wave runs; SF: the distance to the farthest corner. At rest (no wave, X = 1) every
+     cell has switched: step(edge, 1.) is 1 for any edge below 1, so the noise is not evaluated. */
   var SWITCH_GLSL = 'uniform vec3 SO;uniform float SF;' +
-    'float sw(vec2 cel,vec2 uv,float X){if(SO.z>.5)return step(.76*length(cel+.5-SO.xy)/SF+.14*h(cel+vec2(17.3,5.1))+.1*n(cel/23.+5.1),X);' +
+    'float sw(vec2 cel,vec2 uv,float X){if(SO.z<.5&&X>=1.)return 1.;if(SO.z>.5)return step(.76*length(cel+.5-SO.xy)/SF+.14*h(cel+vec2(17.3,5.1))+.1*n(cel/23.+5.1),X);' +
     'return step(smoothstep(.32,.68,fb(uv*1.7+vec2(3.7,9.1)))*.86+h(cel+vec2(17.3,5.1))*.14,X);}';
-  function waveUniforms(gl, U, cv, k, c) {
+  function waveUniforms(gl, U, cv, k, c, r) {
     var w = c.wave; if (!w) { gl.uniform3f(U.SO, 0, 0, 0); gl.uniform1f(U.SF, 1); return; }
-    var r = cv.getBoundingClientRect(), cpx = cv.width / Math.max(1, r.width);
+    r = r || cv.getBoundingClientRect(); var cpx = cv.width / Math.max(1, r.width);
     gl.uniform3f(U.SO, (w.o[0] - r.left) * cpx, cv.height - (w.o[1] - r.top) * cpx, 1); gl.uniform1f(U.SF, Math.max(1, w.far * cpx));
   }
   /* the theme's colours for a canvas, read the moment the theme changes. The change is a stipple dissolve over
@@ -739,15 +761,14 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
     var L = loop(function (now) {
       var dt = Math.min(0.05, Math.max(0, now - last) / 1000); last = now; if (!REDUCED) t += dt;
       if (P.lost) return false;
-      dpr = fit(cv, gl, o.cell || 2);
-      var R = cv.getBoundingClientRect(); if (!ptr) ptr = [R.width / 2, R.height / 2]; if (!sm) sm = ptr.slice();
+      var R = cv.getBoundingClientRect(); dpr = fit(cv, gl, o.cell || 2, R); if (!ptr) ptr = [R.width / 2, R.height / 2]; if (!sm) sm = ptr.slice();
       sm[0] += (ptr[0] - sm[0]) * Math.min(1, dt * 3); sm[1] += (ptr[1] - sm[1]) * Math.min(1, dt * 3);
       ZB.fill(0); var i = 0;
       zEls.forEach(function (z) { if (i >= 12) return; var r = z.el ? z.el.getBoundingClientRect() : z; if (!r.width) return; var pad = z.pad || 12;
-        ZB.set([(r.left - R.left + r.width / 2) * dpr, cv.height - (r.top - R.top + r.height / 2) * dpr, (r.width / 2 + pad) * dpr, (r.height / 2 + pad) * dpr], i * 4); i++; });
+        var j = i * 4; ZB[j] = (r.left - R.left + r.width / 2) * dpr; ZB[j + 1] = cv.height - (r.top - R.top + r.height / 2) * dpr; ZB[j + 2] = (r.width / 2 + pad) * dpr; ZB[j + 3] = (r.height / 2 + pad) * dpr; i++; });
       var c = colors(now);
       gl.uniform4fv(U.Z, ZB); gl.uniform2f(U.R, cv.width, cv.height); gl.uniform1f(U.T, t); gl.uniform1f(U.S, 1);
-      gl.uniform3fv(U.F, c.a[0]); gl.uniform3fv(U.N, c.a[1]); gl.uniform3fv(U.F2, c.b[0]); gl.uniform3fv(U.N2, c.b[1]); gl.uniform1f(U.X, c.x); waveUniforms(gl, U, cv, dpr, c); gl.uniform2f(U.P, sm[0] * dpr, cv.height - sm[1] * dpr); gl.uniform1f(U.D, dens); gl.uniform1f(U.C, light);
+      gl.uniform3fv(U.F, c.a[0]); gl.uniform3fv(U.N, c.a[1]); gl.uniform3fv(U.F2, c.b[0]); gl.uniform3fv(U.N2, c.b[1]); gl.uniform1f(U.X, c.x); waveUniforms(gl, U, cv, dpr, c, R); gl.uniform2f(U.P, sm[0] * dpr, cv.height - sm[1] * dpr); gl.uniform1f(U.D, dens); gl.uniform1f(U.C, light);
       var cw = clearW == null ? lerp(0.94, 0.66, clamp((R.width - 480) / 720)) : clamp(clearW, 0.05, 1);
       gl.uniform2f(U.Q, clearAt(now), Math.max(1e-3, cw * 0.5 * cv.width / Math.min(cv.width, cv.height)));
       gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -761,6 +782,29 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
       /* destroy(): stop for good: the loop, the pointer and theme listeners, and the WebGL context */
       destroy: function () { L.stop(); window.removeEventListener('pointermove', onMove); colors.off(); P.release(); }
     };
+  }
+
+  /* ---------- blur2d ----------
+     canFilter(ctx): whether a 2D canvas takes ctx.filter (Safari's does not: the property is missing, and a filter
+     set on it is silently ignored). blur2d(ctx, sigma, x, y, w, h): a Gaussian blur of sigma px over the canvas (or
+     the box x, y, w, h), as three box passes in each direction, every channel; the edges extend their own pixels.
+     Use it where ctx.filter = 'blur(..)' is missing, and keep the filter where it exists. */
+  function canFilter(x) { return typeof x.filter === 'string'; }
+  function blur2d(x, sigma, bx, by, W, H) {
+    bx = bx || 0; by = by || 0; W = W || x.canvas.width - bx; H = H || x.canvas.height - by;
+    var r = Math.max(1, Math.round((Math.sqrt(4 * sigma * sigma + 1) - 1) / 2)), id = x.getImageData(bx, by, W, H), d = id.data, n = W * H;
+    var a = new Float32Array(n), b = new Float32Array(n), ch, i, k;
+    function pass(src, dst, len, m, step, stride) {
+      for (var q = 0; q < m; q++) { var o = q * stride, s = 0, t, p;
+        for (t = -r; t <= r; t++) s += src[o + Math.min(len - 1, Math.max(0, t)) * step];
+        for (p = 0; p < len; p++) { dst[o + p * step] = s / (2 * r + 1); s += src[o + Math.min(len - 1, p + r + 1) * step] - src[o + Math.max(0, p - r) * step]; } }
+    }
+    for (ch = 0; ch < 4; ch++) {
+      for (i = 0; i < n; i++) a[i] = d[i * 4 + ch];
+      for (k = 0; k < 3; k++) { pass(a, b, W, H, 1, W); pass(b, a, H, W, W, 1); }
+      for (i = 0; i < n; i++) d[i * 4 + ch] = a[i];
+    }
+    x.putImageData(id, bx, by);
   }
 
   /* ---------- Simulacrum ----------
@@ -785,7 +829,7 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
       var q = x.createTexture(); x.activeTexture(unit); x.bindTexture(x.TEXTURE_2D, q);
       x.texParameteri(x.TEXTURE_2D, x.TEXTURE_MIN_FILTER, x.LINEAR); x.texParameteri(x.TEXTURE_2D, x.TEXTURE_MAG_FILTER, x.LINEAR);
       x.texParameteri(x.TEXTURE_2D, x.TEXTURE_WRAP_S, x.CLAMP_TO_EDGE); x.texParameteri(x.TEXTURE_2D, x.TEXTURE_WRAP_T, x.CLAMP_TO_EDGE);
-      x.texImage2D(x.TEXTURE_2D, 0, x.LUMINANCE, 1, 1, 0, x.LUMINANCE, x.UNSIGNED_BYTE, new Uint8Array([0]));
+      x.texImage2D(x.TEXTURE_2D, 0, x.RGBA, 1, 1, 0, x.RGBA, x.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
       return q;
     }
     var P = glField(cv, 'precision highp float;uniform vec2 R,P;uniform float T,S,K,G,M,A,FIT,SC,ER,CE,GR,X,LG;uniform vec3 F,N,AC,F2,N2,AC2;uniform vec2 IA;uniform sampler2D I,I2;' + NOISE + SWITCH_GLSL +
@@ -794,7 +838,8 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
       /* fit the image in the canvas */
       'vec2 box=R*(1.-M);float sc=FIT>.5?max(box.x/IA.x,box.y/IA.y):min(box.x/IA.x,box.y/IA.y);vec2 sz=IA*sc;' +
       /* the picture breathes: before it settles its cells are pushed around by the fog */
-      'vec2 jit=(vec2(fb(uv*3.+T*.05),fb(uv*3.+7.3-T*.04))-.5)*(1.-K)*.18*min(R.x,R.y);' +
+      /* once it has settled (K = 1) the push is exactly zero, so the noise is not evaluated */
+      'vec2 jit=vec2(0.);if(K<1.)jit=(vec2(fb(uv*3.+T*.05),fb(uv*3.+7.3-T*.04))-.5)*(1.-K)*.18*min(R.x,R.y);' +
       'vec2 iu=(c+jit-(R-sz)*.5)/sz;iu.y=1.-iu.y;float inside=step(0.,iu.x)*step(iu.x,1.)*step(0.,iu.y)*step(iu.y,1.);' +
       'vec2 e=min(iu,1.-iu);float feather=smoothstep(0.,mix(.07,.025,LG),min(e.x,e.y));' +
       'float img=pow(texture2D(I,clamp(iu,0.,1.)).r,1.15)*inside*feather;' +
@@ -803,10 +848,11 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
       'float mist=smoothstep(.44,.78,d)*.5;' +
       /* never picture-perfect: erosion opens fog-shaped holes in the figure, the ceiling keeps even the lightest
          areas from going solid, and scatter lets some of the picture drift loose as lost points around it */
-      'float er=smoothstep(.28,.78,fb(uv*4.2+vec2(T*.012,-T*.009)+3.1));' +
       /* legible (LG, informational pictures): the fog's own modulation of the tones, its mist and the organic part of
-         the threshold are reduced, not removed, so a cover reads at a glance and is still conjured stipple */
-      'float pic=img*G*mix(.82+.36*d,.94+.12*d,LG)*mix(1.,.3+.7*er,ER)*CE;' +
+         the threshold are reduced, not removed, so a cover reads at a glance and is still conjured stipple.
+         Outside the picture (img = 0) pic is exactly 0, so the erosion's noise is not evaluated there */
+      'float pic=0.;if(img>0.){float er=smoothstep(.28,.78,fb(uv*4.2+vec2(T*.012,-T*.009)+3.1));' +
+      'pic=img*G*mix(.82+.36*d,.94+.12*d,LG)*mix(1.,.3+.7*er,ER)*CE;}' +
       /* the glow: a heavily blurred copy of the picture, padded by half its size on every side, so lost points
          thin out from the figure into the fog instead of stopping at its edge */
       'vec2 gu=(iu-.5)/2.+.5;gu.y=gu.y;float glow=texture2D(I2,clamp(gu,0.,1.)).r;' +
@@ -815,9 +861,11 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
       /* threshold: interleaved gradient noise (even, blue-ish) mixed with a hash (organic), so tones read as tones */
       'float ign=fract(52.9829189*fract(dot(cel,vec2(.06711056,.00583715))));float lit=step(mix(ign,h(cel),mix(.35,.12,LG)),dens);' +
       'float red=step(h(cel+31.7),A*img*kk);' +
-      /* a theme change spreads in the same patches as the fog's */
+      /* a theme change spreads in the same patches as the fog's. With no ground, an unlit cell is (0,0,0,0), not the
+         cells' colour at alpha 0: a compositor that reads the buffer as premultiplied (WebKit's path for a canvas under
+         a CSS mask) would otherwise add that colour over the whole canvas */
       'float s=sw(cel,uv,X);vec3 Fc=mix(F,F2,s),Nc=mix(N,N2,s),Ac=mix(AC,AC2,s);' +
-      'float al=lit*mix(.72,.84,LG);vec3 col=mix(Nc,Ac,red);gl_FragColor=GR>.5?vec4(mix(Fc,col,al),1.):vec4(col,al);}',
+      'float al=lit*mix(.72,.84,LG);vec3 col=mix(Nc,Ac,red);gl_FragColor=GR>.5?vec4(mix(Fc,col,al),1.):vec4(col*lit,al);}',
       ['R', 'P', 'T', 'S', 'K', 'G', 'M', 'A', 'FIT', 'SC', 'ER', 'CE', 'GR', 'X', 'LG', 'F', 'N', 'AC', 'F2', 'N2', 'AC2', 'IA', 'I', 'I2', 'SO', 'SF'],
       function (x) { tex = texture(x, x.TEXTURE0); tex2 = texture(x, x.TEXTURE1); x.activeTexture(x.TEXTURE0); if (lastImg) upload(lastImg); });
     var noop = function () {};
@@ -825,14 +873,19 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
     var gl = P.gl, U = P.U, colors = palette(cv, ['--bg', '--fog', '--accent']);
     function onMove(e) { var r = cv.getBoundingClientRect(); ptr = [e.clientX - r.left, e.clientY - r.top]; }
     window.addEventListener('pointermove', onMove);
+    /* the maps go up as RGBA and are read as .r: WebGL fills LUMINANCE from the red channel, so the samples are the
+       same, and RGBA is the format every GPU path (ANGLE on Metal included) takes from an image without a conversion */
     function upload(img) {
       lastImg = img;
       if (legible()) img = prepare(img);
-      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, img); IA = [img.naturalWidth || img.width, img.naturalHeight || img.height];
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img); IA = [img.naturalWidth || img.width, img.naturalHeight || img.height];
       /* glow texture: the picture at half size in the middle of a canvas twice as large, blurred wide */
       var g = document.createElement('canvas'), W = 192, H = Math.max(8, Math.round(192 * IA[1] / IA[0])); g.width = W; g.height = H; var x = g.getContext('2d');
-      x.fillStyle = '#000'; x.fillRect(0, 0, W, H); x.filter = 'blur(' + Math.round(W * 0.045) + 'px)'; x.drawImage(img, W / 4, H / 4, W / 2, H / 2); x.drawImage(g, 0, 0);
-      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, tex2); gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, g); gl.activeTexture(gl.TEXTURE0);
+      x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+      if (canFilter(x)) { x.filter = 'blur(' + Math.round(W * 0.045) + 'px)'; x.drawImage(img, W / 4, H / 4, W / 2, H / 2); x.drawImage(g, 0, 0); }
+      /* no canvas filter (Safari): the same two blurs as one box blur of their combined radius */
+      else { x.drawImage(img, W / 4, H / 4, W / 2, H / 2); blur2d(x, Math.SQRT2 * Math.round(W * 0.045)); }
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, tex2); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, g); gl.activeTexture(gl.TEXTURE0);
     }
     var cur = {};   /* per-source overrides: {src, gain, scatter, erosion, ceiling} */
     function legible() { var v = cur.legible !== undefined ? cur.legible : o.legible; return v === true ? 1 : +v || 0; }
@@ -845,10 +898,10 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
     var L = loop(function (now) {
       var dt = Math.min(0.05, Math.max(0, now - last) / 1000); last = now; if (!REDUCED) t += dt;
       if (P.lost) return false;
-      var dpr = fit(cv, gl, o.cell || (legible() ? LEGIBLE.cell : 2)), c = colors(now);
+      var Rc = cv.getBoundingClientRect(), dpr = fit(cv, gl, o.cell || (legible() ? LEGIBLE.cell : 2), Rc, legible() && LEGIBLE.up1x), c = colors(now);
       gl.uniform2f(U.R, cv.width, cv.height); gl.uniform2f(U.P, ptr[0] * dpr, cv.height - ptr[1] * dpr); gl.uniform1f(U.T, t);
       gl.uniform1f(U.S, 1); gl.uniform1f(U.K, MJ(k)); gl.uniform1f(U.G, opt('gain', 1)); gl.uniform1f(U.SC, opt('scatter', 0.5)); gl.uniform1f(U.ER, opt('erosion', 0.45)); gl.uniform1f(U.CE, opt('ceiling', 0.8)); gl.uniform1f(U.LG, legible()); gl.uniform1f(U.M, o.margin === undefined ? 0.08 : o.margin);
-      gl.uniform1f(U.A, o.accent || 0); gl.uniform1f(U.FIT, o.fit === 'cover' ? 1 : 0); gl.uniform1f(U.GR, o.ground === false ? 0 : 1); gl.uniform3fv(U.F, c.a[0]); gl.uniform3fv(U.N, c.a[1]); gl.uniform3fv(U.AC, c.a[2]); gl.uniform3fv(U.F2, c.b[0]); gl.uniform3fv(U.N2, c.b[1]); gl.uniform3fv(U.AC2, c.b[2]); gl.uniform1f(U.X, c.x); waveUniforms(gl, U, cv, dpr, c);
+      gl.uniform1f(U.A, o.accent || 0); gl.uniform1f(U.FIT, o.fit === 'cover' ? 1 : 0); gl.uniform1f(U.GR, o.ground === false ? 0 : 1); gl.uniform3fv(U.F, c.a[0]); gl.uniform3fv(U.N, c.a[1]); gl.uniform3fv(U.AC, c.a[2]); gl.uniform3fv(U.F2, c.b[0]); gl.uniform3fv(U.N2, c.b[1]); gl.uniform3fv(U.AC2, c.b[2]); gl.uniform1f(U.X, c.x); waveUniforms(gl, U, cv, dpr, c, Rc);
       gl.uniform2f(U.IA, IA[0], IA[1]); gl.uniform1i(U.I, 0); gl.uniform1i(U.I2, 1);
       if (o.ground === false) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); }
       gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -875,8 +928,10 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
   }
   /* a density map drawn with the brush: draw(ctx, w, h) paints white on black; returns a canvas to pass as source */
   /* informational pictures (album covers, uploads): recognisable at a glance, still conjured stipple. About a third of
-     the hermetic erosion and scatter, a ceiling a little under 1, finer cells, and a map prepared to keep its detail */
-  var LEGIBLE = { legible: true, erosion: 0.15, scatter: 0.18, ceiling: 0.93, cell: 1.25 };
+     the hermetic erosion and scatter, a ceiling a little under 1, finer cells, and a map prepared to keep its detail.
+     up1x: on a 1x screen the 1.25px cell rounds up to 2px, so the stipple stays visible there as it does on 2x and 3x
+     screens (false would round it to the nearest, 1px) */
+  var LEGIBLE = { legible: true, erosion: 0.15, scatter: 0.18, ceiling: 0.93, cell: 1.25, up1x: true };
   /* prepare(img): the legible map: auto levels (1st to 99.5th percentile), a gentle contrast curve and a mild unsharp
      mask, at most 720px on the long side; no blur */
   function prepare(img) {
@@ -1000,13 +1055,14 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
     if (curEl || !FINE) return; root = root || document.body;
     curEl = document.createElement('div'); curEl.className = 'aph-cursor'; curEl.setAttribute('aria-hidden', 'true'); root.appendChild(curEl);
     document.documentElement.classList.add('aph-has-cursor');
-    var x = -100, y = -100, tx = -100, ty = -100, s = 0.2, ts = 0.2, down = false, last = performance.now();
+    var x = -100, y = -100, tx = -100, ty = -100, s = 0.2, ts = 0.2, down = false, last = performance.now(), lastTf = '';
     addEventListener('pointermove', function (e) { tx = e.clientX; ty = e.clientY; curEl.classList.add('on'); var t = e.target.closest && e.target.closest('a,button,[data-cursor]'); ts = t ? (+(t.dataset.cursor || 1)) : 0.2; });
     document.addEventListener('pointerleave', function () { curEl.classList.remove('on'); });
     addEventListener('pointerdown', function () { down = true; }); addEventListener('pointerup', function () { down = false; });
     (function step(now) { var dt = Math.min(0.05, (now - last) / 1000); last = now; var k = REDUCED ? 1 : Math.min(1, dt * 22), ks = REDUCED ? 1 : Math.min(1, dt * 10);
       x += (tx - x) * k; y += (ty - y) * k; s += ((down ? ts * 0.78 : ts) - s) * ks;
-      curEl.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) scale(' + s.toFixed(3) + ')'; requestAnimationFrame(step); })(last);
+      /* written only when it changes: a resting cursor costs no style work */
+      var tf = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) scale(' + s.toFixed(3) + ')'; if (tf !== lastTf) curEl.style.transform = lastTf = tf; requestAnimationFrame(step); })(last);
   }
 
   /* ================= THEME SHIFT ================= */
@@ -1474,11 +1530,12 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
     /* the ear's stipple breathes with the level while it sounds */
     var breathing = false;
     function breathe() {
-      if (breathing) return; breathing = true; var n = 0;
+      if (breathing) return; breathing = true; var n = 0, lastLvl = '', lastN = 0;
       (function f() {
         requestAnimationFrame(f); if (++n % 4 || !ears.length) return;
-        var l = running() && !muted ? clamp(E.level().rms * 18) : 0;
-        ears.forEach(function (b) { b.style.setProperty('--aph-lvl', l.toFixed(2)); });
+        /* written only on a change (a new ear is written once): each write starts a CSS transition */
+        var l = (running() && !muted ? clamp(E.level().rms * 18) : 0).toFixed(2); if (l === lastLvl && ears.length === lastN) return; lastLvl = l; lastN = ears.length;
+        ears.forEach(function (b) { b.style.setProperty('--aph-lvl', l); });
       })();
     }
     return api;
@@ -1502,6 +1559,126 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
   })();
   ICONS.ear = function (st) { return st ? { strokes: EAR.ear + EAR.slash, dots: EAR.loose } : { strokes: EAR.ear, dots: EAR.waves.join('') }; };
   /* note: state 0 is listening, 1 muted (as the eye: 0 open, 1 closed) */
+
+  /* ================= SECTION ICONS ================= */
+  /* the eight sections as marks, for where their names would crowd (the home's inscription on a phone). Each is one to
+     three brush strokes and a little stipple on the 24-unit grid. State 0 is at rest; state 1 is chosen (the first tap):
+     the same cells gather toward the mark's heart, closer and a little denser. Hovering or focusing stirs the stipple
+     (CSS: .aph-icon). Seeds 201 to 299 belong to them. */
+  /* grain(x, y): a fixed value 0..1 per point, so a stipple can thin with a gradient and stay the same on every visit */
+  function grain(x, y) { var s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); }
+  /* sow(test, seed, count, size, g, k): stipple() whose cells are drawn toward g by the factor k (1 = where they fell) */
+  function sow(test, seed, count, size, g, k) {
+    var r = rng(seed), d = '';
+    for (var i = 0; i < count; i++) {
+      var x = r() * 24, y = r() * 24;
+      if (test(x, y)) {
+        var s = size * (0.7 + r() * 0.6), X = g[0] + (x - g[0]) * k, Y = g[1] + (y - g[1]) * k;
+        d += 'M' + (X - s / 2).toFixed(2) + ' ' + (Y - s / 2).toFixed(2) + 'h' + s.toFixed(2) + 'v' + s.toFixed(2) + 'h' + (-s).toFixed(2) + 'z';
+      }
+    }
+    return d;
+  }
+  function chain() { var p = arguments[0].slice(); for (var i = 1; i < arguments.length; i++) p = p.concat(arguments[i].slice(1)); return p; }
+  function inE(cx, cy, rx, ry) { return function (x, y) { var u = (x - cx) / rx, v = (y - cy) / ry; return u * u + v * v < 1; }; }
+  /* a section icon: strokes drawn once; fields [test, seed, tries, size], sown loose (0) or gathered (1) toward g by k */
+  function sectionIcon(strokes, fields, g, k) {
+    k = k || 0.72;
+    var memo = {};
+    return function (st) {
+      st = st ? 1 : 0;
+      if (!memo[st]) memo[st] = { strokes: strokes, dots: fields.map(function (f) { return sow(f[0], f[1], st ? Math.round(f[2] * 1.25) : f[2], f[3], g, st ? k : 1); }).join(''), gather: g };
+      return memo[st];
+    };
+  }
+  var SECTIONS = ['book', 'descent', 'archive', 'laboratory', 'works', 'wall', 'forum', 'music'];
+
+  /* book (liber): an open codex, two leaves bowing into the spine, a few lines of text in stipple on each */
+  (function () {
+    var left = chain(bez([12, 7.6], [9.4, 5.4], [6, 5.3], [3.2, 6.4], 18), line(3.2, 6.4, 3.4, 17.6, 14), bez([3.4, 17.6], [6.2, 16.6], [9.6, 16.8], [12, 18.9], 18));
+    var right = chain(bez([12, 7.6], [14.6, 5.4], [18, 5.3], [20.8, 6.4], 18), line(20.8, 6.4, 20.6, 17.6, 14), bez([20.6, 17.6], [17.8, 16.6], [14.4, 16.8], [12, 18.9], 18));
+    var strokes = brush(left, 1.6, 201, 0.1) + brush(right, 1.6, 203, 0.1) + brush(line(12, 8.4, 12, 18.2, 16), 1.05, 205, 0.3, 0.05);
+    function text(x, y) {
+      var u = x < 12 ? (12 - x) / 8.8 : (x - 12) / 8.8; if (u < 0.12 || u > 0.86) return false;
+      var b = y - (1.5 * (1 - u) * (1 - u)); /* the lines bow down into the spine, as the leaves do */
+      return (b > 8.3 && b < 9.3) || (b > 10.7 && b < 11.7) || (b > 13.1 && b < 14.1 && u > 0.3);
+    }
+    ICONS.book = sectionIcon(strokes, [[text, 207, 2200, 0.52]], [12, 12]);
+  })();
+
+  /* descent (κατάβασις): the threshold's arch with steps going down inside it, and the night thickening below them */
+  (function () {
+    var arch = chain(line(6.6, 21, 6.6, 10.6, 12), arc(12, 10.6, 5.4, 180, 360, 24), line(17.4, 10.6, 17.4, 21, 12));
+    var steps = [[8, 12.6], [10.2, 12.6], [10.2, 15.2], [12.6, 15.2], [12.6, 17.8], [15, 17.8], [15, 20.6]], sp = [steps[0]];
+    for (var i = 1; i < steps.length; i++) sp = sp.concat(line(steps[i - 1][0], steps[i - 1][1], steps[i][0], steps[i][1], 8).slice(1));
+    var strokes = brush(arch, 1.8, 211, 0.12) + brush(sp, 1.1, 213, 0.28, 0.05);
+    function under(x) { return x < 10.2 ? 12.6 : x < 12.6 ? 15.2 : x < 15 ? 17.8 : 20.6; }
+    function night(x, y) { return x > 7.6 && x < 16.4 && y < 20.8 && y > under(x) + 0.8 && grain(x, y) < 0.25 + (y - 12) / 9; }
+    ICONS.descent = sectionIcon(strokes, [[night, 217, 1500, 0.62]], [12, 18]);
+  })();
+
+  /* archive (codex): a pile of leaves seen from above and aside, the top one written on */
+  (function () {
+    var top = chain(line(3.6, 9.4, 13.4, 5.6, 14), line(13.4, 5.6, 20.6, 9.2, 12), line(20.6, 9.2, 10.8, 13.2, 14), line(10.8, 13.2, 3.6, 9.4, 12));
+    var strokes = brush(top, 1.6, 221, 0.06) +
+      brush(chain(line(3.6, 12.6, 10.8, 16.6, 12), line(10.8, 16.6, 20.6, 12.6, 14)), 1.5, 223, 0.25) +
+      brush(chain(line(3.6, 15.9, 10.8, 19.9, 12), line(10.8, 19.9, 20.6, 15.9, 14)), 1.5, 225, 0.25);
+    /* the top leaf in its own coordinates: s along its long side (3.6,9.4 to 13.4,5.6), t along its short one (to 10.8,13.2) */
+    function written(x, y) {
+      var dx = x - 3.6, dy = y - 9.4, det = 9.8 * 3.8 + 3.8 * 7.2, s = (dx * 3.8 - dy * 7.2) / det, t = (9.8 * dy + 3.8 * dx) / det;
+      return s > 0.2 && s < 0.86 && ((t > 0.24 && t < 0.36) || (t > 0.48 && t < 0.6) || (t > 0.72 && t < 0.83 && s < 0.6));
+    }
+    ICONS.archive = sectionIcon(strokes, [[written, 227, 1500, 0.6]], [12.1, 9.4]);
+  })();
+
+  /* laboratory (officina): a flask with a rim, matter settled in its belly and two bubbles rising */
+  (function () {
+    var flask = chain(line(10.2, 4.4, 10.2, 9.4, 10), bez([10.2, 9.4], [8.4, 12.6], [4.6, 17.2], [5.2, 19], 16), bez([5.2, 19], [5.8, 20.6], [18.2, 20.6], [18.8, 19], 16), bez([18.8, 19], [19.4, 17.2], [15.6, 12.6], [13.8, 9.4], 16), line(13.8, 9.4, 13.8, 4.4, 10));
+    var strokes = brush(flask, 1.7, 231, 0.1) + brush(line(8.6, 4, 15.4, 4, 14), 1.15, 233, 0.32, 0.05);
+    function matter(x, y) {
+      var surf = 14.6 + 0.4 * Math.sin(x * 0.9); if (y < surf || y > 19.6) return false;
+      var half = 1.8 + (y - 9.4) * 0.62; return Math.abs(x - 12) < half - 1.1;
+    }
+    function bubbles(x, y) { return inC(12.8, 12, 0.85)(x, y) || inC(11.2, 9.4, 0.6)(x, y); }
+    ICONS.laboratory = sectionIcon(strokes, [[matter, 237, 1300, 0.62], [bubbles, 239, 700, 0.5]], [12, 16.4]);
+  })();
+
+  /* works (opera): a pair of compasses, open, and the arc they have just drawn, still in stipple */
+  (function () {
+    var strokes = brush(arc(12, 4.4, 1.35, -90, 270, 18), 1.05, 241, 0, 0.04) +
+      brush(line(11.3, 5.8, 6.3, 19.8, 24), 1.7, 243, 0.32) + brush(line(12.7, 5.8, 17.7, 19.8, 24), 1.7, 245, 0.32) +
+      brush(line(12, 1.6, 12, 3, 4), 1.1, 247, 0.3, 0.04);
+    var drawn = annulus(12, 4.4, 15.6, 16.6, 180); /* every angle, then kept to the span below */
+    function trace(x, y) { var a = Math.atan2(y - 4.4, x - 12) * 180 / Math.PI; return a > 56 && a < 124 && drawn(x, y); }
+    ICONS.works = sectionIcon(strokes, [[trace, 249, 2000, 0.64]], [12, 14]);
+  })();
+
+  /* wall (paries): courses of stone, the joints brushed, a few stones filled with stipple */
+  (function () {
+    var strokes = brush(line(3, 6, 21, 5.8, 24), 1.6, 251, 0.12) + brush(line(3.2, 12, 20.8, 12.2, 24), 1.6, 253, 0.12) + brush(line(3, 18, 21, 17.9, 24), 1.6, 255, 0.12) +
+      brush(line(10, 6.6, 10, 11.4, 6), 1.1, 257, 0.25, 0.04) + brush(line(16.6, 6.5, 16.6, 11.5, 6), 1.1, 258, 0.25, 0.04) +
+      brush(line(6.6, 12.7, 6.6, 17.4, 6), 1.1, 259, 0.25, 0.04) + brush(line(13.4, 12.8, 13.4, 17.3, 6), 1.1, 261, 0.25, 0.04);
+    function stones(x, y) { return (x > 10.9 && x < 15.8 && y > 7 && y < 11) || (x > 3.4 && x < 5.8 && y > 13 && y < 17) || (x > 14.3 && x < 20.6 && y > 13 && y < 17); }
+    ICONS.wall = sectionIcon(strokes, [[stones, 263, 1400, 0.62]], [12, 12], 0.94);
+  })();
+
+  /* forum (ἀγορά): two voices, one speaking (three grains), one answering in stipple */
+  (function () {
+    var a = arc(9.4, 8.6, 6.6, 128, 458, 52, 4.6), b = arc(16, 16.6, 4.6, 75, 395, 44, 3.3);
+    var strokes = brush(a, 1.6, 271, 0.16) + brush(line(6.6, 12.6, 4.2, 16.4, 10), 1.35, 273, 0.36, 0.05) +
+      brush(b, 1.5, 275, 0.16) + brush(line(18.6, 19.2, 20.8, 22, 10), 1.2, 277, 0.4, 0.05);
+    function grains(x, y) { return inC(6.7, 8.6, 0.95)(x, y) || inC(9.4, 8.6, 0.95)(x, y) || inC(12.1, 8.6, 0.95)(x, y); }
+    ICONS.forum = sectionIcon(strokes, [[grains, 279, 1400, 0.62], [inE(16, 16.6, 3.3, 2.1), 281, 900, 0.55]], [12.4, 12.4]);
+  })();
+
+  /* music (phonotheca): the record ring as the deck draws it, grooves in stipple, a small centre, and the arm on it */
+  (function () {
+    var strokes = brush(arc(12, 12.4, 8, -60, 290, 64), 1.8, 291) + brush(arc(12, 12.4, 1.5, 0, 360, 16), 1.05, 293, 0, 0.04) +
+      brush(chain(line(21.2, 2.6, 17.8, 9.8, 14), line(17.8, 9.8, 15.4, 11.6, 6)), 1.3, 295, 0.3, 0.05);
+    var grooves = function (x, y) { var r = Math.hypot(x - 12, y - 12.4); return (r > 3 && r < 4) || (r > 5 && r < 6.2); };
+    ICONS.music = sectionIcon(strokes, [[grooves, 297, 1500, 0.55]], [12, 12.4]);
+  })();
+
   function mountEar(el) {
     var b = el && el.tagName === 'BUTTON' ? el : document.createElement('button');
     if (b !== el && el) el.appendChild(b);
@@ -1701,9 +1878,9 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
   }
 
   window.Aphesis = {
-    reducedMotion: REDUCED, MJ: MJ, cellPx: cellPx, lerp: lerp, clamp: clamp, tween: tween, rng: rng, cssColor: cssColor,
+    reducedMotion: REDUCED, MJ: MJ, cellPx: cellPx, canFilter: canFilter, blur2d: blur2d, lerp: lerp, clamp: clamp, tween: tween, rng: rng, cssColor: cssColor,
     brush: brush, arc: arc, line: line, stipple: stipple, inC: inC,
-    icon: icon, ICONS: ICONS, PHI: PHI, seal: seal, Eye: Eye,
+    icon: icon, ICONS: ICONS, SECTIONS: SECTIONS, PHI: PHI, seal: seal, Eye: Eye,
     Fog: Fog, Simulacrum: Simulacrum, Typist: Typist, tooltip: tooltip, cursor: cursor, letters: letters, themeShift: themeShift, themeColor: themeColor, Sound: Sound
   };
 })();
@@ -2028,7 +2205,8 @@ const A = window.Aphesis;
 const PRESET = Object.assign({ erosion: 0.15, scatter: 0.18, ceiling: 0.93, cell: 1.25 }, (A.Simulacrum && A.Simulacrum.LEGIBLE) || {});
 
 const HERMETIC = { scatter: 0.5, erosion: 0.45, ceiling: 0.8, gain: 1, cell: 2, threshold: 0.35, fogMod: 0.36, curve: 1.15, feather: 0.07, alpha: 0.72, prepare: false };
-const MIDDLE = { scatter: PRESET.scatter, erosion: PRESET.erosion, ceiling: PRESET.ceiling, gain: 1, cell: PRESET.cell,
+/* up1x: the preset's cell rounds up to 2px on a 1x screen, as the live viewer's does */
+const MIDDLE = { scatter: PRESET.scatter, erosion: PRESET.erosion, ceiling: PRESET.ceiling, gain: 1, cell: PRESET.cell, up1x: !!PRESET.up1x,
   threshold: 0.12, fogMod: 0.12, curve: 1.15, feather: 0.025, alpha: 0.84, prepare: true };
 const CLEAN = { scatter: 0, erosion: 0, ceiling: 1, gain: 1, cell: 1, threshold: 0, fogMod: 0, curve: 1, feather: 0, alpha: 0.9, prepare: true };
 
@@ -2105,7 +2283,7 @@ function prepare(img) {
 function stillSimulacrum(img, box, o = {}) {
   const gain = o.gain ?? 1, scatter = o.scatter ?? 0.5, erosion = o.erosion ?? 0.45, ceiling = o.ceiling ?? 0.8, seed = o.seed ?? 1;
   const alpha = o.alpha ?? 0.72, mixT = o.threshold ?? 0.35, edge = o.feather ?? 0.07, fogMod = o.fogMod ?? 0.36, curve = o.curve ?? 1.15;
-  const c = A.cellPx(o.cell || 2);
+  const c = A.cellPx(o.cell || 2, o.up1x);
   const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
   const k = Math.min(box[0] / iw, box[1] / ih);
   const gw = Math.max(8, Math.round(iw * k / c)), gh = Math.max(8, Math.round(ih * k / c));
@@ -2122,8 +2300,10 @@ function stillSimulacrum(img, box, o = {}) {
   const g = document.createElement('canvas'); g.width = W; g.height = H;
   const gx = g.getContext('2d', { willReadFrequently: true });
   gx.fillStyle = '#000'; gx.fillRect(0, 0, W, H);
-  gx.filter = 'blur(' + Math.max(2, Math.round(W * 0.06)) + 'px)';
-  gx.drawImage(cv, 0, 0);
+  const gr = Math.max(2, Math.round(W * 0.06));
+  /* Safari's 2D canvas has no filter: the runtime's box blur of the same radius stands in */
+  if (typeof gx.filter === 'string' || !A.blur2d) { gx.filter = 'blur(' + gr + 'px)'; gx.drawImage(cv, 0, 0); }
+  else { gx.drawImage(cv, 0, 0); A.blur2d(gx, gr); }
   const gp = gx.getImageData(0, 0, W, H).data;
   const sx = seed * 13.37 % 100, sy = seed * 7.77 % 100;
   let d = '';
@@ -2162,8 +2342,8 @@ M["density.js"] = (function () {
 /* density: an uploaded picture becomes a density map in the browser, before anything is sent.
    Forum pictures carry information, so the map is prepared to stay legible (the owner's rule: only hermetic
    simulacra keep "never picture-perfect"; a forum picture must read at a glance, while staying stipple):
-   - grayscale, white = dense, 640px on the long side (the Worker's limit; never enlarged past the source, at
-     least 480), cut to no more than 2:1 either way so a screenshot keeps its edges;
+   - grayscale, white = dense, as long as the Worker takes on the long side (960px from a Worker that says so on its
+     board, 640px from an older one; never enlarged past the source, at least 480), cut to no more than 2:1 either way so a screenshot keeps its edges;
    - flat borders and frames are trimmed, at most 12% a side;
    - a light ground (a screenshot, a page, an engraving, a photo on white) is inverted, so the figure or the text
      becomes light on dark, the way a simulacrum draws it;
@@ -2173,6 +2353,8 @@ M["density.js"] = (function () {
      levels and a contrast curve, when it uploads the map) so edges and letters survive the stipple; except for hatching (an
      engraving, a halftone: fine detail everywhere, mean high-frequency energy above .05), which is softened instead
      (a ~1.5px blur) so its lines become tone, as the design system says;
+   - on a light ground (a page, a screenshot), local normalization: each pixel against the brightest within a few
+     pixels, so letters thinned to grey by the scaling reach full density instead of stippling at a third;
    - a black margin of 5% around the picture, so the simulacrum's soft edge falls on the margin, not on the content.
    prepareMap(file, {mode: 'hermetic'}) gives the design system's original preparation instead (30th percentile,
    gamma 0.8, a 1px blur on light grounds), kept for comparison.
@@ -2180,7 +2362,7 @@ M["density.js"] = (function () {
 
 const ACCEPT = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_BYTES = 4 * 1024 * 1024;
-const LONG = 640, MIN_LONG = 480, MAX_MAP = 380 * 1024;
+const LONG = 640, MIN_LONG = 480;
 
 function checkFile(file) {
   if (!file) return 'no file';
@@ -2217,6 +2399,21 @@ function trimBox(lum, w, h) {
   while (l < mw && flat((i) => lum[i * w + l], h)) l++;
   while (w - 1 - r < mw && flat((i) => lum[i * w + r], h)) r--;
   return [l, t, r - l + 1, b - t + 1];
+}
+
+/* local normalization: v / max(the brightest value within r, .3), so thin light strokes reach full density next to
+   their own ground; a large even area divides by itself and stays as it was */
+function localNormalize(lum, w, h, r) {
+  const rowMax = new Float32Array(lum.length), mx = new Float32Array(lum.length);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let m = 0; for (let k = Math.max(0, x - r); k <= Math.min(w - 1, x + r); k++) m = Math.max(m, lum[y * w + k]);
+    rowMax[y * w + x] = m;
+  }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let m = 0; for (let k = Math.max(0, y - r); k <= Math.min(h - 1, y + r); k++) m = Math.max(m, rowMax[k * w + x]);
+    mx[y * w + x] = m;
+  }
+  for (let i = 0; i < lum.length; i++) lum[i] = Math.min(1, lum[i] / Math.max(mx[i], 0.3));
 }
 
 /* soften: one 3×3 binomial blur in place */
@@ -2258,9 +2455,11 @@ function sharpen(lum, w, h, amount) {
 function percentile(sorted, p) { return sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(p * (sorted.length - 1))))]; }
 
 /* file -> {blob (image/jpeg), url (a data: URL of the map), width, height} */
-function toDensity(file) { return prepareMap(file, {}); }
+/* limits: {long, bytes}, what the board takes (api.densityLimits()); 640 px and 400 KB when not given */
+function toDensity(file, limits) { return prepareMap(file, { limits }); }
 
-async function prepareMap(file, { mode = 'legible' } = {}) {
+async function prepareMap(file, { mode = 'legible', limits } = {}) {
+  const maxLong = Math.min(960, (limits && limits.long) || LONG), maxBytes = Math.round(((limits && limits.bytes) || 400 * 1024) * 0.94);
   const hermetic = mode === 'hermetic';
   const src = await decode(file);
   const sw = src.width || src.naturalWidth, sh = src.height || src.naturalHeight;
@@ -2286,17 +2485,23 @@ async function prepareMap(file, { mode = 'legible' } = {}) {
   const maxR = hermetic ? 1.5 : 2;
   if (ratio > maxR) { const nw = ch * maxR; cx += (cw - nw) / 2; cw = nw; }
   if (ratio < 1 / maxR) { const nh = cw * maxR; cy += (ch - nh) / 2; ch = nh; }
-  const long = Math.min(hermetic ? 560 : LONG, Math.max(MIN_LONG, Math.max(cw, ch)));
+  const long = Math.min(hermetic ? 560 : maxLong, Math.max(MIN_LONG, Math.max(cw, ch)));
   const PAD = hermetic ? 0 : 0.05;
-  const s = long / (1 + 2 * PAD) / Math.max(cw, ch);
-  const IW = Math.max(1, Math.round(cw * s)), IH = Math.max(1, Math.round(ch * s));
-  const P = Math.round(Math.max(IW, IH) * PAD), W = IW + 2 * P, H = IH + 2 * P;
+  /* the margin first, so the whole map never passes `long` */
+  const P = Math.round(long * PAD / (1 + 2 * PAD));
+  const s = (long - 2 * P) / Math.max(cw, ch);
+  const IW = Math.max(1, Math.min(long - 2 * P, Math.round(cw * s))), IH = Math.max(1, Math.min(long - 2 * P, Math.round(ch * s)));
+  const W = IW + 2 * P, H = IH + 2 * P;
   const out = document.createElement('canvas'); out.width = W; out.height = H;
   const ox = out.getContext('2d', { willReadFrequently: true });
   ox.imageSmoothingQuality = 'high';
-  if (lightGround && hermetic) ox.filter = 'blur(1px)';
+  /* a light ground's hermetic picture is softened by 1px; where the 2D canvas has no filter (Safari), by the runtime's
+     box blur of the same radius */
+  const soft = lightGround && hermetic, viaFilter = typeof ox.filter === 'string' || !window.Aphesis || !window.Aphesis.blur2d;
+  if (soft && viaFilter) ox.filter = 'blur(1px)';
   ox.fillStyle = lightGround ? '#fff' : '#000'; ox.fillRect(0, 0, W, H);   /* the margin reads as ground */
   ox.drawImage(src, cx, cy, cw, ch, P, P, IW, IH);
+  if (soft && !viaFilter) window.Aphesis.blur2d(ox, 1);
   ox.filter = 'none';
   if (src.close) src.close();
   const img = ox.getImageData(0, 0, W, H);
@@ -2304,6 +2509,9 @@ async function prepareMap(file, { mode = 'legible' } = {}) {
   if (lightGround) for (let i = 0; i < lum.length; i++) lum[i] = 1 - lum[i];
   if (!hermetic) {
     if (energy(lum, W, H) > 0.05) { for (let k = 0; k < 3; k++) soften(lum, W, H); } else sharpen(lum, W, H, 0.4);
+    /* a page or a screenshot: letters thinned to grey by the scaling would stipple at a third of their cells, so each
+       pixel is set against the brightest near it, and a stroke reads as full wherever it stands */
+    if (lightGround) localNormalize(lum, W, H, Math.max(3, Math.round(Math.max(W, H) / 160)));
   }
   const sorted = Float32Array.from(lum).sort();
   const lo = percentile(sorted, hermetic ? 0.30 : 0.01);
@@ -2318,11 +2526,11 @@ async function prepareMap(file, { mode = 'legible' } = {}) {
     img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = v; img.data[i * 4 + 3] = 255;
   }
   ox.putImageData(img, 0, 0);
-  /* the lightest JPEG that keeps the map under the Worker's limit */
+  /* the best JPEG quality that keeps the map under the Worker's byte limit (with a 6% margin) */
   let q = 0.88, blob = null;
   for (; q >= 0.5; q -= 0.08) {
     blob = await new Promise((resolve, reject) => out.toBlob((b) => (b ? resolve(b) : reject(new Error('encode'))), 'image/jpeg', q));
-    if (blob.size <= MAX_MAP) break;
+    if (blob.size <= maxBytes) break;
   }
   const url = out.toDataURL('image/jpeg', Math.max(0.5, q));
   return { blob, url, width: W, height: H, inverted: lightGround };
@@ -2481,6 +2689,8 @@ function createMock() {
     preview: true,
     turnstile: '',
     get persisted() { return persisted; },
+    /* the same limits as the Worker */
+    densityLimits() { return Promise.resolve({ long: 960, bytes: 900 * 1024 }); },
     /* one page below cursor ("<bumped>-<id>", the last thread of the page before), newest activity first */
     board(cursor) {
       const sorted = all().map((t) => {
@@ -2572,6 +2782,7 @@ M["api.js"] = (function () {
      thread(id)                      -> {id, created, posts: [{n, poster, text, created, image?, removed?, reported?}]}
      post({thread?, text, image?, turnstile?}) -> {thread, n}   image: {original: File, density: {blob, url, width, height}}
      report(thread, n)               -> {ok}
+     densityLimits()                 -> {long, bytes}: the density maps the board takes (640 px from an older Worker)
    image (as returned): {density: URL, original: URL | null, caption, w, h} */
 
 const { createMock } = M["mock.js"];
@@ -2588,7 +2799,16 @@ async function json(res) {
   return body;
 }
 
+/* the density map's limits: what a Worker says it takes on its board's pages ({density: {long, bytes}}); a Worker
+   that says nothing (one from before the limit was raised) takes 640 px and 400 KB */
+const OLD_LIMITS = { long: 640, bytes: 400 * 1024 };
+function readLimits(b) {
+  const d = b && b.density;
+  return d && +d.long >= 480 && +d.bytes >= 100 * 1024 ? { long: Math.min(+d.long, 2048), bytes: +d.bytes } : OLD_LIMITS;
+}
+
 function createRemote(base, turnstile) {
+  let limits = null;
   const abs = (u) => (u && !/^(https?:|data:|blob:)/.test(u) ? base + u : u);
   const fixImage = (im) => (im ? Object.assign({}, im, { density: abs(im.density), original: abs(im.original) }) : null);
   return {
@@ -2598,8 +2818,16 @@ function createRemote(base, turnstile) {
     async board(cursor) {
       const b = await json(await fetch(base + '/api/board' + (cursor ? '?cursor=' + encodeURIComponent(cursor) : '')));
       b.threads.forEach((t) => { t.image = fixImage(t.image); });
+      limits = readLimits(b);
       /* a Worker from before pages answers threads alone: one page, the last */
       return { threads: b.threads, next: b.next || null };
+    },
+    /* the limits, asked once of the board (one thread is enough) when the page opened on a thread */
+    async densityLimits() {
+      if (!limits) {
+        try { limits = readLimits(await json(await fetch(base + '/api/board?limit=1'))); } catch (_) { return OLD_LIMITS; }
+      }
+      return limits;
     },
     async thread(id) {
       const t = await json(await fetch(base + '/api/threads/' + encodeURIComponent(id)));
@@ -2630,7 +2858,7 @@ function createApi() {
   return c.api ? createRemote(c.api, c.turnstile) : createMock();
 }
 
-return { createApi };
+return { OLD_LIMITS, createApi };
 })();
 /* ---- ground.js ---- */
 M["ground.js"] = (function () {
@@ -2783,7 +3011,7 @@ function createComposer({ api, thread, onPosted, label }) {
     if (bad) { say(bad, true); file.value = ''; return; }
     say('turning the picture into fog…');
     try {
-      const density = await toDensity(f);
+      const density = await toDensity(f, api.densityLimits ? await api.densityLimits() : null);
       picked = { original: f, density };
       const im = await image(density.url);
       pv.innerHTML = stillSimulacrum(im, [160, 160], Object.assign(stillOptions(), { seed: 5 })).svg;
@@ -2870,7 +3098,7 @@ function createViewer({ scroller, ground, announce }) {
     announce('picture open: ' + (pic.caption || 'a picture'));
     const src = pic.density;
     if (HAS_GL) {
-      if (!sim) sim = A.Simulacrum(canvas, Object.assign(liveOptions(), { ground: false, fit: 'contain', margin: 0.12, accent: 0.01 }));
+      if (!sim) sim = A.Simulacrum(canvas, Object.assign(liveOptions(), { ground: false, fit: 'contain', margin: 0.07, accent: 0.01 }));
       else sim.start();
       sim.show(src);
       sim.drawn(() => { if (open && my === token) canvas.classList.add('on'); });

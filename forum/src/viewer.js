@@ -27,7 +27,7 @@ export function createViewer({ scroller, ground, announce }) {
     announce('picture open: ' + (pic.caption || 'a picture'));
     const src = pic.density;
     if (HAS_GL) {
-      if (!sim) sim = A.Simulacrum(canvas, Object.assign(liveOptions(), { ground: false, fit: 'contain', margin: 0.12, accent: 0.01 }));
+      if (!sim) sim = A.Simulacrum(canvas, Object.assign(liveOptions(), { ground: false, fit: 'contain', margin: 0.07, accent: 0.01 }));
       else sim.start();
       sim.show(src);
       sim.drawn(() => { if (open && my === token) canvas.classList.add('on'); });

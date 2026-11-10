@@ -11,6 +11,7 @@
      thread(id)                      -> {id, created, posts: [{n, poster, text, created, image?, removed?, reported?}]}
      post({thread?, text, image?, turnstile?}) -> {thread, n}   image: {original: File, density: {blob, url, width, height}}
      report(thread, n)               -> {ok}
+     densityLimits()                 -> {long, bytes}: the density maps the board takes (640 px from an older Worker)
    image (as returned): {density: URL, original: URL | null, caption, w, h} */
 
 import { createMock } from './mock.js';
@@ -28,7 +29,16 @@ async function json(res) {
   return body;
 }
 
+/* the density map's limits: what a Worker says it takes on its board's pages ({density: {long, bytes}}); a Worker
+   that says nothing (one from before the limit was raised) takes 640 px and 400 KB */
+export const OLD_LIMITS = { long: 640, bytes: 400 * 1024 };
+function readLimits(b) {
+  const d = b && b.density;
+  return d && +d.long >= 480 && +d.bytes >= 100 * 1024 ? { long: Math.min(+d.long, 2048), bytes: +d.bytes } : OLD_LIMITS;
+}
+
 function createRemote(base, turnstile) {
+  let limits = null;
   const abs = (u) => (u && !/^(https?:|data:|blob:)/.test(u) ? base + u : u);
   const fixImage = (im) => (im ? Object.assign({}, im, { density: abs(im.density), original: abs(im.original) }) : null);
   return {
@@ -38,8 +48,16 @@ function createRemote(base, turnstile) {
     async board(cursor) {
       const b = await json(await fetch(base + '/api/board' + (cursor ? '?cursor=' + encodeURIComponent(cursor) : '')));
       b.threads.forEach((t) => { t.image = fixImage(t.image); });
+      limits = readLimits(b);
       /* a Worker from before pages answers threads alone: one page, the last */
       return { threads: b.threads, next: b.next || null };
+    },
+    /* the limits, asked once of the board (one thread is enough) when the page opened on a thread */
+    async densityLimits() {
+      if (!limits) {
+        try { limits = readLimits(await json(await fetch(base + '/api/board?limit=1'))); } catch (_) { return OLD_LIMITS; }
+      }
+      return limits;
     },
     async thread(id) {
       const t = await json(await fetch(base + '/api/threads/' + encodeURIComponent(id)));

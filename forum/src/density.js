@@ -1,8 +1,8 @@
 /* density: an uploaded picture becomes a density map in the browser, before anything is sent.
    Forum pictures carry information, so the map is prepared to stay legible (the owner's rule: only hermetic
    simulacra keep "never picture-perfect"; a forum picture must read at a glance, while staying stipple):
-   - grayscale, white = dense, 640px on the long side (the Worker's limit; never enlarged past the source, at
-     least 480), cut to no more than 2:1 either way so a screenshot keeps its edges;
+   - grayscale, white = dense, as long as the Worker takes on the long side (960px from a Worker that says so on its
+     board, 640px from an older one; never enlarged past the source, at least 480), cut to no more than 2:1 either way so a screenshot keeps its edges;
    - flat borders and frames are trimmed, at most 12% a side;
    - a light ground (a screenshot, a page, an engraving, a photo on white) is inverted, so the figure or the text
      becomes light on dark, the way a simulacrum draws it;
@@ -12,6 +12,8 @@
      levels and a contrast curve, when it uploads the map) so edges and letters survive the stipple; except for hatching (an
      engraving, a halftone: fine detail everywhere, mean high-frequency energy above .05), which is softened instead
      (a ~1.5px blur) so its lines become tone, as the design system says;
+   - on a light ground (a page, a screenshot), local normalization: each pixel against the brightest within a few
+     pixels, so letters thinned to grey by the scaling reach full density instead of stippling at a third;
    - a black margin of 5% around the picture, so the simulacrum's soft edge falls on the margin, not on the content.
    prepareMap(file, {mode: 'hermetic'}) gives the design system's original preparation instead (30th percentile,
    gamma 0.8, a 1px blur on light grounds), kept for comparison.
@@ -19,7 +21,7 @@
 
 export const ACCEPT = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 export const MAX_BYTES = 4 * 1024 * 1024;
-const LONG = 640, MIN_LONG = 480, MAX_MAP = 380 * 1024;
+const LONG = 640, MIN_LONG = 480;
 
 export function checkFile(file) {
   if (!file) return 'no file';
@@ -56,6 +58,21 @@ function trimBox(lum, w, h) {
   while (l < mw && flat((i) => lum[i * w + l], h)) l++;
   while (w - 1 - r < mw && flat((i) => lum[i * w + r], h)) r--;
   return [l, t, r - l + 1, b - t + 1];
+}
+
+/* local normalization: v / max(the brightest value within r, .3), so thin light strokes reach full density next to
+   their own ground; a large even area divides by itself and stays as it was */
+function localNormalize(lum, w, h, r) {
+  const rowMax = new Float32Array(lum.length), mx = new Float32Array(lum.length);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let m = 0; for (let k = Math.max(0, x - r); k <= Math.min(w - 1, x + r); k++) m = Math.max(m, lum[y * w + k]);
+    rowMax[y * w + x] = m;
+  }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let m = 0; for (let k = Math.max(0, y - r); k <= Math.min(h - 1, y + r); k++) m = Math.max(m, rowMax[k * w + x]);
+    mx[y * w + x] = m;
+  }
+  for (let i = 0; i < lum.length; i++) lum[i] = Math.min(1, lum[i] / Math.max(mx[i], 0.3));
 }
 
 /* soften: one 3×3 binomial blur in place */
@@ -97,9 +114,11 @@ function sharpen(lum, w, h, amount) {
 function percentile(sorted, p) { return sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(p * (sorted.length - 1))))]; }
 
 /* file -> {blob (image/jpeg), url (a data: URL of the map), width, height} */
-export function toDensity(file) { return prepareMap(file, {}); }
+/* limits: {long, bytes}, what the board takes (api.densityLimits()); 640 px and 400 KB when not given */
+export function toDensity(file, limits) { return prepareMap(file, { limits }); }
 
-export async function prepareMap(file, { mode = 'legible' } = {}) {
+export async function prepareMap(file, { mode = 'legible', limits } = {}) {
+  const maxLong = Math.min(960, (limits && limits.long) || LONG), maxBytes = Math.round(((limits && limits.bytes) || 400 * 1024) * 0.94);
   const hermetic = mode === 'hermetic';
   const src = await decode(file);
   const sw = src.width || src.naturalWidth, sh = src.height || src.naturalHeight;
@@ -125,11 +144,13 @@ export async function prepareMap(file, { mode = 'legible' } = {}) {
   const maxR = hermetic ? 1.5 : 2;
   if (ratio > maxR) { const nw = ch * maxR; cx += (cw - nw) / 2; cw = nw; }
   if (ratio < 1 / maxR) { const nh = cw * maxR; cy += (ch - nh) / 2; ch = nh; }
-  const long = Math.min(hermetic ? 560 : LONG, Math.max(MIN_LONG, Math.max(cw, ch)));
+  const long = Math.min(hermetic ? 560 : maxLong, Math.max(MIN_LONG, Math.max(cw, ch)));
   const PAD = hermetic ? 0 : 0.05;
-  const s = long / (1 + 2 * PAD) / Math.max(cw, ch);
-  const IW = Math.max(1, Math.round(cw * s)), IH = Math.max(1, Math.round(ch * s));
-  const P = Math.round(Math.max(IW, IH) * PAD), W = IW + 2 * P, H = IH + 2 * P;
+  /* the margin first, so the whole map never passes `long` */
+  const P = Math.round(long * PAD / (1 + 2 * PAD));
+  const s = (long - 2 * P) / Math.max(cw, ch);
+  const IW = Math.max(1, Math.min(long - 2 * P, Math.round(cw * s))), IH = Math.max(1, Math.min(long - 2 * P, Math.round(ch * s)));
+  const W = IW + 2 * P, H = IH + 2 * P;
   const out = document.createElement('canvas'); out.width = W; out.height = H;
   const ox = out.getContext('2d', { willReadFrequently: true });
   ox.imageSmoothingQuality = 'high';
@@ -147,6 +168,9 @@ export async function prepareMap(file, { mode = 'legible' } = {}) {
   if (lightGround) for (let i = 0; i < lum.length; i++) lum[i] = 1 - lum[i];
   if (!hermetic) {
     if (energy(lum, W, H) > 0.05) { for (let k = 0; k < 3; k++) soften(lum, W, H); } else sharpen(lum, W, H, 0.4);
+    /* a page or a screenshot: letters thinned to grey by the scaling would stipple at a third of their cells, so each
+       pixel is set against the brightest near it, and a stroke reads as full wherever it stands */
+    if (lightGround) localNormalize(lum, W, H, Math.max(3, Math.round(Math.max(W, H) / 160)));
   }
   const sorted = Float32Array.from(lum).sort();
   const lo = percentile(sorted, hermetic ? 0.30 : 0.01);
@@ -161,11 +185,11 @@ export async function prepareMap(file, { mode = 'legible' } = {}) {
     img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = v; img.data[i * 4 + 3] = 255;
   }
   ox.putImageData(img, 0, 0);
-  /* the lightest JPEG that keeps the map under the Worker's limit */
+  /* the best JPEG quality that keeps the map under the Worker's byte limit (with a 6% margin) */
   let q = 0.88, blob = null;
   for (; q >= 0.5; q -= 0.08) {
     blob = await new Promise((resolve, reject) => out.toBlob((b) => (b ? resolve(b) : reject(new Error('encode'))), 'image/jpeg', q));
-    if (blob.size <= MAX_MAP) break;
+    if (blob.size <= maxBytes) break;
   }
   const url = out.toDataURL('image/jpeg', Math.max(0.5, q));
   return { blob, url, width: W, height: H, inverted: lightGround };

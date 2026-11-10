@@ -74,14 +74,18 @@ coalesces out of the fog, keeps a little erosion and a few lost points, and its 
   the hermetic and a too-clean set kept for comparison.
 - **The map** (`density.js`) is made in the browser before upload:
   - flat borders trimmed (at most 12% a side); cut to no more than 2:1, so a screenshot keeps its edges;
-  - 640px on the long side (the Worker's limit), at least 480, never enlarged past the source;
+  - as long as the Worker takes on the long side: its board pages say so (`density: {long, bytes}`, 960px and 900 KB
+    on the current backend); a Worker that says nothing gets 640px, its old limit, so the page never sends a map an
+    older Worker would refuse. At least 480, never enlarged past the source. The mock takes 960;
   - a 5% black margin, so the simulacrum's soft edge falls on the margin, not on the content;
   - a light ground (a screenshot, a page, an engraving, a photo on white) inverted, so text and figures become light
-    on dark;
+    on dark, then normalized locally (each pixel against the brightest within a few pixels), so letters thinned to
+    grey by the scaling reach full density;
   - hatching (mean high-frequency energy above .05: engravings, halftones) softened by a ~1.5px blur so it becomes
     tone; everything else sharpened (unsharp mask, radius 1px, amount .4);
   - auto levels from the 1st to the 99.5th percentile, with a gamma that puts the median near .42;
-  - a grayscale JPEG under 380 KB. The original goes up untouched beside it.
+  - a grayscale JPEG at the best quality under the Worker's byte limit (with a 6% margin). The original goes up
+    untouched beside it.
   `prepareMap(file, {mode: 'hermetic'})` gives the system's hermetic preparation, for comparison.
 
 ## The sigil

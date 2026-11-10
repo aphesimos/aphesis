@@ -18,13 +18,13 @@
 
 import { Thread } from './thread.js';
 import { Board, cursorKey } from './board.js';
-import { checkText, checkOriginal, checkDensity, EXT } from './validate.js';
+import { checkText, checkOriginal, checkDensity, EXT, LIMITS } from './validate.js';
 import { ipHash, posterToken, randomId, sameSecret } from './crypto.js';
 import { verifyTurnstile } from './turnstile.js';
 
 export { Thread, Board };
 
-const MAX_BODY = 5 * 1024 * 1024;
+const MAX_BODY = 6 * 1024 * 1024;   /* the 4 MB original, the 900 KB density map and the form */
 const ID = /^[a-z2-9]{10}$/;
 
 /* ---------- http ---------- */
@@ -144,7 +144,9 @@ export default {
         if (cursor) q.set('cursor', cursor);
         if (url.searchParams.has('limit')) q.set('limit', url.searchParams.get('limit'));
         const r = await call(boardOf(env), '/list' + (q.size ? '?' + q : ''));
-        return json(request, env, r.body, 200, { 'cache-control': 'public, max-age=5' });
+        /* the density maps this Worker takes, so the page prepares them to fit */
+        const body = Object.assign({}, r.body, { density: { long: LIMITS.densityLong, bytes: LIMITS.density } });
+        return json(request, env, body, 200, { 'cache-control': 'public, max-age=5' });
       }
       if (a === 'threads' && b && !ID.test(b)) return fail(request, env, 404, 'this thread is gone');
       if (request.method === 'GET' && a === 'threads' && b && !c) {

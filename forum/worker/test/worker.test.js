@@ -103,6 +103,8 @@ test('uploads: checked, stored, served; bad ones refused', async () => {
   /* an html file labelled as an image */
   r = await req(env, '/api/threads/' + thread + '/posts', { method: 'POST', headers: H('7.7.7.7'), body: form({ text: 'x', image: new Blob(['<html><script>1</script></html>'.padEnd(64)], { type: 'image/png' }), density: jpeg(560, 420) }) });
   assert.equal(r.status, 400);
+  /* the board says what density maps it takes */
+  assert.deepEqual((await (await req(env, '/api/board')).json()).density, { long: 960, bytes: 900 * 1024 });
   /* a density map that is too large */
   r = await req(env, '/api/threads/' + thread + '/posts', { method: 'POST', headers: H('8.8.8.8'), body: form({ text: 'x', image: jpeg(800, 600), density: jpeg(1200, 900) }) });
   assert.equal(r.status, 400);
@@ -168,7 +170,7 @@ test('the board keeps every thread and is read page by page', async () => {
   }
   assert.equal(env.IMAGES.m.size, 6);
   const first = await (await req(env, '/api/board')).json();
-  assert.deepEqual(Object.keys(first), ['threads', 'next']);
+  assert.deepEqual(Object.keys(first), ['threads', 'next', 'density']);
   assert.equal(first.threads.length, 40);
   assert.match(first.next, /^\d+-\d+$/);
   for (const limit of [undefined, 100, 1000, 7]) {
@@ -196,7 +198,7 @@ test('the board keeps every thread and is read page by page', async () => {
   assert.equal(env.IMAGES.m.size, 6, 'no picture deleted');
   const r = await req(env, '/api/board?cursor=abc');
   assert.deepEqual([r.status, await r.json()], [400, { error: 'bad cursor' }]);
-  assert.deepEqual(await (await req(env, '/api/board?cursor=0-0')).json(), { threads: [], next: null });
+  assert.deepEqual(await (await req(env, '/api/board?cursor=0-0')).json(), { threads: [], next: null, density: { long: 960, bytes: 900 * 1024 } });
 });
 
 test('an index kept by the first version (one array) becomes a key per thread, in its order', async () => {

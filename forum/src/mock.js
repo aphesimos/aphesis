@@ -148,6 +148,8 @@ export function createMock() {
     preview: true,
     turnstile: '',
     get persisted() { return persisted; },
+    /* the same limits as the Worker */
+    densityLimits() { return Promise.resolve({ long: 960, bytes: 900 * 1024 }); },
     /* one page below cursor ("<bumped>-<id>", the last thread of the page before), newest activity first */
     board(cursor) {
       const sorted = all().map((t) => {

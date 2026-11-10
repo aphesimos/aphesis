@@ -53,7 +53,9 @@ test('originals: type, weight and size', () => {
   assert.equal(checkOriginal(png(10000, 10000)).ok, false);   /* 100 megapixels */
 });
 
-test('density maps: jpeg or png, light, 640 on the long side at most', () => {
+test('density maps: jpeg or png, light, 960 on the long side at most', () => {
+  assert.equal(checkDensity(jpeg(960, 540)).ok, true);
+  assert.equal(checkDensity(jpeg(961, 540)).ok, false);
   assert.equal(checkDensity(jpeg(560, 420)).ok, true);
   assert.equal(checkDensity(png(640, 480)).ok, true);
   assert.equal(checkDensity(jpeg(1200, 900)).ok, false);

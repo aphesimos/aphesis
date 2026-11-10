@@ -12,7 +12,7 @@ an admin secret. It is written, tested and not deployed: the Rust Workers on the
 - **IP hash**: `SHA-256(IP_SALT | address)`, used as the rate-limit key and nothing else. A bucket is forgotten once it
   has refilled (an hourly alarm sweeps them). Raw addresses are never stored, logged or sent to Turnstile.
 - **Pictures**: the original (jpeg, png, webp or gif, ≤ 4 MB, type read from its bytes) and the density map the
-  browser made from it (jpeg or png, ≤ 400 KB, ≤ 640 px on the long side). Served with `nosniff`, a sandboxing CSP
+  browser made from it (jpeg or png, ≤ 900 KB, ≤ 960 px on the long side). Served with `nosniff`, a sandboxing CSP
   and a year of cache.
 
 ## The API
@@ -21,7 +21,7 @@ All paths are under the Worker's URL. JSON in and out, except posting, which is 
 
 | method | path | what |
 | --- | --- | --- |
-| GET | `/api/board` | `{threads: [{id, first, replies, created, bumped, image?}], next}`, one page, newest activity first |
+| GET | `/api/board` | `{threads: [{id, first, replies, created, bumped, image?}], next, density: {long, bytes}}`, one page, newest activity first, and the density maps this Worker takes (960 px, 900 KB) |
 | GET | `/api/threads/:id` | `{id, created, posts: [{n, poster, text, created, image?} or {n, created, removed}]}` |
 | POST | `/api/threads` | a new thread. Fields: `text`, optional `image` + `density` (+ `w`, `h`), `turnstile` |
 | POST | `/api/threads/:id/posts` | a reply, the same fields; text may be empty when there is a picture |
@@ -37,7 +37,7 @@ twice. A malformed cursor is `400 {error: "bad cursor"}`.
 
 `image` in responses is `{density, original, w, h, caption}` with paths relative to the Worker. Errors are
 `{error: "words"}` with 400 (bad input), 403 (origin, Turnstile or admin), 404, 409 (thread full, 500 posts),
-413 (over 5 MB) or 429 (rate limit, with `Retry-After`).
+413 (over 6 MB) or 429 (rate limit, with `Retry-After`).
 
 Admin calls carry `Authorization: Bearer <ADMIN_SECRET>`:
 

@@ -354,7 +354,7 @@ def feed_xml(posts):
 
 
 # ---------- modules ----------
-ORDER = ['assets.js', 'motion.js', 'stage-icon.js', 'marks.js', 'tip.js', 'figure.js', 'views.js', 'main.js']
+ORDER = ['assets.js', 'content.js', 'render.js', 'motion.js', 'stage-icon.js', 'marks.js', 'tip.js', 'figure.js', 'views.js', 'main.js']
 
 
 def assets_module(maps):
@@ -385,6 +385,8 @@ def script(maps):
     parts = []
     for f in ORDER:
         src = assets_module(maps) if f == 'assets.js' else open(os.path.join(D, 'src', f), encoding='utf-8').read()
+        if f == 'content.js':
+            src = src.replace("/*__CONTENT_API__*/''", json.dumps(CONTENT_API))
         parts.append(f'/* ---- {f} ---- */\n' + scope_module(f, src))
     return '(function () {\n"use strict";\nconst M = {};\n' + '\n'.join(parts) + '\n})();'
 
@@ -421,7 +423,16 @@ def build(posts, fragment):
     return page
 
 
+CONTENT_API = os.environ.get('APHESIS_CONTENT_API', '')
+
+
 if __name__ == '__main__':
+    if '--content-api' in sys.argv:
+        i = sys.argv.index('--content-api')
+        CONTENT_API = sys.argv[i + 1]
+        del sys.argv[i:i + 2]
+    if CONTENT_API and not re.match(r'^https?://[^\s"\'<>]+$', CONTENT_API):
+        sys.exit('--content-api is an http(s) URL')
     posts = load_posts()
     feed = feed_xml(posts)
     open(os.path.join(D, 'feed.xml'), 'w', encoding='utf-8').write(feed)

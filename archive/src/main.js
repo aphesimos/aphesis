@@ -7,6 +7,8 @@ import { drawMarks, markInk } from './marks.js';
 import { createTip } from './tip.js';
 import { createFigures } from './figure.js';
 import { createViews } from './views.js';
+import { fetchPosts } from './content.js';
+import { listHtml, postHtml, sortPosts } from './render.js';
 
 const A = window.Aphesis;
 const $ = (id) => document.getElementById(id);
@@ -47,9 +49,9 @@ markInk(main);
 /* ---------- calm fog behind the column ---------- */
 /* one zone that follows the column of the view on screen: as wide as the column, as tall as the screen, and
    larger than both, so the fog is fully calm behind the lines and gathers again at the margins */
-const list = main.querySelector('.view.list');
-const posts = new Map(Array.from(main.querySelectorAll('.view.post')).map((v) => [v.dataset.slug, v]));
-const views = createViews(scroller, [list, ...posts.values()]);
+let list = main.querySelector('.view.list');
+let posts = new Map(Array.from(main.querySelectorAll('.view.post')).map((v) => [v.dataset.slug, v]));
+let views = createViews(scroller, [list, ...posts.values()]);
 const colRect = () => { const c = (views.current || list).querySelector('.col'); return c.getBoundingClientRect(); };
 const column = {
   pad: 0,
@@ -96,6 +98,26 @@ function route() {
 }
 addEventListener('hashchange', route);
 route();
+
+/* ---------- the posts from the content service ---------- */
+/* the page opens on the posts it was built with; when the content service answers, its posts take their place,
+   drawn by render.js into the same markup the build writes, and the route is followed again */
+fetchPosts().then((fresh) => {
+  if (!fresh) return;
+  const at = views.current === list ? scroller.scrollTop : 0;
+  figures.leave();
+  main.innerHTML = listHtml(sortPosts(fresh)) + sortPosts(fresh).map((p) => postHtml(p)).join('');
+  drawStageIcons(main);
+  drawMarks(main);
+  markInk(main);
+  list = main.querySelector('.view.list');
+  posts = new Map(Array.from(main.querySelectorAll('.view.post')).map((v) => [v.dataset.slug, v]));
+  views = createViews(scroller, [list, ...posts.values()]);
+  main.querySelectorAll('.view').forEach((v) => { v.hidden = true; });
+  const name = decodeURIComponent(location.hash.slice(1));
+  if (posts.has(name)) { lastSlug = null; route(); } else { views.go(list, at); }
+  document.documentElement.dataset.archiveSource = 'api';
+});
 
 /* ---------- keys ---------- */
 addEventListener('keydown', (e) => {

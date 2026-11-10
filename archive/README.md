@@ -46,6 +46,23 @@ python3 archive/build.py                  # archive/index.html and archive/feed.
 python3 archive/build.py --fragment OUT   # also the page without <!doctype>/<html>/<head>/<body>
 ```
 
+## The content service
+
+When the page is built with the content service's address, it opens on the posts it was built with and, as soon as
+the service answers, shows the published posts from it instead (`GET /v1/posts`), drawn into the same markup by
+`src/render.js`. If the service is down, slow or empty, the built-in posts stay. Edits from the owner's desk are live
+with no rebuild.
+
+```sh
+python3 archive/build.py --content-api https://content-api.aphes.ist     # or APHESIS_CONTENT_API in the environment
+```
+
+- `src/render.js` is build.py's converter and markup, ported line for line to the browser (it is also what the
+  desk's live preview draws with). `node archive/tools/render-parity.mjs` proves it writes the same markup as
+  build.py for the list and every post in `content/`, with the notes in the body and with the notes apart.
+- A post from the service names its figures' density maps by URL (`data-src`); they come with CORS, so
+  `figure.js` loads them as `crossOrigin` images.
+
 ## How it is built
 
 `build.py` reads `tokens.json`, `bundle.css`, `bundle.js`, the Aphesis Script font and the density maps from the `design-system` branch with `git show`, generates `tokens.css`, converts the posts and writes one self-contained `index.html`. The list and every post are in the page as markup; the script only draws the marks, moves between views and conjures the pictures. Special Elite is vendored in `vendor/` (Apache License 2.0).
@@ -60,6 +77,8 @@ The modules in `src/` are plain ES modules, concatenated by the build in depende
 | `tip.js` | the tooltip for this section: pointer, keyboard focus and taps; footnotes |
 | `figure.js` | one Simulacrum canvas, moved into the figure in view; invisible until its first frame |
 | `views.js` | list ↔ post: the outgoing view lifts and blurs while the incoming one rises, overlapping |
-| `main.js` | theme, fog (density .62, light .4) and its calm zone behind the column, seal, cursor, routes, keys |
+| `content.js` | the content service's address (written by the build) and the fetch of its posts |
+| `render.js` | the list and a post from data, the same markup as build.py (see above) |
+| `main.js` | theme, fog (density .62, light .4) and its calm zone behind the column, seal, cursor, routes, keys; swaps in the service's posts |
 
 In the Astro site the posts become a content collection with the same front matter, and the feed's links (`SECTION_URL` in `build.py`) follow the site's routes.

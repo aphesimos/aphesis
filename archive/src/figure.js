@@ -7,19 +7,21 @@ import { MAPS } from './assets.js';
 
 const A = window.Aphesis;
 
-/* a density map as a canvas: the runtime uploads canvases reliably on every GPU, plain image files not always */
+/* a density map as a canvas: the runtime uploads canvases reliably on every GPU, plain image files not always.
+   A figure from the content API names its map by URL (data-src); the build's own figures by name (data-map). */
 const maps = new Map();
 function mapCanvas(name) {
   if (!maps.has(name)) {
     maps.set(name, new Promise((resolve) => {
       const im = new Image();
+      if (!MAPS[name]) im.crossOrigin = 'anonymous';   /* the content API serves its pictures with CORS */
       im.onload = () => {
         const c = document.createElement('canvas');
         c.width = im.naturalWidth; c.height = im.naturalHeight;
         c.getContext('2d').drawImage(im, 0, 0);
         resolve(c);
       };
-      im.src = MAPS[name];
+      im.src = MAPS[name] || name;
     }));
   }
   return maps.get(name);
@@ -50,7 +52,7 @@ export function createFigures() {
     sim.hide();
     if (canvas.parentNode !== box) box.appendChild(canvas);
     if (!running) { sim.start(); running = true; }
-    mapCanvas(fig.dataset.map).then((map) => {
+    mapCanvas(fig.dataset.src || fig.dataset.map).then((map) => {
       if (host !== fig) return;
       /* the canvas appears only once a frame is on it */
       sim.drawn(() => requestAnimationFrame(() => { if (host === fig) canvas.classList.add('on'); }));

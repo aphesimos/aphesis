@@ -43,13 +43,13 @@ export function createGestures({ center, isFound, onEnter, onKnock, onEcho }) {
   function wind(x, y) {
     const now = performance.now(), last = st.pts[st.pts.length - 1];
     if (last && Math.hypot(x - last[0], y - last[1]) < 7) return;
-    st.pts.push([x, y, now]); st.pts = st.pts.filter((p) => now - p[2] < 3200);
+    st.pts.push([x, y, now]); st.pts = st.pts.filter((p) => now - p[2] < 6000);
     const n = st.pts.length; if (n < 3) return;
     const [a, b, c] = [st.pts[n - 3], st.pts[n - 2], st.pts[n - 1]];
     let dh = Math.atan2(c[1] - b[1], c[0] - b[0]) - Math.atan2(b[1] - a[1], b[0] - a[0]);
     if (dh > Math.PI) dh -= TAU; if (dh < -Math.PI) dh += TAU;
     if (Math.abs(dh) > 2.2) return;                       /* a sharp reversal belongs to a scribble, not a loop */
-    st.turns.push([dh, now]); st.turns = st.turns.filter((t) => now - t[1] < 3200);
+    st.turns.push([dh, now]); st.turns = st.turns.filter((t) => now - t[1] < 6000);
     st.wind = st.turns.reduce((s, t) => s + t[0], 0); st.lastWind = now;
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     for (const p of st.pts) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }

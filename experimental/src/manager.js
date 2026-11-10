@@ -34,7 +34,7 @@ export function createManager({ chambers, ground, threshold, gestures, caption, 
     root.appendChild(desc);
     document.getElementById('experimental').after(root);
     try {
-      active = await def.create({ root, setCaption });
+      active = await def.create({ root, setCaption, exit: () => leave() });   /* a chamber may end itself */
     } catch (err) {
       console.error(err); root.remove(); root = null; busy = false; activeDef = null; return back();
     }

@@ -1,7 +1,8 @@
 /* the ouroboros.
    Cagnacci's Allegory of Human Life, with the serpent above her head redrawn by the brush as a living field.
-   Circle the pointer (a finger, or the arrow keys) and the serpent travels round; its head reaches its tail and
-   bites, and as you keep turning it swallows itself while the woman beneath slowly erodes. Stop, and it lets go. */
+   Loop the pointer anywhere, either way round (a finger, or the arrow keys), and the serpent travels; its head
+   reaches its tail and bites, and as you keep looping it swallows itself while the woman beneath erodes. About a
+   loop and a half in all: then the ring closes, ἓν τὸ πᾶν is written, and the chamber dissolves back to the threshold. */
 
 import { MAPS } from '../assets.js';
 import { image, cut, layer, simulacrum } from '../stage.js';
@@ -11,7 +12,7 @@ const A = window.Aphesis;
 const TAU = Math.PI * 2;
 /* the painted halo, in map pixels (cagnacci.jpg is 640 × 590) */
 const HALO = { cx: 227, cy: 43, rx: 184, ry: 33, tilt: -0.04 };
-const OPEN = TAU * 0.8, SHUT = TAU - 0.05;
+const OPEN = TAU * 0.8, SHUT = TAU - 0.05, DONE = 0.9;   /* turns swallowed after the bite that end the chamber */
 
 export const ouroboros = {
   id: 'ouroboros',
@@ -33,7 +34,7 @@ export const ouroboros = {
     const serpent = simulacrum(lSnake, { margin, gain: 1.05, scatter: 0.4, erosion: 0.3, ceiling: 0.82 });
 
     /* serpent state: tail angle, body span (radians), turns swallowed */
-    let tail = Math.PI * 0.62, span = OPEN, eaten = 0, bite = 0, wound = 0, lastA = null, keyPush = 0, dirty = true, lastDraw = 0;
+    let worn0 = 0.85, tail = Math.PI * 0.62, span = OPEN, eaten = 0, bite = 0, wound = 0, keyPush = 0, dirty = true, lastDraw = 0, done = false, pts = [], sm = null;
 
     function pt(a) {
       const x = HALO.rx * Math.cos(a), y = HALO.ry * Math.sin(a), c = Math.cos(HALO.tilt), s = Math.sin(HALO.tilt);
@@ -70,6 +71,7 @@ export const ouroboros = {
     draw();
 
     function turn(da) {
+      if (done) return;
       /* the head goes where the hand goes; the tail only follows once the jaws have closed on it */
       if (da > 0) {
         const room = SHUT - span, grow = Math.min(room, da);
@@ -81,17 +83,30 @@ export const ouroboros = {
       }
       wound = Math.min(1, wound + Math.abs(da) * 0.35);
       dirty = true;
+      if (eaten >= DONE) finish();
+    }
+    function finish() {
+      done = true; span = SHUT; bite = 1; dirty = true;
+      ctx.setCaption('ἓν τὸ πᾶν · the one is the all · Chrysopoeia of Cleopatra');
+      setTimeout(() => ctx.exit(), REDUCED ? 1500 : 4200);
     }
 
+    /* the stroke's own turning, either way round, anywhere on the screen: every degree the hand turns moves the serpent */
     const onMove = (e) => {
-      if (e.pointerType !== 'mouse' && !e.buttons) { lastA = null; return; }
-      const cx = innerWidth / 2, cy = innerHeight / 2, dx = e.clientX - cx, dy = e.clientY - cy;
-      if (Math.hypot(dx, dy) < 30) { lastA = null; return; }
-      const a = Math.atan2(dy, dx);
-      if (lastA !== null) { let da = a - lastA; if (da > Math.PI) da -= TAU; if (da < -Math.PI) da += TAU; turn(da); }
-      lastA = a;
+      if (e.pointerType !== 'mouse' && !e.buttons) { pts = []; return; }
+      const now = performance.now(), last = pts[pts.length - 1];
+      if (last && now - last[2] > 1500) { pts = []; sm = null; }   /* only a real pause starts a new stroke */
+      /* the hand trembles: follow a smoothed path, so only the loop itself turns the serpent */
+      sm = sm ? [sm[0] + (e.clientX - sm[0]) * 0.35, sm[1] + (e.clientY - sm[1]) * 0.35] : [e.clientX, e.clientY];
+      if (last && Math.hypot(sm[0] - last[0], sm[1] - last[1]) < 5) return;
+      pts.push([sm[0], sm[1], now]); if (pts.length > 3) pts.shift();
+      if (pts.length < 3) return;
+      const [a, b, c] = pts;
+      let dh = Math.atan2(c[1] - b[1], c[0] - b[0]) - Math.atan2(b[1] - a[1], b[0] - a[0]);
+      if (dh > Math.PI) dh -= TAU; if (dh < -Math.PI) dh += TAU;
+      if (Math.abs(dh) < 1.6) turn(Math.abs(dh));
     };
-    const onUp = () => { lastA = null; };
+    const onUp = () => { pts = []; };
     addEventListener('pointermove', onMove, { passive: true });
     addEventListener('pointerup', onUp);
 
@@ -104,8 +119,7 @@ export const ouroboros = {
       },
       leave(done) { woman.hide(); serpent.hide(done); },
       key(e) {
-        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { keyPush += 0.5; return true; }
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { keyPush -= 0.5; return true; }
+        if (e.key.startsWith('Arrow')) { keyPush += 0.6; return true; }   /* every arrow press turns it on */
         return false;
       },
       loop(dt, now, paused) {
@@ -114,18 +128,17 @@ export const ouroboros = {
         /* at rest the jaws let go and the ring drifts on its own */
         if (!REDUCED) {
           wound = Math.max(0, wound - dt * 0.6);
-          if (wound < 0.05 && span > OPEN) { span -= (span - OPEN) * Math.min(1, dt * 0.35); dirty = true; }
+          if (!done && wound < 0.05 && span > OPEN && eaten === 0) { span -= (span - OPEN) * Math.min(1, dt * 0.2); dirty = true; }
           tail += dt * 0.035; dirty = true;
         }
         const shut = span > SHUT - 0.01;
         bite += ((shut ? 1 : 0) - bite) * Math.min(1, dt * (shut ? 6 : 1.2));
         /* the moment of impact: a few red cells in the serpent when it bites */
-        serpent.o.accent = 0.05 * bite;
+        serpent.o.accent = done ? 0.05 : 0.04 * bite;
         /* time eats the figure: erosion grows with every turn swallowed, and heals slowly */
-        eaten = Math.max(0, eaten - dt * 0.02);
-        const worn = Math.min(0.75, eaten / 6);
-        woman.o.erosion = 0.45 + 0.35 * worn; woman.o.gain = 1 - 0.4 * worn; woman.o.scatter = 0.5 + 0.3 * worn;
-        if (dirty && now - lastDraw > 40 && serpent.ready) { draw(); serpent.redraw(snake); dirty = false; lastDraw = now; }
+        const worn = done ? Math.min(1, (worn0 = Math.min(1, worn0 + dt * 0.5))) : Math.min(0.85, eaten / DONE * 0.85);
+        woman.o.erosion = 0.45 + 0.4 * worn; woman.o.gain = 1 - 0.55 * worn; woman.o.scatter = 0.5 + 0.35 * worn;
+        if (dirty && now - lastDraw > 90 && serpent.ready) { draw(); serpent.redraw(snake); dirty = false; lastDraw = now; }
       },
       destroy() {
         removeEventListener('pointermove', onMove); removeEventListener('pointerup', onUp);

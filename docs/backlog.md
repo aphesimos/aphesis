@@ -19,10 +19,17 @@ Work that waits on something else. Remove an item when it is done.
   - A secret route (a bookmark).
   - The phrase and the route are chosen by the owner and set as configuration, never committed in clear.
 - **The gate, step 1 (password):**
-  - The eye icon (the theme switch's eye) sits above a single brushed baseline with no label.
-  - The eye boils like the seal: its strokes are redrawn at a low frame rate, about 8 fps, the same feTurbulence seed swap as the φ.
-  - It blinks slowly and irregularly, in the style of the logo animations, and the caret blinks on the line.
-  - On a wrong password the eye closes and the line trembles. On the right one the eye opens wide, then dissolves into step 2.
+  - The eye icon (the theme switch's eye) sits above a single brushed baseline with no label, and the caret blinks on the line.
+  - The eye first draws itself, stroke by stroke, the way the φ draws itself on the home.
+  - After that it never stops trembling: its strokes boil like the seal's, redrawn at a low frame rate of about 8 fps with the same feTurbulence seed swap as the φ.
+  - Its blinks are frame-by-frame, like a hand-drawn cycle, never a morph or tween. Each state is its own drawing, held for a few low-framerate frames, then cut to the next:
+    - open;
+    - half-lidded;
+    - a closed lid with lashes;
+    - an optional squint.
+    The blinks come at irregular intervals.
+  - **Wrong password:** a hard cut to the closed state, and the line trembles.
+  - **Right password:** a cut to wide open, held, then the eye dissolves into step 2.
 - **The gate, step 2 (email code):**
   - The baseline dissolves and a new one condenses. There are no words at all, none of "check your email".
   - The code is three Latin words, e.g. ignis · lapis · aurum: about 33 bits, valid for 10 minutes, single use.

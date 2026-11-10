@@ -1123,12 +1123,12 @@
      (CSS: aph-eyes-a, -b, -c), so they blink at different moments and look different ways; .aph-gather closes them
      and opens them on the centre, together. icon('forum', 1) is that last drawing, still. */
   (function () {
-    var C = [12, 13]; /* the centre they turn to */
+    var C = [12, 12.4]; /* the centre they turn to */
     /* x, y, scale (of the eye's own 24-unit drawing), lid width, gaze at rest, gazes 1 and 2 (in the eye's own units) */
     var EYES = [
-      [12, 7, 0.6, 1.35, [-0.5, 0.5], [1.9, 0.1], [-1.6, -0.6]],
-      [6.3, 16.8, 0.47, 1.2, [0.9, -0.3], [-1.8, 0.4], [1.4, 1]],
-      [17.7, 16.8, 0.47, 1.2, [-0.2, 0.8], [1.8, -0.5], [-1.9, 0.2]]
+      [12, 8, 0.7, 1.45, [-0.5, 0.5], [1.9, 0.1], [-1.6, -0.6]],
+      [6.6, 15.8, 0.55, 1.3, [0.9, -0.3], [-1.8, 0.4], [1.4, 1]],
+      [17.4, 15.8, 0.55, 1.3, [-0.2, 0.8], [1.8, -0.5], [-1.9, 0.2]]
     ];
     var W = 24;
     function drawing(e, i, k, dx) {

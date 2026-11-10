@@ -1,0 +1,182 @@
+/* book · liber
+   layout: a codex spread on the fog (density .62 inside a section). Landscape: the picture page on the left half,
+   the text page on the right, a brush spine between them. Portrait: the picture above, the text below, scrolling.
+   The seal holds the top-left corner with the section's title beside it, the eye the bottom-left, the passage
+   corner (bottom-right) stays free. The page edges turn the leaf. */
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; overflow: hidden; background: var(--bg); color: var(--ink);
+  font: var(--type-body-weight) var(--type-body-size)/var(--type-body-line) var(--font-text);
+  touch-action: none; -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--duration-theme) var(--easing-settle), color var(--duration-theme) var(--easing-settle);
+}
+a { color: inherit; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; border-radius: var(--radius-none); text-align: inherit; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+[hidden] { display: none !important; }
+
+#fog { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: var(--z-fog); pointer-events: none; }
+
+/* the system's soft entrance: a small blur and a rise */
+@keyframes book-enter { from { opacity: 0; filter: blur(10px); transform: translateY(14px); } to { opacity: 1; filter: none; transform: none; } }
+.enter { animation: book-enter var(--duration-scene) var(--easing-settle) both; }
+
+/* ---------- the seal and the title ---------- */
+#seal {
+  position: fixed; z-index: var(--z-seal); display: block; color: var(--seal);
+  left: calc(var(--space-4) + env(safe-area-inset-left, 0px)); top: calc(var(--space-4) + env(safe-area-inset-top, 0px));
+  height: 64px; width: calc(64px * 385 / 533);
+}
+#head {
+  position: fixed; z-index: var(--z-main); margin: 0; pointer-events: none;
+  left: calc(var(--space-4) + 64px * 385 / 533 + var(--space-4) + env(safe-area-inset-left, 0px));
+  top: calc(var(--space-4) + env(safe-area-inset-top, 0px));
+  opacity: 0;
+}
+.ready #head { animation: book-enter var(--duration-scene) var(--easing-settle) .2s both; }
+.gloss-title {
+  position: relative; z-index: 1;   /* above the title's halo */
+  margin: 0 0 var(--space-2); font: var(--type-gloss-title-weight) var(--type-gloss-title-size)/var(--type-gloss-title-line) var(--font-display);
+  letter-spacing: var(--type-gloss-title-tracking); font-variation-settings: "wght" 400, "slnt" -12; color: var(--ink-soft);
+}
+.title {
+  margin: 0; font-family: var(--font-display); font-weight: var(--type-title-weight); font-size: clamp(44px, 8vw, 96px);
+  line-height: var(--type-title-line); font-variation-settings: "wght" 400, "slnt" -12; padding: .12em .2em 0 0; color: var(--ink);
+}
+
+/* ---------- the picture page ---------- */
+/* the plate sets where the picture canvases lie; its padding is the box the picture fits in */
+#plate {
+  position: fixed; left: 0; top: 0; width: 50vw; height: 100vh; height: 100dvh; margin: 0;
+  padding: max(150px, 19vh) var(--space-6); pointer-events: none; z-index: var(--z-main);
+}
+.plate-layer {
+  position: fixed; left: 0; top: 0; width: 1px; height: 1px; display: block; z-index: var(--z-fog); pointer-events: none;
+  opacity: 0; transition: opacity var(--duration-scene) var(--easing-settle);
+  /* the canvas's own mist thins out toward its edges, so the plate never stands as a block */
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 9%, #000 91%, transparent), linear-gradient(to bottom, transparent, #000 7%, #000 93%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent, #000 9%, #000 91%, transparent), linear-gradient(to bottom, transparent, #000 7%, #000 93%, transparent);
+  mask-composite: intersect;
+}
+.plate-layer.on { opacity: 1; }
+#caption {
+  position: absolute; margin: 0; text-align: right; max-width: min(340px, 80%);
+  right: var(--space-5); bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+  opacity: 0; transition: opacity var(--duration-scene) var(--easing-settle);
+}
+#caption.on { opacity: 1; }
+
+#spine {
+  position: fixed; z-index: var(--z-ray); left: calc(50vw - 4px); top: 22vh; height: 56vh; width: auto; aspect-ratio: 8 / 400;
+  color: var(--line); pointer-events: none; overflow: visible;
+}
+
+/* ---------- the text page ---------- */
+#leaf {
+  position: fixed; z-index: var(--z-main); left: 50vw; right: 0; top: 0; bottom: 0;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: var(--space-7) var(--space-7) calc(var(--space-7) + var(--space-5)) var(--space-6);
+  overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: none;
+}
+#leaf::-webkit-scrollbar { display: none; }
+#entry, #index { max-width: 34em; margin: auto 0; }
+#entry.leaving { opacity: 0; filter: blur(6px); transition: opacity var(--duration-quick) var(--easing-settle), filter var(--duration-quick) var(--easing-settle); }
+.heading {
+  margin: 0 0 var(--space-2); font-family: var(--font-display); font-weight: var(--type-heading-weight); font-size: var(--type-heading-size);
+  line-height: var(--type-heading-line); font-variation-settings: "wght" 500, "slnt" -12; padding: .1em .2em .1em 0; color: var(--ink);
+}
+#eMeta { margin: 0 0 var(--space-5); }
+.note p { margin: 0 0 var(--space-3); }
+.note p:last-child { margin-bottom: 0; }
+#eQuote { margin: var(--space-5) 0 0; padding: 0; }
+#eQuote p {
+  margin: 0; font-size: var(--type-lede-size); line-height: var(--type-lede-line); color: var(--ink-soft); display: inline;
+}
+#eQuote p::before { content: ">> "; }
+
+/* the contents: an inscription like the home's, the title in label, author and year beneath in meta */
+#index ol { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+#index button {
+  display: grid; grid-template-columns: 3.2em 1fr; column-gap: var(--space-2); row-gap: var(--space-1); padding: var(--space-1) 0;
+  text-decoration: none; width: 100%;
+}
+#index .no { grid-row: 1 / span 2; line-height: 1.9; }
+#index .t {
+  font-size: var(--type-label-size); line-height: 1.5; letter-spacing: var(--type-label-tracking); text-transform: lowercase; color: var(--ink);
+}
+#index .by { line-height: 1.5; }
+#index [aria-current] .no { color: var(--accent-text); }
+
+/* ---------- the footer: contents and folio ---------- */
+#foot {
+  position: fixed; z-index: var(--z-nav); display: flex; align-items: flex-start; gap: var(--space-5);
+  left: calc(50vw + var(--space-6)); bottom: calc(var(--space-5) + env(safe-area-inset-bottom, 0px));
+}
+#bIndex { display: block; padding: var(--space-2) var(--space-1); }
+#bIndex .name {
+  display: block; font-size: var(--type-label-size); line-height: 1; letter-spacing: var(--type-label-tracking); text-transform: lowercase; color: var(--ink);
+}
+#bIndex .gl {
+  display: block; margin-top: var(--space-2); font: var(--type-gloss-weight) var(--type-gloss-size)/1 var(--font-display);
+  font-variation-settings: "wght" 400, "slnt" -12; letter-spacing: .02em; color: var(--ink-soft); padding-right: .2em;
+  transition: transform var(--duration-slow) var(--easing-settle), color var(--duration-slow) var(--easing-settle);
+}
+#bIndex:hover .gl, #bIndex:focus-visible .gl, #bIndex[aria-expanded="true"] .gl { transform: translateY(-1px); color: var(--accent-text); }
+#folio { padding-top: var(--space-2); line-height: 1; }
+
+/* ---------- the page edges ---------- */
+.edge {
+  position: fixed; z-index: var(--z-nav); top: 30vh; height: 40vh; width: 64px;
+  display: grid; place-items: center; color: var(--ink-soft);
+  transition: color var(--duration-slow) var(--easing-settle), opacity var(--duration-slow) var(--easing-settle);
+}
+#prev { left: env(safe-area-inset-left, 0px); }
+#next { right: env(safe-area-inset-right, 0px); }
+.edge svg { width: 40px; height: 40px; display: block; overflow: visible; transition: transform var(--duration-slow) var(--easing-settle); }
+.edge:hover, .edge:focus-visible { color: var(--accent); }
+#next:hover svg, #next:focus-visible svg { transform: translateX(2px); }
+#prev:hover svg, #prev:focus-visible svg { transform: translateX(-2px); }
+.edge:focus-visible { outline-offset: -8px; }
+.edge.end { opacity: 0; pointer-events: none; }
+
+/* ---------- corners ---------- */
+#controls {
+  position: fixed; z-index: var(--z-corner); display: flex; align-items: center; gap: var(--space-2);
+  left: calc(var(--space-3) + env(safe-area-inset-left, 0px)); bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+}
+#controls button { padding: var(--space-2); }
+#controls button:focus-visible { outline-offset: 2px; }
+#bTheme { width: 46px; height: 46px; position: relative; color: var(--accent); }
+#bTheme .eye { position: absolute; inset: var(--space-2); display: block; transform-origin: 50% 50%;
+  transition: opacity var(--duration-quick) var(--easing-settle), transform var(--duration-slow) var(--easing-settle); }
+#bTheme .eye svg { width: 100%; height: 100%; display: block; overflow: visible; }
+#bTheme .eye.closed { opacity: 0; transform: scaleY(.2) translateY(-4px); }
+.is-dark #bTheme .eye.open { opacity: 0; transform: scaleY(.08); }
+.is-dark #bTheme .eye.closed { opacity: 1; transform: none; }
+
+/* ---------- portrait: the picture above, the text below ---------- */
+@media (max-aspect-ratio: 1/1) {
+  .title { font-size: clamp(44px, 12vw, 72px); }
+  #plate {
+    top: calc(var(--space-4) + 64px + var(--space-3) + env(safe-area-inset-top, 0px)); width: 100vw; height: 38vh; height: 38dvh;
+    padding: var(--space-3) var(--space-6);
+  }
+  #caption { right: var(--space-4); bottom: calc(-1 * var(--space-2)); max-width: calc(100% - 2 * var(--space-4)); }
+  #spine { display: none; }
+  #leaf {
+    left: 0; top: calc(var(--space-4) + 64px + var(--space-3) + 38dvh + var(--space-4) + env(safe-area-inset-top, 0px));
+    bottom: calc(var(--space-7) + env(safe-area-inset-bottom, 0px));
+    padding: var(--space-4) max(var(--space-4), env(safe-area-inset-right, 0px)) var(--space-5) max(var(--space-4), env(safe-area-inset-left, 0px));
+    justify-content: flex-start;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--space-4), #000 calc(100% - var(--space-5)), transparent);
+    mask-image: linear-gradient(to bottom, transparent, #000 var(--space-4), #000 calc(100% - var(--space-5)), transparent);
+  }
+  #entry, #index { margin: 0 auto; width: 100%; }
+  .heading { font-size: 36px; }
+  #foot { left: 50%; transform: translateX(-50%); bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px)); gap: var(--space-4); }
+  .edge { top: calc(var(--space-4) + 64px + var(--space-3) + env(safe-area-inset-top, 0px)); height: 38vh; height: 38dvh; width: 48px; }
+  .edge svg { width: 34px; height: 34px; }
+}

@@ -1,0 +1,57 @@
+<title>aphes.is book</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="book · liber: authors, works and what shaped me, leafed through like a codex.">
+<style>
+/*__CSS__*/
+</style>
+<!--__BODY__-->
+<canvas id="fog" aria-hidden="true"></canvas>
+
+<a id="seal" href="#home" aria-label="aphes.is · back to the center" data-tip="back to the center" data-cursor=".9"></a>
+
+<header id="head" class="aph-on-fog aph-ink">
+  <p class="gloss-title" lang="la">liber</p>
+  <h1 class="title">book</h1>
+</header>
+
+<main id="book">
+  <svg id="spine" class="aph-ink" viewBox="0 0 8 400" aria-hidden="true" focusable="false"></svg>
+  <figure id="plate" class="aph-ink" role="img" aria-label="">
+    <figcaption id="caption" class="aph-meta aph-on-fog"></figcaption>
+  </figure>
+
+  <section id="leaf" class="aph-ink" aria-label="the leaf">
+    <article id="entry" class="aph-on-fog">
+      <h2 class="heading" id="eTitle"><!--__TITLE__--></h2>
+      <p class="aph-meta" id="eMeta"></p>
+      <div class="note" id="eNote"></div>
+      <blockquote id="eQuote" hidden><p></p></blockquote>
+    </article>
+    <nav id="index" class="aph-on-fog" aria-label="contents" hidden>
+      <ol id="indexList"></ol>
+    </nav>
+  </section>
+
+  <footer id="foot" class="aph-on-fog aph-ink">
+    <button id="bIndex" type="button" class="aph-wave" aria-expanded="false" aria-controls="index" data-cursor=".7">
+      <span class="name">contents</span><span class="gl" lang="la">index</span>
+    </button>
+    <span class="aph-meta" id="folio" aria-hidden="true"></span>
+  </footer>
+
+  <button id="prev" class="edge aph-ink" type="button" aria-label="the previous leaf" data-tip="the previous leaf"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"></svg></button>
+  <button id="next" class="edge aph-ink" type="button" aria-label="the next leaf" data-tip="the next leaf"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"></svg></button>
+</main>
+
+<div class="corner" id="controls">
+  <button id="bTheme" type="button" aria-label="switch between light and dark" data-tip="open · close the eye" data-cursor=".55"><span class="eye open"></span><span class="eye closed"></span></button>
+</div>
+
+<div class="sr" id="announce" aria-live="polite"></div>
+
+<script>
+/*__BUNDLE__*/
+</script>
+<script>
+/*__SCRIPT__*/
+</script>

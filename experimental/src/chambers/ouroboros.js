@@ -10,7 +10,6 @@
 import { MAPS } from '../assets.js';
 import { image, cut, picture, chaser, smooth } from '../stage.js';
 import { circling } from '../gestures.js';
-import { REDUCED } from '../motion.js';
 
 const A = window.Aphesis;
 const TAU = Math.PI * 2;
@@ -36,7 +35,7 @@ export const ouroboros = {
     const woman = picture(ctx.root, { margin, accent: 0.02 });
     const serpent = picture(ctx.root, { margin, gain: 1.05, scatter: 0.4, erosion: 0.3, ceiling: 0.82 });
 
-    const shown = chaser(REDUCED ? 0 : 900);
+    const shown = chaser(900);
     let tail = Math.PI * 0.62, nudge = 0, bite = 0, playing = false, finished = false, lastDraw = 0, drawn = -1;
 
     function pt(a) {
@@ -90,14 +89,14 @@ export const ouroboros = {
         ctx.root.dataset.progress = shown.target.toFixed(3);
         ctx.root.dataset.shown = p.toFixed(3);
         /* at rest, the jaws reach a little toward the tail and back: the only hint */
-        if (!REDUCED && !finished) { tail += dt * 0.03; nudge = 0.06 * Math.sin(now / 900) * (1 - p); }
+        if (!finished) { tail += dt * 0.03; nudge = 0.06 * Math.sin(now / 900) * (1 - p); }
         const span = OPEN + (SHUT - OPEN) * p + (finished ? 0 : nudge);
         if (p > 0.999 && shown.target >= 1 && !finished) {
           finished = true;
           ctx.setCaption('ἓν τὸ πᾶν · the one is the all');
-          setTimeout(() => end && end(), REDUCED ? 2500 : 3600);
+          setTimeout(() => end && end(), 3600);
         }
-        if (finished) bite = Math.min(1, bite + dt * (REDUCED ? 99 : 1.6));
+        if (finished) bite = Math.min(1, bite + dt * 1.6);
         /* the moment of impact: a few red cells in the serpent as it bites */
         serpent.o.accent = 0.05 * smooth(0, 1, bite);
         /* the woman comes apart as the serpent closes */

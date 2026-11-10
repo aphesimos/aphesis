@@ -6,8 +6,7 @@
    red cells spark, and after a breath the chamber ends. At rest the gap breathes a little: the only hint. */
 
 import { MAPS } from '../assets.js';
-import { image, cut, picture, hold, presses, smooth } from '../stage.js';
-import { REDUCED } from '../motion.js';
+import { image, cut, picture, hold, presses, smooth, snap, screen } from '../stage.js';
 
 const A = window.Aphesis;
 /* hands.png is 480 × 190; the fingertips leave a gap of 4 px around x 130, y 79. Padding the left side
@@ -28,11 +27,11 @@ export const hands = {
 
     let geo = null;
     function layout() {
-      const vw = innerWidth, vh = innerHeight, a = vw / vh;
+      const vw = innerWidth, vh = screen().h, a = vw / vh;
       const f = Math.max(0, Math.min(1, (a - 0.5) / 0.8));
       const Wd = Math.min(vw * (2.6 + (1.08 - 2.6) * f), vh * 2.2);
-      const maxOff = Math.round(Math.max(48, vw * 0.11) / 2) * 2, Rw = vw + 2 * maxOff;
-      [lA, lB].forEach((c) => { c.style.width = Rw + 'px'; c.style.left = -maxOff + 'px'; });
+      const maxOff = snap(Math.max(48, vw * 0.11)), Rw = vw + 2 * maxOff;
+      [adam, god].forEach((p) => p.place({ left: -maxOff, top: 0, width: Rw, height: screen().h }));
       const m = 1 - Wd / Rw;
       adam.o.margin = m; god.o.margin = m;
       const Hd = Wd * H / PW;
@@ -44,9 +43,9 @@ export const hands = {
     addEventListener('resize', layout);
 
     function place(x) {
-      const s = (v) => Math.round(v / 2) * 2;   /* whole cells only, so the stipple stays square and crisp */
-      lA.style.transform = 'translateX(' + s(-x) + 'px)';
-      lB.style.transform = 'translateX(' + s(x) + 'px)';
+      /* whole cells only, so the stipple stays square, crisp and on the fog's grid */
+      lA.style.transform = 'translateX(' + snap(-x) + 'px)';
+      lB.style.transform = 'translateX(' + snap(x) + 'px)';
     }
     place(geo.maxOff);
 
@@ -63,13 +62,13 @@ export const hands = {
         if (p >= 1 && !touched) {
           touched = true;
           ctx.setCaption('the touch · Michelangelo, c. 1512');
-          setTimeout(() => end && end(), REDUCED ? 2500 : 3600);
+          setTimeout(() => end && end(), 3600);
         }
         /* apart: each hand is maxOff away; touching: each crosses half the painted gap */
-        const breathe = REDUCED || touched ? 0 : 5 * (0.5 - 0.5 * Math.cos(now / 1400)) * (1 - p);
+        const breathe = touched ? 0 : 5 * (0.5 - 0.5 * Math.cos(now / 1400)) * (1 - p);
         const x = geo.maxOff + (-geo.gap / 2 - geo.maxOff) * A.MJ(p) - breathe;
         place(x);
-        if (touched) spark = Math.min(1, spark + dt * (REDUCED ? 99 : 1.5));
+        if (touched) spark = Math.min(1, spark + dt * 1.5);
         adam.o.accent = god.o.accent = 0.05 * smooth(0, 1, spark);
       },
       destroy() { removeEventListener('resize', layout); press.off(); },

@@ -61,12 +61,14 @@ def tokens_css(tok):
 
 # ---------- modules ----------
 ORDER = ['assets.js', 'motion.js', 'memory.js', 'stage.js', 'gestures.js', 'door.js',
-         'chambers/ouroboros.js', 'chambers/hands.js', 'chambers/scholar.js', 'chambers/tablet.js', 'chambers/ending.js',
+         'chambers/ouroboros.js', 'chambers/hands.js', 'chambers/scholar.js', 'chambers/tablet.js',
+         'chambers/fortune.js', 'chambers/veil.js', 'chambers/alchemist.js', 'chambers/sky.js', 'chambers/ending.js',
          'journey.js', 'main.js']
 
 MAPS = {  # density maps from system/assets/Simulacra
     'cagnacci': 'cagnacci.jpg', 'hands': 'hands.png',
     'jerome': 'jerome.jpg', 'trismegistus': 'trismegistus.png',
+    'fortune': 'fortune.jpg', 'veiled': 'veiled.jpg', 'alchemist': 'alchemist.jpg', 'flammarion': 'flammarion.png',
 }
 
 

@@ -1,13 +1,8 @@
 /* experimental · ἄδυτον
    layout: one screen. dark fog is the ground (density .74 at the door, .3 inside a chamber); the door stands alone
    on the axis, in a small clearing of the fog. the seal holds the top-left corner, the eye the bottom-left, the
-   passage corner stays free. a chamber replaces the door with simulacra laid over the fog and blended into it. */
-
-/* simulacrum canvases paint their own ground; blended this way, the ground drops out and only cells remain:
-   the darker cell wins on the open eye, the lighter on the closed one */
-:root { --layer-blend: darken; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --layer-blend: lighten; } }
-:root[data-theme="dark"] { --layer-blend: lighten; }
+   passage corner stays free. a chamber replaces the door with simulacra laid over the fog: their ground is
+   transparent, so they need no blend mode. every stipple canvas is sized in whole cells by stage.js. */
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -22,7 +17,7 @@ a { color: inherit; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; border-radius: var(--radius-none); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-#fog { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: var(--z-fog); pointer-events: none; }
+#fog { position: fixed; left: 0; top: 0; width: 100vw; height: 100lvh; display: block; z-index: var(--z-fog); pointer-events: none; }
 
 /* the seal: closed into the corner, it leads home */
 #seal {
@@ -33,29 +28,25 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
 /* ---------- the door ---------- */
 #experimental { position: fixed; inset: 0; z-index: var(--z-main); pointer-events: none; display: grid; place-items: center; }
-/* the threshold icon, large. quiet ink-soft while the journey lasts; rubedo on hover and focus, and once, sealed */
+/* the threshold icon, large, always in rubedo. the button is only the target and the focus ring: the door itself is
+   painted on #doorway (door.js), which covers the screen so the doorway can grow toward the viewer */
 #door {
-  pointer-events: auto; display: block; width: clamp(128px, 30vmin, 232px); aspect-ratio: 1; color: var(--ink-soft);
-  opacity: 0; will-change: opacity, filter, transform;
-  transition: color var(--duration-slow) var(--easing-settle);
+  pointer-events: auto; display: block; width: clamp(128px, 30vmin, 232px); aspect-ratio: 1;
 }
 #door[inert] { pointer-events: none; }
-#door svg { width: 100%; height: 100%; display: block; overflow: visible; }
-#door path { fill: currentColor; }
-#door:hover, #door:focus-visible { color: var(--accent); }
 #door:focus { outline: none; }
 #door:focus-visible { outline: 1px solid var(--accent); outline-offset: 4px; }
-#door.sealed { color: var(--accent); cursor: default; }
+#door.sealed { cursor: default; }
 #door.sealed:focus-visible { outline-color: var(--ink-soft); }
+#doorway { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; display: block; z-index: var(--z-main); pointer-events: none; }
 
 /* ---------- chambers ---------- */
 .layer {
-  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; display: block;
-  z-index: var(--z-main); pointer-events: none; mix-blend-mode: var(--layer-blend);
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100lvh; display: block;
+  z-index: var(--z-main); pointer-events: none;
   opacity: 0; transition: opacity var(--duration-scene) var(--easing-settle);
 }
 .layer.on { opacity: 1; }
-/* not a stacking context: the layers inside must blend with the fog itself */
 .chamber-root { display: contents; }
 
 #caption {
@@ -80,6 +71,3 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .is-dark #bTheme .eye.open { opacity: 0; transform: scaleY(.08); }
 .is-dark #bTheme .eye.closed { opacity: 1; transform: none; }
 
-@media (prefers-reduced-motion: reduce) {
-  .layer, #caption, #door, #bTheme .eye { transition-duration: .01ms !important; }
-}

@@ -6,7 +6,6 @@
 
 import { MAPS } from '../assets.js';
 import { image, picture, hold, presses } from '../stage.js';
-import { REDUCED } from '../motion.js';
 
 const A = window.Aphesis;
 
@@ -27,8 +26,8 @@ export const scholar = {
       loop(dt, now) {
         const p = whole ? 1 : h.step(dt, press.held);
         ctx.root.dataset.progress = p.toFixed(3);
-        if (p >= 1 && !whole) { whole = true; setTimeout(() => end && end(), REDUCED ? 2500 : 3200); }
-        const e = A.MJ(p), flicker = REDUCED || whole ? 0 : 0.035 * Math.sin(now / 700) * Math.sin(now / 1900);
+        if (p >= 1 && !whole) { whole = true; setTimeout(() => end && end(), 3200); }
+        const e = A.MJ(p), flicker = whole ? 0 : 0.035 * Math.sin(now / 700) * Math.sin(now / 1900);
         sim.o.gain = 0.45 + (1.05 - 0.45) * e + flicker;
         sim.o.erosion = 0.7 - 0.5 * e;
         sim.o.scatter = 0.75 - 0.35 * e;

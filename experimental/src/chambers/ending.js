@@ -6,9 +6,8 @@
    closed for good. No motion is asked; it only happens. Afterwards the seal in the corner is the way back,
    and the next visit begins the journey again. */
 
-import { picture } from '../stage.js';
-import { REDUCED, travel } from '../motion.js';
-
+import { picture, screen } from '../stage.js';
+import { travel } from '../motion.js';
 
 /* the density map: dense at the edges, emptier toward the middle, so rising gain fills it from the outside in */
 function field() {
@@ -29,15 +28,16 @@ export const ending = {
   async create(ctx) {
     const sim = picture(ctx.root, { fit: 'cover', margin: 0, gain: 0.25, scatter: 0.3, erosion: 0.4, ceiling: 0.86 });
     /* larger than the screen, so the picture's feathered edges never show as a frame */
-    Object.assign(sim.canvas.style, { left: '-12vw', top: '-12vh', width: '124vw', height: '124vh' });
+    const s = screen();
+    sim.place({ left: -0.12 * s.w, top: -0.12 * s.h, width: 1.24 * s.w, height: 1.24 * s.h });
     const timers = [];
     let stop = () => {};
     return {
       pictures: [[sim, field()]],
       play(done) {
-        stop = travel(REDUCED ? 0 : 8000, (e) => { sim.o.gain = 0.25 + 1.05 * e; sim.o.erosion = 0.4 - 0.15 * e; }, () => {
+        stop = travel(8000, (e) => { sim.o.gain = 0.25 + 1.05 * e; sim.o.erosion = 0.4 - 0.15 * e; }, () => {
           ctx.door.seal();
-          timers.push(setTimeout(done, REDUCED ? 2500 : 2600));
+          timers.push(setTimeout(done, 2600));
         });
       },
       loop() {},

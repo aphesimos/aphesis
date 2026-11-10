@@ -6,7 +6,6 @@
 
 import { MAPS } from '../assets.js';
 import { image, picture, chaser } from '../stage.js';
-import { REDUCED } from '../motion.js';
 
 const STRIKES = 6;
 
@@ -18,7 +17,7 @@ export const tablet = {
     const img = await image(MAPS.trismegistus);
     const portrait = innerHeight > innerWidth * 1.1;
     const sim = picture(ctx.root, { margin: portrait ? 0.02 : 0.08, gain: 0.42, erosion: 0.8, scatter: 0.8, ceiling: 0.62 });
-    const shown = chaser(REDUCED ? 0 : 1100);
+    const shown = chaser(1100);
     let playing = false, struck = 0, clear = false, end = null, shiver = -1;
     const strike = () => {
       if (!playing || clear) return;
@@ -37,10 +36,10 @@ export const tablet = {
         const p = shown.step(now);
         ctx.root.dataset.progress = shown.target.toFixed(3);
         ctx.root.dataset.shown = p.toFixed(3);
-        if (struck >= STRIKES && p > 0.999 && !clear) { clear = true; setTimeout(() => end && end(), REDUCED ? 2500 : 3200); }
-        const rest = REDUCED || clear ? 0 : 0.04 * Math.sin(now / 1300) * (1 - p);
+        if (struck >= STRIKES && p > 0.999 && !clear) { clear = true; setTimeout(() => end && end(), 3200); }
+        const rest = clear ? 0 : 0.04 * Math.sin(now / 1300) * (1 - p);
         /* the shiver: a smooth swell of loose points around him, 0.8 s, after each strike */
-        const s = shiver < 0 || REDUCED ? 0 : Math.max(0, Math.min(1, (now - shiver) / 800));
+        const s = shiver < 0 || Math.max(0, Math.min(1, (now - shiver) / 800));
         const swell = s > 0 && s < 1 ? Math.sin(Math.PI * s) ** 2 : 0;
         sim.o.gain = 0.42 + 0.68 * p + rest;
         sim.o.erosion = 0.85 - 0.65 * p;

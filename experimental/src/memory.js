@@ -1,5 +1,5 @@
 /* memory: how far along the journey a visitor is, kept in this browser only.
-   { next: 0..4 } is the next chamber the door opens. When the ending has played, the record is cleared, so the
+   { next: 0..8 } is the next chamber the door opens. When the ending has played, the record is cleared, so the
    next visit starts over at the first chamber. Without storage (blocked, private) the journey is kept for this visit. */
 
 const KEY = 'aphesis.experimental.journey';

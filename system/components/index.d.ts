@@ -1,4 +1,4 @@
-/** aphes.is runtime: window.Aphesis (plain JavaScript, no framework). */
+/** aphes.ist runtime: window.Aphesis (plain JavaScript, no framework). */
 type Pt = [number, number];
 interface FogZone { el?: Element; pad?: number; left?: number; top?: number; width?: number; height?: number }
 interface FogProps { density?: number; light?: number }

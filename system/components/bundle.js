@@ -1,5 +1,5 @@
 /* @ds-bundle: {"format":4,"namespace":"Aphesis","components":[{"name":"Seal"},{"name":"Brush"},{"name":"Icons"},{"name":"Fog"},{"name":"Simulacrum"},{"name":"Typist"},{"name":"Tooltip"},{"name":"Cursor"},{"name":"LetterWave"},{"name":"ThemeShift"}]} */
-/* aphes.is design system runtime. Plain JavaScript, no framework: every screen of the site loads this one script.
+/* aphes.ist design system runtime. Plain JavaScript, no framework: every screen of the site loads this one script.
    Everything visible is made of two marks: the BRUSH (a centerline with a width profile, tapered, with unsure edges)
    and the STIPPLE (small square cells that light up where a density field passes a fixed threshold). Nothing is solid. */
 (function () {

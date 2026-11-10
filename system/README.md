@@ -1,4 +1,4 @@
-aphes.is is one document that never reloads: a stippled fog, a hand-drawn φ that travels between the center and the corner, typewriter text, and a brush script for names. These rules hold for every screen. When a screen needs something these rules do not cover, extend the system here first, then build the screen.
+aphes.ist is one document that never reloads: a stippled fog, a hand-drawn φ that travels between the center and the corner, typewriter text, and a brush script for names. These rules hold for every screen. When a screen needs something these rules do not cover, extend the system here first, then build the screen.
 
 ## Principles
 

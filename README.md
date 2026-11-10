@@ -9,7 +9,7 @@
 
 # design-system
 
-The source of truth for every screen of aphes.is. Published as a browsable reference at
+The source of truth for every screen of aphes.ist. Published as a browsable reference at
 https://claude.ai/artifact/3vKR9ShjBhb3MDv8giaf7i (private until shared); this branch keeps the same files.
 Read [`system/README.md`](system/README.md) before building anything.
 

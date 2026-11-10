@@ -1,6 +1,6 @@
 /* the ouroboros.
    Cagnacci's Allegory of Human Life, with the serpent above her head redrawn by the brush as a living field.
-   Loop the pointer anywhere, either way round (a finger, or the arrow keys), and the serpent travels; its head
+   Move the pointer (a finger, or the arrow keys) and the serpent travels; its head
    reaches its tail and bites, and as you keep looping it swallows itself while the woman beneath erodes. About a
    loop and a half in all: then the ring closes, ἓν τὸ πᾶν is written, and the chamber dissolves back to the threshold. */
 
@@ -34,7 +34,7 @@ export const ouroboros = {
     const serpent = simulacrum(lSnake, { margin, gain: 1.05, scatter: 0.4, erosion: 0.3, ceiling: 0.82 });
 
     /* serpent state: tail angle, body span (radians), turns swallowed */
-    let worn0 = 0.85, tail = Math.PI * 0.62, span = OPEN, eaten = 0, bite = 0, wound = 0, keyPush = 0, dirty = true, lastDraw = 0, done = false, pts = [], sm = null;
+    let worn0 = 0.85, tail = Math.PI * 0.62, span = OPEN, eaten = 0, bite = 0, wound = 0, keyPush = 0, dirty = true, lastDraw = 0, done = false;
 
     function pt(a) {
       const x = HALO.rx * Math.cos(a), y = HALO.ry * Math.sin(a), c = Math.cos(HALO.tilt), s = Math.sin(HALO.tilt);
@@ -83,6 +83,8 @@ export const ouroboros = {
       }
       wound = Math.min(1, wound + Math.abs(da) * 0.35);
       dirty = true;
+      /* how far along, for anyone checking the chamber from outside (tests): 0 open, 1 done */
+      ctx.root.dataset.progress = Math.min(1, ((span - OPEN) / (SHUT - OPEN)) * 0.2 + (eaten / DONE) * 0.8).toFixed(3);
       if (eaten >= DONE) finish();
     }
     function finish() {
@@ -91,22 +93,13 @@ export const ouroboros = {
       setTimeout(() => ctx.exit(), REDUCED ? 1500 : 4200);
     }
 
-    /* the stroke's own turning, either way round, anywhere on the screen: every degree the hand turns moves the serpent */
+    /* every movement of the hand feeds the serpent: the distance moved, whatever its shape, about 70 px per radian, so one modest circle completes it */
+    let lx = null, ly = null;
     const onMove = (e) => {
-      if (e.pointerType !== 'mouse' && !e.buttons) { pts = []; return; }
-      const now = performance.now(), last = pts[pts.length - 1];
-      if (last && now - last[2] > 1500) { pts = []; sm = null; }   /* only a real pause starts a new stroke */
-      /* the hand trembles: follow a smoothed path, so only the loop itself turns the serpent */
-      sm = sm ? [sm[0] + (e.clientX - sm[0]) * 0.35, sm[1] + (e.clientY - sm[1]) * 0.35] : [e.clientX, e.clientY];
-      if (last && Math.hypot(sm[0] - last[0], sm[1] - last[1]) < 5) return;
-      pts.push([sm[0], sm[1], now]); if (pts.length > 3) pts.shift();
-      if (pts.length < 3) return;
-      const [a, b, c] = pts;
-      let dh = Math.atan2(c[1] - b[1], c[0] - b[0]) - Math.atan2(b[1] - a[1], b[0] - a[0]);
-      if (dh > Math.PI) dh -= TAU; if (dh < -Math.PI) dh += TAU;
-      if (Math.abs(dh) < 1.6) turn(Math.abs(dh));
+      if (lx !== null) { const d = Math.hypot(e.clientX - lx, e.clientY - ly); if (d < 400) turn(d / 70); }
+      lx = e.clientX; ly = e.clientY;
     };
-    const onUp = () => { pts = []; };
+    const onUp = () => { lx = ly = null; };
     addEventListener('pointermove', onMove, { passive: true });
     addEventListener('pointerup', onUp);
 
@@ -125,10 +118,10 @@ export const ouroboros = {
       loop(dt, now, paused) {
         if (paused) return;
         if (keyPush) { const d = keyPush * Math.min(1, dt * 5); keyPush -= d; if (Math.abs(keyPush) < 0.002) keyPush = 0; turn(d); }
-        /* at rest the jaws let go and the ring drifts on its own */
+        /* at rest the ring drifts on its own */
         if (!REDUCED) {
           wound = Math.max(0, wound - dt * 0.6);
-          if (!done && wound < 0.05 && span > OPEN && eaten === 0) { span -= (span - OPEN) * Math.min(1, dt * 0.2); dirty = true; }
+          /* progress is kept: the serpent never lets go of what the hand has turned */
           tail += dt * 0.035; dirty = true;
         }
         const shut = span > SHUT - 0.01;

@@ -888,7 +888,9 @@ M["inscribe.js"] = (function () {
 const { REDUCED, wait, onPause } = M["motion.js"];
 const A = window.Aphesis;
 
-function inscribe(parent, { cls, lang, lines, hold = 6500, gap = 1400, onLine }) {
+/* once: the passage is written through one time and then onDone() is called after the last line's hold.
+   advance(): finishes the line being typed, or moves to the next one (a click, a tap, Enter or Space). */
+function inscribe(parent, { cls, lang, lines, hold = 6500, gap = 1400, onLine, once = false, onDone }) {
   const p = document.createElement('p');
   p.className = 'chamber-text ' + cls;
   p.lang = lang;
@@ -901,6 +903,7 @@ function inscribe(parent, { cls, lang, lines, hold = 6500, gap = 1400, onLine })
   const line = () => lines[i];
 
   function next() {
+    if (once && i === lines.length - 1) return;
     i = (i + 1) % lines.length;
     const l = line();
     p.dataset.tip = l.en + (l.src ? '  · ' + l.src : '');
@@ -910,7 +913,12 @@ function inscribe(parent, { cls, lang, lines, hold = 6500, gap = 1400, onLine })
   }
   function type() {
     phase = 'type';
-    typist.type(line().text, () => { phase = 'hold'; cancel = wait(REDUCED ? hold * 1.6 : hold, erase); });
+    typist.type(line().text, held);
+  }
+  function held() {
+    phase = 'hold';
+    if (once && i === lines.length - 1) { cancel = wait(REDUCED ? hold * 1.2 : hold * 0.6, () => { phase = 'done'; onDone && onDone(); }); return; }
+    cancel = wait(REDUCED ? hold * 1.6 : hold, erase);
   }
   function erase() {
     phase = 'erase';
@@ -929,6 +937,13 @@ function inscribe(parent, { cls, lang, lines, hold = 6500, gap = 1400, onLine })
     el: p,
     start() { running = true; p.classList.add('on'); next(); },
     /* how much of the current line stands on the page, 0 to 1 */
+    advance() {
+      if (!running) return;
+      if (phase === 'type') { typist.stop(); typist.buf = Array.from(line().text); typed.textContent = line().text; if (cancel) cancel(); held(); }
+      else if (phase === 'hold') { if (cancel) cancel(); if (once && i === lines.length - 1) { phase = 'done'; onDone && onDone(); } else erase(); }
+      else if (phase === 'erase' || phase === 'gap') { typist.stop(); if (cancel) cancel(); typist.buf = []; typed.textContent = ''; next(); }
+    },
+    done: () => phase === 'done',
     progress() { const l = line(); return l ? Math.min(1, typist.buf.length / Array.from(l.text).length) : 0; },
     phase: () => phase,
     stop() { running = false; typist.stop(); if (cancel) cancel(); p.classList.remove('on'); },
@@ -1019,7 +1034,9 @@ function createGestures({ center, isFound, onEnter, onKnock, onEcho }) {
     if (now - pt > 250) px = py = null;   /* a hand that paused starts a new stroke */
     pt = now;
     if (e.pointerType === 'mouse' || st.holdT || e.buttons) {
-      wind(e.clientX, e.clientY);
+      /* a busy page merges pointer moves into one event per frame: read every point it kept */
+      const list = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+      (list.length ? list : [e]).forEach((c) => wind(c.clientX, c.clientY));
       if (px !== null) scribble(e.clientX - px, e.clientY - py, now);
     }
     px = e.clientX; py = e.clientY;
@@ -1201,7 +1218,7 @@ return { createThreshold };
 M["chambers/ouroboros.js"] = (function () {
 /* the ouroboros.
    Cagnacci's Allegory of Human Life, with the serpent above her head redrawn by the brush as a living field.
-   Loop the pointer anywhere, either way round (a finger, or the arrow keys), and the serpent travels; its head
+   Move the pointer (a finger, or the arrow keys) and the serpent travels; its head
    reaches its tail and bites, and as you keep looping it swallows itself while the woman beneath erodes. About a
    loop and a half in all: then the ring closes, ἓν τὸ πᾶν is written, and the chamber dissolves back to the threshold. */
 
@@ -1234,7 +1251,7 @@ const ouroboros = {
     const serpent = simulacrum(lSnake, { margin, gain: 1.05, scatter: 0.4, erosion: 0.3, ceiling: 0.82 });
 
     /* serpent state: tail angle, body span (radians), turns swallowed */
-    let worn0 = 0.85, tail = Math.PI * 0.62, span = OPEN, eaten = 0, bite = 0, wound = 0, keyPush = 0, dirty = true, lastDraw = 0, done = false, pts = [], sm = null;
+    let worn0 = 0.85, tail = Math.PI * 0.62, span = OPEN, eaten = 0, bite = 0, wound = 0, keyPush = 0, dirty = true, lastDraw = 0, done = false;
 
     function pt(a) {
       const x = HALO.rx * Math.cos(a), y = HALO.ry * Math.sin(a), c = Math.cos(HALO.tilt), s = Math.sin(HALO.tilt);
@@ -1283,6 +1300,8 @@ const ouroboros = {
       }
       wound = Math.min(1, wound + Math.abs(da) * 0.35);
       dirty = true;
+      /* how far along, for anyone checking the chamber from outside (tests): 0 open, 1 done */
+      ctx.root.dataset.progress = Math.min(1, ((span - OPEN) / (SHUT - OPEN)) * 0.2 + (eaten / DONE) * 0.8).toFixed(3);
       if (eaten >= DONE) finish();
     }
     function finish() {
@@ -1291,22 +1310,13 @@ const ouroboros = {
       setTimeout(() => ctx.exit(), REDUCED ? 1500 : 4200);
     }
 
-    /* the stroke's own turning, either way round, anywhere on the screen: every degree the hand turns moves the serpent */
+    /* every movement of the hand feeds the serpent: the distance moved, whatever its shape, about 70 px per radian, so one modest circle completes it */
+    let lx = null, ly = null;
     const onMove = (e) => {
-      if (e.pointerType !== 'mouse' && !e.buttons) { pts = []; return; }
-      const now = performance.now(), last = pts[pts.length - 1];
-      if (last && now - last[2] > 1500) { pts = []; sm = null; }   /* only a real pause starts a new stroke */
-      /* the hand trembles: follow a smoothed path, so only the loop itself turns the serpent */
-      sm = sm ? [sm[0] + (e.clientX - sm[0]) * 0.35, sm[1] + (e.clientY - sm[1]) * 0.35] : [e.clientX, e.clientY];
-      if (last && Math.hypot(sm[0] - last[0], sm[1] - last[1]) < 5) return;
-      pts.push([sm[0], sm[1], now]); if (pts.length > 3) pts.shift();
-      if (pts.length < 3) return;
-      const [a, b, c] = pts;
-      let dh = Math.atan2(c[1] - b[1], c[0] - b[0]) - Math.atan2(b[1] - a[1], b[0] - a[0]);
-      if (dh > Math.PI) dh -= TAU; if (dh < -Math.PI) dh += TAU;
-      if (Math.abs(dh) < 1.6) turn(Math.abs(dh));
+      if (lx !== null) { const d = Math.hypot(e.clientX - lx, e.clientY - ly); if (d < 400) turn(d / 70); }
+      lx = e.clientX; ly = e.clientY;
     };
-    const onUp = () => { pts = []; };
+    const onUp = () => { lx = ly = null; };
     addEventListener('pointermove', onMove, { passive: true });
     addEventListener('pointerup', onUp);
 
@@ -1325,10 +1335,10 @@ const ouroboros = {
       loop(dt, now, paused) {
         if (paused) return;
         if (keyPush) { const d = keyPush * Math.min(1, dt * 5); keyPush -= d; if (Math.abs(keyPush) < 0.002) keyPush = 0; turn(d); }
-        /* at rest the jaws let go and the ring drifts on its own */
+        /* at rest the ring drifts on its own */
         if (!REDUCED) {
           wound = Math.max(0, wound - dt * 0.6);
-          if (!done && wound < 0.05 && span > OPEN && eaten === 0) { span -= (span - OPEN) * Math.min(1, dt * 0.2); dirty = true; }
+          /* progress is kept: the serpent never lets go of what the hand has turned */
           tail += dt * 0.035; dirty = true;
         }
         const shut = span > SHUT - 0.01;
@@ -1355,7 +1365,8 @@ M["chambers/hands.js"] = (function () {
 /* the two hands.
    The Creation of Adam gathers out of the fog, then gives way to its detail: two hands, pulled apart.
    As the pointer (a finger, or the arrow keys) nears the space between them, the fingers close in, and they
-   hesitate the nearer they come. They never touch. */
+   hesitate the nearer they come. Rest the pointer in the gap for two and a half seconds and they touch: a few red
+   cells spark, and the chamber returns to the threshold. */
 
 const { MAPS } = M["assets.js"];
 const { image, cut, layer, simulacrum, pointer, follower, smooth } = M["stage.js"];
@@ -1381,7 +1392,7 @@ const hands = {
     const creation = simulacrum(lC, { margin: portrait ? 0.04 : 0.1, accent: 0.02 });
     const adam = simulacrum(lA, { margin: 0 }), god = simulacrum(lB, { margin: 0 });
 
-    let geo = null, live = false, keyX = null, keyY = null, tremor = 0, cancelWait = null;
+    let geo = null, live = false, keyX = null, keyY = null, tremor = 0, cancelWait = null, nearness = 0, ended = false;
     const off = follower(0, 2.6);
 
     /* the hands' layers are wider than the screen, so their edges never show as they slide */
@@ -1440,6 +1451,9 @@ const hands = {
         if (paused || !geo) return;
         let x = geo.maxOff, e = 0;
         const has = keyX !== null || pointer.present;
+        if (ended) {   /* after the spark the hands part again, slowly */
+          place(off.step(-geo.gap / 2, dt)); adam.o.accent = god.o.accent = 0.05; return;   /* the fingers close the gap */
+        }
         if (live && has) {
           const px = keyX !== null ? keyX : pointer.x, py = keyX !== null ? keyY : pointer.y;
           const d = Math.hypot(px - geo.gx, py - geo.gy);
@@ -1453,6 +1467,14 @@ const hands = {
         place(off.step(x, dt));
         const near = smooth(0.92, 1, e);
         adam.o.accent = 0.04 * near; god.o.accent = 0.04 * near;
+        /* time spent with the pointer in the gap (within 140 px of it) */
+        const inGap = has && Math.hypot((keyX !== null ? keyX : pointer.x) - geo.gx, (keyX !== null ? keyY : pointer.y) - geo.gy) < 140;
+        nearness = Math.max(0, nearness + (inGap ? dt : -dt * 0.5));
+        if (live && nearness > 2.5) {
+          ended = true; tremor = 0;
+          ctx.setCaption('the touch · Michelangelo, c. 1512');
+          setTimeout(() => ctx.exit(), REDUCED ? 1500 : 3600);
+        }
       },
       destroy() {
         removeEventListener('resize', onResize); removeEventListener('pointermove', onMove);
@@ -1469,7 +1491,8 @@ return { hands };
 M["chambers/scholar.js"] = (function () {
 /* the scholar.
    Caravaggio's Saint Jerome writing. As his sentences are typed into the fog, the picture gathers with them:
-   each letter brings more of him out of the stipple, and when a line is erased he thins again. */
+   each letter brings more of him out of the stipple, and when a line is erased he thins again. After the third line
+   he stays whole for a moment and the chamber returns to the threshold. A click, a tap, Enter or Space moves the writing on. */
 
 const { MAPS } = M["assets.js"];
 const { image, layer, simulacrum, follower } = M["stage.js"];
@@ -1489,7 +1512,11 @@ const scholar = {
     const portrait = innerHeight > innerWidth * 1.1;
     const l = layer(ctx.root);
     const sim = simulacrum(l, { margin: portrait ? -0.45 : 0.06, gain: 0.42, accent: 0.02 });
-    const text = inscribe(ctx.root, { cls: 'scholar-text', lang: 'la', lines: LINES, hold: 7000 });
+    let ended = false;
+    const text = inscribe(ctx.root, { cls: 'scholar-text', lang: 'la', lines: LINES, hold: 4200, once: true,
+      onDone: () => { ended = true; floor = 1; sim.o.accent = 0.04; setTimeout(() => ctx.exit(), 2600); } });
+    const onDown = (e) => { if (started && !e.target.closest('a, button')) text.advance(); };
+    addEventListener('pointerdown', onDown);
     const gain = follower(0.42, 2.2);
     let floor = 0.42, started = false;
 
@@ -1502,15 +1529,15 @@ const scholar = {
         setTimeout(() => { text.start(); started = true; }, 900);
       },
       leave(done) { text.stop(); sim.hide(done); },
-      key() { return false; },
+      key(e) { if (e.key === 'Enter' || e.key === ' ') { text.advance(); return true; } return false; },
       loop(dt, now, paused) {
         if (paused || !started) return;
-        const k = text.progress();
+        const k = ended ? 1 : text.progress();
         if (k > 0.98) floor = 0.55;   /* once he has been written whole, he never quite leaves */
         sim.o.gain = gain.step(floor + (1.02 - floor) * k, dt);
         sim.o.scatter = 0.5 + 0.25 * (1 - k);
       },
-      destroy() { text.destroy(); sim.stop(); },
+      destroy() { removeEventListener('pointerdown', onDown); text.destroy(); sim.stop(); },
     };
   },
 };
@@ -1521,7 +1548,9 @@ return { scholar };
 M["chambers/tablet.js"] = (function () {
 /* the emerald tablet.
    Hermes Trismegistus from the pavement of Siena. The tablet's lines are typed and erased in Latin, in order,
-   with the English in the tooltip. Where it promises the glory of the whole world, a few red cells appear. */
+   with the English in the tooltip. Where it promises the glory of the whole world, a few red cells appear. After the
+   last line (all darkness will flee) the figure clears and the chamber returns to the threshold. A click, a tap,
+   Enter or Space moves the writing on. */
 
 const { MAPS } = M["assets.js"];
 const { image, layer, simulacrum } = M["stage.js"];
@@ -1547,12 +1576,15 @@ const tablet = {
     const portrait = innerHeight > innerWidth * 1.1;
     const l = layer(ctx.root);
     const sim = simulacrum(l, { margin: portrait ? 0.02 : 0.08, accent: 0.01 });
-    let glory = false;
+    let glory = false, ended = false;
     const text = inscribe(ctx.root, {
-      cls: 'tablet-text', lang: 'la', lines: LINES, hold: 5200,
+      cls: 'tablet-text', lang: 'la', lines: LINES, hold: 3400, gap: 900, once: true,
       onLine: (line) => { glory = !!line.glory; },
+      onDone: () => { ended = true; setTimeout(() => ctx.exit(), 3000); },
     });
     let started = false;
+    const onDown = (e) => { if (started && !e.target.closest('a, button')) text.advance(); };
+    addEventListener('pointerdown', onDown);
     return {
       layers: [l],
       texts: [text.el],
@@ -1562,13 +1594,17 @@ const tablet = {
         setTimeout(() => { text.start(); started = true; }, 1400);
       },
       leave(done) { text.stop(); sim.hide(done); },
-      key() { return false; },
+      key(e) { if (e.key === 'Enter' || e.key === ' ') { text.advance(); return true; } return false; },
       loop(dt, now, paused) {
         if (paused || !started) return;
+        if (ended) {   /* darkness flees: the figure clears */
+          sim.o.erosion += (0.12 - sim.o.erosion) * Math.min(1, dt * 1.2); sim.o.scatter += (0.25 - sim.o.scatter) * Math.min(1, dt * 1.2);
+          sim.o.gain += (1.15 - (sim.o.gain || 1)) * Math.min(1, dt * 1.2);
+        }
         const target = glory ? 0.01 + 0.04 * text.progress() : 0.01;
         sim.o.accent += (target - sim.o.accent) * Math.min(1, dt * 1.5);
       },
-      destroy() { text.destroy(); sim.stop(); },
+      destroy() { removeEventListener('pointerdown', onDown); text.destroy(); sim.stop(); },
     };
   },
 };

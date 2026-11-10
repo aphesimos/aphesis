@@ -1,7 +1,8 @@
 /* the two hands.
    The Creation of Adam gathers out of the fog, then gives way to its detail: two hands, pulled apart.
    As the pointer (a finger, or the arrow keys) nears the space between them, the fingers close in, and they
-   hesitate the nearer they come. They never touch. */
+   hesitate the nearer they come. Rest the pointer in the gap for two and a half seconds and they touch: a few red
+   cells spark, and the chamber returns to the threshold. */
 
 import { MAPS } from '../assets.js';
 import { image, cut, layer, simulacrum, pointer, follower, smooth } from '../stage.js';
@@ -28,7 +29,7 @@ export const hands = {
     const creation = simulacrum(lC, { margin: portrait ? 0.04 : 0.1, accent: 0.02 });
     const adam = simulacrum(lA, { margin: 0 }), god = simulacrum(lB, { margin: 0 });
 
-    let geo = null, live = false, keyX = null, keyY = null, tremor = 0, cancelWait = null;
+    let geo = null, live = false, keyX = null, keyY = null, tremor = 0, cancelWait = null, nearness = 0, ended = false;
     const off = follower(0, 2.6);
 
     /* the hands' layers are wider than the screen, so their edges never show as they slide */
@@ -87,6 +88,9 @@ export const hands = {
         if (paused || !geo) return;
         let x = geo.maxOff, e = 0;
         const has = keyX !== null || pointer.present;
+        if (ended) {   /* after the spark the hands part again, slowly */
+          place(off.step(-geo.gap / 2, dt)); adam.o.accent = god.o.accent = 0.05; return;   /* the fingers close the gap */
+        }
         if (live && has) {
           const px = keyX !== null ? keyX : pointer.x, py = keyX !== null ? keyY : pointer.y;
           const d = Math.hypot(px - geo.gx, py - geo.gy);
@@ -100,6 +104,14 @@ export const hands = {
         place(off.step(x, dt));
         const near = smooth(0.92, 1, e);
         adam.o.accent = 0.04 * near; god.o.accent = 0.04 * near;
+        /* time spent with the pointer in the gap (within 140 px of it) */
+        const inGap = has && Math.hypot((keyX !== null ? keyX : pointer.x) - geo.gx, (keyX !== null ? keyY : pointer.y) - geo.gy) < 140;
+        nearness = Math.max(0, nearness + (inGap ? dt : -dt * 0.5));
+        if (live && nearness > 2.5) {
+          ended = true; tremor = 0;
+          ctx.setCaption('the touch · Michelangelo, c. 1512');
+          setTimeout(() => ctx.exit(), REDUCED ? 1500 : 3600);
+        }
       },
       destroy() {
         removeEventListener('resize', onResize); removeEventListener('pointermove', onMove);

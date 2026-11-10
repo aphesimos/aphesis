@@ -1,6 +1,7 @@
 /* the scholar.
    Caravaggio's Saint Jerome writing. As his sentences are typed into the fog, the picture gathers with them:
-   each letter brings more of him out of the stipple, and when a line is erased he thins again. */
+   each letter brings more of him out of the stipple, and when a line is erased he thins again. After the third line
+   he stays whole for a moment and the chamber returns to the threshold. A click, a tap, Enter or Space moves the writing on. */
 
 import { MAPS } from '../assets.js';
 import { image, layer, simulacrum, follower } from '../stage.js';
@@ -21,7 +22,11 @@ export const scholar = {
     const portrait = innerHeight > innerWidth * 1.1;
     const l = layer(ctx.root);
     const sim = simulacrum(l, { margin: portrait ? -0.45 : 0.06, gain: 0.42, accent: 0.02 });
-    const text = inscribe(ctx.root, { cls: 'scholar-text', lang: 'la', lines: LINES, hold: 7000 });
+    let ended = false;
+    const text = inscribe(ctx.root, { cls: 'scholar-text', lang: 'la', lines: LINES, hold: 4200, once: true,
+      onDone: () => { ended = true; floor = 1; sim.o.accent = 0.04; setTimeout(() => ctx.exit(), 2600); } });
+    const onDown = (e) => { if (started && !e.target.closest('a, button')) text.advance(); };
+    addEventListener('pointerdown', onDown);
     const gain = follower(0.42, 2.2);
     let floor = 0.42, started = false;
 
@@ -34,15 +39,15 @@ export const scholar = {
         setTimeout(() => { text.start(); started = true; }, 900);
       },
       leave(done) { text.stop(); sim.hide(done); },
-      key() { return false; },
+      key(e) { if (e.key === 'Enter' || e.key === ' ') { text.advance(); return true; } return false; },
       loop(dt, now, paused) {
         if (paused || !started) return;
-        const k = text.progress();
+        const k = ended ? 1 : text.progress();
         if (k > 0.98) floor = 0.55;   /* once he has been written whole, he never quite leaves */
         sim.o.gain = gain.step(floor + (1.02 - floor) * k, dt);
         sim.o.scatter = 0.5 + 0.25 * (1 - k);
       },
-      destroy() { text.destroy(); sim.stop(); },
+      destroy() { removeEventListener('pointerdown', onDown); text.destroy(); sim.stop(); },
     };
   },
 };

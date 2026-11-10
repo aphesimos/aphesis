@@ -77,7 +77,9 @@ export function createGestures({ center, isFound, onEnter, onKnock, onEcho }) {
     if (now - pt > 250) px = py = null;   /* a hand that paused starts a new stroke */
     pt = now;
     if (e.pointerType === 'mouse' || st.holdT || e.buttons) {
-      wind(e.clientX, e.clientY);
+      /* a busy page merges pointer moves into one event per frame: read every point it kept */
+      const list = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+      (list.length ? list : [e]).forEach((c) => wind(c.clientX, c.clientY));
       if (px !== null) scribble(e.clientX - px, e.clientY - py, now);
     }
     px = e.clientX; py = e.clientY;

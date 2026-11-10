@@ -2,7 +2,7 @@
 //! checks, R2 for pictures (the original and its density map), reports, and removal behind the admin secret.
 //!
 //! ```text
-//! GET    /api/board                          the threads, newest activity first
+//! GET    /api/board[?cursor=&limit=]         a page of threads, newest activity first, and the next page's cursor
 //! GET    /api/threads/:id                    one thread, its posts in order
 //! POST   /api/threads                        a new thread   (multipart: text, image?, density?, w?, h?, turnstile?)
 //! POST   /api/threads/:id/posts              a reply        (the same fields)
@@ -14,7 +14,11 @@
 //!
 //! Bindings: `THREADS`, `BOARD` (Durable Objects), `IMAGES` (R2). Secrets: `IP_SALT`, `POSTER_SALT`,
 //! `TURNSTILE_SECRET`, `ADMIN_SECRET`. Vars: `ALLOWED_ORIGINS`, `RATE_POSTS`, `RATE_THREADS`,
-//! `RATE_WINDOW_SECONDS`, `BOARD_LIMIT`, `ALLOW_NO_TURNSTILE` (local only).
+//! `RATE_WINDOW_SECONDS`, `ALLOW_NO_TURNSTILE` (local only).
+//!
+//! The board is permanent: no thread, post or picture is ever deleted on its own (no limit, no expiry). Only the
+//! admin's `DELETE /api/threads/:id/posts/:n` removes anything; reports only count, and the board's alarm only
+//! forgets refilled rate-limit buckets.
 //!
 //! The same HTTP contract as the JavaScript Worker it replaces (`section/forum`: `forum/worker/src/index.js`), so
 //! the page works unchanged. One deliberate difference: without `TURNSTILE_SECRET` the JavaScript skipped the check;
@@ -279,34 +283,45 @@ async fn handle_post(c: &Ctx, mut req: Request, thread_id: Option<&str>) -> Resu
             image: post.image.clone(),
         },
     };
-    let (_, t) = call(
+    call(
         &c.board()?,
         "/touch",
         Some(&json!({ "id": id, "entry": entry })),
     )
     .await?;
-    for old in t["dropped"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(Value::as_str)
-    {
-        let (_, p) = call(&c.thread(old)?, "/purge", Some(&json!({}))).await?;
-        let gone: Vec<String> = p["keys"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter_map(|k| k.as_str().map(String::from))
-            .collect();
-        if !gone.is_empty() {
-            images.delete_multiple(gone).await?;
-        }
-    }
     c.json(
         201,
         &json!({ "thread": id, "n": r["n"] }),
         &http::Headers::new(),
     )
+}
+
+/// `?cursor=<bumped>-<seq>&limit=<n>` for a page of the board: the cursor is the `next` a previous page gave (absent
+/// for the first page; anything malformed is refused, so a client never loops on the first page), the limit 40
+/// unless given, kept within 1 to 100 (a limit that is not a number is ignored).
+pub fn page_params(
+    query: Option<&str>,
+) -> std::result::Result<(Option<board::Cursor>, i64), &'static str> {
+    let mut cursor = None;
+    let mut limit = board::PAGE_DEFAULT;
+    for pair in query
+        .unwrap_or_default()
+        .split('&')
+        .filter(|p| !p.is_empty())
+    {
+        let (k, v) = pair.split_once('=').unwrap_or((pair, ""));
+        match k {
+            "cursor" if v.is_empty() => {}
+            "cursor" => cursor = Some(board::parse_cursor(v).ok_or("bad cursor")?),
+            "limit" => {
+                if let Ok(n) = v.parse::<i64>() {
+                    limit = n.clamp(1, board::PAGE_MAX);
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok((cursor, limit))
 }
 
 /// `/^\d{1,6}$/`
@@ -351,7 +366,17 @@ async fn route(c: &Ctx, req: Request) -> Result<Response> {
     let method = req.method();
 
     if method == Method::Get && a == Some("board") && b.is_none() {
-        let (_, body) = call::<Value>(&c.board()?, "/list", None).await?;
+        let url = req.url()?;
+        let (cursor, limit) = match page_params(url.query()) {
+            Ok(p) => p,
+            Err(e) => return c.fail(400, e),
+        };
+        let (_, body) = call(
+            &c.board()?,
+            "/list",
+            Some(&json!({ "cursor": cursor, "limit": limit })),
+        )
+        .await?;
         return c.json(
             200,
             &body,
@@ -505,5 +530,32 @@ mod tests {
         assert!(!image_file("abcdefghjkm.jpg"));
         assert!(!image_file("abcdefghjkmn.thumb.jpg"));
         assert!(!image_file("ABCDEFGHJKMN.jpg"));
+    }
+
+    #[test]
+    fn board_pages() {
+        assert_eq!(page_params(None), Ok((None, 40)));
+        assert_eq!(page_params(Some("")), Ok((None, 40)));
+        assert_eq!(page_params(Some("cursor=")), Ok((None, 40)));
+        assert_eq!(
+            page_params(Some("cursor=1762780000000-1234")),
+            Ok((Some((1762780000000, 1234)), 40))
+        );
+        assert_eq!(
+            page_params(Some("limit=10&cursor=5-7")),
+            Ok((Some((5, 7)), 10))
+        );
+        assert_eq!(page_params(Some("limit=1000")), Ok((None, 100)));
+        assert_eq!(page_params(Some("limit=0")), Ok((None, 1)));
+        assert_eq!(page_params(Some("limit=-3")), Ok((None, 1)));
+        assert_eq!(page_params(Some("limit=many")), Ok((None, 40)));
+        assert_eq!(page_params(Some("other=1&limit=5")), Ok((None, 5)));
+        assert_eq!(page_params(Some("cursor=abc")), Err("bad cursor"));
+        assert_eq!(page_params(Some("cursor=1234")), Err("bad cursor"));
+        assert_eq!(page_params(Some("cursor=-1")), Err("bad cursor"));
+        assert_eq!(
+            page_params(Some("cursor=1234567890123456-1")),
+            Err("bad cursor")
+        );
     }
 }

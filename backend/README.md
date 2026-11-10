@@ -55,14 +55,23 @@ and R2 for pictures:
 
 - `Thread`: `meta` and `posts (n, poster, text, created, image, reports, removed)`. The only writer of its posts, so
   numbers are given once. Its tables are made by the first post (a lookup of a thread that does not exist leaves
-  nothing behind); removing the opening post deletes all of it;
-- `Board`: `threads` (the index, newest activity first, at most `BOARD_LIMIT`; the oldest fall off and are deleted
-  with their pictures), `buckets` (token buckets keyed by action and IP hash, swept by an hourly alarm once
-  refilled) and `reports`;
-- R2 bucket `aphesis-forum-images`: the original (jpeg, png, webp or gif, at most 4 MB and 40 megapixels, its type
+  nothing behind); removing the opening post deletes all of it. At most 500 posts of 2000 characters, so one object
+  stays a few MB at worst;
+- `Board`: `threads` (the index of every thread, newest activity first, read a page at a time through an index on
+  `(bumped, seq)`), `buckets` (token buckets keyed by action and IP hash, swept by an hourly alarm once refilled),
+  `reports` (the newest 500 records for the admin) and `schema_version`. Its SQL schema migrates itself when the
+  object starts (`MIGRATIONS` in `board.rs`; `v2` is the index for pages), so a deploy needs no wrangler migration
+  for it;
+- R2 bucket `aphesis-forum-images`, written once per picture under a fresh random name: the original (jpeg, png, webp or gif, at most 4 MB and 40 megapixels, its type
   read from its bytes) and the density map made in the browser (jpeg or png, at most 400 KB, 32 to 640 px), under
   `t/<thread>/<id>.<ext>` and `t/<thread>/<id>.density.<ext>`. Served with `nosniff`, `default-src 'none'; sandbox`
-  and a year of cache.
+  and a year of cache (`immutable`).
+
+**The forum is permanent.** Nothing is deleted on its own: no limit on the board, no expiry, no sweep of threads,
+posts or pictures. The only removal is the admin's `DELETE /api/threads/:id/posts/:n` (post 1 takes the thread and
+its pictures with it). Reports only count and keep their newest 500 records; the board's alarm only forgets refilled
+rate-limit buckets. (The one other delete is of pictures just uploaded for a post that was then refused, which were
+never part of the forum.)
 
 The IP hash is `SHA-256(IP_SALT|ip|address)` cut to 32 hex, used for rate limits only. The poster token is
 `SHA-256(POSTER_SALT|poster|thread|ipHash)` cut to 16 hex: the same for one person all through a thread, different
@@ -121,7 +130,7 @@ Vars: `ALLOWED_ORIGINS`, `TTL_DAYS` (30), `BLOCKLIST` (extra words, comma-separa
 
 | method | path | what |
 | --- | --- | --- |
-| GET | `/api/board` | `{threads: [{id, first, replies, created, bumped, image}]}`, newest activity first; `cache-control: public, max-age=5` |
+| GET | `/api/board` | `{threads: [{id, first, replies, created, bumped, image}], next}`, newest activity first, one page; `cache-control: public, max-age=5` |
 | GET | `/api/threads/:id` | `{id, created, posts: [{n, poster, text, created, image?} or {n, created, removed: true}]}` |
 | POST | `/api/threads` | a new thread, multipart: `text`, optional `image` + `density`, `turnstile` → `201 {thread, n: 1}` |
 | POST | `/api/threads/:id/posts` | a reply, the same fields; text may be empty with a picture → `201 {thread, n}` |
@@ -130,6 +139,14 @@ Vars: `ALLOWED_ORIGINS`, `TTL_DAYS` (30), `BLOCKLIST` (extra words, comma-separa
 | GET | `/api/admin/reports` | admin → `{reports: [{thread, n, count, at}]}`, newest first |
 | DELETE | `/api/threads/:id/posts/:n` | admin → `{ok: true, thread: "kept" or "removed"}`; post 1 removes the thread and its pictures |
 
+**Pages of the board.** `GET /api/board?cursor=<next>&limit=<n>`: without `cursor`, the first page; with the `next`
+a page gave, the page after it; `next` is `null` on the last page. `limit` is 40 unless given, at most 100. The
+order is `bumped` (the last post's time), then `seq` (which grows with every new thread or reply and is never given
+twice), both newest first, and the cursor is the page's last thread as `"<bumped>-<seq>"`, so a page always starts
+strictly below where the previous one ended (a thread answered meanwhile moves to the top and is not shown twice). A
+malformed cursor is `400 {error: "bad cursor"}`. A client that reads only `threads`
+(the page before pages) gets the first 40, as before.
+
 `image` is `{density, original, w, h, caption}` with paths relative to the Worker (`image` is `null` on the board when
 the opening post has none). Thread ids are 10 characters of `a-z2-9`. Status codes: `400` bad input (the error says
 what: `a post needs words`, `at most 2000 characters`, `at most 60 lines`, `only jpeg, png, webp or gif`, `the density
@@ -137,7 +154,7 @@ map has the wrong size`, ...), `403` (`not from this site`, `the check did not p
 (`this thread is full`, 500 posts), `413 too large` (over 5 MB), `429` with `Retry-After`, `503` without salts. Admin
 calls carry `Authorization: Bearer <ADMIN_SECRET>`.
 
-Vars: `ALLOWED_ORIGINS`, `RATE_POSTS` (4), `RATE_THREADS` (1), `RATE_WINDOW_SECONDS` (120), `BOARD_LIMIT` (120),
+Vars: `ALLOWED_ORIGINS`, `RATE_POSTS` (4), `RATE_THREADS` (1), `RATE_WINDOW_SECONDS` (120),
 `ALLOW_NO_TURNSTILE` (local only). Secrets: `TURNSTILE_SECRET`, `IP_SALT`, `POSTER_SALT`, `ADMIN_SECRET`.
 
 ## The content service

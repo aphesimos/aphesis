@@ -1,12 +1,18 @@
-//! Board: one Durable Object for the whole board (SQLite-backed). It keeps the index of threads (newest activity
-//! first, at most `BOARD_LIMIT`), the rate-limit buckets (keyed by action and IP hash), and the reports for the
-//! admin. Buckets that have refilled are forgotten by an hourly alarm, so nothing about a visitor outlives their
+//! Board: one Durable Object for the whole board (SQLite-backed). It keeps the index of every thread (newest
+//! activity first, read a page at a time), the rate-limit buckets (keyed by action and IP hash), and the reports for
+//! the admin. Buckets that have refilled are forgotten by an hourly alarm, so nothing about a visitor outlives their
 //! activity.
 //!
-//! - `threads (id, first, replies, created, bumped, image, seq)`: `seq` grows with every touch, so `ORDER BY seq
-//!   DESC` is the order the JavaScript object kept by moving a thread to the front of its array;
+//! The board is permanent: nothing here deletes a thread on its own. A thread leaves the index only when the admin
+//! removes its opening post (`/drop`); the alarm touches buckets only, and reports only count.
+//!
+//! - `threads (id, first, replies, created, bumped, image, seq)`: `bumped` is the time of the last post and `seq`
+//!   grows with every touch, never given twice. The board's order is `bumped DESC, seq DESC` (newest activity first;
+//!   `seq` settles two posts in the same millisecond, or two touches that arrived out of order), and a page ends at
+//!   a `(bumped, seq)` the next page starts strictly below: the cursor, `"<bumped>-<seq>"`;
 //! - `buckets (key, tokens, at)`;
-//! - `reports (thread, n, count, at, seq)`: `seq` is when a post was first reported (newest first).
+//! - `reports (thread, n, count, at, seq)`: `seq` is when a post was first reported (newest first);
+//! - `schema_version (k, version)`: which of `MIGRATIONS` have run.
 
 use aphesis_common::durable::{alarm_no_later_than, body, reply, set_alarm_at};
 use aphesis_common::env;
@@ -22,6 +28,7 @@ use worker::{
 use crate::model::{Entry, Image, PublicImage};
 
 const HOUR: i64 = 3_600_000;
+/// report records kept for the admin (the oldest records go; the posts they point at stay)
 const REPORTS_KEPT: i64 = 500;
 
 const SCHEMA: &str = "
@@ -29,7 +36,26 @@ CREATE TABLE IF NOT EXISTS threads (id TEXT PRIMARY KEY, first TEXT NOT NULL, re
 CREATE INDEX IF NOT EXISTS threads_seq ON threads (seq);
 CREATE TABLE IF NOT EXISTS buckets (key TEXT PRIMARY KEY, tokens REAL NOT NULL, at REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS reports (thread TEXT NOT NULL, n INTEGER NOT NULL, count INTEGER NOT NULL, at INTEGER NOT NULL, seq INTEGER NOT NULL, PRIMARY KEY (thread, n));
+CREATE TABLE IF NOT EXISTS schema_version (k INTEGER PRIMARY KEY CHECK (k = 1), version INTEGER NOT NULL);
 ";
+
+/// Schema changes after `v1` (the tables above), each run once, in order, when the object starts. A version is
+/// recorded only after its statements ran; every statement is safe to repeat.
+///
+/// - `v2`: the board keeps every thread and is read a page at a time (`WHERE (bumped, seq) < (?, ?) ORDER BY bumped
+///   DESC, seq DESC LIMIT ?`), so the scan walks an index on `(bumped, seq)` and stops after one page, however many
+///   threads there are. (`v1`'s index on `seq` stays: it answers `MAX(seq)` for the next touch.)
+pub const MIGRATIONS: &[(i64, &str)] = &[(
+    2,
+    "CREATE INDEX IF NOT EXISTS threads_bumped_seq ON threads (bumped, seq);",
+)];
+
+/// the newest schema version
+pub const VERSION: i64 = 2;
+
+/// threads on a page of the board: 40 unless asked, never more than 100
+pub const PAGE_DEFAULT: i64 = 40;
+pub const PAGE_MAX: i64 = 100;
 
 #[durable_object]
 pub struct Board {
@@ -46,6 +72,7 @@ struct ThreadRow {
     created: Option<f64>,
     bumped: f64,
     image: Option<String>,
+    seq: f64,
 }
 
 #[derive(Serialize)]
@@ -68,11 +95,6 @@ struct Report {
 }
 
 #[derive(Deserialize)]
-struct Id {
-    id: String,
-}
-
-#[derive(Deserialize)]
 struct KeyedBucket {
     key: String,
     tokens: f64,
@@ -88,6 +110,25 @@ pub fn limit_for(key: &str, rate_threads: f64, rate_posts: f64) -> f64 {
     } else {
         rate_posts
     }
+}
+
+/// a place in the board's order: `(bumped, seq)`
+pub type Cursor = (i64, i64);
+
+/// the cursor after a thread: `"<bumped>-<seq>"`
+pub fn cursor_of(bumped: i64, seq: i64) -> String {
+    format!("{bumped}-{seq}")
+}
+
+/// a cursor back into `(bumped, seq)`: two runs of 1 to 15 digits joined by `-`, nothing else
+pub fn parse_cursor(s: &str) -> Option<Cursor> {
+    let (a, b) = s.split_once('-')?;
+    let num = |x: &str| {
+        ((1..=15).contains(&x.len()) && x.bytes().all(|c| c.is_ascii_digit()))
+            .then(|| x.parse().ok())
+            .flatten()
+    };
+    Some((num(a)?, num(b)?))
 }
 
 impl Board {
@@ -106,15 +147,35 @@ impl Board {
         Ok(rows.first().map(|r| r.s as i64).unwrap_or(1))
     }
 
-    fn list(&self) -> Result<Vec<ListedThread>> {
-        let rows: Vec<ThreadRow> = self
-            .sql
-            .exec(
-                "SELECT id, first, replies, created, bumped, image FROM threads ORDER BY seq DESC",
-                None,
-            )?
-            .to_array()?;
-        Ok(rows
+    /// One page of the board, newest activity first: the threads below `cursor` (`(bumped, seq)`; the top without
+    /// one), at most `limit`, and the cursor of the next page, `None` at the end.
+    fn page(
+        &self,
+        cursor: Option<Cursor>,
+        limit: i64,
+    ) -> Result<(Vec<ListedThread>, Option<String>)> {
+        let limit = limit.clamp(1, PAGE_MAX);
+        // one more than the page, to know whether another follows
+        let rows: Vec<ThreadRow> = match cursor {
+            Some((bumped, seq)) => self.sql.exec(
+                "SELECT id, first, replies, created, bumped, image, seq FROM threads WHERE (bumped, seq) < (?, ?) ORDER BY bumped DESC, seq DESC LIMIT ?",
+                vec![bumped.into(), seq.into(), (limit + 1).into()],
+            )?,
+            None => self.sql.exec(
+                "SELECT id, first, replies, created, bumped, image, seq FROM threads ORDER BY bumped DESC, seq DESC LIMIT ?",
+                vec![(limit + 1).into()],
+            )?,
+        }
+        .to_array()?;
+        let more = rows.len() as i64 > limit;
+        let rows: Vec<ThreadRow> = rows.into_iter().take(limit as usize).collect();
+        let next = if more {
+            rows.last()
+                .map(|t| cursor_of(t.bumped as i64, t.seq as i64))
+        } else {
+            None
+        };
+        let threads = rows
             .into_iter()
             .map(|t| {
                 let image: Option<Image> = t
@@ -130,7 +191,37 @@ impl Board {
                     image: image.as_ref().map(PublicImage::from),
                 }
             })
-            .collect())
+            .collect();
+        Ok((threads, next))
+    }
+
+    /// run the migrations this storage has not seen yet
+    fn migrate(&self) -> Result<()> {
+        #[derive(Deserialize)]
+        struct V {
+            version: f64,
+        }
+        let rows: Vec<V> = self
+            .sql
+            .exec("SELECT version FROM schema_version WHERE k = 1", None)?
+            .to_array()?;
+        let mut at = rows.first().map(|v| v.version as i64).unwrap_or(1);
+        if at > VERSION {
+            // storage written by a newer deploy than this one (a rollback): leave it as it is
+            worker::console_warn!("board schema v{at} is newer than this code's v{VERSION}");
+        }
+        for (version, statements) in MIGRATIONS {
+            if *version <= at {
+                continue;
+            }
+            self.sql.exec(statements, None)?;
+            self.sql.exec(
+                "INSERT INTO schema_version (k, version) VALUES (1, ?) ON CONFLICT (k) DO UPDATE SET version = excluded.version",
+                vec![(*version).into()],
+            )?;
+            at = *version;
+        }
+        Ok(())
     }
 
     fn rates(&self) -> (f64, f64, f64) {
@@ -148,7 +239,11 @@ impl DurableObject for Board {
         if let Err(e) = sql.exec(SCHEMA, None) {
             worker::console_error!("board schema: {e}");
         }
-        Board { state, env, sql }
+        let board = Board { state, env, sql };
+        if let Err(e) = board.migrate() {
+            worker::console_error!("board migration: {e}");
+        }
+        board
     }
 
     async fn fetch(&self, mut req: Request) -> Result<Response> {
@@ -156,9 +251,16 @@ impl DurableObject for Board {
         let b = body(&mut req).await;
         let now = now_ms();
         match path.as_str() {
-            "/list" => reply(200, &json!({ "threads": self.list()? })),
+            "/list" => {
+                let cursor = b["cursor"]
+                    .as_array()
+                    .and_then(|c| Some((c.first()?.as_i64()?, c.get(1)?.as_i64()?)));
+                let limit = b["limit"].as_i64().unwrap_or(PAGE_DEFAULT);
+                let (threads, next) = self.page(cursor, limit)?;
+                reply(200, &json!({ "threads": threads, "next": next }))
+            }
             "/touch" => {
-                // a thread was made or answered: move it to the top; return the ids that fell off the end
+                // a thread was made or answered: move it to the top. Every thread stays; none falls off the end
                 let id = b["id"].as_str().unwrap_or_default();
                 let e: Entry = serde_json::from_value(b["entry"].clone())?;
                 let image: SqlStorageValue = e
@@ -174,24 +276,10 @@ impl DurableObject for Board {
                        image = excluded.image, seq = excluded.seq",
                     vec![id.into(), e.first.into(), e.replies.into(), e.created.into(), e.bumped.into(), image, seq.into()],
                 )?;
-                let limit = env::number(&self.env, "BOARD_LIMIT", 120.0).max(0.0) as i64;
-                let dropped: Vec<Id> = self
-                    .sql
-                    .exec(
-                        "SELECT id FROM threads ORDER BY seq DESC LIMIT -1 OFFSET ?",
-                        vec![limit.into()],
-                    )?
-                    .to_array()?;
-                for d in &dropped {
-                    self.sql.exec(
-                        "DELETE FROM threads WHERE id = ?",
-                        vec![d.id.clone().into()],
-                    )?;
-                }
-                let dropped: Vec<String> = dropped.into_iter().map(|d| d.id).collect();
-                reply(200, &json!({ "dropped": dropped }))
+                reply(200, &json!({ "ok": true }))
             }
             "/drop" => {
+                // the admin removed the thread's opening post: the only way a thread leaves the index
                 self.sql.exec(
                     "DELETE FROM threads WHERE id = ?",
                     vec![b["id"].as_str().unwrap_or_default().into()],
@@ -262,7 +350,8 @@ impl DurableObject for Board {
         }
     }
 
-    /// forget buckets that have refilled; come back in an hour while any remain
+    /// forget buckets that have refilled; come back in an hour while any remain. Buckets only: no thread, post,
+    /// report or picture is ever touched here
     async fn alarm(&self) -> Result<Response> {
         let now = now_ms() as f64;
         let (window_ms, threads, posts) = self.rates();
@@ -295,7 +384,49 @@ impl DurableObject for Board {
 
 #[cfg(test)]
 mod tests {
-    use super::limit_for;
+    use super::{limit_for, MIGRATIONS, VERSION};
+
+    #[test]
+    fn migrations_in_order_up_to_the_version() {
+        let versions: Vec<i64> = MIGRATIONS.iter().map(|(v, _)| *v).collect();
+        assert!(versions.windows(2).all(|w| w[0] < w[1]));
+        assert_eq!(versions.first(), Some(&2), "v1 is the schema itself");
+        assert_eq!(versions.last(), Some(&VERSION));
+        // repeatable, and never a statement that deletes rows
+        for (_, s) in MIGRATIONS {
+            let up = s.to_uppercase();
+            assert!(!up.contains("DELETE") && !up.contains("DROP TABLE"), "{s}");
+        }
+        assert!(MIGRATIONS[0]
+            .1
+            .contains("CREATE INDEX IF NOT EXISTS threads_bumped_seq ON threads (bumped, seq)"));
+    }
+
+    #[test]
+    fn cursors_round_trip() {
+        use super::{cursor_of, parse_cursor};
+        assert_eq!(cursor_of(1762780000000, 412), "1762780000000-412");
+        assert_eq!(
+            parse_cursor("1762780000000-412"),
+            Some((1762780000000, 412))
+        );
+        assert_eq!(parse_cursor("0-1"), Some((0, 1)));
+        for bad in [
+            "",
+            "-",
+            "12",
+            "12-",
+            "-12",
+            "1-2-3",
+            "a-1",
+            "1-b",
+            "+1-2",
+            "1 -2",
+            "1234567890123456-1",
+        ] {
+            assert_eq!(parse_cursor(bad), None, "{bad}");
+        }
+    }
 
     #[test]
     fn limits_by_key() {

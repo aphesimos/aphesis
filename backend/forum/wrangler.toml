@@ -16,8 +16,6 @@ ALLOWED_ORIGINS = "https://aphes.ist,https://www.aphes.ist,https://aphesist.page
 RATE_POSTS = "4"
 RATE_THREADS = "1"
 RATE_WINDOW_SECONDS = "120"
-# threads kept on the board; older ones fall off and are deleted with their pictures
-BOARD_LIMIT = "120"
 # ALLOW_NO_TURNSTILE = "1"   # local development only, never in production
 
 [[durable_objects.bindings]]
@@ -28,6 +26,8 @@ class_name = "Thread"
 name = "BOARD"
 class_name = "Board"
 
+# Durable Object class changes only. The Board's SQL schema migrates itself when the object starts (board.rs,
+# MIGRATIONS: v2 adds the index the paginated board reads), so a deploy needs no new tag for it.
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Thread", "Board"]

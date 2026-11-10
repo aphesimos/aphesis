@@ -4,7 +4,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
-import { start, dump } from './dev.mjs';
+import { start, dump, query } from './dev.mjs';
 
 const SITE = 'https://aphes.ist';
 const base = { ALLOWED_ORIGINS: SITE, IP_SALT: 's1', POSTER_SALT: 's2', ADMIN_SECRET: 'open-sesame', RATE_POSTS: '3', RATE_THREADS: '2', RATE_WINDOW_SECONDS: '120' };
@@ -55,6 +55,8 @@ test('a thread, replies, sigils per thread, the board', async () => {
   r = await req(f, '/api/board');
   assert.equal(r.headers.get('cache-control'), 'public, max-age=5');
   const b = await r.json();
+  assert.deepEqual(Object.keys(b), ['threads', 'next']);
+  assert.equal(b.next, null, 'one page so far');
   assert.equal(b.threads[0].id, other);
   assert.equal(b.threads[1].id, thread);
   assert.equal(b.threads[1].replies, 2);
@@ -222,24 +224,132 @@ test('without its salts the board takes no posts (and stores no hash of an addre
   } finally { await bare.stop(); }
 });
 
-test('the board keeps BOARD_LIMIT threads; the oldest fall off with their pictures', async () => {
-  const small = await start('forum', { ...base, ALLOW_NO_TURNSTILE: '1', BOARD_LIMIT: '2' });
+/* every page of the board, from the top, following `next` */
+async function allPages(w, limit) {
+  const seen = [];
+  let next = null, pages = 0;
+  do {
+    const q = new URLSearchParams();
+    if (next) q.set('cursor', next);
+    if (limit) q.set('limit', String(limit));
+    const r = await req(w, '/api/board' + (q.size ? '?' + q : ''));
+    assert.equal(r.status, 200);
+    const b = await r.json();
+    assert.deepEqual(Object.keys(b), ['threads', 'next']);
+    assert.ok(b.next === null || typeof b.next === 'string');
+    if (b.next !== null) assert.equal(b.threads.length, Math.min(limit || 40, 100), 'full pages until the last');
+    seen.push(...b.threads);
+    next = b.next;
+    pages++;
+    assert.ok(pages < 100, 'the pages end');
+  } while (next);
+  return { seen, pages };
+}
+
+test('the board is permanent: hundreds of threads, none lost, read page by page', async () => {
+  const N = 260;
+  const big = await start('forum', { ...base, ALLOW_NO_TURNSTILE: '1', RATE_THREADS: '1000', RATE_POSTS: '1000' });
   try {
-    const a = (await (await postForm(small, '/api/threads', '2.0.0.1', { text: 'a', image: jpeg(900, 600), density: jpeg(560, 373) })).json()).thread;
-    const b = (await (await postForm(small, '/api/threads', '2.0.0.2', { text: 'b' })).json()).thread;
-    assert.equal(blobs(small), 2);
-    /* a reply bumps a above b */
-    await postForm(small, `/api/threads/${a}/posts`, '2.0.0.3', { text: 'up' });
-    let ids = (await (await req(small, '/api/board')).json()).threads.map((x) => x.id);
-    assert.deepEqual(ids, [a, b]);
-    const c = (await (await postForm(small, '/api/threads', '2.0.0.4', { text: 'c' })).json()).thread;
-    ids = (await (await req(small, '/api/board')).json()).threads.map((x) => x.id);
-    assert.deepEqual(ids, [c, a]);
-    assert.equal((await req(small, `/api/threads/${b}`)).status, 404);
-    const d = (await (await postForm(small, '/api/threads', '2.0.0.5', { text: 'd' })).json()).thread;
-    ids = (await (await req(small, '/api/board')).json()).threads.map((x) => x.id);
-    assert.deepEqual(ids, [d, c]);
-    assert.equal((await req(small, `/api/threads/${a}`)).status, 404);
-    assert.equal(blobs(small), 0, 'the dropped thread took its pictures');
-  } finally { await small.stop(); }
+    /* 260 threads, every 20th with a picture, ten at a time */
+    const made = [];
+    for (let i = 0; i < N; i += 10) {
+      const batch = await Promise.all(Array.from({ length: Math.min(10, N - i) }, async (_, k) => {
+        const j = i + k;
+        const fields = { text: `thread ${j}` };
+        if (j % 20 === 0) Object.assign(fields, { image: jpeg(900, 600), density: jpeg(560, 373) });
+        const r = await postForm(big, '/api/threads', `3.0.${j >> 8}.${j & 255}`, fields);
+        assert.equal(r.status, 201);
+        return (await r.json()).thread;
+      }));
+      made.push(...batch);
+    }
+    assert.equal(new Set(made).size, N);
+    const pictures = Math.ceil(N / 20) * 2;
+    assert.equal(blobs(big), pictures);
+
+    /* the first page alone, as the page before pages reads it: 40 threads, the newest first, and a cursor */
+    const first = await (await req(big, '/api/board')).json();
+    assert.equal(first.threads.length, 40);
+    assert.match(first.next, /^\d+-\d+$/);
+    assert.deepEqual(Object.keys(first.threads[0]), ['id', 'first', 'replies', 'created', 'bumped', 'image']);
+
+    /* every page, at the default size, at 100, and at 1000 (kept to 100): every thread once, in board order */
+    const sorted = (xs) => [...xs].sort();
+    for (const limit of [undefined, 100, 1000, 7]) {
+      const { seen, pages } = await allPages(big, limit);
+      const ids = seen.map((t) => t.id);
+      assert.equal(ids.length, N, `limit ${limit}: no thread lost`);
+      assert.equal(new Set(ids).size, N, `limit ${limit}: no thread twice`);
+      assert.deepEqual(sorted(ids), sorted(made));
+      assert.equal(pages, Math.ceil(N / Math.min(limit || 40, 100)));
+      for (let k = 1; k < seen.length; k++) assert.ok(seen[k - 1].bumped >= seen[k].bumped, 'newest activity first');
+    }
+
+    /* a reply moves the oldest thread to the top; a visitor already paging does not see it twice */
+    const p1 = await (await req(big, '/api/board')).json();
+    const oldest = made[0];
+    assert.equal((await postForm(big, `/api/threads/${oldest}/posts`, '3.1.0.1', { text: 'still here' })).status, 201);
+    const rest = [];
+    for (let next = p1.next; next;) {
+      const b = await (await req(big, '/api/board?cursor=' + next)).json();
+      rest.push(...b.threads.map((t) => t.id));
+      next = b.next;
+    }
+    const after = p1.threads.map((t) => t.id).concat(rest);
+    assert.equal(new Set(after).size, after.length, 'no thread twice while paging');
+    assert.equal(after.length, N - 1, 'the bumped thread left the pages below for the top');
+    const top = await (await req(big, '/api/board?limit=1')).json();
+    assert.equal(top.threads[0].id, oldest);
+    assert.equal(top.threads[0].replies, 1);
+
+    /* old threads and their pictures are still served */
+    const t0 = await (await req(big, `/api/threads/${made[0]}`)).json();
+    assert.equal(t0.posts[0].text, 'thread 0');
+    for (const u of [t0.posts[0].image.original, t0.posts[0].image.density]) {
+      const g = await req(big, u);
+      assert.equal(g.status, 200, u);
+      assert.equal(g.headers.get('cache-control'), 'public, max-age=31536000, immutable');
+      assert.equal((await g.arrayBuffer()).byteLength, 200);
+    }
+    assert.equal((await req(big, `/api/threads/${made[1]}`)).status, 200);
+    assert.equal(blobs(big), pictures, 'no picture deleted');
+
+    /* reports only count: the reported post and its picture stay */
+    const pic = made[20];
+    for (const ip of ['3.2.0.1', '3.2.0.2', '3.2.0.3']) {
+      assert.equal((await req(big, `/api/threads/${pic}/posts/1/report`, { method: 'POST', headers: H(ip) })).status, 200);
+    }
+    const reported = await (await req(big, `/api/threads/${pic}`)).json();
+    assert.equal(reported.posts[0].text, 'thread 20');
+    assert.ok(reported.posts[0].image);
+    assert.equal(blobs(big), pictures);
+    const { reports } = await (await req(big, '/api/admin/reports', { headers: admin })).json();
+    assert.deepEqual([reports[0].thread, reports[0].count], [pic, 3]);
+
+    /* the admin's removal is the one way out: the thread, its pictures, its place on the board */
+    let r = await req(big, `/api/threads/${pic}/posts/1`, { method: 'DELETE', headers: admin });
+    assert.deepEqual(await r.json(), { ok: true, thread: 'removed' });
+    assert.equal((await req(big, `/api/threads/${pic}`)).status, 404);
+    assert.equal((await req(big, reported.posts[0].image.original)).status, 404);
+    assert.equal(blobs(big), pictures - 2);
+    const left = (await allPages(big)).seen.map((t) => t.id);
+    assert.equal(left.length, N - 1);
+    assert.ok(!left.includes(pic));
+
+    /* refusals */
+    r = await req(big, '/api/board?cursor=abc');
+    assert.deepEqual([r.status, await r.json()], [400, { error: 'bad cursor' }]);
+    const end = await (await req(big, '/api/board?cursor=0-0')).json();
+    assert.deepEqual(end, { threads: [], next: null }, 'below the first thread there is nothing');
+
+    /* the v2 migration ran, and the page scan walks its index */
+    assert.deepEqual((await query(big.state, 'SELECT version FROM schema_version')).map((x) => x.version), [2]);
+    const idx = (await query(big.state, "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'threads'")).map((x) => x.name);
+    assert.ok(idx.includes('threads_bumped_seq'), idx.join());
+    assert.ok(idx.includes('threads_seq'), 'v1 index kept, for MAX(seq)');
+    const plan = (await query(big.state, 'EXPLAIN QUERY PLAN SELECT id, first, replies, created, bumped, image, seq FROM threads WHERE (bumped, seq) < (1e15, 100) ORDER BY bumped DESC, seq DESC LIMIT 41'))
+      .map((x) => x.detail).join(' | ');
+    assert.match(plan, /USING INDEX threads_bumped_seq \(\(bumped,seq\)<\(\?,\?\)\)/, plan);
+    assert.doesNotMatch(plan, /TEMP B-TREE/, plan);
+  } finally { await big.stop(); }
 });

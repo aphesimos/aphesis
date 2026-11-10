@@ -3,7 +3,9 @@
 //!
 //! Tables are made by the first post, so asking for a thread that does not exist leaves no storage behind:
 //! `meta (id, created, bumped, count)`, one row, and `posts (n, poster, text, created, image, reports, removed)`.
-//! Removing the opening post, or the thread falling off the board, deletes everything (`deleteAll`).
+//! The thread is kept for good: nothing here expires. Only the admin removing the opening post deletes everything
+//! (`deleteAll`); removing a later post blanks that post alone. A thread holds at most `MAX_POSTS` posts of at most
+//! 2000 characters, so one object stays small (a few MB at worst) however long the board lives.
 
 use aphesis_common::durable::{body, reply};
 use serde::{Deserialize, Serialize};
@@ -257,15 +259,6 @@ impl DurableObject for Thread {
                     vec![n.into()],
                 )?;
                 reply(200, &json!({ "gone": false, "keys": keys }))
-            }
-            "/purge" => {
-                let keys = if meta.is_some() {
-                    self.image_keys()?
-                } else {
-                    Vec::new()
-                };
-                self.state.storage().delete_all().await?;
-                reply(200, &json!({ "keys": keys }))
             }
             _ => not_found("not found"),
         }

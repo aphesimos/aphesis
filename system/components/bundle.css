@@ -40,8 +40,9 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
 @keyframes aph-blink { 50% { opacity: 0; } }
 
 /* type roles as classes (the same roles tokens.json lists) */
-.aph-display { font-family: var(--font-display); font-weight: 400; font-variation-settings: "wght" 400, "slnt" 0; text-transform: lowercase; line-height: .95; }
-.aph-gloss { font-family: var(--font-display); font-variation-settings: "wght" 400, "slnt" -10; letter-spacing: .02em; color: var(--ink-soft); text-transform: lowercase; }
+/* display text leans: titles and glosses take the slant axis at -12 (the φ stays upright on its own) */
+.aph-display { font-family: var(--font-display); font-weight: 400; font-variation-settings: "wght" 400, "slnt" -12; text-transform: lowercase; line-height: .95; padding-right: .2em; }
+.aph-gloss { font-family: var(--font-display); font-variation-settings: "wght" 400, "slnt" -12; letter-spacing: .02em; color: var(--ink-soft); text-transform: lowercase; }
 .aph-label { font-family: var(--font-text); font-size: 13px; letter-spacing: .22em; text-transform: lowercase; }
 .aph-meta { font-family: var(--font-text); font-size: 11px; letter-spacing: .14em; color: var(--ink-soft); }
 

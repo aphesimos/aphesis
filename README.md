@@ -93,3 +93,21 @@ Add one entry to `SECTIONS` in `site/build.py` (id, name, gloss, line). The sect
 writes `--fragment OUT` with the same layout as the others: one `<style>` ending with `src/<name>.css`, the markup,
 the runtime script and the section script. Its routes are `#<name>` and `#<name>/...`. Route changes also call
 `Aphesis.Sound.scene(name)` (or `'home'`) where the runtime has a sound engine.
+
+## Deploy
+
+`aphes.ist` is served by Cloudflare Pages, project `aphesist`, from this branch.
+`.github/workflows/deploy.yml` publishes `site/index.html`, together with everything in `site/public/` (`_headers`, `robots.txt`), whenever a push to `site` changes them.
+It can also be run by hand from the Actions tab (workflow_dispatch).
+The workflow creates the Pages project on its first run.
+Rebuild and commit `site/index.html` to put a change online.
+
+One-time setup:
+
+1. **API token.** In Cloudflare, go to My Profile, API Tokens and Create Token. Use the *Edit Cloudflare Workers* template, or a custom token with **Account · Cloudflare Pages · Edit**.
+2. **Repository secrets.** In this repository's Settings, open Secrets and variables, then Actions. Add `CLOUDFLARE_API_TOKEN` (the token) and `CLOUDFLARE_ACCOUNT_ID` (shown on the Cloudflare dashboard's overview, right column).
+3. **First deploy.** Run the deploy workflow once from the Actions tab, or push to `site`.
+4. **Domain.** The domain is registered at Hostinger and its DNS runs on Cloudflare:
+   - In Cloudflare, use Add a domain, enter `aphes.ist` and choose the Free plan.
+   - At Hostinger, replace the domain's nameservers with the two that Cloudflare shows. If Hostinger has DNSSEC on, turn it off first; you can turn it back on later through Cloudflare.
+   - Once Cloudflare says the domain is active, open Workers & Pages, then `aphesist`, then Custom domains. Add `aphes.ist`, and `www.aphes.ist` if wanted. Cloudflare creates the DNS records and the certificate itself.

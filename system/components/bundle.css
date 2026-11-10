@@ -49,3 +49,15 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
 /* text on fog keeps a halo of ground so it never sits on dots */
 .aph-on-fog { text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg); }
 
+
+/* theme shift: the ground changes behind the page, cell by cell from the eye, and nothing on top stops.
+   Mark the containers of black-and-white text with .aph-ink (not ones holding the seal, accents or their own ground):
+   while the wave runs they blend by difference with white ink, so every glyph is the negative of the cell beneath it,
+   old theme or new. Greys and hairlines get the one grey that reads right on both grounds. */
+.aph-shifting .aph-ink {
+  mix-blend-mode: difference; color: #fff;
+  --ink: #fff; --ink-soft: var(--shift-soft); --line: var(--shift-line); --bg: #000;
+  --accent: var(--shift-soft); --accent-text: var(--shift-soft);
+}
+/* the two frames around each switch: colours change without a transition (movement keeps its own) */
+.aph-still body, .aph-still .aph-ink, .aph-still .aph-ink * { transition-property: opacity, filter, transform !important; }

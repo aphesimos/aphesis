@@ -1,4 +1,4 @@
-/* @ds-bundle: {"format":4,"namespace":"Aphesis","components":[{"name":"Seal"},{"name":"Brush"},{"name":"Icons"},{"name":"Fog"},{"name":"Simulacrum"},{"name":"Typist"},{"name":"Tooltip"},{"name":"Cursor"},{"name":"LetterWave"}]} */
+/* @ds-bundle: {"format":4,"namespace":"Aphesis","components":[{"name":"Seal"},{"name":"Brush"},{"name":"Icons"},{"name":"Fog"},{"name":"Simulacrum"},{"name":"Typist"},{"name":"Tooltip"},{"name":"Cursor"},{"name":"LetterWave"},{"name":"ThemeShift"}]} */
 /* aphes.is design system runtime. Plain JavaScript, no framework: every screen of the site loads this one script.
    Everything visible is made of two marks: the BRUSH (a centerline with a width profile, tapered, with unsure edges)
    and the STIPPLE (small square cells that light up where a density field passes a fixed threshold). Nothing is solid. */
@@ -158,6 +158,17 @@
     if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; gl.viewport(0, 0, w, h); }
     return w / Math.max(1, r.width);
   }
+  /* the eye's theme shift (themeShift) drives the same switch as a wave instead: each cell turns when the wave from
+     the origin reaches it, loosened by a hash and the fog's noise so the front is grainy and uneven. SO: the origin in
+     canvas pixels, z = 1 while a wave runs; SF: the distance to the farthest corner. */
+  var SWITCH_GLSL = 'uniform vec3 SO;uniform float SF;' +
+    'float sw(vec2 cel,vec2 uv,float X){if(SO.z>.5)return step(.76*length(cel+.5-SO.xy)/SF+.14*h(cel+vec2(17.3,5.1))+.1*n(cel/23.+5.1),X);' +
+    'return step(smoothstep(.32,.68,fb(uv*1.7+vec2(3.7,9.1)))*.86+h(cel+vec2(17.3,5.1))*.14,X);}';
+  function waveUniforms(gl, U, cv, k, c) {
+    var w = c.wave; if (!w) { gl.uniform3f(U.SO, 0, 0, 0); gl.uniform1f(U.SF, 1); return; }
+    var r = cv.getBoundingClientRect(), cpx = cv.width / Math.max(1, r.width);
+    gl.uniform3f(U.SO, (w.o[0] - r.left) * cpx, cv.height - (w.o[1] - r.top) * cpx, 1); gl.uniform1f(U.SF, Math.max(1, w.far * cpx));
+  }
   /* the theme's colours for a canvas, read the moment the theme changes. The change is a stipple dissolve over
      duration-theme, eased with minimum jerk: the new colours spread through the old in soft patches of the fog's own
      noise, cell by cell at their grainy edges, so no frame passes through a flat middle grey where cells and ground
@@ -165,13 +176,14 @@
   function palette(el, names) {
     function read() { return names.map(function (n) { return cssColor(n, el); }); }
     function ms() { var v = getComputedStyle(document.documentElement).getPropertyValue('--duration-theme').trim(); var n = parseFloat(v); return isNaN(n) ? 800 : (/ms$/.test(v) ? n : n * 1000); }
-    var to = read(), from = to, t0 = -1, dur = 800, x = 1;
+    var to = read(), from = to, t0 = -1, dur = 800, x = 1, wave = false;
     function same(a, b) { return a.every(function (c, i) { return c.every(function (v, j) { return Math.abs(v - b[i][j]) < 1e-3; }); }); }
-    function retarget() { var next = read(); if (same(next, to)) return; from = x < 0.5 ? from : to; to = next; t0 = performance.now(); dur = ms(); x = 0; }
+    function retarget() { var next = read(); if (same(next, to)) return; from = x < 0.5 ? from : to; to = next; t0 = performance.now(); dur = ms(); x = 0; wave = !!SHIFT; }
     onTheme(function () { retarget(); setTimeout(retarget, 120); });
     return function (now) {
-      if (t0 >= 0) { var k = REDUCED ? 1 : clamp((now - t0) / Math.max(1, dur)); x = MJ(k); if (k >= 1) { t0 = -1; from = to; x = 1; } }
-      return { a: from, b: to, x: x };
+      if (t0 >= 0 && wave) { if (SHIFT) x = SHIFT.p; else { t0 = -1; from = to; x = 1; wave = false; } }
+      else if (t0 >= 0) { var k = REDUCED ? 1 : clamp((now - t0) / Math.max(1, dur)); x = MJ(k); if (k >= 1) { t0 = -1; from = to; x = 1; } }
+      return { a: from, b: to, x: x, wave: wave && SHIFT ? SHIFT : null };
     };
   }
   /* the frame loop of a field: stop() halts it, start() resumes it, drawn(cb) calls back once the next frame is on
@@ -192,14 +204,14 @@
      the stippled ground of every screen. density 0..1 (home 1, inside a section .62); light: the soft rise of dots
      around the pointer (home 1, section .4). zones: up to 12 calm rectangles behind text (elements or DOMRects). */
   function Fog(cv, o) {
-    o = o || {}; var P = glField(cv, 'precision highp float;uniform vec2 R;uniform float T,D,C,S,X;uniform vec3 F,N,F2,N2;uniform vec2 P;uniform vec4 Z[12];' + NOISE +
+    o = o || {}; var P = glField(cv, 'precision highp float;uniform vec2 R;uniform float T,D,C,S,X;uniform vec3 F,N,F2,N2;uniform vec2 P;uniform vec4 Z[12];' + NOISE + SWITCH_GLSL +
       'void main(){vec2 cel=floor(gl_FragCoord.xy/S);vec2 uv=(cel*S-R*.5)/min(R.x,R.y);float d=fog(uv,T);' +
       'float vin=smoothstep(1.45,.35,length(uv*vec2(.9,1.)))*.85+.15;vec2 pp=(P-R*.5)/min(R.x,R.y);float luz=exp(-dot(uv-pp,uv-pp)*7.)*.35;' +
       'float m=smoothstep(.44,.74,d);float dens=(m*.8+.012)*vin*D+luz*vin*C*m;' +
       'for(int i=0;i<12;i++){vec4 z=Z[i];if(z.z>0.){vec2 q=abs(gl_FragCoord.xy-z.xy)/z.zw;dens*=1.-.8*(1.-smoothstep(.45,1.05,length(q)));}}' +
       /* a theme change spreads through the fog in soft patches with grainy edges */
-      'float sw=step(smoothstep(.32,.68,fb(uv*1.7+vec2(3.7,9.1)))*.86+h(cel+vec2(17.3,5.1))*.14,X);vec3 Fc=mix(F,F2,sw),Nc=mix(N,N2,sw);' +
-      'gl_FragColor=vec4(mix(Fc,Nc,step(h(cel),dens)*.55),1.);}', ['R', 'T', 'D', 'C', 'S', 'X', 'F', 'N', 'F2', 'N2', 'P', 'Z']);
+      'float s=sw(cel,uv,X);vec3 Fc=mix(F,F2,s),Nc=mix(N,N2,s);' +
+      'gl_FragColor=vec4(mix(Fc,Nc,step(h(cel),dens)*.55),1.);}', ['R', 'T', 'D', 'C', 'S', 'X', 'F', 'N', 'F2', 'N2', 'P', 'Z', 'SO', 'SF']);
     if (!P) return { zones: function () {}, set: function () {}, stop: function () {}, start: function () {} };
     var gl = P.gl, U = P.U, colors = palette(cv, ['--bg', '--fog']);
     var ptr = null, sm = null, t = 0, last = performance.now(), zEls = [], ZB = new Float32Array(48);
@@ -216,7 +228,7 @@
         ZB.set([(r.left - R.left + r.width / 2) * dpr, cv.height - (r.top - R.top + r.height / 2) * dpr, (r.width / 2 + pad) * dpr, (r.height / 2 + pad) * dpr], i * 4); i++; });
       var c = colors(now);
       gl.uniform4fv(U.Z, ZB); gl.uniform2f(U.R, cv.width, cv.height); gl.uniform1f(U.T, t); gl.uniform1f(U.S, 1);
-      gl.uniform3fv(U.F, c.a[0]); gl.uniform3fv(U.N, c.a[1]); gl.uniform3fv(U.F2, c.b[0]); gl.uniform3fv(U.N2, c.b[1]); gl.uniform1f(U.X, c.x); gl.uniform2f(U.P, sm[0] * dpr, cv.height - sm[1] * dpr); gl.uniform1f(U.D, dens); gl.uniform1f(U.C, light);
+      gl.uniform3fv(U.F, c.a[0]); gl.uniform3fv(U.N, c.a[1]); gl.uniform3fv(U.F2, c.b[0]); gl.uniform3fv(U.N2, c.b[1]); gl.uniform1f(U.X, c.x); waveUniforms(gl, U, cv, dpr, c); gl.uniform2f(U.P, sm[0] * dpr, cv.height - sm[1] * dpr); gl.uniform1f(U.D, dens); gl.uniform1f(U.C, light);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     });
     L.start();
@@ -252,7 +264,7 @@
       x.texImage2D(x.TEXTURE_2D, 0, x.LUMINANCE, 1, 1, 0, x.LUMINANCE, x.UNSIGNED_BYTE, new Uint8Array([0]));
       return q;
     }
-    var P = glField(cv, 'precision highp float;uniform vec2 R,P;uniform float T,S,K,G,M,A,FIT,SC,ER,CE,GR,X;uniform vec3 F,N,AC,F2,N2,AC2;uniform vec2 IA;uniform sampler2D I,I2;' + NOISE +
+    var P = glField(cv, 'precision highp float;uniform vec2 R,P;uniform float T,S,K,G,M,A,FIT,SC,ER,CE,GR,X;uniform vec3 F,N,AC,F2,N2,AC2;uniform vec2 IA;uniform sampler2D I,I2;' + NOISE + SWITCH_GLSL +
       'void main(){vec2 cel=floor(gl_FragCoord.xy/S);vec2 c=cel*S+S*.5;vec2 uv=(c-R*.5)/min(R.x,R.y);' +
       'float d=fog(uv*.8,T);' +
       /* fit the image in the canvas */
@@ -278,9 +290,9 @@
       'float ign=fract(52.9829189*fract(dot(cel,vec2(.06711056,.00583715))));float lit=step(mix(ign,h(cel),.35),dens);' +
       'float red=step(h(cel+31.7),A*img*kk);' +
       /* a theme change spreads in the same patches as the fog's */
-      'float sw=step(smoothstep(.32,.68,fb(uv*1.7+vec2(3.7,9.1)))*.86+h(cel+vec2(17.3,5.1))*.14,X);vec3 Fc=mix(F,F2,sw),Nc=mix(N,N2,sw),Ac=mix(AC,AC2,sw);' +
+      'float s=sw(cel,uv,X);vec3 Fc=mix(F,F2,s),Nc=mix(N,N2,s),Ac=mix(AC,AC2,s);' +
       'vec3 col=mix(Nc,Ac,red);gl_FragColor=GR>.5?vec4(mix(Fc,col,lit*.72),1.):vec4(col,lit*.72);}',
-      ['R', 'P', 'T', 'S', 'K', 'G', 'M', 'A', 'FIT', 'SC', 'ER', 'CE', 'GR', 'X', 'F', 'N', 'AC', 'F2', 'N2', 'AC2', 'IA', 'I', 'I2'],
+      ['R', 'P', 'T', 'S', 'K', 'G', 'M', 'A', 'FIT', 'SC', 'ER', 'CE', 'GR', 'X', 'F', 'N', 'AC', 'F2', 'N2', 'AC2', 'IA', 'I', 'I2', 'SO', 'SF'],
       function (x) { tex = texture(x, x.TEXTURE0); tex2 = texture(x, x.TEXTURE1); x.activeTexture(x.TEXTURE0); if (lastImg) upload(lastImg); });
     var noop = function () {};
     if (!P) return { show: function (s, d) { d && d(); }, hide: function (d) { d && d(); }, set: function (s, d) { d && d(); }, stop: noop, start: noop, drawn: function (cb) { cb(); } };
@@ -307,7 +319,7 @@
       var dpr = fit(cv, gl, o.cell || 2), c = colors(now);
       gl.uniform2f(U.R, cv.width, cv.height); gl.uniform2f(U.P, ptr[0] * dpr, cv.height - ptr[1] * dpr); gl.uniform1f(U.T, t);
       gl.uniform1f(U.S, 1); gl.uniform1f(U.K, MJ(k)); gl.uniform1f(U.G, opt('gain', 1)); gl.uniform1f(U.SC, opt('scatter', 0.5)); gl.uniform1f(U.ER, opt('erosion', 0.45)); gl.uniform1f(U.CE, opt('ceiling', 0.8)); gl.uniform1f(U.M, o.margin === undefined ? 0.08 : o.margin);
-      gl.uniform1f(U.A, o.accent || 0); gl.uniform1f(U.FIT, o.fit === 'cover' ? 1 : 0); gl.uniform1f(U.GR, o.ground === false ? 0 : 1); gl.uniform3fv(U.F, c.a[0]); gl.uniform3fv(U.N, c.a[1]); gl.uniform3fv(U.AC, c.a[2]); gl.uniform3fv(U.F2, c.b[0]); gl.uniform3fv(U.N2, c.b[1]); gl.uniform3fv(U.AC2, c.b[2]); gl.uniform1f(U.X, c.x);
+      gl.uniform1f(U.A, o.accent || 0); gl.uniform1f(U.FIT, o.fit === 'cover' ? 1 : 0); gl.uniform1f(U.GR, o.ground === false ? 0 : 1); gl.uniform3fv(U.F, c.a[0]); gl.uniform3fv(U.N, c.a[1]); gl.uniform3fv(U.AC, c.a[2]); gl.uniform3fv(U.F2, c.b[0]); gl.uniform3fv(U.N2, c.b[1]); gl.uniform3fv(U.AC2, c.b[2]); gl.uniform1f(U.X, c.x); waveUniforms(gl, U, cv, dpr, c);
       gl.uniform2f(U.IA, IA[0], IA[1]); gl.uniform1i(U.I, 0); gl.uniform1i(U.I2, 1);
       if (o.ground === false) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); }
       gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -435,6 +447,48 @@
       curEl.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) scale(' + s.toFixed(3) + ')'; requestAnimationFrame(step); })(last);
   }
 
+  /* ================= THEME SHIFT ================= */
+  /* themeShift(apply, {origin, duration, done}): the theme changes in the ground only, and the page never stops.
+     apply() switches the theme at once (e.g. sets data-theme). Every stipple field (Fog, Simulacrum) then lets the
+     change seep outward from the origin (the eye) cell by cell, while its fog keeps drifting: a cell simply takes the
+     new theme's colours when the wave reaches it. Nothing is laid over the page, nothing hides, nothing pauses:
+     links, buttons and routes keep working while it runs.
+     Black-and-white text follows the ground pixel by pixel: while the wave runs, every element marked .aph-ink blends
+     by difference with white ink, which reads as the negative of whatever cell lies under it, so it is the right ink
+     over old cells and new ones alike. When the wave has covered the screen the blend is lifted; nothing visibly
+     changes. A call while a wave is running is ignored (returns false). */
+  var SHIFT = null;
+  function themeShift(apply, o) {
+    o = o || {};
+    if (SHIFT) return false;
+    var root = document.documentElement, before = root.getAttribute('data-theme');
+    var dark = before ? before === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    var softA = cssColor('--ink-soft'), lineA = cssColor('--line');
+    var org = o.origin || [24, innerHeight - 24], W = innerWidth, H = innerHeight;
+    var far = Math.max(Math.hypot(org[0], org[1]), Math.hypot(W - org[0], org[1]), Math.hypot(org[0], H - org[1]), Math.hypot(W - org[0], H - org[1]));
+    SHIFT = { o: org, far: far, p: 0 };
+    /* colour transitions would smear the switch into and out of difference: hold them off for two frames at each end */
+    function still() { root.classList.add('aph-still'); requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.remove('aph-still'); }); }); }
+    still(); apply();
+    var softB = cssColor('--ink-soft'), lineB = cssColor('--line');
+    /* a grey under difference shows as itself on a dark ground and as its negative on a light one:
+       take the grey that reads as each theme's own grey on its own ground */
+    function grey(a, b) { var dk = dark ? a : b, lt = dark ? b : a; return 'rgb(' + [0, 1, 2].map(function (i) { return Math.round((dk[i] + 1 - lt[i]) / 2 * 255); }).join(',') + ')'; }
+    root.style.setProperty('--shift-soft', grey(softA, softB)); root.style.setProperty('--shift-line', grey(lineA, lineB));
+    root.classList.add('aph-shifting');
+    var dur = o.duration || cssMs('--duration-shift', 5200), t = 0, last = null;
+    /* time advances at most 100 ms a frame, like tween(): a stalled frame pauses the wave instead of jumping it */
+    function tick(now) {
+      if (last !== null) t += Math.min(100, Math.max(0, now - last)); last = now;
+      var k = clamp(t / dur); SHIFT.p = MJ(k);
+      if (k < 1) { requestAnimationFrame(tick); return; }
+      still(); root.classList.remove('aph-shifting'); SHIFT = null; if (o.done) o.done();
+    }
+    requestAnimationFrame(tick);
+    return true;
+  }
+  function cssMs(name, d) { var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim(), n = parseFloat(v); return isNaN(n) ? d : (/ms$/.test(v) ? n : n * 1000); }
+
   /* ================= LETTER WAVE ================= */
   /* split a short label into letters so a hover can lift them one after another (CSS: .aph-wave). */
   function letters(el) {
@@ -446,6 +500,6 @@
     reducedMotion: REDUCED, MJ: MJ, cellPx: cellPx, lerp: lerp, clamp: clamp, tween: tween, rng: rng, cssColor: cssColor,
     brush: brush, arc: arc, line: line, stipple: stipple, inC: inC,
     icon: icon, ICONS: ICONS, PHI: PHI, seal: seal,
-    Fog: Fog, Simulacrum: Simulacrum, Typist: Typist, tooltip: tooltip, cursor: cursor, letters: letters
+    Fog: Fog, Simulacrum: Simulacrum, Typist: Typist, tooltip: tooltip, cursor: cursor, letters: letters, themeShift: themeShift
   };
 })();

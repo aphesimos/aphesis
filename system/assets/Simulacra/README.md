@@ -2,6 +2,7 @@ Density maps for `Aphesis.Simulacrum`: grayscale, white = dense. Each map is lis
 
 - jerome: Caravaggio, *Saint Jerome Writing*, 1605–06.
 - creation, hands: Michelangelo, Sistine Chapel, c. 1512. Only the skin and drapery are kept.
+- creation_panel, creation_hands: Michelangelo, *The Creation of Adam*, c. 1512: the whole fresco panel (Adam on the left, God and the figures on the right) and its hands, from the high-resolution public-domain scan on Wikimedia Commons. Only the skin and drapery are kept. The descent section centres the fingers' gap: panel 242.4, 132; hands 319.6, 139.
 - veiled: Giovanni Strazza, *The Veiled Virgin*. Sculpture settings.
 - trismegistus, sibyl_libica, sibyl_eritrea, fortune: Siena Cathedral pavement.
 - francis: Caravaggio, *Saint Francis in Meditation*.

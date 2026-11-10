@@ -2,6 +2,7 @@
 
   python3 site/build.py                  # writes site/index.html (a full document)
   python3 site/build.py --fragment OUT   # writes the same page without <!doctype>/<html>/<head>/<body>
+  python3 site/build.py --out OUT --music-index URL   # the music library from another copy (checks)
 
 Nothing here is a copy of another branch. The build reads, with git, from the branches that own each part:
   design-system  tokens.json, components/bundle.css, components/bundle.js, fonts/AphesisScript-VF.woff2
@@ -51,13 +52,18 @@ def b64(data):
 # ---------- the home: sections around the seal, passages in the corner ----------
 SECTIONS = [
     dict(id='book', name='book', gl='liber', desc='authors, works and what shaped me, leafed through like a codex.'),
-    dict(id='experimental', name='experimental', gl='ἄδυτον', desc='chambers discovered through gestures. symbols, motion, no explanation.'),
+    # the section lives on section/experimental; on the site it is the descent, at #descent (#experimental redirects)
+    dict(id='experimental', route='descent', name='descent', gl='κατάβασις', desc='chambers discovered through gestures. symbols, motion, no explanation.'),
     dict(id='archive', name='archive', gl='codex', desc='writing about anything, from draft (nigredo) to finished (rubedo).'),
     dict(id='laboratory', name='laboratory', gl='officina', desc='measured experiments: machines that rewrite themselves, metrics that lie, the cost of a truth.'),
     dict(id='works', name='works', gl='opera', desc='things I have built.'),
     dict(id='wall', name='wall', gl='paries', desc='anonymous messages that drift in the fog and fade with time.'),
     dict(id='forum', name='forum', gl='ἀγορά', desc='a plain anonymous forum, in threads.'),
+    dict(id='music', name='music', gl='phonotheca', desc='what I listen to, as it sits on my disk, with a player that keeps playing.'),
 ]
+# the music library on R2; --music-index URL builds against another copy (a local one, for checks)
+MUSIC_INDEX = 'https://music.aphes.ist/index.json'
+SECTION_ARGS = {'music': lambda: ['--index', MUSIC_INDEX]}
 PASSAGES = [
     dict(o='ἓν τὸ πᾶν', l='grc', t='the one is the all', a='Chrysopoeia of Cleopatra'),
     dict(o='Solve et coagula', l='la', t='dissolve and coagulate', a='alchemical maxim'),
@@ -78,7 +84,7 @@ PASSAGES = [
 
 
 def lang(g):
-    return 'grc' if g in ('ἄδυτον', 'ἀγορά') else 'la'
+    return 'grc' if g in ('κατάβασις', 'ἄδυτον', 'ἀγορά') else 'la'
 
 
 # ---------- tokens.css from the design system's tokens.json (the same rules every section's build uses) ----------
@@ -122,7 +128,7 @@ def faces():
 # ---------- sections: each built by its own branch ----------
 SANDBOX = ('window, self, globalThis, document, location, history, addEventListener, removeEventListener, '
            'requestAnimationFrame, cancelAnimationFrame, setTimeout, clearTimeout, setInterval, clearInterval, '
-           'matchMedia, ResizeObserver, MutationObserver, IntersectionObserver')
+           'matchMedia, ResizeObserver, MutationObserver, IntersectionObserver, fetch')
 
 
 def build_section(name, ref):
@@ -133,7 +139,8 @@ def build_section(name, ref):
         tarfile.open(fileobj=io.BytesIO(tar)).extractall(tmp, filter='data')
         out = os.path.join(tmp, 'out.html')
         env = dict(os.environ, GIT_DIR=GIT_DIR)
-        subprocess.run([sys.executable, os.path.join(tmp, name, 'build.py'), '--fragment', out], check=True, env=env,
+        extra = SECTION_ARGS[name]() if name in SECTION_ARGS else []
+        subprocess.run([sys.executable, os.path.join(tmp, name, 'build.py')] + extra + ['--fragment', out], check=True, env=env,
                        cwd=tmp, capture_output=True)
         page = open(out, encoding='utf-8').read()
     m = re.search(r'<style>\n?(.*?)</style>', page, re.S)
@@ -165,23 +172,34 @@ def section_modules(refs):
     return '\n'.join(tpl), '\n'.join(styles), 'const APH_SECTIONS = {};\n' + '\n'.join(js), info
 
 
+def favicon_open(red):
+    """the open eye's data URI, made by src/favicon.js with the runtime's brush (node), for the head at parse time"""
+    js = ('global.window = global;\n' + show('design-system', 'system/components/bundle.js') + '\n' +
+          open(os.path.join(D, 'src', 'favicon.js'), encoding='utf-8').read() +
+          '\nprocess.stdout.write(favicons(window.Aphesis, ' + json.dumps(red) + ').open);')
+    return subprocess.run(['node', '-e', js], capture_output=True, check=True, text=True).stdout
+
+
 def build(fragment, refs):
     tok = json.loads(show('design-system', 'system/tokens.json'))
     bcss = re.sub(r'@import url\([^)]*\);\s*', '', show('design-system', 'system/components/bundle.css'))
     css = faces() + tokens_css(tok) + bcss + open(os.path.join(D, 'src', 'shell.css'), encoding='utf-8').read()
-    nav = ''.join(f'<a href="#{s["id"]}">{html.escape(s["name"])}<span class="gl" lang="{lang(s["gl"])}">{html.escape(s["gl"])}</span></a>'
+    nav = ''.join(f'<a href="#{s.get("route", s["id"])}">{html.escape(s["name"])}<span class="gl" lang="{lang(s["gl"])}">{html.escape(s["gl"])}</span></a>'
                   for s in SECTIONS)
     tpl, styles, secjs, info = section_modules(refs)
+    red = {'light': T.color('rubedo', 'light', tok), 'dark': T.color('rubedo', 'dark', tok)}
+    fav_open = favicon_open(red)
     shell = open(os.path.join(D, 'src', 'shell.js'), encoding='utf-8').read()
     shell = (shell.replace('/*__ENGINE__*/', show('mark', 'engine/model.js') + '\n' + show('mark', 'engine/core.js'))
-             .replace('/*__SECTIONSJS__*/', json.dumps([dict(id=s['id'], name=s['name']) for s in SECTIONS], ensure_ascii=False))
+             .replace('/*__SECTIONSJS__*/', json.dumps([dict(id=s['id'], route=s.get('route', s['id']), name=s['name']) for s in SECTIONS], ensure_ascii=False))
              .replace('/*__PASSAGES__*/', json.dumps(PASSAGES, ensure_ascii=False))
-             .replace('/*__ICONRED__*/', json.dumps({'light': T.color('rubedo', 'light', tok), 'dark': T.color('rubedo', 'dark', tok)})))
+             .replace('/*__FAVICON__*/', open(os.path.join(D, 'src', 'favicon.js'), encoding='utf-8').read())
+             .replace('/*__ICONRED__*/', json.dumps(red)))
     page = open(os.path.join(D, 'src', 'shell.html'), encoding='utf-8').read()
     # the static icons and the manifest are files in site/public (tools/make_icons.py); the artifact page has none
-    links = '' if fragment else ('<link rel="icon" href="/favicon.ico" sizes="any">\n<link rel="apple-touch-icon" href="/apple-touch-icon.png">\n'
+    links = '' if fragment else ('<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">\n<link rel="apple-touch-icon" href="/apple-touch-icon.png">\n'
                                  '<link rel="manifest" href="/site.webmanifest">\n<meta name="theme-color" content="' + T.color('n-975', 'dark', tok) + '">')
-    page = page.replace('<!--__HEADLINKS__-->', links)
+    page = page.replace('<!--__HEADLINKS__-->', links).replace('__FAVICON_OPEN__', html.escape(fav_open, quote=True))
     page = (page.replace('/*__CSS__*/', css).replace('<!--__NAV__-->', nav).replace('<!--__STYLES__-->', styles)
             .replace('<!--__TEMPLATES__-->', tpl).replace('/*__BUNDLE__*/', show('design-system', 'system/components/bundle.js'))
             .replace('/*__SECTIONS__*/', secjs).replace('/*__SHELL__*/', shell)
@@ -195,10 +213,17 @@ def build(fragment, refs):
 
 if __name__ == '__main__':
     args = sys.argv[1:]
-    out, frag = os.path.join(D, 'index.html'), False
-    if args and args[0] == '--fragment':
-        out, frag, args = args[1], True, args[2:]
-    refs = dict(a.split('=', 1) for a in args)
+    out, frag, refs = os.path.join(D, 'index.html'), False, {}
+    while args:
+        a = args.pop(0)
+        if a == '--fragment':
+            out, frag = args.pop(0), True
+        elif a == '--out':
+            out = args.pop(0)
+        elif a == '--music-index':
+            MUSIC_INDEX = args.pop(0)
+        else:
+            k, v = a.split('=', 1); refs[k] = v
     page = build(frag, refs)
     open(out, 'w', encoding='utf-8').write(page)
     print(out, len(page))

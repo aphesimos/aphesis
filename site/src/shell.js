@@ -4,7 +4,8 @@
 
    Routes. The home is '' or #home. A section owns its name and everything after it with '/' (or '-' for works):
      #book, #book/<slug>          #laboratory, #laboratory/<slug>      #forum, #forum/<id>[/<n>]
-     #works, #works-<id>          #wall                                #experimental
+     #works, #works-<id>          #wall                                #descent (the old #experimental redirects)
+     #music, #music/folders/…, #music/artists/…, #music/albums/<artist>/<album>
      #archive, #archive/<slug>    (inside the archive script the post is still #<slug>: the shell translates)
    A bare archive slug (#how-the-fog-is-made, the archive's own links before the merge) is redirected to
    #archive/<slug>. Any other hash is the home.
@@ -68,14 +69,23 @@ function placeSeal(c) { sealBox = c; const e = $('aph-seal'); e.style.width = e.
 /* ---------- the inscription ---------- */
 const links = [...document.querySelectorAll('#aph-ring a')];
 let spin = 0;
+/* the names sit on an ellipse around the center, spaced evenly along its length rather than by angle: on a wide
+   screen the ellipse is nearly a circle and the two are alike; on a tall, narrow one the names keep their distance
+   where the ellipse turns tightly at the top and bottom, so eight names never crowd as the ring turns */
+const ARC = new Float64Array(257);
 function placeInscription() {
   const c = centerBox(), cxp = c.x + c.s / 2, cyp = c.y + c.s / 2, R = c.s * 0.62;
-  const n = links.length, wMax = Math.max(...links.map((a) => a.offsetWidth || 120));
+  const n = links.length, wid = links.map((a) => a.offsetWidth || 120), wMin = Math.min(...wid);
   const emPe = innerHeight > innerWidth * 1.15;
-  const Rx = Math.min(R * 1.18, innerWidth / 2 - 16 - wMax / 2), Ry = Math.min(R * 0.98 * (emPe ? 1.45 : 1), innerHeight / 2 - 70);
+  /* the ellipse is as wide as the narrowest name allows; a wider name is held inside the screen on its own */
+  const Rx = Math.min(R * 1.18, innerWidth / 2 - 16 - wMin / 2), Ry = Math.min(R * 0.98 * (emPe ? 1.9 : 1), innerHeight / 2 - 70);
+  const pt = (t) => [Rx * Math.cos(t), Ry * Math.sin(t)];
+  ARC[0] = 0; for (let k = 1; k <= 256; k++) { const p0 = pt((k - 1) / 256 * 2 * Math.PI), p1 = pt(k / 256 * 2 * Math.PI); ARC[k] = ARC[k - 1] + Math.hypot(p1[0] - p0[0], p1[1] - p0[1]); }
+  const L = ARC[256], at = (s) => { s = ((s % L) + L) % L; let lo = 0, hi = 256; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (ARC[m] <= s) lo = m; else hi = m; } return (lo + (s - ARC[lo]) / (ARC[hi] - ARC[lo])) / 256 * 2 * Math.PI; };
+  const s0 = L * 0.75;   /* the top of the ellipse (angle -90°) */
   links.forEach((a, i) => {
-    const ang = spin - Math.PI / 2 + Math.PI / n + i * 2 * Math.PI / n;
-    const x = cxp + Rx * Math.cos(ang), y = cyp + Ry * Math.sin(ang);
+    const ang = at(s0 + L * ((spin / (2 * Math.PI)) + (0.5 + i) / n));
+    const half = wid[i] / 2, x = Math.max(16 + half, Math.min(innerWidth - 16 - half, cxp + Rx * Math.cos(ang))), y = cyp + Ry * Math.sin(ang);
     a.style.transform = `translate(${x}px,${y}px) translate(-50%,-50%)`; a._x = x; a._y = y;
   });
 }
@@ -198,16 +208,8 @@ themeIcon(); sysDark.addEventListener('change', themeIcon);
 /* the tab's icon: the eye, open while the page is seen, closed while it is not (hidden, or the window left).
    The same brush and stipple as the eye in the corner, with a heavier hand for 16 and 32 px: thicker strokes and an
    iris of a few large cells. Rubedo, the dark theme's where the browser is dark, on a transparent ground. */
-const FAVICON = (() => {
-  const red = /*__ICONRED__*/;
-  const open = A.brush(A.arc(12, 15.6, 10, -158, -22, 40, 7.6), 2.1, 31) + A.brush(A.arc(12, 8.4, 10, 22, 158, 40, 7.6), 2.1, 33) +
-    A.stipple(A.inC(12, 12, 2.9), 17, 150, 1.45);
-  let closed = A.brush(A.arc(12, 8, 10, 25, 155, 40, 6.4), 2.3, 37);
-  [-0.55, 0, 0.55].forEach((k, i) => { const x = 12 + k * 10.4; closed += A.brush(A.line(x, 14.4 - Math.abs(k) * 1.2, x + k * 2.2, 18.8 - Math.abs(k), 10), 1.7, 41 + i, 0.4, 0.05); });
-  const svg = (d) => 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="1 1 22 22"><style>path{fill:' + red.light +
-    '}@media (prefers-color-scheme:dark){path{fill:' + red.dark + '}}</style><path d="' + d + '"/></svg>');
-  return { open: svg(open), closed: svg(closed) };
-})();
+/*__FAVICON__*/
+const FAVICON = favicons(A, /*__ICONRED__*/);
 function favicon(seen) { const l = $('aph-favicon'), h = seen ? FAVICON.open : FAVICON.closed; if (l.getAttribute('href') !== h) l.setAttribute('href', h); }
 favicon(!document.hidden);
 document.addEventListener('visibilitychange', () => favicon(!document.hidden));
@@ -225,12 +227,17 @@ if (A.Sound) A.Sound.ear($('aph-ear')); else $('aph-ear').remove();
 
 /* ================= routes ================= */
 const NAMES = SECTIONS.map((s) => s.id);
+/* a section's name in the address, where it differs from its branch (experimental is the descent, at #descent) */
+const ROUTE = Object.fromEntries(SECTIONS.map((s) => [s.id, s.route || s.id]));
+const routeOf = (id) => '#' + ROUTE[id];
+const RENAMED = { experimental: 'descent' };   /* old addresses that still lead to the section */
 const ARCHIVE_SLUGS = APH_SECTIONS.archive ? APH_SECTIONS.archive.slugs : [];
 /* the section a global hash belongs to ('' for the home) */
 function sectionOf(hash) {
   const h = decodeURIComponent((hash || '').replace(/^#/, ''));
   if (!h || h === 'home') return '';
-  for (const n of NAMES) if (h === n || h.startsWith(n + '/') || (n === 'works' && h.startsWith('works-'))) return n;
+  for (const n of NAMES) { const r = ROUTE[n]; if (h === r || h.startsWith(r + '/') || (n === 'works' && h.startsWith('works-'))) return n; }
+  for (const [old, now] of Object.entries(RENAMED)) if (h === old || h.startsWith(old + '/')) return NAMES.find((n) => ROUTE[n] === now);
   if (ARCHIVE_SLUGS.includes(h)) return 'archive';
   return '';
 }
@@ -251,6 +258,17 @@ const xl = (name) => XLATE[name] || IDENT;
    and observers are taken off, its simulacra stop and their WebGL contexts are given back to the browser. Coming
    back, all of it is put back as it was, so the section is where it was left: the same leaf, post, scroll. */
 const KEEP_CLASSES = ['aph-shifting', 'aph-still', 'aph-has-cursor', 'is-dark'];
+/* a section that waits for data from elsewhere (music: its library on R2). Until the data is there and not empty,
+   the section shows only `keep` (its title and gloss) in the fog, with no word about it; the section's request
+   simply has not answered yet. The shell asks again, more slowly each time, while the section is on screen, and
+   the moment the data is there the request answers and the section fills in, with no rebuild. */
+const WAITS = {
+  music: {
+    match: (u) => /\/index\.json(\?|$)/.test(String(u && u.url !== undefined ? u.url : u)),
+    ready: (doc) => !!(doc && Array.isArray(doc.tracks) && doc.tracks.length),
+    keep: '.m-gloss, .m-title',
+  },
+};
 function makeSandbox(name) {
   const X = xl(name);
   const ctx = { name, active: true, dormant: false, timers: new Map(), intervals: new Map(), rafs: new Map(), listeners: [],
@@ -359,7 +377,7 @@ function makeSandbox(name) {
     },
     set(t, k, v) { return Reflect.set(t, k, v); },
   });
-  const OVER = { Aphesis: SA, document: docP, location: loc, history: hist, addEventListener: winL, removeEventListener: winR,
+  const OVER = { fetch: (i, o) => fe(i, o), Aphesis: SA, document: docP, location: loc, history: hist, addEventListener: winL, removeEventListener: winR,
     requestAnimationFrame: rA, cancelAnimationFrame: cA, setTimeout: sT, clearTimeout: cT, setInterval: sI, clearInterval: cI,
     matchMedia: mM, ResizeObserver: RO, MutationObserver: MO, IntersectionObserver: IO };
   const winP = new Proxy(W, {
@@ -373,7 +391,25 @@ function makeSandbox(name) {
     },
     set(t, k, v) { t[k] = v; return true; },
   });
-  ctx.args = [winP, winP, winP, docP, loc, hist, winL, winR, rA, cA, sT, cT, sI, cI, mM, RO, MO, IO];
+  /* fetch: the section's own, except a request the section waits on (WAITS) */
+  const WT = WAITS[name];
+  ctx.waiting = !!WT;
+  const fe = (input, init) => {
+    if (!WT || !WT.match(input)) return W.fetch(input, init);
+    return new Promise((resolve) => {
+      let n = 0;
+      const again = () => sT(attempt, Math.min(120000, 15000 * ++n));
+      function attempt() {
+        W.fetch(input, init).then((res) => (res.ok ? res.clone().json().then((doc) => {
+          if (!WT.ready(doc)) return again();
+          ctx.waiting = false; if (cur === ctx) delete host.dataset.wait;
+          resolve(res);
+        }) : again())).catch(again);
+      }
+      attempt();
+    });
+  };
+  ctx.args = [winP, winP, winP, docP, loc, hist, winL, winR, rA, cA, sT, cT, sI, cI, mM, RO, MO, IO, fe];
   /* hold everything the section started, and put it back */
   ctx.hold = function () {
     ctx.dormant = true;
@@ -437,8 +473,25 @@ function enter(name) {
   const X = xl(name);
   host.querySelectorAll('a[href^="#"]').forEach((a) => { const h = a.getAttribute('href'); if (h.length > 1) a.setAttribute('href', X.toGlobal(h)); });
   OWNER = ctx;
+  if (ctx.waiting) wait(ctx);
   try { APH_SECTIONS[name].run.apply(undefined, ctx.args); } catch (err) { console.error(err); }
   focusIn(ctx);
+}
+/* waiting: only the section's title and gloss, condensing out of the fog, with the fog calm behind them */
+function wait(ctx) {
+  host.dataset.wait = '';
+  const keep = [...host.querySelectorAll(WAITS[ctx.name].keep)];
+  keep.forEach((el) => el.setAttribute('data-aph-keep', ''));
+  ctx.zones = keep.map((el) => ({ el, pad: 16 }));
+  condense(keep);
+}
+function condense(els) {
+  els.forEach((el) => { el.style.setProperty('opacity', '0'); el.style.setProperty('filter', 'blur(10px)'); el.style.setProperty('translate', '0 14px'); });
+  requestAnimationFrame(() => requestAnimationFrame(() => els.forEach((el) => {
+    el.style.transition = 'opacity 1.2s cubic-bezier(.2,.7,.2,1), filter 1.2s cubic-bezier(.2,.7,.2,1), translate 1.2s cubic-bezier(.2,.7,.2,1)';
+    el.style.removeProperty('opacity'); el.style.removeProperty('filter'); el.style.removeProperty('translate');
+    setTimeout(() => el.style.removeProperty('transition'), 1300);
+  })));
 }
 
 /* the pieces that dissolve on their own: each .aph-ink block, and each subtree with no .aph-ink inside */
@@ -452,7 +505,7 @@ function pieces(el, out) {
 function leave() {
   const ctx = cur; if (!ctx) return;
   cur = null; leaving = ctx; ctx.active = false;
-  ctx.leftAt = sectionOf(prevHash) === ctx.name ? prevHash : '#' + ctx.name;
+  ctx.leftAt = sectionOf(prevHash) === ctx.name ? prevHash : routeOf(ctx.name);
   host.setAttribute('inert', '');
   ctx.sims.forEach((st) => { st.wasShown = st.want; st.wasRunning = st.running; try { st.s.hide(); } catch (_) { /* gone */ } });
   ctx.pieces = pieces(host, []).map((el) => ({ el, was: PROPS.map((p) => [el.style.getPropertyValue(p), el.style.getPropertyPriority(p)]) }));
@@ -480,7 +533,7 @@ function rest(ctx) {
   ctx.rootSaved = { classes: [...ROOT.classList].filter((c) => !ctx.rootClasses.has(c) && !KEEP_CLASSES.includes(c)), data: {} };
   ctx.rootSaved.classes.forEach((c) => ROOT.classList.remove(c));
   Object.keys(ROOT.dataset).forEach((k) => { if (!ctx.rootData.includes(k) && k !== 'theme' && k !== 'sec') { ctx.rootSaved.data[k] = ROOT.dataset[k]; delete ROOT.dataset[k]; } });
-  delete host.dataset.sec;
+  delete host.dataset.sec; delete host.dataset.wait;
   styleOf(ctx.name).media = 'not all';
   if (!cur) delete ROOT.dataset.sec;
   if (OWNER === ctx) OWNER = null;
@@ -490,6 +543,7 @@ function rest(ctx) {
 function wake(ctx) {
   cur = ctx; OWNER = ctx;
   show(ctx.name);
+  if (ctx.waiting) host.dataset.wait = '';
   ctx.rootSaved.classes.forEach((c) => ROOT.classList.add(c));
   Object.entries(ctx.rootSaved.data).forEach(([k, v]) => { ROOT.dataset[k] = v; });
   host.appendChild(ctx.frag); ctx.frag = null;
@@ -510,9 +564,9 @@ function wake(ctx) {
   });
   /* a different sub-route in the address than the one left: the section follows it */
   /* coming back by the section's own name lands where it was left; a sub-route in the address is followed */
-  if (location.hash === '#' + ctx.name && ctx.leftAt !== location.hash) { try { history.replaceState(null, '', ctx.leftAt); } catch (_) { /* fine */ } }
+  if (location.hash === routeOf(ctx.name) && ctx.leftAt !== location.hash) { try { history.replaceState(null, '', ctx.leftAt); } catch (_) { /* fine */ } }
   const here = location.hash;
-  if (redraw) { const back = here; try { history.replaceState(null, '', '#' + ctx.name); } catch (_) { /* fine */ } dispatchEvent(new HashChangeEvent('hashchange'));
+  if (redraw) { const back = here; try { history.replaceState(null, '', routeOf(ctx.name)); } catch (_) { /* fine */ } dispatchEvent(new HashChangeEvent('hashchange'));
     try { history.replaceState(null, '', back); } catch (_) { /* fine */ } dispatchEvent(new HashChangeEvent('hashchange')); }
   else if (here !== ctx.leftAt) dispatchEvent(new HashChangeEvent('hashchange'));
   dispatchEvent(new Event('resize'));
@@ -561,7 +615,7 @@ function goTo(next, first) {
       () => {
         ring.classList.add('visible');
         const a = document.activeElement;
-        if (prev && (!a || a === document.body)) { const l = links.find((x) => x.getAttribute('href') === '#' + prev); if (l) l.focus({ preventScroll: true }); }
+        if (prev && (!a || a === document.body)) { const l = links.find((x) => x.getAttribute('href') === routeOf(prev)); if (l) l.focus({ preventScroll: true }); }
       });
   } else {
     const sec = SECTIONS.find((s) => s.id === next); document.title = sec.name + ' · aphes.ist'; $('aph-announce').textContent = sec.name;
@@ -577,6 +631,8 @@ function readRoute() {
   const s = sectionOf(location.hash);
   const h = decodeURIComponent(location.hash.replace(/^#/, ''));
   if (s === 'archive' && ARCHIVE_SLUGS.includes(h)) { try { history.replaceState(null, '', '#archive/' + h); } catch (_) { /* a sandbox may refuse */ } }
+  /* a section's old name (#experimental) is rewritten to its name now (#descent), so old links keep working */
+  for (const [old, now] of Object.entries(RENAMED)) if (h === old || h.startsWith(old + '/')) { try { history.replaceState(null, '', '#' + now + h.slice(old.length)); } catch (_) { /* fine */ } }
   return s;
 }
 let prevHash = location.hash;   /* the address just before a route change: where a leaving section was */
@@ -591,7 +647,7 @@ document.addEventListener('click', (e) => {
   if (h.length > 1 && g !== h) { e.preventDefault(); location.hash = g; }
 });
 /* Escape goes up: from a section's own page to its index, from an index to the home (when the section did not use it) */
-const INDEX = { works: '#works', archive: '#archive', laboratory: '#laboratory', forum: '#forum' };
+const INDEX = { works: '#works', archive: '#archive', laboratory: '#laboratory', forum: '#forum', music: '#music' };
 addEventListener('keydown', (e) => {
   if (e.key !== 'Escape' || !route || !cur) return;
   const t = e.target, open = !!host.querySelector('[aria-expanded="true"]'), name = cur.name;
@@ -599,7 +655,7 @@ addEventListener('keydown', (e) => {
     if (e.defaultPrevented || open || route !== name) return;
     if (t && t.closest && t.closest('input,textarea,select,[contenteditable="true"]')) return;
     const idx = INDEX[name], h = location.hash;
-    if (idx && h !== idx && h !== '#' + name) location.hash = idx.slice(1); else location.hash = 'home';
+    if (idx && h !== idx && h !== routeOf(name)) location.hash = idx.slice(1); else location.hash = 'home';
   }, 0);
 });
 

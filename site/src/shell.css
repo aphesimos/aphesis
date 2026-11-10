@@ -13,6 +13,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--font-tex
 #aph-fog{position:fixed;inset:0;width:100%;height:100%;display:block;pointer-events:none;z-index:var(--z-fog)}
 /* a section's own fog, seal and eye are the shell's: its copies stay in its markup (its script finds them) but never show */
 #aph-host #fog,#aph-host #seal,#aph-host #controls{display:none!important}
+/* a section waiting for its data shows only its title and gloss (see WAITS in shell.js) */
+#aph-host[data-wait] *{visibility:hidden!important}
+#aph-host[data-wait] [data-aph-keep],#aph-host[data-wait] [data-aph-keep] *{visibility:visible!important}
 
 /* the seal: one element that travels from the center to the corner */
 #aph-seal{position:fixed;left:0;top:0;width:100px;height:100px;z-index:var(--z-seal);

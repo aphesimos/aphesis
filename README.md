@@ -69,14 +69,23 @@ A section's script runs once, on its first visit; after that the section rests a
   pieces condense in. Coming back by the section's own name (`#book`, `#works`) lands where it was left; an address
   that names another sub-route (`#book/faust`) is followed.
 
-So book returns to its leaf, the archive to its post and scroll, works to its work, experimental to its chamber.
+So book returns to its leaf, the archive to its post and scroll, works to its work, the descent to its chamber.
 Only the mounted section draws or listens, and the page never holds more than the fog and two simulacrum canvases.
+
+## Music
+
+The music section reads its library from R2 (`https://music.aphes.ist/index.json`; `--music-index URL` builds against
+another copy). Its player core and the now-playing line (`#aph-np`, top-right) live outside the section, so playback
+goes on across every route and through the section resting and waking.
+While the index is missing, unreachable or empty, the section shows only its title and gloss in the fog: its request
+for the index simply has not answered. The shell asks again, more slowly each time, while the section is on screen,
+and the section fills in the moment the index is there, with no rebuild (`WAITS` in `site/src/shell.js`).
 
 ## Sound
 
 `Aphesis.Sound` (design system) starts at load with a fade as long as the φ's drawing, or on the first gesture where
 the browser waits for one. The ear beside the eye mutes it, and the choice is remembered. Every route change crossfades
-to that screen's voice (`Sound.scene`); experimental changes it per chamber and plays `door` when the door opens.
+to that screen's voice (`Sound.scene`); the descent (`experimental` voice) changes it per chamber and plays `door` when the door opens.
 
 ## Routes
 
@@ -84,12 +93,13 @@ to that screen's voice (`Sound.scene`); experimental changes it per chamber and 
 | --- | --- |
 | `#home` or none | the home |
 | `#book`, `#book/<slug>` | book, one leaf |
-| `#experimental` | experimental |
+| `#descent` | the descent (κατάβασις), built from `section/experimental`; `#experimental` redirects here |
 | `#archive`, `#archive/<slug>` | the archive, one post (inside the archive script the post is still `#<slug>`; a bare `#<slug>` is redirected) |
 | `#laboratory`, `#laboratory/<slug>` | the laboratory, one experiment |
 | `#works`, `#works-<id>` | works, one work |
 | `#wall` | the wall |
 | `#forum`, `#forum/<id>[/<n>]` | the forum, one thread |
+| `#music`, `#music/folders/…`, `#music/artists/…`, `#music/albums/<artist>/<album>` | music, a folder, an artist, an album |
 
 Escape goes up: from a section's own page to its index, from an index to the home, whenever the section itself
 did not use the key. The seal always leads home.
@@ -97,7 +107,7 @@ did not use the key. The seal always leads home.
 ## Refreshing a section
 
 Every section is built from its branch at build time, so refreshing one is updating its branch ref and rebuilding.
-For experimental:
+For the descent (section/experimental):
 
 ```
 git fetch origin section/experimental:section/experimental

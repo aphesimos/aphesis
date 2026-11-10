@@ -1,0 +1,26 @@
+<!-- @dsCard group="Identity" height=420 subtitle="the eye, alive: drawn in, trembling at 8 fps, hard-cut blinks and saccades" -->
+<div class="wrap">
+  <div class="eye" id="e" aria-hidden="true"></div>
+  <div class="acts">
+    <button type="button" class="aph-label" id="bBlink">blink</button>
+    <button type="button" class="aph-label" id="bClose">close</button>
+    <button type="button" class="aph-label" id="bOpen">open</button>
+    <button type="button" class="aph-label" id="bWide">wide</button>
+  </div>
+  <p class="aph-meta" id="st">·</p>
+</div>
+<style>
+.wrap{display:flex;flex-direction:column;align-items:center;gap:var(--space-4);padding:var(--space-5)}
+.eye{width:min(420px,80vw);color:var(--accent)}
+.acts{display:flex;gap:var(--space-5)}
+.acts button{background:none;border:0;padding:var(--space-2) 0;color:var(--ink);font:inherit;cursor:pointer}
+.aph-meta{margin:0;color:var(--ink-soft)}
+</style>
+<script>
+const eye = Aphesis.Eye(document.getElementById('e'), { gaze: 'auto' });
+eye.on((s) => { document.getElementById('st').textContent = s.blink + ' · ' + s.gaze; });
+document.getElementById('bBlink').onclick = () => eye.blink();
+document.getElementById('bClose').onclick = () => eye.close();
+document.getElementById('bOpen').onclick = () => eye.open();
+document.getElementById('bWide').onclick = () => eye.wide();
+</script>

@@ -8,6 +8,10 @@ interface FogProps {
   /** the band's width as a share of the screen's width; null or left out follows the screen (.66 wide, .94 on a phone) */
   clearWidth?: number | null;
 }
+type EyeBlink = 'open' | 'half' | 'closed' | 'squint' | 'wide';
+type EyeGaze = 'centre' | 'left' | 'right' | 'up' | 'down' | 'up-left' | 'up-right' | 'down-left' | 'down-right' | 'narrow' | 'dilated';
+interface EyeProps { size?: number; gaze?: 'auto' | 'pointer' | Element; follow?: Element | (() => [number, number] | null); blink?: boolean; drawIn?: boolean; start?: boolean }
+interface EyeHandle { el: Element; blink(): void; close(ticks?: number): void; open(): void; wide(ticks?: number): void; squint(ticks?: number): void; look(x: number, y: number): void; typed(): void; on(fn: (s: { blink: EyeBlink; gaze: EyeGaze; frame: number; tick: number }) => void): void; readonly state: { blink: EyeBlink; gaze: EyeGaze; frame: number; tick: number }; readonly drawn: boolean; start(): void; stop(): void; destroy(): void }
 interface SimulacrumSource { src: string | HTMLImageElement | HTMLCanvasElement; gain?: number; scatter?: number; erosion?: number; ceiling?: number }
 interface SimulacrumProps { sound?: boolean; source?: string | HTMLImageElement | HTMLCanvasElement | SimulacrumSource; scatter?: number; erosion?: number; ceiling?: number; fit?: 'contain' | 'cover'; gain?: number; cell?: number; accent?: number; margin?: number; ground?: boolean }
 interface IconsProps { name: 'eye' | 'sol' | 'luna' | 'terminator' | 'threshold' | 'ear'; state?: 0 | 1 }
@@ -59,6 +63,8 @@ interface Aphesis {
   seal(el: Element, opts?: SealProps): { stop(): void };
   Fog(canvas: HTMLCanvasElement, opts?: FogProps): { zones(list: (Element | FogZone)[]): void; set(o: FogProps): void; stop(): void; start(): void; destroy(): void };
   Simulacrum(canvas: HTMLCanvasElement, opts?: SimulacrumProps): { show(src?: SimulacrumProps['source'], done?: () => void): void; hide(done?: () => void): void; set(src: SimulacrumProps['source'], done?: () => void): void; stop(): void; start(): void; drawn(cb: () => void): void; destroy(): void };
+  /** the eye, alive: drawn in, then trembling at 8 fps with hard-cut blinks and saccadic gaze (components/Eye) */
+  Eye(el: Element, opts?: EyeProps): EyeHandle;
   Typist: new (el: Element, caret?: Element) => { type(text: string, done?: () => void): void; erase(done?: () => void): void; loop(lines: (string | { text: string })[], hold?: number, onLine?: (l: any, i: number) => void): void; stop(): void };
   tooltip(root?: Element): void;
   cursor(root?: Element): void;

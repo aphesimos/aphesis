@@ -1,4 +1,4 @@
-/* @ds-bundle: {"format":4,"namespace":"Aphesis","components":[{"name":"Seal"},{"name":"Brush"},{"name":"Icons"},{"name":"Fog"},{"name":"Simulacrum"},{"name":"Typist"},{"name":"Tooltip"},{"name":"Cursor"},{"name":"LetterWave"},{"name":"ThemeShift"},{"name":"Sound"}]} */
+/* @ds-bundle: {"format":4,"namespace":"Aphesis","components":[{"name":"Seal"},{"name":"Brush"},{"name":"Icons"},{"name":"Fog"},{"name":"Simulacrum"},{"name":"Typist"},{"name":"Tooltip"},{"name":"Cursor"},{"name":"LetterWave"},{"name":"ThemeShift"},{"name":"Sound"},{"name":"Eye"}]} */
 /* aphes.ist design system runtime. Plain JavaScript, no framework: every screen of the site loads this one script.
    Everything visible is made of two marks: the BRUSH (a centerline with a width profile, tapered, with unsure edges)
    and the STIPPLE (small square cells that light up where a density field passes a fixed threshold). Nothing is solid. */
@@ -988,10 +988,193 @@
     b.dataset.tip = on ? 'listening · close the ear' : 'silent · open the ear';
   }
 
+  /* ================= EYE ================= */
+  /* Eye(el, opts): the theme switch's eye (ICONS.eye: two brushed lids and a stippled iris; closed, one lid and three
+     lashes) drawn large and alive, as the gate shows it. It draws itself in, stroke by stroke, the way the φ draws
+     itself; then it never stops trembling: every 125 ms (8 fps) its strokes are redrawn from one of three drawings of
+     the same state and the feTurbulence seed is swapped, as the seal's boil. Nothing is tweened: each state is its
+     own drawing, cut to on a tick and held for whole ticks.
+       blinks  open, half (the lid lowered), closed (lid and lashes), squint, wide
+       gaze    centre, left, right, up, down, the four diagonals, narrow (a small pupil), dilated (a wide one)
+     Blinks and gaze are two tracks on their own clocks, so a blink lands on any gaze. The gaze moves in saccades: a
+     cut to a fixation, then a hold of irregular length. Every drawing is made at the size the eye is shown (strokes,
+     boil and stipple cells tuned to it, cells of about 3 CSS px), and made again when that size changes.
+     opts: size (CSS px of the box's width; else the element's), gaze ('auto' saccades that sometimes follow the
+     pointer and `follow`; 'pointer' follows the pointer; an Element follows it), follow (an Element or a function
+     returning [x, y]: something 'auto' glances at, a caret say), blink (true: blinks on its own), drawIn (true), start (true: begins at once; false waits for start()).
+     The box's height is 14/24 of its width: the eye's own band of the icon grid. */
+  var EYE_BLINKS = ['open', 'half', 'closed', 'squint', 'wide'];
+  var EYE_GAZES = ['centre', 'left', 'right', 'up', 'down', 'up-left', 'up-right', 'down-left', 'down-right', 'narrow', 'dilated'];
+  var EYE_DIR = { centre: [0, 0], left: [-2.3, 0], right: [2.3, 0], up: [0, -1.5], down: [0, 1.5], 'up-left': [-1.75, -1.15], 'up-right': [1.75, -1.15],
+    'down-left': [-1.75, 1.15], 'down-right': [1.75, 1.15], narrow: [0, 0], dilated: [0, 0] };
+  var EYE_PUPIL = { narrow: 0.62, dilated: 2.15 }, EYE_IRIS = 3.1, EYE_PUPIL_R = 1.25, EYE_W = 0.62, EYE_LASH = 0.45, EYE_VARIANTS = 3, eyeCount = 0;
+  /* an upper lid is the lower half of an ellipse centred below the eye, a lower lid the upper half of one centred
+     above; top(x) and bottom(x) are the opening the iris is cut to. One upper lid per state, never a fold or crease
+     that could read as a second one. */
+  function eyeUpper(cy, ry, r, a0, a1) { r = r || 9; return { pts: arc(12, cy, r, a0 === undefined ? -160 : a0, a1 === undefined ? -20 : a1, 48, ry), y: function (x) { return cy - ry * Math.sqrt(Math.max(0, 1 - Math.pow((x - 12) / r, 2))); } }; }
+  function eyeLower(cy, ry, r, a0, a1) { r = r || 9; return { pts: arc(12, cy, r, a0 === undefined ? 20 : a0, a1 === undefined ? 160 : a1, 48, ry), y: function (x) { return cy + ry * Math.sqrt(Math.max(0, 1 - Math.pow((x - 12) / r, 2))); } }; }
+  var EYE_LIDS = {
+    open: function () { var u = eyeUpper(15.5, 7), l = eyeLower(8.5, 7); return { strokes: [[u.pts, EYE_W, 31], [l.pts, EYE_W, 33]], top: u.y, bottom: l.y }; },
+    wide: function () { var u = eyeUpper(15.6, 8.8, 9.4, -162, -18), l = eyeLower(8.4, 7.9, 9.4, 18, 162); return { strokes: [[u.pts, EYE_W * 1.05, 31], [l.pts, EYE_W, 33]], top: u.y, bottom: l.y }; },
+    half: function () { var u = eyeUpper(15.5, 3.4), l = eyeLower(8.5, 7); return { strokes: [[u.pts, EYE_W * 1.1, 35], [l.pts, EYE_W, 33]], top: u.y, bottom: l.y }; },
+    squint: function () { var u = eyeUpper(15.5, 5.0), l = eyeLower(8.5, 4.9); return { strokes: [[u.pts, EYE_W * 1.05, 43], [l.pts, EYE_W, 45]], top: u.y, bottom: l.y }; },
+    closed: function () {
+      var s = [[arc(12, 8, 9, 25, 155, 48, 6), EYE_W * 1.1, 37]];
+      [-0.55, 0, 0.55].forEach(function (k, i) { var x = 12 + k * 9.5; s.push([line(x, 14.2 - Math.abs(k) * 1.2, x + k * 1.8, 17.2 - Math.abs(k), 12), EYE_LASH, 41 + i, 0.35, 0.05]); });
+      return { strokes: s, top: function () { return 99; }, bottom: function () { return -99; } };
+    }
+  };
+  function eyeIris(blink, gaze, v, u) {
+    var L = EYE_LIDS[blink](), d0 = EYE_DIR[gaze], pr = EYE_PUPIL[gaze] || EYE_PUPIL_R, cx = 12 + d0[0], cy = 12 + d0[1];
+    var r = rng(1000 + EYE_BLINKS.indexOf(blink) * 97 + EYE_GAZES.indexOf(gaze) * 13 + v * 7919);
+    var cell = Math.max(2, Math.round(u * 24 / 150)), step = cell * 1.5 / u, c = cell / u, iris = '', pupil = '';
+    function sq(x, y, k) { var S = c * k * u, X = x * u - S / 2, Y = y * u - S / 2; return 'M' + X.toFixed(1) + ' ' + Y.toFixed(1) + 'h' + S.toFixed(1) + 'v' + S.toFixed(1) + 'h' + (-S).toFixed(1) + 'z'; }
+    for (var gy = -EYE_IRIS; gy <= EYE_IRIS; gy += step) for (var gx = -EYE_IRIS; gx <= EYE_IRIS; gx += step) {
+      var x = cx + gx + (r() - 0.5) * step * 0.3, y = cy + gy + (r() - 0.5) * step * 0.3, d = Math.hypot(gx, gy);
+      if (d > EYE_IRIS || !(y > L.top(x) + 0.45 && y < L.bottom(x) - 0.45)) continue;
+      if (d < pr) { if (r() < 0.86) pupil += sq(x, y, 0.9 + r() * 0.25); } else if (r() < 0.5 - 0.22 * (d / EYE_IRIS)) iris += sq(x, y, 0.75 + r() * 0.3);
+    }
+    return { iris: iris, pupil: pupil };
+  }
+  function eyeScaled(pts, u) { return pts.map(function (p) { return [p[0] * u, p[1] * u]; }); }
+  function eyeDrawings(u) {
+    var lids = {}, irises = {};
+    EYE_BLINKS.forEach(function (b) {
+      var L = EYE_LIDS[b](); lids[b] = []; irises[b] = {};
+      for (var v = 0; v < EYE_VARIANTS; v++) lids[b].push(L.strokes.map(function (s) { return brush(eyeScaled(s[0], u), s[1] * u, s[2] + v * 211, s[3], s[4]); }).join(''));
+      EYE_GAZES.forEach(function (g) { irises[b][g] = []; for (var v = 0; v < EYE_VARIANTS; v++) irises[b][g].push(eyeIris(b, g, v, u)); });
+    });
+    return { lids: lids, irises: irises, u: u };
+  }
+  function Eye(el, o) {
+    o = o || {};
+    var id = 'aph-eye-boil-' + (++eyeCount);
+    if (o.size) el.style.width = o.size + 'px';
+    if (!el.style.aspectRatio) el.style.aspectRatio = '24 / 14';
+    el.innerHTML = '<svg aria-hidden="true" focusable="false" style="display:block;width:100%;height:100%;overflow:visible">' +
+      '<filter id="' + id + '" x="-6%" y="-6%" width="112%" height="112%"><feTurbulence type="fractalNoise" baseFrequency="0.055" numOctaves="1" seed="1" result="r"/>' +
+      '<feDisplacementMap in="SourceGraphic" in2="r" xChannelSelector="R" yChannelSelector="G"/></filter>' +
+      '<g filter="url(#' + id + ')" fill="currentColor"><path class="lids"/><path class="iris" opacity=".72"/><path class="pupil"/></g></svg>';
+    var svg = el.firstChild, turb = svg.querySelector('feTurbulence'), disp = svg.querySelector('feDisplacementMap');
+    var P = { lids: svg.querySelector('.lids'), iris: svg.querySelector('.iris'), pupil: svg.querySelector('.pupil') };
+    var D = null, rnd = Math.random, tick = 0, frame = 0, timer = 0, drawn = false, drawing = false, dead = false;
+    var blinkQ = [], blinkState = 'open', rest = 'open', gaze = 'centre', gazeUntil = 0, forced = null;
+    var pointer = null, pointerAt = -1e9, typedAt = -1e9, listeners = [], resizeT = 0;
+    var auto = o.blink !== false, mode = o.gaze || 'auto';
+    function hold(median, spread) { return Math.max(1, Math.round(median * Math.exp((rnd() + rnd() + rnd() - 1.5) * spread))); }
+    var nextBlink = hold(26, 0.55);
+    function size() {
+      var w = Math.max(48, o.size || el.getBoundingClientRect().width || 240), u = w / 24;
+      if (D && Math.abs(D.u - u) / D.u < 0.1) return;
+      svg.setAttribute('viewBox', '0 ' + (5 * u).toFixed(1) + ' ' + w.toFixed(1) + ' ' + (14 * u).toFixed(1));
+      disp.setAttribute('scale', (w * 0.0095).toFixed(2));
+      D = eyeDrawings(u); api.drawings = D;
+      if (drawn) render();
+    }
+    function render() {
+      if (!el.isConnected) return;
+      var ir = D.irises[blinkState][gaze][frame];
+      P.lids.setAttribute('d', D.lids[blinkState][frame]); P.iris.setAttribute('d', ir.iris); P.pupil.setAttribute('d', ir.pupil);
+      el.dataset.blink = blinkState; el.dataset.gaze = gaze; el.dataset.frame = String(frame);
+      listeners.forEach(function (f) { f({ blink: blinkState, gaze: gaze, frame: frame, tick: tick }); });
+    }
+    function centreOf(t) { var r = t.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }
+    function toward(x, y) {
+      var r = el.getBoundingClientRect(), dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
+      if (Math.hypot(dx, dy) < r.width * 0.2) return 'centre';
+      var a = Math.atan2(dy, dx) * 180 / Math.PI, names = ['right', 'down-right', 'down', 'down-left', 'left', 'up-left', 'up', 'up-right'];
+      return names[((Math.round(a / 45) % 8) + 8) % 8];
+    }
+    function followPoint() { var f = o.follow; if (!f) return null; if (typeof f === 'function') return f(); return f.isConnected ? centreOf(f) : null; }
+    function stepBlink() {
+      if (blinkQ.length) { blinkState = blinkQ[0][0]; if (--blinkQ[0][1] <= 0) blinkQ.shift(); return; }
+      blinkState = rest;
+      if (!auto || rest !== 'open' || --nextBlink > 0) return;
+      var u = rnd();
+      if (u < 0.7) blinkQ = [['half', 1], ['closed', 2], ['half', 1]];
+      else if (u < 0.82) blinkQ = [['half', 1], ['closed', 1], ['half', 1], ['open', 2], ['half', 1], ['closed', 2], ['half', 1]];
+      else if (u < 0.93) blinkQ = [['squint', hold(12, 0.4)]];
+      else blinkQ = [['half', 2], ['closed', 4], ['half', 2]];
+      nextBlink = hold(30, 0.6);
+      stepBlink();
+    }
+    function stepGaze() {
+      if (forced) { gaze = forced.gaze; if (--forced.ticks <= 0) { forced = null; gazeUntil = 0; } return; }
+      if (mode === 'pointer') { if (pointer) gaze = toward(pointer[0], pointer[1]); return; }
+      if (mode && mode.nodeType === 1) { if (mode.isConnected) { var c = centreOf(mode); gaze = toward(c[0], c[1]); } return; }
+      if (tick < gazeUntil) return;
+      var u = rnd(), fp = followPoint(), next;
+      if (tick - typedAt < 10 && u < 0.62) next = fp ? toward(fp[0], fp[1]) : 'down';
+      else if (pointer && tick - pointerAt < 24 && u < 0.45) next = toward(pointer[0], pointer[1]);
+      else if (fp && u < 0.52) next = toward(fp[0], fp[1]);
+      else if (u < 0.62) next = rnd() < 0.8 ? 'centre' : 'dilated';
+      else if (u < 0.67) next = 'narrow';
+      else next = EYE_GAZES[1 + Math.floor(rnd() * 8)];
+      gaze = next;
+      gazeUntil = tick + (next === 'centre' || next === 'dilated' ? hold(14, 0.7) : hold(6, 0.75));
+    }
+    function step() {
+      if (!el.isConnected) return;   /* a detached eye (a section at rest) holds still */
+      tick++;
+      frame = (frame + 1 + Math.floor(rnd() * (EYE_VARIANTS - 1))) % EYE_VARIANTS;   /* never the same drawing twice in a row */
+      turb.setAttribute('seed', String(1 + Math.floor(rnd() * 997)));
+      stepBlink(); stepGaze(); render();
+    }
+    function drawIn(done) {
+      var open = EYE_LIDS.open(), ir = D.irises.open.centre[0], u = D.u, t0 = performance.now(), DUR = 2100;
+      function cells(s) { return s.split('M').slice(1).map(function (c) { return 'M' + c; }); }
+      var iris = cells(ir.iris), pupil = cells(ir.pupil);
+      function part(pts, k) { return pts.slice(0, Math.max(2, Math.round(pts.length * k))); }
+      (function f(now) {
+        if (dead) return;
+        var t = Math.min(1, (now - t0) / DUR), a = MJ(t / 0.42), b = MJ((t - 0.34) / 0.4), c = clamp((t - 0.7) / 0.3);
+        var d = a > 0 ? brush(eyeScaled(part(open.strokes[0][0], a), u), EYE_W * u, 31) : '';
+        if (b > 0) d += brush(eyeScaled(part(open.strokes[1][0], b), u), EYE_W * u, 33);
+        P.lids.setAttribute('d', d);
+        P.iris.setAttribute('d', iris.slice(0, Math.round(iris.length * c)).join(''));
+        P.pupil.setAttribute('d', pupil.slice(0, Math.round(pupil.length * Math.min(1, c * 1.6))).join(''));
+        if (t < 1) requestAnimationFrame(f); else done();
+      })(t0);
+    }
+    function onMove(e) { pointer = [e.clientX, e.clientY]; pointerAt = tick; }
+    function onResize() { clearTimeout(resizeT); resizeT = setTimeout(size, 200); }
+    function start() {
+      if (timer || drawing || dead) return;
+      size();
+      function go() { drawing = false; drawn = true; render(); timer = setInterval(step, 125); }
+      if (o.drawIn === false) go(); else { drawing = true; el.dataset.blink = 'drawing'; drawIn(go); }
+    }
+    var api = {
+      el: el, drawings: null,
+      /* one blink now */
+      blink: function () { blinkQ = [['half', 1], ['closed', 2], ['half', 1]]; },
+      /* a hard cut to the closed lid; held for `ticks` ticks if given, else until open() */
+      close: function (ticks) { blinkQ = ticks ? [['closed', ticks]] : []; if (!ticks) rest = 'closed'; blinkState = 'closed'; if (ticks) forced = { gaze: 'narrow', ticks: ticks + 5 }; if (drawn) render(); },
+      open: function () { rest = 'open'; blinkQ = []; blinkState = 'open'; if (drawn) render(); },
+      /* a hard cut to wide open with a dilated pupil, held for `ticks` (10) */
+      wide: function (ticks) { ticks = ticks || 10; blinkQ = [['wide', ticks]]; blinkState = 'wide'; forced = { gaze: 'dilated', ticks: ticks }; gaze = 'dilated'; if (drawn) render(); },
+      squint: function (ticks) { blinkQ = [['squint', ticks || 10]]; blinkState = 'squint'; if (drawn) render(); },
+      /* a saccade toward a point on screen, held a moment */
+      look: function (x, y) { forced = { gaze: toward(x, y), ticks: hold(8, 0.5) }; gaze = forced.gaze; if (drawn) render(); },
+      /* something was typed: 'auto' glances toward `follow` */
+      typed: function () { typedAt = tick; if (tick >= gazeUntil - 2) gazeUntil = tick; },
+      on: function (f) { listeners.push(f); },
+      get state() { return { blink: blinkState, gaze: gaze, frame: frame, tick: tick }; },
+      get drawn() { return drawn; },
+      start: start,
+      stop: function () { clearInterval(timer); timer = 0; },
+      destroy: function () { dead = true; clearInterval(timer); timer = 0; removeEventListener('pointermove', onMove); removeEventListener('resize', onResize); el.innerHTML = ''; }
+    };
+    addEventListener('pointermove', onMove, { passive: true });
+    addEventListener('resize', onResize);
+    if (o.start !== false) start();
+    return api;
+  }
+
   window.Aphesis = {
     reducedMotion: REDUCED, MJ: MJ, cellPx: cellPx, lerp: lerp, clamp: clamp, tween: tween, rng: rng, cssColor: cssColor,
     brush: brush, arc: arc, line: line, stipple: stipple, inC: inC,
-    icon: icon, ICONS: ICONS, PHI: PHI, seal: seal,
+    icon: icon, ICONS: ICONS, PHI: PHI, seal: seal, Eye: Eye,
     Fog: Fog, Simulacrum: Simulacrum, Typist: Typist, tooltip: tooltip, cursor: cursor, letters: letters, themeShift: themeShift, themeColor: themeColor, Sound: Sound
   };
 })();

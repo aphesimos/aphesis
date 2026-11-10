@@ -82,6 +82,8 @@ Brush strokes in `accent` with stipple fill, on a 24-unit grid, drawn at 28 to 6
 - **threshold** (*limen*): an arched doorway, empty when open, filled with stippled night when closed. Use it for entering a chamber.
 - **ear** (*auris*): the sound switch, beside the eye. Listening, three arcs of stipple arrive at the ear; muted, they disperse and fall, and one stroke crosses it. The switch is the arcs scattering and gathering; hovering stirs them.
 
+Drawn large and alive, the eye is a component of its own: `Aphesis.Eye(el, opts)` draws itself in, trembles at 8 fps, blinks in hard cuts between discrete drawings and looks around in saccades (`components/Eye`).
+
 Render them with `Aphesis.icon(name, state)`; the SVG files under assets are for places that cannot run the script, in the light-theme rubedo `#ab0d19`.
 
 ## The seal

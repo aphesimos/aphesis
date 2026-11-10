@@ -1,0 +1,454 @@
+<title>aphes.is</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* layout: one document. fog on a fixed canvas, the φ seal in the center (or in the corner, inside a section),
+   sections as an inscription around the seal, the passage of the day in the bottom-right corner. */
+:root{
+  /* neutral scale (grey with a slight red bias, h 25), light to dark: one scale serves both themes */
+  --n-50:oklch(0.975 0.003 25); --n-100:oklch(0.95 0.004 25); --n-150:oklch(0.92 0.005 25); --n-200:oklch(0.88 0.006 25);
+  --n-300:oklch(0.80 0.007 25); --n-400:oklch(0.70 0.008 25); --n-500:oklch(0.60 0.008 25); --n-600:oklch(0.50 0.008 25);
+  --n-700:oklch(0.40 0.008 25); --n-800:oklch(0.30 0.007 25); --n-850:oklch(0.25 0.006 25); --n-900:oklch(0.20 0.006 25);
+  --n-950:oklch(0.15 0.005 25); --n-975:oklch(0.11 0.004 25);
+  /* accent: rubedo red, only for the seal and moments of impact */
+  --red:oklch(0.47 0.185 26); --red-text:oklch(0.45 0.18 26);
+  /* roles */
+  --bg:var(--n-100); --ink:var(--n-900); --ink-soft:var(--n-600); --line:var(--n-300); --fog:var(--n-900);
+  --seal:var(--red); --accent:var(--red); --accent-text:var(--red-text);
+  --f-display:"Cormorant Garamond","Cormorant",Garamond,"Times New Roman",serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:var(--n-975); --ink:var(--n-100); --ink-soft:var(--n-500); --line:var(--n-800); --fog:var(--n-150);
+  --red:oklch(0.57 0.2 26); --red-text:oklch(0.66 0.17 26); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:var(--n-975); --ink:var(--n-100); --ink-soft:var(--n-500); --line:var(--n-800); --fog:var(--n-150);
+  --red:oklch(0.57 0.2 26); --red-text:oklch(0.66 0.17 26); color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--f-mono);overflow:hidden;
+  transition:background-color .8s ease,color .8s ease}
+a{color:inherit}
+:focus-visible{outline:1px solid var(--accent);outline-offset:4px}
+#fog{position:fixed;inset:0;width:100%;height:100%;display:block;pointer-events:none}
+/* the seal: a single element that travels from the center to the corner */
+#seal{position:fixed;left:0;top:0;width:100px;height:100px;z-index:3;
+  display:block;border:0;padding:0;background:none;cursor:pointer;color:var(--seal);pointer-events:none}
+#seal.in-corner{pointer-events:auto}
+#seal svg{width:100%;height:100%;display:block;overflow:visible}
+#seal path{fill:currentColor;transition:fill .8s ease}
+/* the inscription: sections around the seal */
+#inscription{position:fixed;inset:0;z-index:5;pointer-events:none}
+#inscription a{position:absolute;left:0;top:0;pointer-events:auto;text-decoration:none;white-space:nowrap;
+  font:500 14px/1 var(--f-mono);letter-spacing:.22em;text-transform:lowercase;color:var(--ink);
+  opacity:0;transition:opacity .9s ease,color .4s ease,filter .9s ease;filter:blur(6px);padding:10px 8px;
+  text-shadow:0 0 4px var(--bg),0 0 10px var(--bg),0 0 18px var(--bg)}
+#inscription a .gl{display:block;margin-top:7px;font:italic 500 16px/1 var(--f-display);letter-spacing:.04em;color:var(--ink-soft);text-transform:none;transition:transform .6s cubic-bezier(.2,.7,.2,1),color .6s ease}
+#inscription a{visibility:hidden;transition-property:opacity,color,filter,visibility;transition-delay:0s,0s,0s,.9s}
+#inscription.visible a{opacity:1;filter:none;visibility:visible;transition-delay:0s}
+
+#inscription.focus a:not(.on){opacity:.28}
+#ray{position:fixed;inset:0;z-index:1;pointer-events:none;width:100%;height:100%}
+#ray line{stroke:var(--ink-soft);stroke-width:1;stroke-dasharray:2 6;opacity:0;transition:opacity .4s ease}
+/* text hovers: each letter lifts a hair, in a slow wave from the first; nothing changes size or position around it */
+.ltr{display:inline-block;transition:transform .7s cubic-bezier(.2,.7,.2,1),opacity .7s ease;transition-delay:calc(var(--i)*22ms)}
+#inscription a:hover .ltr,#inscription a:focus-visible .ltr{transform:translateY(-2px)}
+#inscription a:hover .gl,#inscription a:focus-visible .gl{transform:translateY(-1px);color:var(--accent-text)}
+#controls button .ltr{transition-delay:calc(var(--i)*16ms)}
+#controls button:hover .ltr{transform:translateY(-1.5px)}
+main h1 .ltr{transition-duration:1.2s;transition-delay:calc(var(--i)*30ms)}
+main h1:hover .ltr{transform:translateY(-3px)}
+@media (prefers-reduced-motion: reduce){.ltr{transition:none!important;transform:none!important}}
+/* cursor: a disc drawn in difference mode, so it is always the negative of what it covers.
+   small at rest, it opens over anything you can act on (the word under it reads inverted), and tightens on press. */
+@media (hover:hover) and (pointer:fine){
+  *,*::before,*::after{cursor:none!important}   /* the custom cursor is the only one, everywhere */
+  #cursor{position:fixed;left:0;top:0;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:#fff;
+    mix-blend-mode:difference;pointer-events:none;z-index:20;transform:translate(-100px,-100px) scale(.2);will-change:transform;opacity:0;transition:opacity .4s ease}
+  #cursor.on{opacity:1}
+}
+@media not ((hover:hover) and (pointer:fine)){#cursor{display:none}}
+/* passage of the day: one line, small, bottom-right, typed by a person who is not in a hurry */
+#passage{position:fixed;z-index:4;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));
+  max-width:min(230px,calc(100vw - 140px));text-align:right;user-select:none;
+  font:italic 400 11px/1.7 var(--f-mono);letter-spacing:.14em;color:var(--accent-text);
+  text-shadow:0 0 4px var(--bg),0 0 10px var(--bg),0 0 18px var(--bg)}
+#passage .pre{font-style:normal;letter-spacing:0;margin-right:.5em;opacity:.8}
+#passage .caret{display:inline-block;width:.55em;height:1.05em;margin-left:.12em;vertical-align:-.18em;background:currentColor;opacity:.75}
+#passage .caret.blink{animation:blink 1.06s steps(1,end) infinite}
+#passage .caret.gone{opacity:0;transition:opacity 1.2s ease}
+@keyframes blink{50%{opacity:0}}
+/* tooltip: our own, never the browser's. small mono on the page ground, a hairline of accent, typed fast and clean */
+#tip{position:fixed;left:0;top:0;z-index:15;pointer-events:none;max-width:min(320px,calc(100vw - 32px));
+  padding:7px 10px 8px;background:var(--bg);color:var(--ink-soft);border-left:1px solid var(--accent);
+  font:400 11px/1.55 var(--f-mono);letter-spacing:.06em;opacity:0;filter:blur(4px);transform:translateY(4px);
+  transition:opacity .35s ease,filter .35s ease,transform .45s cubic-bezier(.2,.7,.2,1)}
+#tip.on{opacity:1;filter:none;transform:none}
+#tip b{font-weight:400;color:var(--ink)}
+/* corners */
+.corner{position:fixed;z-index:4;font:400 11px/1 var(--f-mono);letter-spacing:.2em;color:var(--ink-soft);text-transform:lowercase}
+#mark{left:max(16px,env(safe-area-inset-left,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+#controls{left:max(12px,env(safe-area-inset-left,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));display:flex;gap:6px}
+#controls svg{width:30px;height:30px;display:block;overflow:visible;color:var(--accent)}
+#controls svg path{fill:currentColor;transition:opacity .5s ease,transform .7s cubic-bezier(.2,.7,.2,1);transform-origin:12px 12px}
+#bTheme{padding:6px!important}
+#controls button{font:inherit;letter-spacing:inherit;color:inherit;background:none;border:1px solid transparent;padding:6px 8px;cursor:pointer;text-transform:lowercase}
+#controls button:focus-visible{outline:1px solid var(--accent);outline-offset:2px}
+/* sections */
+main{position:fixed;inset:0;z-index:2;pointer-events:none}
+main section{text-shadow:0 0 6px var(--bg),0 0 16px var(--bg);position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;
+  padding-block:96px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  max-width:900px;margin:0 auto;opacity:0;filter:blur(10px);transform:translateY(14px);
+  transition:opacity 1s ease,filter 1s ease,transform 1.2s cubic-bezier(.2,.7,.2,1);pointer-events:none}
+main section.active{opacity:1;filter:none;transform:none;pointer-events:auto}
+main h1:focus{outline:none}
+main h1{font:italic 400 clamp(44px,8vw,96px)/1 var(--f-display);margin:0;letter-spacing:-.01em;text-wrap:balance}
+main h1 .gloss{display:block;font:400 13px/1 var(--f-mono);letter-spacing:.3em;color:var(--ink-soft);margin-bottom:18px;font-style:normal}
+main p{max-width:52ch;color:var(--ink-soft);margin:28px 0 0;font-size:14px}
+main p.nota{font:italic 400 19px/1.5 var(--f-display);color:var(--ink)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion: reduce){
+  *{transition-duration:.01ms!important;animation-duration:.01ms!important}
+}
+</style>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+ <filter id="boil" x="-5%" y="-5%" width="110%" height="110%">
+  <feTurbulence id="turb" type="fractalNoise" baseFrequency="0.030" numOctaves="1" seed="1" result="r"/>
+  <feDisplacementMap id="desl" in="SourceGraphic" in2="r" scale="7" xChannelSelector="R" yChannelSelector="G"/>
+ </filter>
+</svg>
+<canvas id="fog" aria-hidden="true"></canvas>
+<svg id="ray" aria-hidden="true"><line x1="0" y1="0" x2="0" y2="0"/></svg>
+<a id="seal" href="#home" aria-label="aphes.is — back to the center"><svg viewBox="-45 -90 1090 1090" aria-hidden="true"><g filter="url(#boil)"><path id="ink"/></g></svg></a>
+<nav id="inscription" aria-label="sections">__NAV__</nav>
+<main>__SECTIONS__</main>
+<div id="passage"><span class="pre" aria-hidden="true">&gt;&gt;</span><span id="pText" aria-hidden="true"></span><span class="caret" aria-hidden="true"></span><span class="sr" id="pSr"></span></div>
+<div class="corner" id="controls"><button id="bTheme" type="button" aria-label="switch between light and dark" data-tip="open · close the eye"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="iSol"/><path id="iLuna"/><path id="iDots"/></svg></button></div>
+<div class="sr" aria-live="polite" id="announce"></div>
+<div id="cursor" aria-hidden="true"></div>
+<div id="tip" aria-hidden="true"></div>
+<script>
+__M__
+const reduz=matchMedia('(prefers-reduced-motion: reduce)').matches;
+__CORE__
+/* ================= page ================= */
+const $=id=>document.getElementById(id);
+const SECTIONS=__SECTIONSJS__;
+let paused=reduz;
+/* ---------- tokens read from CSS (the fog uses the theme colors) ---------- */
+const probe=document.createElement('canvas').getContext('2d');
+function cssRGB(v){const s=getComputedStyle(document.documentElement).getPropertyValue(v).trim();probe.fillStyle='#000';probe.fillStyle=s;probe.fillRect(0,0,1,1);const d=probe.getImageData(0,0,1,1).data;return [d[0]/255,d[1]/255,d[2]/255];}
+/* ---------- stroke boil ---------- */
+let tBoil=null; function startBoil(){clearInterval(tBoil); if(!paused) tBoil=setInterval(()=>$('turb').setAttribute('seed',1+Math.floor(Math.random()*997)),125);}
+if(reduz) $('desl').setAttribute('scale',0);
+/* ---------- stippled fog (WebGL): three layers of fractal noise rotated by the golden angle,
+   drifting at speeds in the ratio φ; each 2 px cell lights up as a dot when the noise passes the threshold ---------- */
+const FOG=(function(){
+  const cv=$('fog'), gl=cv.getContext('webgl',{premultipliedAlpha:false,antialias:false});
+  if(!gl) return {frame(){},colors(){}};
+  const vs='attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}';
+  const fs=`precision highp float;uniform vec2 R;uniform float T;uniform vec3 F;uniform vec3 N;uniform vec2 P;uniform float D;uniform float C;uniform vec4 Z[12];
+  float h(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
+  float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}
+  float fb(vec2 p){float s=0.,a=.5;for(int i=0;i<5;i++){s+=a*n(p);p=mat2(1.6,1.2,-1.2,1.6)*p;a*=.5;}return s;}
+  mat2 rot(float a){float c=cos(a),s=sin(a);return mat2(c,-s,s,c);}
+  void main(){
+    vec2 px=gl_FragCoord.xy; vec2 cel=floor(px/2.); vec2 uv=(cel*2.-R*.5)/min(R.x,R.y);
+    float d=0.;
+    for(int i=0;i<3;i++){float fi=float(i);
+      vec2 q=rot(fi*2.39996)*uv*(1.6*pow(1.618,fi))+vec2(T*.013*pow(1.618,fi),-T*.008*pow(1.618,fi));
+      vec2 w=vec2(fb(q+vec2(0.,T*.01)),fb(q+vec2(5.2,1.3)));
+      d+=fb(q+1.7*w)/(1.+fi*.6);}
+    d=d/1.9;
+    float r=length(uv*vec2(.9,1.)); float vin=smoothstep(1.45,.35,r)*.85+.15;
+    vec2 pp=(P-R*.5)/min(R.x,R.y); float luz=exp(-dot(uv-pp,uv-pp)*7.)*.35;
+    float nuvem=smoothstep(.44,.74,d);                 // dense masses and voids, not static
+    float dens=(nuvem*.8+.012)*vin*D+luz*vin*C*nuvem;
+    for(int i=0;i<12;i++){vec4 z=Z[i]; if(z.z>0.){vec2 q=abs(gl_FragCoord.xy-z.xy)/z.zw;
+      dens*=1.-.8*(1.-smoothstep(.45,1.05,length(q)));}}   // calm ground behind text
+    float lim=h(cel);
+    float pt=step(lim,dens);
+    gl_FragColor=vec4(mix(F,N,pt*.55),1.);
+  }`;
+  const sh=(t,s)=>{const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);return o;};
+  const pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,vs));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,fs));gl.linkProgram(pr);gl.useProgram(pr);
+  const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  const lp=gl.getAttribLocation(pr,'p');gl.enableVertexAttribArray(lp);gl.vertexAttribPointer(lp,2,gl.FLOAT,false,0,0);
+  const U={};['R','T','F','N','P','D','C','Z'].forEach(k=>U[k]=gl.getUniformLocation(pr,k));
+  let F=[0,0,0],Nc=[1,1,1];
+  function tamanho(){const w=innerWidth,hh=innerHeight;cv.width=w;cv.height=hh;gl.viewport(0,0,w,hh);}
+  addEventListener('resize',tamanho);tamanho();
+  return {colors(){F=cssRGB('--bg');Nc=cssRGB('--fog');},
+    frame(t,p,d,c,z){gl.uniform4fv(U.Z,z);gl.uniform2f(U.R,cv.width,cv.height);gl.uniform1f(U.T,t);gl.uniform3fv(U.F,F);gl.uniform3fv(U.N,Nc);
+      gl.uniform2f(U.P,p[0],cv.height-p[1]);gl.uniform1f(U.D,d);gl.uniform1f(U.C,c);gl.drawArrays(gl.TRIANGLES,0,3);}};
+})();
+/* ---------- the seal: φ is drawn; entering a section, it closes into Φ and moves to the corner ---------- */
+const ANC='isolada';
+const A1=0.618,B0=0.382;
+function estadoT(u){const te=lerp(T259,TFIN,MJ(u/A1)),p2=MJ((u-B0)/(1-B0));return {te,r:'onda',p2,sl:DELTA*p2,hs:NS_-1,ponta:'atravessa',...posicao(p2,ANC)};}
+const eixoPhi=eixoHaste.concat(eixoAnel(KFIM,0)), relPhi=relogioCaneta(eixoPhi);
+const VEL=800;
+function paint(st){$('ink').setAttribute('d',caminho(geometria(st)));}
+function drawState(k){ // k 0..1 along the φ gesture
+  const x=sDoTempo(relPhi,MJ(k)); const pos=posicao(0,ANC);
+  if(x<=NS_-1) return {...BASE,...pos,te:TS-LT-1,hs:x};
+  const kk=x-(NS_-1), arc=relPhi.s[Math.floor(x)]-relPhi.s[NS_-1];
+  return {...BASE,...pos,te:TH(0)+kk*ST,hs:NS_-1,penHaste:arc};
+}
+/* seal geometry on screen */
+function centerBox(){const m=Math.min(innerWidth,innerHeight);const s=Math.min(m*(innerWidth<640?0.5:0.62),620);return {x:innerWidth/2-s/2,y:innerHeight/2-s/2,s};}
+function cornerBox(){const s=64;return {x:Math.max(16,0)+2,y:16,s};}
+let sealBox={...centerBox()}, u=0;
+function placeSeal(c){sealBox=c;const e=$('seal');e.style.width=e.style.height=c.s.toFixed(2)+'px';e.style.transform=`translate(${c.x.toFixed(2)}px,${c.y.toFixed(2)}px)`;} // real size, never a scaled bitmap
+/* ---------- the inscription ---------- */
+const links=[...document.querySelectorAll('#inscription a')];
+let spin=0;
+function placeInscription(){
+  const c=centerBox(), cxp=c.x+c.s/2, cyp=c.y+c.s/2, R=c.s*0.62; // the ring belongs to the center, even while the seal is away
+  const n=links.length, wMax=Math.max(...links.map(a=>a.offsetWidth||120));
+  const emPe=innerHeight>innerWidth*1.15;
+  const Rx=Math.min(R*1.18, innerWidth/2-16-wMax/2), Ry=Math.min(R*0.98*(emPe?1.45:1), innerHeight/2-70);
+  links.forEach((a,i)=>{const ang=spin-Math.PI/2+Math.PI/n+i*2*Math.PI/n; // evenly spaced, none on the seal's axis
+    const x=cxp+Rx*Math.cos(ang), y=cyp+Ry*Math.sin(ang);
+    a.style.transform=`translate(${x}px,${y}px) translate(-50%,-50%)`; a._x=x; a._y=y;});
+}
+/* ---------- Typist: types a line like a person would ----------
+   rhythm: each keystroke varies around a base pace (log-normal), slower at the start of a word, after a space,
+   on capitals (the shift key) and after punctuation. errors: now and then a neighbouring key is hit; the typist
+   keeps going for a letter or two, notices, pauses, deletes and retypes. once in a while it rethinks: stops at a
+   word boundary, deletes the last word and writes it again. the caret is solid while typing, blinks when idle,
+   and fades when the line is done. */
+const Typist=(function(){
+  const ROWS=['qwertyuiop','asdfghjkl','zxcvbnm'];
+  const NEAR={}; ROWS.forEach((r,y)=>[...r].forEach((c,x)=>{const n=[];
+    [[y,x-1],[y,x+1],[y-1,x],[y-1,x+1],[y+1,x],[y+1,x-1]].forEach(([yy,xx])=>{if(ROWS[yy]&&ROWS[yy][xx]) n.push(ROWS[yy][xx]);}); NEAR[c]=n;}));
+  const gauss=()=>{let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);};
+  const isLetter=c=>/\p{L}/u.test(c);
+  function wrongKey(c,pool){
+    const lo=c.toLowerCase();
+    if(NEAR[lo]){const n=NEAR[lo][Math.floor(Math.random()*NEAR[lo].length)]; return c===lo?n:n.toUpperCase();}
+    const p=pool.filter(x=>isLetter(x)&&x!==c); return p.length?p[Math.floor(Math.random()*p.length)]:c; // other scripts: a letter of the same line
+  }
+  // plan the whole performance first: a list of [action, char, delay-before-ms]
+  function plan(text,pace){
+    const ch=[...text], ops=[], pool=ch; let rethought=false;
+    const key=(c,prev)=>{let d=pace*Math.exp(gauss()*0.32);
+      if(prev===' '||prev===undefined) d*=1.3; if(c!==c.toLowerCase()) d+=pace*0.6;
+      if(/[,;:]/.test(prev)) d+=140+Math.random()*180; if(/[.!?]/.test(prev)) d+=260+Math.random()*300;
+      if(Math.random()<0.03) d+=200+Math.random()*380; // a small hesitation
+      return d;};
+    for(let i=0;i<ch.length;i++){
+      const c=ch[i], prev=ch[i-1];
+      // rethink a word: at a space after the first third, delete the word just typed and write it again
+      if(!rethought&&c===' '&&i>ch.length/3&&i<ch.length-3&&Math.random()<0.22){
+        rethought=true; let j=i-1; while(j>=0&&ch[j]!==' ') j--; const word=ch.slice(j+1,i);
+        ops.push(['wait','',520+Math.random()*420]);
+        word.forEach((_,k)=>ops.push(['del','',k===0?160:55+Math.random()*35]));
+        ops.push(['wait','',260+Math.random()*300]);
+        word.forEach((w,k)=>ops.push(['add',w,key(w,k?word[k-1]:' ')*0.9]));
+      }
+      // a typo: wrong key, maybe one or two more letters, notice, delete, retype
+      if(i>0&&isLetter(c)&&Math.random()<0.045){
+        const extra=Math.random()<0.55?Math.min(1+Math.floor(Math.random()*2),ch.length-1-i):0;
+        ops.push(['add',wrongKey(c,pool),key(c,prev)]);
+        for(let k=1;k<=extra;k++) ops.push(['add',ch[i+k],key(ch[i+k],ch[i+k-1])*0.85]);
+        ops.push(['wait','',180+Math.random()*320]);
+        for(let k=0;k<=extra;k++) ops.push(['del','',k===0?120:50+Math.random()*30]);
+        ops.push(['add',c,pace*(1.1+Math.random()*0.5)]);
+        for(let k=1;k<=extra;k++) ops.push(['add',ch[i+k],key(ch[i+k],ch[i+k-1])]);
+        i+=extra; continue;
+      }
+      ops.push(['add',c,key(c,prev)]);
+    }
+    return ops;
+  }
+  return class{
+    constructor(el,caret){this.el=el;this.caret=caret;this.t=null;this.buf=[];}
+    stop(){clearTimeout(this.t);}
+    _show(){this.el.textContent=this.buf.join('');}
+    type(text,instant,done){
+      this.stop(); const ca=this.caret; this.buf=[]; this._show(); ca.classList.remove('gone');
+      if(instant){this.buf=[...text]; this._show(); ca.classList.add('gone'); return;}
+      const ops=plan(text,44+Math.random()*26); let i=0;
+      ca.classList.add('blink');
+      const step=()=>{
+        if(i>=ops.length){ca.classList.add('blink'); done&&done(); return;}
+        const [a,c,d]=ops[i++];
+        this.t=setTimeout(()=>{
+          if(a==='add') this.buf.push(c); else if(a==='del') this.buf.pop();
+          if(a!=='wait'){this._show(); ca.classList.remove('blink');} else ca.classList.add('blink');
+          step();},d);
+      };
+      this.t=setTimeout(()=>{ca.classList.remove('blink');step();},900+Math.random()*700); // the typist settles before starting
+    }
+    /* erase like a person holding delete: a few single taps that speed up, then whole words at a time */
+    erase(done){
+      this.stop(); const ca=this.caret; let taps=3+Math.floor(Math.random()*4), d=150;
+      const step=()=>{
+        if(!this.buf.length){ca.classList.add('blink'); done&&done(); return;}
+        ca.classList.remove('blink');
+        if(taps>0){ this.buf.pop(); taps--; this._show(); d=Math.max(55,d*0.78); this.t=setTimeout(step,d*Math.exp(gauss()*0.15)); return; }
+        // a word at a time: trailing spaces, then the word itself
+        while(this.buf.length&&this.buf[this.buf.length-1]===' ') this.buf.pop();
+        while(this.buf.length&&this.buf[this.buf.length-1]!==' ') this.buf.pop();
+        this._show(); this.t=setTimeout(step,170+Math.random()*120);
+      };
+      this.t=setTimeout(step,0);
+    }
+  };
+})();
+/* ---------- passage of the day: type, hold, erase, type another; forever ---------- */
+const PASSAGES=__PASSAGES__;
+const typist=new Typist($('pText'),document.querySelector('#passage .caret'));
+let pIdx=-1, pLoop=null;
+function pick(){let i; do{i=Math.floor(Math.random()*PASSAGES.length);}while(PASSAGES.length>1&&i===pIdx); pIdx=i; return PASSAGES[i];}
+function newPassage(){
+  clearTimeout(pLoop);
+  const f=pick();
+  $('pText').lang=f.l; $('passage').dataset.tip=(f.t&&f.t!=='—'?f.t+'  — ':'')+f.a;
+  $('pSr').textContent=f.o+(f.t&&f.t!=='—'?' ('+f.t+')':'')+', '+f.a;
+  if(reduz){typist.type(f.o,true); return;}
+  typist.type(f.o,false,()=>{                                   // done typing: let it rest, then erase and start again
+    pLoop=setTimeout(function wait(){ if(paused){pLoop=setTimeout(wait,800);return;}
+      typist.erase(()=>{pLoop=setTimeout(newPassage,900+Math.random()*900);}); },6500+Math.random()*3500);
+  });
+}
+/* ---------- routes: um só documento, sem recarregar ---------- */
+let route=null, raf=null;
+function tween(dur,fn,fim){cancelAnimationFrame(raf);let t0=null;const q=now=>{if(t0===null)t0=now;const k=clamp((now-t0)/Math.max(1,dur));fn(k);if(k<1)raf=requestAnimationFrame(q);else fim&&fim();};raf=requestAnimationFrame(q);}
+function goTo(next,first){
+  if(next===route) return; const prev=route; route=next;
+  document.querySelectorAll('main section').forEach(s=>s.classList.toggle('active',s.id==='s-'+next));
+  const ins=$('inscription');
+  $('seal').classList.toggle('in-corner',next!=='');
+  if(next===''){ // back to the center: Φ reopens into φ on the way
+    document.title='aphes.is'; $('announce').textContent='home';
+    const de={...sealBox}, para=centerBox(), u0=u;
+    tween(first||reduz?1:1600,k=>{const e=MJ(k);placeSeal({x:lerp(de.x,para.x,e),y:lerp(de.y,para.y,e),s:lerp(de.s,para.s,e)});u=lerp(u0,0,k);paint(estadoT(u));},
+      ()=>{ins.classList.add('visible');});
+  } else {
+    const sec=SECTIONS.find(s=>s.id===next); document.title=sec.name+' · aphes.is'; $('announce').textContent=sec.name;
+    ins.classList.remove('visible','focus'); $('ray').querySelector('line').style.opacity=0;
+    const de={...sealBox}, para=cornerBox(), u0=u;
+    tween(first||reduz?1:1800,k=>{const e=MJ(k);placeSeal({x:lerp(de.x,para.x,e),y:lerp(de.y,para.y,e),s:lerp(de.s,para.s,e)});u=lerp(u0,1,k);paint(estadoT(u));},
+      ()=>{const h=document.querySelector('#s-'+next+' h1'); h&&h.focus({preventScroll:true});});
+  }
+}
+function readRoute(){const h=location.hash.replace('#','');return SECTIONS.some(s=>s.id===h)?h:'';}
+addEventListener('hashchange',()=>goTo(readRoute()));
+/* the seal always leads home, without relying on the hash */
+$('seal').addEventListener('click',e=>{e.preventDefault(); if(route==='') return; try{history.replaceState(null,'','#home');}catch(_){}
+  goTo('');});
+/* focusing a name: the others fade and a dotted ray links the name to the seal */
+links.forEach(a=>{
+  const on=()=>{if(a._x===undefined) return; $('inscription').classList.add('focus');a.classList.add('on');const l=$('ray').querySelector('line');const c=sealBox;
+    l.setAttribute('x1',c.x+c.s/2);l.setAttribute('y1',c.y+c.s/2);l.setAttribute('x2',a._x);l.setAttribute('y2',a._y);l.style.opacity=.6;};
+  const off=()=>{$('inscription').classList.remove('focus');a.classList.remove('on');$('ray').querySelector('line').style.opacity=0;};
+  a.addEventListener('pointerenter',on);a.addEventListener('focus',on);a.addEventListener('pointerleave',off);a.addEventListener('blur',off);
+});
+/* ---------- split text into letters for the hover wave ---------- */
+function letters(el){ if(!el||el.dataset.split) return; const txt=el.textContent; el.dataset.split=1; el.setAttribute('aria-label',txt);
+  el.textContent=''; [...txt].forEach((c,i)=>{const s=document.createElement('span'); s.className='ltr'; s.setAttribute('aria-hidden','true'); s.style.setProperty('--i',i); s.textContent=c===' '?'\u00a0':c; el.appendChild(s);}); }
+links.forEach(a=>{const name=a.firstChild; const w=document.createElement('span'); w.textContent=name.textContent; a.replaceChild(w,name); letters(w);});
+document.querySelectorAll('main h1').forEach(h=>{const t=h.lastChild; const w=document.createElement('span'); w.className='w'; w.textContent=t.textContent; h.replaceChild(w,t); letters(w);});
+/* ---------- calm zones behind text, fed to the fog (static: they do not react to hover) ---------- */
+const ZB=new Float32Array(48);
+function zones(){
+  ZB.fill(0); let i=0; const H=innerHeight;
+  const add=(el,pad)=>{ if(i>=12||!el) return; const r=el.getBoundingClientRect(); if(!r.width) return;
+    if(+getComputedStyle(el).opacity<0.05) return;
+    ZB.set([r.left+r.width/2, H-(r.top+r.height/2), r.width/2+pad, r.height/2+pad],i*4); i++; };
+  links.forEach(a=>add(a,10)); add($('passage'),14);
+  const sec=document.querySelector('main section.active'); if(sec){add(sec.querySelector('h1'),20);sec.querySelectorAll('p').forEach(p=>add(p,14));}
+  add($('controls'),8);
+  return ZB;
+}
+/* ---------- icons: drawn with the φ's brush (see the design system) ---------- */
+/* ---------- brush: a centerline + width profile becomes a filled outline (tapered both ends, slight wobble) ---------- */
+function rng(seed){let s=seed>>>0||1;return()=>{s^=s<<13;s>>>=0;s^=s>>>17;s^=s<<5;s>>>=0;return s/4294967296;};}
+function brush(pts,w,seed,taper=0.22,amp=0.08){
+  const r=rng(seed), n=pts.length, L=[],R=[]; const ph=[r()*6,r()*6,r()*6];
+  for(let i=0;i<n;i++){const a=pts[Math.max(0,i-1)],b=pts[Math.min(n-1,i+1)];let tx=b[0]-a[0],ty=b[1]-a[1];const l=Math.hypot(tx,ty)||1;tx/=l;ty/=l;
+    const u=i/(n-1); let k=1; if(u<taper) k=Math.sin(u/taper*Math.PI/2); if(u>1-taper) k=Math.min(k,Math.sin((1-u)/taper*Math.PI/2));
+    const wob=1+amp*(Math.sin(u*9+ph[0])+0.5*Math.sin(u*23+ph[1])), wl=w*k*wob*(1+0.06*Math.sin(u*31+ph[2])), wr=w*k*wob*(1-0.05*Math.sin(u*27+ph[1]));
+    L.push([pts[i][0]-ty*wl/2,pts[i][1]+tx*wl/2]); R.push([pts[i][0]+ty*wr/2,pts[i][1]-tx*wr/2]);}
+  const f=v=>v.toFixed(2); let d='M'+f(L[0][0])+' '+f(L[0][1]); for(let i=1;i<n;i++) d+='L'+f(L[i][0])+' '+f(L[i][1]); for(let i=n-1;i>=0;i--) d+='L'+f(R[i][0])+' '+f(R[i][1]); return d+'Z';
+}
+const arc=(cx,cy,r,a0,a1,n=64,ry)=>{const p=[];for(let i=0;i<=n;i++){const a=(a0+(a1-a0)*i/n)*Math.PI/180;p.push([cx+r*Math.cos(a),cy+(ry||r)*Math.sin(a)]);}return p;};
+const line=(x0,y0,x1,y1,n=24)=>{const p=[];for(let i=0;i<=n;i++){const t=i/n;p.push([x0+(x1-x0)*t,y0+(y1-y0)*t]);}return p;};
+/* stipple: dots inside a region, density by a function; deterministic */
+function stipple(test,seed,count,size=0.42){const r=rng(seed);let d='';for(let i=0;i<count;i++){const x=r()*24,y=r()*24;if(test(x,y)){const s=size*(0.7+r()*0.6);d+=`M${(x-s/2).toFixed(2)} ${(y-s/2).toFixed(2)}h${s.toFixed(2)}v${s.toFixed(2)}h${(-s).toFixed(2)}z`;}}return d;}
+const inC=(cx,cy,r)=>(x,y)=>(x-cx)**2+(y-cy)**2<r*r;
+
+/* the eye: open in light (stippled iris), closed in dark (one lid, three lashes). the switch is a blink:
+   the open eye narrows to a line, the closed lid and lashes take its place; opening is the reverse. */
+const EYE={open:brush(arc(12,15.5,9,-160,-20,40,7),1.7,31)+brush(arc(12,8.5,9,20,160,40,7),1.7,33),
+  iris:stipple(inC(12,12,3.1),36,260,0.95),
+  closed:(()=>{let d=brush(arc(12,8,9,25,155,40,6),1.8,37);
+    [-0.55,0,0.55].forEach((k,i)=>{const x=12+k*9.5;d+=brush(line(x,14.2+Math.abs(k)*-1.2,x+k*1.8,17.2+Math.abs(k)*-1,10),1.2,41+i,0.35,0.05);}); return d;})()};
+$('iSol').setAttribute('d',EYE.open); $('iDots').setAttribute('d',EYE.iris); $('iLuna').setAttribute('d',EYE.closed);
+function themeIcon(){ const dark=document.documentElement.dataset.theme?document.documentElement.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
+  const O=$('iSol'), I=$('iDots'), C=$('iLuna');
+  O.style.opacity=dark?0:1; O.style.transform=dark?'scaleY(.08)':'none';
+  I.style.opacity=dark?0:1; I.style.transform=dark?'scaleY(.05)':'none';
+  C.style.opacity=dark?1:0; C.style.transform=dark?'none':'scaleY(.2) translateY(-6px)';
+  $('bTheme').dataset.tip=dark?'closed · open the eye':'open · close the eye'; }
+themeIcon(); matchMedia('(prefers-color-scheme: dark)').addEventListener('change',themeIcon);
+/* ---------- Tooltip: any element with data-tip. waits, appears beside the cursor, types its text quickly ---------- */
+const Tip=(function(){
+  const el=$('tip'); let target=null, wait=null, typing=null, mx=0, my=0;
+  function place(){const r=el.getBoundingClientRect(), pad=16; let x=mx+18, y=my+20;
+    if(x+r.width>innerWidth-pad) x=mx-18-r.width; if(y+r.height>innerHeight-pad) y=my-20-r.height;
+    el.style.left=Math.max(pad,x)+'px'; el.style.top=Math.max(pad,y)+'px';}
+  function show(t){clearTimeout(typing); const txt=t.dataset.tip||''; el.textContent=''; el.classList.add('on'); place();
+    if(reduz){el.textContent=txt; place(); return;}
+    let i=0; const ch=[...txt]; const step=()=>{el.textContent=ch.slice(0,++i).join(''); place(); if(i<ch.length) typing=setTimeout(step,12+Math.random()*16);}; step();}
+  function hide(){clearTimeout(wait); clearTimeout(typing); el.classList.remove('on'); target=null;}
+  addEventListener('pointermove',e=>{mx=e.clientX; my=e.clientY; const t=e.target.closest&&e.target.closest('[data-tip]');
+    if(t!==target){hide(); if(t){target=t; wait=setTimeout(()=>show(t),420);}} else if(el.classList.contains('on')) place();});
+  addEventListener('pointerdown',hide); addEventListener('blur',hide);
+  return {hide};
+})();
+/* ---------- cursor ---------- */
+const CUR=(function(){
+  const el=$('cursor'); if(!el||!matchMedia('(hover:hover) and (pointer:fine)').matches) return {step(){}};
+  let x=-100,y=-100,tx=-100,ty=-100,s=.2,ts=.2,down=false;
+  addEventListener('pointermove',e=>{tx=e.clientX;ty=e.clientY;el.classList.add('on');
+    const t=e.target.closest&&e.target.closest('a,button,[data-cursor]');
+    ts=t?(t.id==='seal'?.9:t.matches('#controls button')?.55:1):.2;});
+  document.addEventListener('pointerleave',()=>el.classList.remove('on'));
+  addEventListener('pointerdown',()=>down=true); addEventListener('pointerup',()=>down=false);
+  return {step(dt){const k=reduz?1:Math.min(1,dt*22), ks=reduz?1:Math.min(1,dt*10);
+    x+=(tx-x)*k; y+=(ty-y)*k; s+=((down?ts*.78:ts)-s)*ks;
+    el.style.transform=`translate(${x.toFixed(1)}px,${y.toFixed(1)}px) scale(${s.toFixed(3)})`;}};
+})();
+/* ---------- loop ---------- */
+let ptr=[innerWidth/2,innerHeight/2], ptrS=[...ptr], dens=0, densTarget=1, t0=performance.now(), tPausa=0, tAcc=0, last=performance.now();
+addEventListener('pointermove',e=>{ptr=[e.clientX,e.clientY];});
+function loop(now){
+  const dt=Math.min(.05,(now-last)/1000); last=now; if(!paused) tAcc+=dt;
+  ptrS[0]+=(ptr[0]-ptrS[0])*Math.min(1,dt*3); ptrS[1]+=(ptr[1]-ptrS[1])*Math.min(1,dt*3);
+  densTarget=route===''?1:0.62; dens+=(densTarget-dens)*Math.min(1,dt*1.5);
+  FOG.frame(tAcc,ptrS,dens,route===''?1:0.4,zones());
+  if(route===''&&!paused&&!$('inscription').classList.contains('focus')){spin+=dt*0.012;} placeInscription();
+  CUR.step(dt);
+  requestAnimationFrame(loop);
+}
+/* ---------- theme and pause ---------- */
+$('bTheme').onclick=()=>{const r=document.documentElement;const escuro=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
+  r.dataset.theme=escuro?'light':'dark'; themeIcon(); setTimeout(()=>FOG.colors(),30); [100,300,600,850].forEach(ms=>setTimeout(()=>FOG.colors(),ms));};
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>FOG.colors());
+/* ---------- opening ---------- */
+FOG.colors(); addEventListener('resize',()=>{ if(route==='') placeSeal(centerBox()); else placeSeal(cornerBox()); });
+const initial=readRoute();
+if(initial){ placeSeal(cornerBox()); u=1; paint(estadoT(1)); route=null; goTo(initial,true); newPassage(); }
+else {
+  route=''; placeSeal(centerBox());
+  if(reduz){paint({...BASE,...posicao(0,ANC)}); $('inscription').classList.add('visible'); newPassage();}
+  else { paint(drawState(0)); setTimeout(()=>{ const dur=relPhi.seg/VEL*1000;
+      tween(dur,k=>paint(drawState(k)),()=>{paint({...BASE,...posicao(0,ANC)}); $('inscription').classList.add('visible');}); newPassage(); },700); }
+}
+startBoil(); requestAnimationFrame(loop);
+</script>

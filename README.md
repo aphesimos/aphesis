@@ -1,15 +1,12 @@
-# aphesis
+# site
 
-The monorepo for **aphes.is**, an experimental, hermetic personal site: a hand-drawn φ, stippled fog,
-typewriter text and an authorial brush script. One document, continuous navigation, no reloads.
+The aphes.is app. For now it holds the working prototype of the shell; the Astro + Cloudflare project
+replaces it once the design system is settled.
 
-`main` is the hub: it holds only this overview, the agent rules and the map of branches. The work itself
-lives on one branch per part, listed in [`docs/branches.md`](docs/branches.md). The plan and its order are in
-[`docs/plan.md`](docs/plan.md).
+- `prototype/home_template.html`: the shell: stippled fog (WebGL), the φ seal that travels to the corner,
+  the inscription of sections around it, the typed passage, custom cursor and tooltip, eye theme toggle, hash routing.
+- `prototype/build.py`: fills the template (sections, passages, brush engine) into `prototype/home.html`.
+  It reads the engine from a checkout of the `mark` branch at `../../mark/` (e.g. a git worktree).
+- `prototype/home.html`: the last built page.
 
-## Stack
-
-- **Site:** Astro, deployed on Cloudflare Pages.
-- **Dynamic parts:** Cloudflare Workers and Durable Objects for the wall and the forum, with Turnstile against spam.
-- **Type:** Aphesis Script (authorial variable font, built with fontTools) and Special Elite (text face, OFL).
-- **Graphics:** WebGL for the fog and the stipple images; the φ brush engine draws the seal and the icons.
+Sections are built on `section/<name>` branches cut from this one.

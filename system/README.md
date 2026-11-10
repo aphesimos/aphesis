@@ -97,6 +97,7 @@ The φ is the only logo. It is always `seal` red, with a boil that reseeds 8 tim
 ## Interaction
 
 - **Cursor** (`Aphesis.cursor`): a disc in difference blend, the negative of what it covers. 0.2 at rest, 1 over links and buttons, `data-cursor=".55"` for small controls, tightening on press. Fine pointers only. It is the only cursor: the system cursor is hidden everywhere while it runs.
+- **Theme shift** (`Aphesis.themeShift`): the eye's switch. The theme is applied at once and the ground changes cell by cell as a wave from the eye over `duration-shift`, while the page stays live; text in `.aph-ink` containers is the negative of the cell beneath it until the wave has passed. Never switch the theme from the eye without it.
 - **Tooltip** (`Aphesis.tooltip`): any element with `data-tip`. Never the `title` attribute.
 - **Typist** (`Aphesis.Typist`): the voice of the site. Passages, chamber inscriptions, anything that should feel written now.
 - **Navigation** is one document with hash routes: the seal returns home, section names sit around the center as an inscription, sections enter without a reload.

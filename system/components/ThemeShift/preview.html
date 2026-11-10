@@ -1,0 +1,22 @@
+<!-- @dsCard group="Voice" height=320 subtitle="click the eye: the ground changes cell by cell from it, and the text stays legible over both" -->
+<div class="w">
+  <canvas id="c" aria-hidden="true"></canvas>
+  <div class="t aph-ink aph-on-fog" id="t"><p class="aph-gloss">mutatio</p><p class="aph-meta">the ground changes cell by cell from the eye; this text is the negative of whatever lies under it</p></div>
+  <button id="eye" type="button" aria-label="switch between light and dark" data-cursor=".55"></button>
+</div>
+<style>
+.w{position:relative;height:320px;overflow:hidden}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.t{position:absolute;left:var(--space-6);top:var(--space-6);max-width:340px}
+.t p{margin:0}.t .aph-meta{margin-top:var(--space-3)}
+#eye{position:absolute;left:var(--space-3);bottom:var(--space-3);background:none;border:0;padding:var(--space-1);color:var(--accent);cursor:pointer;width:44px;height:44px}
+#eye svg{width:100%;height:100%}
+</style>
+<script>
+var r=document.documentElement,e=document.getElementById('eye');
+var F=Aphesis.Fog(document.getElementById('c'),{density:1,light:.4});F.zones([{el:document.getElementById('t'),pad:20}]);
+function dark(){return r.getAttribute('data-theme')?r.getAttribute('data-theme')==='dark':matchMedia('(prefers-color-scheme: dark)').matches;}
+function icon(){e.innerHTML=Aphesis.icon('eye',dark()?1:0);}
+icon();
+e.onclick=function(){var b=e.getBoundingClientRect();Aphesis.themeShift(function(){r.setAttribute('data-theme',dark()?'light':'dark');icon();},{origin:[b.left+b.width/2,b.top+b.height/2]});};
+</script>

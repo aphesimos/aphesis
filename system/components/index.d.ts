@@ -26,6 +26,7 @@ interface Aphesis {
   letters(el: Element): void;
   MJ(t: number): number;
   cellPx(cell?: number): number;
+  themeShift(apply: () => void, opts?: { origin?: [number, number]; duration?: number; done?: () => void }): boolean;
   reducedMotion: boolean;
 }
 declare const Aphesis: Aphesis;

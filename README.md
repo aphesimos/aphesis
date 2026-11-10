@@ -13,8 +13,10 @@
 (broad nib at 38°, thick/thin ≈ 2.8, tapered ends, hand-moved edges). Variable axes `wght` 300–800 (400 = the φ's
 own stroke) and `slnt` −16…0; the φ follows the weight and never leans.
 
-- 247 glyphs: a–z, oldstyle figures (`tnum` for tabular), punctuation and symbols, Latin-1 accents, œ æ ß,
-  α ε σ ς φ. Capitals map to lowercase.
+- 721 glyphs (version 2.1): a–z, oldstyle figures (`tnum` for tabular), punctuation and symbols (¿ ¡ « » € % + = and
+  more), Latin-1 accents, œ æ ß; the complete Greek lowercase with tonos, dialytika and every polytonic form of
+  U+1F00–1FFF; 色即是空 drawn with the same brush. Capitals map to lowercase (capital Σ becomes σ or ς by position).
+- `ss02`: a leaning φ for running Greek in slanted styles (the default φ never leans).
 - Three drawings per letter, rotated by `calt`; 736 class kerning pairs, variable on both axes; `ss01` draws
   `· * # &` in the icon style (grains), for display sizes.
 - Six masters, one variable font and ten static instances (Light, Regular, Medium, Bold, Black, each upright and slanted).
@@ -27,8 +29,7 @@ own stroke) and `slnt` −16…0; the φ follows the weight and never leans.
 </picture>
 
 aphes.is uses two faces: Aphesis Script for the wordmark, titles, headings and glosses, slanted at −12, and Special
-Elite for text. The Greek and CJK extension (full polytonic Greek, 色即是空, ¿ ¡ « » € % + =) is being drawn; see
-`docs/backlog.md` on `main`.
+Elite for text, which falls back to Aphesis Script for Greek and CJK.
 
 ## Files
 
@@ -45,5 +46,6 @@ Standard deviation of the white between neighbours, as a share of its mean: 3.1 
 ## Known limits
 
 The alternate cycle runs by position in the word, not per letter. The Black closes small apertures (top left of φ,
-eye of e, upper counter of 8). Slanted styles lean out of their boxes: give clipping containers padding. No
-combining marks and no `¿ ¡ « » € % + =` yet.
+eye of e, upper counter of 8). Slanted styles lean out of their boxes: give clipping containers padding. At 28 px on
+a 1× screen the kind of breathing is hard to tell apart; browsers do not kern across Latin, Greek and Han, so keep a
+space between a word and 色即是空 in slanted styles. Full list in `RATIONALE.md`.

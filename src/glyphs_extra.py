@@ -1,18 +1,18 @@
-"""Aphesis Script — a few Greek lowercase letters (drawn by the lead), enough to set the word the
-face is named after: αφεσις. Same hand, same parts: α is the a with an open, leaning stem; ε is two
-of the e's bowls; σ is the o with its lid; ς is the c with a tail. ι, ο and ν are shared with the
-Latin ı, o and v through the cmap."""
+"""Aphesis Script — the Greek of the word the face is named after, αφεσις (drawn by the lead), and
+the icon style. Same hand, same parts: α is the a with an open, leaning stem; ε is two of the e's
+bowls; σ is the o with its lid; ς is the c with a tail; ι is the a's stem alone: set down on the
+x-line without an entry, turned at the baseline into the exit. ο and ν are the Latin o and v."""
 from brush import *
 from parts import *
 
 GLYPHS = {}
 xs = 40 + PA
 GLYPHS['alpha'] = dict(strokes=[
-    S([(xs + 8, TOP - 10), (xs - 0.30 * PA, TOP), (xs - 0.70 * PA, TOP - 24), (xs - PA + 5, MID + 66),
+    S([(xs - 6, TOP - 10), (xs - 0.30 * PA, TOP), (xs - 0.70 * PA, TOP - 24), (xs - PA + 5, MID + 66),   # (begun 14 further from the stem than in 2.0: the gap stays open in the Black)
        (xs - PA, MID - 34), (xs - 0.82 * PA, BOT + 40), (xs - 0.54 * PA, BOT), (xs - 0.24 * PA, BOT + 42), (xs + 4, 190), (xs + 38, 330), (xs + 62, TOP - 6)],
       tin=30, tout=70, b0=0.5),
     S([(xs + 52, TOP - 2), (xs + 16, 330), (xs + 3, 210)] + tail(xs + 4), tin=40, tout=70),
-], L='a', R='i')
+], L='a')                                                   # the right side is measured: the leaning stem carries white an i's stem does not
 W = 236; e0 = 40
 GLYPHS['epsilon'] = dict(strokes=[
     S([(e0 + 0.92 * W, 372), (e0 + 0.60 * W, TOP), (e0 + 0.14 * W, 392), (e0 + 0.20 * W, 290), (e0 + 0.62 * W, MID + 12)], tin=36, tout=50, b1=0.2),
@@ -27,6 +27,11 @@ GLYPHS['sigmafinal'] = dict(strokes=[
     S([(c0 + 0.95 * Wc, 372), (c0 + 0.66 * Wc, TOP), (c0 + 0.24 * Wc, 408), (c0, 262), (c0 + 0.16 * Wc, 120), (c0 + 0.55 * Wc, 62),
        (c0 + 0.88 * Wc, 0), (c0 + 0.80 * Wc, -90), (c0 + 0.44 * Wc, -150)], tin=36, tout=90, b1=0.05),
 ], L='e', Rref='full')
+
+xi = 40
+GLYPHS['iota'] = dict(strokes=[
+    S(head(xi) + tail(xi), tin=24, tout=70, b0=0.55),
+], R='i', top=xi + 4)
 
 # ── ss01: the icon style ───────────────────────────────────────────────────────────────────────────
 # The site's icons are drawn as brush outlines filled with a deterministic scatter of small squares

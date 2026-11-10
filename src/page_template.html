@@ -80,6 +80,9 @@ hr { border: 0; border-top: 1px solid var(--rule); margin: clamp(36px, 6vw, 76px
 .pairrow .live { font-size: clamp(40px, 8.4vw, 104px); white-space: nowrap; overflow-x: auto; overflow-y: hidden; padding-bottom: .25em; scrollbar-width: thin; }
 .pairrow .row { margin: 0 0 10px; }
 .pairrow .off { --calt: 0; }
+.cjk { font-size: clamp(84px, 21vw, 250px); line-height: 1.08; white-space: nowrap; margin: 0 0 6px; }
+.site { display: grid; gap: 0; margin: 0 0 18px; }
+.site .live { font-size: clamp(44px, 9.4vw, 118px); line-height: 1.24; white-space: nowrap; overflow-x: auto; overflow-y: hidden; padding-block: .1em .16em; scrollbar-width: thin; }
 .icons { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 0 28px; align-items: end; }
 .icons .live { font-size: clamp(120px, 22vw, 230px); line-height: 1.05; white-space: nowrap; }
 .ic-on { --ss01: 1; }
@@ -134,7 +137,7 @@ footer { padding-block: 40px 56px; color: var(--dim); font-size: 13px; }
   <canvas id="fog" aria-hidden="true"></canvas>
   <div class="wrap">
     <h1 class="wordmark live" id="mark">aφesis</h1>
-    <p><b>Aphesis Script</b> is the display hand of aphes.is: a lowercase-only humanist cursive written with the brush of the hand-drawn φ. {{GLYPH_COUNT}} glyphs, two axes, ten named instances. Every letter, figure, dot and dash is a brush stroke; nothing in it is a solid.</p>
+    <p><b>Aphesis Script</b> is the display hand of aphes.is: a lowercase-only humanist cursive for Latin and Greek, written with the brush of the hand-drawn φ. {{GLYPH_COUNT}} glyphs, two axes, ten named instances; the whole Greek alphabet with its polytonic accents, and the four characters of 色即是空. Every letter, figure, dot and dash is a brush stroke; nothing in it is a solid.</p>
   </div>
 </header>
 
@@ -152,7 +155,7 @@ footer { padding-block: 40px 56px; color: var(--dim); font-size: 13px; }
   <h2>write</h2>
   <p class="lede">Type here. Capitals are accepted and set as lowercase: the face has none.</p>
   <div class="row"><label for="size">size</label> <input id="size" type="range" min="28" max="220" value="84"> <output id="sizev">84 px</output></div>
-  <div class="tester live" id="tester" contenteditable="true" spellcheck="false" role="textbox" aria-multiline="true" aria-label="Type tester">quod est inferius est sicut quod est superius · as above, so below · 1463</div>
+  <div class="tester live" id="tester" contenteditable="true" spellcheck="false" role="textbox" aria-multiline="true" aria-label="Type tester">quod est inferius est sicut quod est superius · ἓν τὸ πᾶν · 色即是空 · 1463</div>
 </div></section>
 
 <section id="alternates-s"><div class="wrap">
@@ -163,6 +166,20 @@ footer { padding-block: 40px 56px; color: var(--dim); font-size: 13px; }
     <div><div class="live off">possess illuminatio</div><div class="row">alternates off</div></div>
   </div>
   <div class="alts live" id="alts"></div>
+</div></section>
+
+<section id="greek-s"><div class="wrap">
+  <h2 lang="el">ἑλληνικά</h2>
+  <p class="lede">The whole Greek lowercase in the same hand, monotonic and polytonic. Breathings are round hooks and accents slim flicks, so a breathing beside an accent still reads at text sizes; the iota subscript is a small iota. Capitals map to the small letters here too, and a capital Σ that ends a word is set as ς. These are the lines the site sets today.</p>
+  <div class="site" id="site" lang="el"></div>
+  <div class="strings" id="greek" lang="el"></div>
+</div></section>
+
+<section id="cjk-s"><div class="wrap">
+  <h2 lang="zh-Hant">色即是空</h2>
+  <p class="lede">Four characters, written with the same brush. Its hairline rising strokes and its heavy strokes falling to the right are already the contrast of regular script, so nothing had to be borrowed. They follow the weight and, like the φ, never lean; in the slanted styles leaning punctuation is kept clear of them.</p>
+  <div class="cjk live" lang="zh-Hant" tabindex="0">色即是空</div>
+  <div class="strings" id="cjk"></div>
 </div></section>
 
 <section id="icon-s"><div class="wrap">
@@ -177,13 +194,13 @@ footer { padding-block: 40px 56px; color: var(--dim); font-size: 13px; }
 
 <section id="family-s"><div class="wrap">
   <h2>the family</h2>
-  <p class="lede">One variable font, two axes. Ten named instances, each also cut as a static TTF and WOFF2. The φ follows the weight and never leans.</p>
+  <p class="lede">One variable font, two axes. Ten named instances, each also cut as a static TTF and WOFF2. The φ follows the weight and never leans (for running Greek in the slanted styles a leaning φ is there as <span class="mono">"ss02"</span>).</p>
   <div class="fam" id="fam"></div>
 </div></section>
 
 <section id="glyphs-s"><div class="wrap">
   <h2>the signs</h2>
-  <p class="lede">Oldstyle figures, because a face without capitals has nothing for lining figures to stand beside. Typed capitals map to the lowercase letters.</p>
+  <p class="lede">Oldstyle figures, because a face without capitals has nothing for lining figures to stand beside. Typed capitals map to the lowercase letters, in Greek as in Latin. Accented letters are composites of a letter and brush marks; combining marks work as well.</p>
   <div id="glyphs"></div>
 </div></section>
 
@@ -237,6 +254,10 @@ $('icon').addEventListener('change', e => document.body.classList.toggle('icon',
 $('size').addEventListener('input', e => { $('tester').style.setProperty('--size', e.target.value + 'px'); $('sizev').textContent = e.target.value + ' px'; });
 setAxes(400, 0);
 
+// the Greek the site sets, the alphabet, and the four characters among letters
+for (const t of DATA.site) { const d = document.createElement('div'); d.className = 'live'; d.tabIndex = 0; d.textContent = t; $('site').append(d); }
+for (const [label, t] of DATA.greek) { const s = document.createElement('small'); s.textContent = label; const d = document.createElement('div'); d.className = 'live'; d.tabIndex = 0; d.textContent = t; $('greek').append(s, d); }
+for (const t of DATA.cjk) { const d = document.createElement('div'); d.className = 'live'; d.tabIndex = 0; d.textContent = t; $('cjk').append(d); }
 // alternates: three letters in a row are the three drawings
 for (const ch of DATA.letters) { const d = document.createElement('div'); d.textContent = ch + ch + ch; $('alts').append(d); }
 // glyph table

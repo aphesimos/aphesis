@@ -3,6 +3,7 @@
   python3 preview.py --glyphs "n o a" [--wght 400] [--slnt 0] [--v 0] [--skel] [--out sheet.png]
   python3 preview.py --text "hamburgefontsiv" [--wght 400] [--slnt 0] [--calt] [--out line.png]
   python3 preview.py --glyphs "n o" --weights 300,400,800      (one row per weight)
+  python3 preview.py --glyphs "ά ἄ ᾷ" / --text "ἓν τὸ πᾶν"     (accented letters are composites: base + marks)
 
 --glyphs shows each glyph large on the metric lines (red = baseline / x-height / ascender /
 descender, grey = overshoot lines), with --skel the control points and centreline are drawn too.
@@ -55,13 +56,15 @@ def guides(d, scale, oy, W, x0=0):
     line(B.FIG, (120, 160, 230)); line(B.MARK, (200, 200, 235))
 
 def sheet(names, wght, slnt, v, skel, scale, G):
-    cellw, pad = 620, 40
+    pad = 40
+    drawn = [glyph_polys(G, nm, wght, slnt, v) for nm in names]
+    cellw = max(620, int(max(np.vstack(p)[:, 0].max() - np.vstack(p)[:, 0].min() for p in drawn)) + 160)     # wide glyphs (CJK) get wider cells
     ymax, ymin = B.ASC + 70, B.DESC - 60
     W = int((cellw * len(names) + pad) * scale); H = int((ymax - ymin) * scale)
     im = Image.new('RGB', (W, H), 'white'); d = ImageDraw.Draw(im)
     guides(d, scale, ymax, W)
     for i, nm in enumerate(names):
-        polys = glyph_polys(G, nm, wght, slnt, v)
+        polys = drawn[i]
         allp = np.vstack(polys); x0 = allp[:, 0].min()
         ox = pad + i * cellw - x0 + 60
         raster_union(polys, scale, ox, ymax, W, H, im)
@@ -107,6 +110,11 @@ if __name__ == '__main__':
     ap.add_argument('--scale', type=float, default=None)
     a = ap.parse_args()
     G = load_glyphs()
+    try:                                                              # accented letters: base + marks at their anchors
+        import spacing
+        from registry import composite_table
+        spacing.add_composites(G, composite_table(lambda n: n in G or n == 'phi'))
+    except Exception as e: print('[preview] no composites:', e)
     weights = [float(w) for w in a.weights.split(',')] if a.weights else [a.wght]
     rows = []
     for w in weights:

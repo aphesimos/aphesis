@@ -20,9 +20,11 @@ from fontTools.varLib import instancer
 from fontTools.pens.basePen import BasePen
 
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.join(HERE, '..')
-AFTER = os.path.join(ROOT, 'dist', 'AphesisScript-VF.ttf')
+AFTER = os.environ.get('APHESIS_FONT') or os.path.join(ROOT, 'dist', 'AphesisScript-VF.ttf')
 BEFORE = os.path.join(ROOT, 'before', 'AphesisScript-VF.ttf')
 STRINGS = ['aφesis', 'aphesis', 'hhihhi', 'sisisis', 'papapa', 'heheh', 'φhφ']      # what the six-glyph font can set
+GREEK = 'αβγδεζηθικλμνξοπρσςτυφχψω'
+GREEK_STRINGS = ['ηηοηοοηη', 'άφεσις', 'ξεσκεπάζω την ψυχοφθόρα βδελυγμία', 'ἓν τὸ πᾶν', 'πάντα ῥεῖ', 'γνῶθι σεαυτόν', 'ἀρχὴ ἥμισυ παντός', 'ἄδυτον', 'ἀγορά']
 CORNERS = [(300, 0), (400, 0), (800, 0), (300, -16), (400, -16), (800, -16)]
 
 class _Flat(BasePen):
@@ -79,9 +81,10 @@ class Measurer:
             out.append((self.order[info.codepoint], x + pos.x_offset)); x += pos.x_advance
         return out, x
 
-    def gaps(self, text):
-        """[(left glyph, right glyph, optical white in units)] for the neighbours in `text`."""
-        glyphs, _ = self.shape(text); res = []
+    def gaps(self, text, calt=False):
+        """[(left glyph, right glyph, optical white in units)] for the neighbours in `text`
+        (calt=True: with the alternates the font sets by default)."""
+        glyphs, _ = self.shape(text, {'calt': calt, 'kern': True}); res = []
         for (a, xa), (b, xb) in zip(glyphs, glyphs[1:]):
             if a == 'space' or b == 'space': continue
             _, hi = self.profile(a); lo, _ = self.profile(b)
@@ -91,10 +94,10 @@ class Measurer:
             res.append((a, b, float((eb - ea) + (da + db).mean())))
         return res
 
-def clearances(path, wght, slnt, letters='abcdefghijklmnopqrstuvwxyzφ', calt=True, below=20):
+def clearances(path, wght, slnt, letters='abcdefghijklmnopqrstuvwxyzφ', calt=True, below=20, pairs=None):
     """Smallest true distance (units, whole height) between the ink of every ordered pair of
     letters, in each drawing the calt cycle can bring together. Returns [(distance, 'x.1+y.2')]
-    for the pairs closer than `below`, closest first."""
+    for the pairs closer than `below`, closest first. pairs: only these (a, b) instead of all."""
     from scipy.spatial import cKDTree
     m = Measurer(path, wght, slnt, 464); pts = {}
     def cloud(g):
@@ -106,22 +109,22 @@ def clearances(path, wght, slnt, letters='abcdefghijklmnopqrstuvwxyzφ', calt=Tr
             P = np.vstack(out); pts[g] = (P, cKDTree(P))
         return pts[g]
     seen = {}
+    pairs = list(pairs) if pairs is not None else [(a, b) for a in letters for b in letters]
     for pre in (('', 'n', 'nn') if calt else ('',)):
-        for a in letters:
-            for b in letters:
-                glyphs, _ = m.shape(pre + a + b, {'calt': calt, 'kern': True})
-                (ga, xa), (gb, xb) = glyphs[-2], glyphs[-1]
-                if (ga, gb) in seen: continue
-                Pa, _ = cloud(ga); Pb, tb = cloud(gb)
-                d, _ = tb.query(Pa + [xa - xb, 0]); seen[(ga, gb)] = float(d.min())
+        for a, b in pairs:
+            glyphs, _ = m.shape(pre + a + b, {'calt': calt, 'kern': True})
+            (ga, xa), (gb, xb) = glyphs[-2], glyphs[-1]
+            if (ga, gb) in seen: continue
+            Pa, _ = cloud(ga); Pb, tb = cloud(gb)
+            d, _ = tb.query(Pa + [xa - xb, 0]); seen[(ga, gb)] = float(d.min())
     return sorted((d, f'{a}+{b}') for (a, b), d in seen.items() if d < below), len(seen)
 
-def evenness(path, xh, strings=STRINGS, corners=CORNERS):
+def evenness(path, xh, strings=STRINGS, corners=CORNERS, calt=False):
     """Per corner instance: mean optical white, and its spread over all neighbours in the strings."""
     rows = []
     for w, s in corners:
         m = Measurer(path, w, s, xh)
-        g = np.array([v for t in strings for _, _, v in m.gaps(t)])
+        g = np.array([v for t in strings for _, _, v in m.gaps(t, calt)])
         rows.append((w, s, g.mean(), g.std(), g.std() / g.mean() * 100, g.min(), g.max()))
     return rows
 

@@ -3,7 +3,7 @@ and the downloadable family + build source all inline) from page_template.html.
 
     python3 make_page.py   → ../dist/aphesis-script.html   (+ ../dist/AphesisScript-family.zip, -source.zip)
 """
-import base64, datetime, html, io, json, os, sys, zipfile
+import base64, datetime, html, io, json, os, sys, unicodedata, zipfile
 import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.join(HERE, '..')
 sys.path.insert(0, HERE)
@@ -11,10 +11,11 @@ import brush as B, spacing as SP, build as BUILD, rationale as RAT
 from registry import load_glyphs, glyph_polys
 from fontTools.ttLib import TTFont
 
-DIST = os.path.join(ROOT, 'dist')
+DIST = os.environ.get('APHESIS_OUT') or os.path.join(ROOT, 'dist')        # (APHESIS_OUT: a trial build elsewhere)
 BUILD_SOURCES = ['build.py', 'brush.py', 'parts.py', 'registry.py', 'spacing.py', 'features.py', 'phi.py', 'phi_weight.py', 'phi_path.txt',
                  'glyphs_core.py', 'glyphs_round.py', 'glyphs_straight.py', 'glyphs_diag.py', 'glyphs_figures.py', 'glyphs_punct.py',
-                 'glyphs_marks.py', 'glyphs_extra.py']                         # what build.py needs
+                 'glyphs_marks.py', 'glyphs_extra.py', 'glyphs_greek1.py', 'glyphs_greek2.py', 'glyphs_polytonic.py', 'glyphs_symbols.py',
+                 'glyphs_cjk.py']                                              # what build.py needs
 TOOLS = ['proofs.py', 'preview.py', 'fontmeasure.py', 'rationale.py', 'make_page.py', 'page_template.html']    # the tools around it
 SOURCES = BUILD_SOURCES + TOOLS
 b64 = lambda p: base64.b64encode(open(p, 'rb').read()).decode()
@@ -52,7 +53,7 @@ def source_text():
     """The build source as one readable text file (the same files as in the zip)."""
     out = ['Aphesis Script ' + BUILD.VERSION + ' — complete build source. Entry point: python3 build.py (needs numpy, fonttools, brotli).\n']
     for f in BUILD_SOURCES:
-        out.append('\n' + '=' * 100 + f'\n== src/{f}\n' + '=' * 100 + '\n' + open(os.path.join(HERE, f)).read())
+        if os.path.exists(os.path.join(HERE, f)): out.append('\n' + '=' * 100 + f'\n== src/{f}\n' + '=' * 100 + '\n' + open(os.path.join(HERE, f)).read())
     return ''.join(out)
 
 def diagram(G, wght=400):
@@ -107,14 +108,24 @@ def build_page():
     G = load_glyphs(); G['.notdef'] = BUILD.notdef_strokes()
     vf = TTFont(os.path.join(DIST, 'AphesisScript-VF.ttf')); cmap = vf.getBestCmap()
     zips()
+    from registry import GREEK_ACCENTED, MONOTONIC
+    poly = [c for c in dict.fromkeys(unicodedata.normalize('NFC', c) for c in GREEK_ACCENTED) if c not in MONOTONIC]
     groups = [('letters', [c for c in 'abcdefghijklmnopqrstuvwxyz' if ord(c) in cmap] + [c for c in 'œæßφ' if ord(c) in cmap]),
-              ('greek', [c for c in 'αεσςιον' if ord(c) in cmap]),
+              ('greek', [c for c in 'αβγδεζηθικλμνξοπρσςτυφχψω' if ord(c) in cmap]),
+              ('greek · tonos and dialytika', [c for c in 'άέήίόύώϊϋΐΰ' if ord(c) in cmap]),
+              ('greek · polytonic', [c for c in poly if ord(c) in cmap]),
+              ('色即是空', [c for c in '色即是空' if ord(c) in cmap]),
               ('figures', [c for c in '0123456789' if ord(c) in cmap]),
-              ('punctuation and symbols', [c for c in '.,:;!?·…\'"‘’“”-–—_()[]/\\&@#*' if ord(c) in cmap]),
-              ('accented', [c for c in 'áàâãäåéèêëíìîïóòôõöúùûüçñýÿ' if ord(c) in cmap])]
+              ('punctuation and symbols', [c for c in '.,:;!?¡¿·\u0387…\'"‘’“”«»‹›-–—_()[]/\\&@#*%+−=€' if ord(c) in cmap]),
+              ('accented', [c for c in 'áàâãäåéèêëíìîïóòôõöúùûüçñýÿ' if ord(c) in cmap]),
+              ('marks', [c for c in '´`ˆ˜¨˚¸¯˘᾿῾῀῎῍῏῞῝῟΅῭῁ͺ' if ord(c) in cmap])]
     data = dict(
         instances=[[(nm + (' Slanted' if s else '')) if nm != 'Regular' or not s else 'Slanted', w, s] for s in (0, -16) for nm, w in BUILD.INSTANCES],
-        letters=[c for c in 'abcdefghijklmnopqrstuvwxyz' if ord(c) in cmap],
+        letters=[c for c in 'abcdefghijklmnopqrstuvwxyz' 'αβγδεζηθικλμξπρσςτυχψω' if ord(c) in cmap],
+        site=RAT.SITE, greek=[['the alphabet', 'αβγδεζηθικλμνξοπρσςτυφχψω'], ['tonos and dialytika', 'ά έ ή ί ό ύ ώ ϊ ϋ ΐ ΰ'],
+                              ['breathings, accents, their stacks, the iota subscript', 'ἀ ἁ ἂ ἃ ἄ ἅ ἆ ἇ ὰ ᾶ ᾳ ᾷ ῥ ῤ'],
+                              ['typed in capitals — ΓΝΩΘΙ ΣΑΥΤΟΝ · ΛΟΓΟΣ · ΟΔΟΣ ΑΝΩ ΚΑΤΩ — and set as small letters, the last Σ of a word as ς', 'ΓΝΩΘΙ ΣΑΥΤΟΝ · ΛΟΓΟΣ · ΟΔΟΣ ΑΝΩ ΚΑΤΩ']],
+        cjk=['aφesis · 色即是空 · form is emptiness', '空即是色 — ἓν τὸ πᾶν — solve et coagula'],
         glyphs=[[t, [[c, cmap[ord(c)]] for c in cs], ''] for t, cs in groups if cs]
                + [['stylistic set 1 · the icon style', [[c, cmap[ord(c)] + '.ss01'] for c in '·*#&' if cmap.get(ord(c), '') + '.ss01' in vf.getGlyphOrder()], 'ic-on']],
         strings=RAT.STRINGS, original=RAT.ORIGINAL, sample='solve et coagula 1463', stats=stats(),
@@ -123,7 +134,8 @@ def build_page():
                dict(id='src', title='Build source and tools', name='AphesisScript-source.zip', size=human(os.path.getsize(os.path.join(DIST, 'AphesisScript-source.zip')))),
                dict(id='txt', title='Build source as one text file', name='AphesisScript-build-source.txt', size=human(os.path.getsize(os.path.join(DIST, 'AphesisScript-build-source.txt'))))])
     mime = {'vf': 'font/ttf', 'fam': 'application/zip', 'src': 'application/zip', 'txt': 'text/plain'}
-    srcs = ''.join(f'<details><summary>src/{f}</summary><pre class="src">{html.escape(open(os.path.join(HERE, f)).read())}</pre></details>\n' for f in BUILD_SOURCES)
+    have = [f for f in BUILD_SOURCES if os.path.exists(os.path.join(HERE, f))]
+    srcs = ''.join(f'<details><summary>src/{f}</summary><pre class="src">{html.escape(open(os.path.join(HERE, f)).read())}</pre></details>\n' for f in have)
     blocks = ''.join(f'<script type="text/plain" id="f-{f["id"]}">data:{mime[f["id"]]};base64,{b64(os.path.join(DIST, f["name"]))}</script>\n' for f in data['files'])
     proofs = ''
     for name, alt in RAT.PROOF_IMAGES:
@@ -135,7 +147,7 @@ def build_page():
            'GLYPH_COUNT': str(len(vf.getGlyphOrder())), 'DIAGRAM': dia, 'DIAGRAM_CAPTION': cap, 'PROOF_IMAGES': proofs,
            'RATIONALE': RAT.html(G), 'VERSION': BUILD.VERSION, 'DATE': datetime.date.today().isoformat(),
            'DATA_JSON': json.dumps(data, ensure_ascii=False).replace('</', '<\\/'), 'FILE_BLOCKS': blocks,
-           'SOURCE_BLOCKS': srcs, 'SOURCE_COUNT': str(len(BUILD_SOURCES)), 'SOURCE_SIZE': human(sum(os.path.getsize(os.path.join(HERE, f)) for f in BUILD_SOURCES))}
+           'SOURCE_BLOCKS': srcs, 'SOURCE_COUNT': str(len(have)), 'SOURCE_SIZE': human(sum(os.path.getsize(os.path.join(HERE, f)) for f in have))}
     for k, v in rep.items(): t = t.replace('{{' + k + '}}', v)
     out = os.path.join(DIST, 'aphesis-script.html'); open(out, 'w').write(t)
     print(out, human(len(t.encode())))

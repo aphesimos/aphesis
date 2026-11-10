@@ -63,3 +63,4 @@ GLYPHS['cedilla'] = dict(strokes=[
 
 # ── the dotless i that carries the accents (the composites and their anchors are made in build.py) ─
 GLYPHS['dotlessi'] = dict(like='i')
+GLYPHS['dotlessj'] = dict(like='j')

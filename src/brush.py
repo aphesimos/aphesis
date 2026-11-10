@@ -54,7 +54,7 @@ def vremap(y, wght):
     t = np.clip((np.asarray(y, float) - yb) / (yt - yb), 0, 1)
     return y + d * (1 - 2 * t)
 
-def S(pts, tin=34, tout=60, k=1.0, b0=0.18, b1=0.04, dot=False, rough=1.0, grow=0.0, sit=False):
+def S(pts, tin=34, tout=60, k=1.0, b0=0.18, b1=0.04, dot=False, rough=1.0, grow=0.0, sit=False, hang=False):
     """One brush stroke.
     pts   control points (x, y) or (x, y, PIN), drawn for wght 400, in the order the hand moves
     tin   length in units over which the stroke swells from its start; tout: over which it thins out
@@ -65,17 +65,19 @@ def S(pts, tin=34, tout=60, k=1.0, b0=0.18, b1=0.04, dot=False, rough=1.0, grow=
     grow  marks that must swell with the brush (dots, accents): the stroke is scaled about its own
           centre by (brush width / 80) ** grow; 0 for everything that sits on the metric lines
     sit   True for a growing mark that stands on a line (the period): its lowest ink stays where it
-          is at wght 400 instead of sinking as the mark swells"""
-    return dict(pts=[tuple(p) for p in pts], tin=tin, tout=tout, k=k, b0=b0, b1=b1, dot=dot, rough=rough, grow=grow, sit=sit)
+          is at wght 400 instead of sinking as the mark swells
+    hang  the same for a growing mark that hangs from a line (the dot of ¡ ¿ under the x-line): its
+          highest ink stays where it is at wght 400"""
+    return dict(pts=[tuple(p) for p in pts], tin=tin, tout=tout, k=k, b0=b0, b1=b1, dot=dot, rough=rough, grow=grow, sit=sit, hang=hang)
 
-def touch(x, y, k=1.0, size=1.0, ang=-58, sit=False):
+def touch(x, y, k=1.0, size=1.0, ang=-58, sit=False, hang=False):
     """A pressed touch of the brush (dots, periods): the nib is set down and dragged a short way
     across its own edge, then lifted. (x, y) is the centre of the mark at wght 400."""
     a = math.radians(ang); L = 46 * size
     dx, dy = math.cos(a) * L / 2, math.sin(a) * L / 2
     bend = 5 * size
     return S([(x - dx, y - dy, PIN), (x + bend * math.sin(a) * -1, y + bend * math.cos(a), PIN), (x + dx, y + dy, PIN)],
-             tin=20 * size, tout=24 * size, k=k, b0=0.34, b1=0.16, rough=0.8, grow=0.75, sit=sit)
+             tin=20 * size, tout=24 * size, k=k, b0=0.34, b1=0.16, rough=0.8, grow=0.75, sit=sit, hang=hang)
 
 # ── centerline ────────────────────────────────────────────────────────────────────────────────────
 SPAN = 26
@@ -310,11 +312,15 @@ def _unfold(E, span=40):
         else: i += 1
     return E
 
-def shear(P, slnt):
+def shear(P, slnt, lean=1.0, about=MARK):
     """OpenType slnt: negative leans right. The pivot is mid x-height, so a slanted glyph stays
-    centred on its upright position and keeps its advance (the italic-angle offset is built in)."""
-    P = np.array(P, float)
-    P[:, 0] += (P[:, 1] - XH / 2) * math.tan(math.radians(-slnt))
+    centred on its upright position and keeps its advance (the italic-angle offset is built in).
+    lean < 1 is for a mark that leans less than the letters (the Greek accents: a fully sheared
+    varia stands almost upright and reads as a dot): it goes as a whole to where the slant carries
+    the height `about`, and leans about that height by only this share of the slant."""
+    P = np.array(P, float); t = math.tan(math.radians(-slnt))
+    if lean == 1.0: P[:, 0] += (P[:, 1] - XH / 2) * t
+    else: P[:, 0] += (about - XH / 2) * t + (P[:, 1] - about) * t * lean
     return P
 
 def clockwise(P):
@@ -369,7 +375,9 @@ def glyph_outlines(name, spec, wght=400, slnt=0, v=0, dots=True):
         P = stroke_outline(st, wght, seed + j * 13, _PLANS[key])
         if st.get('sit') and wght != 400:                           # stand where the 400 drawing stands
             P[:, 1] += stroke_outline(st, 400, seed + j * 13, _PLANS[key])[:, 1].min() - P[:, 1].min()
-        out.append(clockwise(shear(P, 0 if spec.get('upright') else slnt)))
+        if st.get('hang') and wght != 400:                          # … or hang where it hangs
+            P[:, 1] += stroke_outline(st, 400, seed + j * 13, _PLANS[key])[:, 1].max() - P[:, 1].max()
+        out.append(clockwise(shear(P, 0 if spec.get('upright') else slnt, spec.get('lean', 1.0))))
     return out
 
 def glyph_squares(spec, wght=400, slnt=0):

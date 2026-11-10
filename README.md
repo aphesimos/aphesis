@@ -1,3 +1,12 @@
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/font-dark.svg">
+  <img alt="aφesis in Aphesis Script, its weight and slant axes breathing" src="assets/readme/font-light.svg" width="100%">
+</picture>
+
+</div>
+
 # font
 
 **Aphesis Script**, the authorial display face of aphes.is: lowercase only, every mark drawn with the φ's brush
@@ -9,6 +18,17 @@ own stroke) and `slnt` −16…0; the φ follows the weight and never leans.
 - Three drawings per letter, rotated by `calt`; 736 class kerning pairs, variable on both axes; `ss01` draws
   `· * # &` in the icon style (grains), for display sizes.
 - Six masters, one variable font and ten static instances (Light, Regular, Medium, Bold, Black, each upright and slanted).
+
+## On the site
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/type-dark.svg">
+  <img alt="Aphesis Script for titles and glosses, Special Elite for text" src="assets/readme/type-light.svg" width="100%">
+</picture>
+
+aphes.is uses two faces: Aphesis Script for the wordmark, titles, headings and glosses, slanted at −12, and Special
+Elite for text. The Greek and CJK extension (full polytonic Greek, 色即是空, ¿ ¡ « » € % + =) is being drawn; see
+`docs/backlog.md` on `main`.
 
 ## Files
 

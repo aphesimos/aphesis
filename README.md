@@ -1,15 +1,14 @@
-# aphesis
+# font
 
-The monorepo for **aphes.is**, an experimental, hermetic personal site: a hand-drawn φ, stippled fog,
-typewriter text and an authorial brush script. One document, continuous navigation, no reloads.
+**Aphesis Script**, the authorial display face of aphes.is: lowercase only, generated from the φ's brush
+(broad nib at 38°, thick/thin ≈ 2.8, tapered ends, hand-moved edges). Variable axes: `wght` 300–800
+(400 = the φ's own stroke) and `slnt` −16…0. The φ is the original drawing and never leans.
 
-`main` is the hub: it holds only this overview, the agent rules and the map of branches. The work itself
-lives on one branch per part, listed in [`docs/branches.md`](docs/branches.md). The plan and its order are in
-[`docs/plan.md`](docs/plan.md).
+- `src/build_font.py`: builds the variable font from brush skeletons with fontTools (compatible masters, fixed points per stroke).
+- `src/glyphs.py`: shared helpers (Catmull-Rom, edge noise, metrics).
+- `build/`: the current variable font (TTF, WOFF2).
+- `tester/index.html`: the variable font tester.
 
-## Stack
-
-- **Site:** Astro, deployed on Cloudflare Pages.
-- **Dynamic parts:** Cloudflare Workers and Durable Objects for the wall and the forum, with Turnstile against spam.
-- **Type:** Aphesis Script (authorial variable font, built with fontTools) and Special Elite (text face, OFL).
-- **Graphics:** WebGL for the fog and the stipple images; the φ brush engine draws the seal and the icons.
+**Status:** this is the first sample (a p h e s i φ). A full redesign is in progress: complete lowercase family,
+figures, punctuation and accents, alternates, a measured spacing system and kerning, with every mark drawn by the
+brush. It will replace these files.

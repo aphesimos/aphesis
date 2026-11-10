@@ -13,7 +13,7 @@ type EyeGaze = 'centre' | 'left' | 'right' | 'up' | 'down' | 'up-left' | 'up-rig
 interface EyeProps { size?: number; gaze?: 'auto' | 'pointer' | Element; follow?: Element | (() => [number, number] | null); blink?: boolean; drawIn?: boolean; start?: boolean }
 interface EyeHandle { el: Element; blink(): void; close(ticks?: number): void; open(): void; wide(ticks?: number): void; squint(ticks?: number): void; look(x: number, y: number): void; typed(): void; on(fn: (s: { blink: EyeBlink; gaze: EyeGaze; frame: number; tick: number }) => void): void; readonly state: { blink: EyeBlink; gaze: EyeGaze; frame: number; tick: number }; readonly drawn: boolean; start(): void; stop(): void; destroy(): void }
 interface SimulacrumSource { src: string | HTMLImageElement | HTMLCanvasElement; gain?: number; scatter?: number; erosion?: number; ceiling?: number }
-interface SimulacrumProps { sound?: boolean; source?: string | HTMLImageElement | HTMLCanvasElement | SimulacrumSource; scatter?: number; erosion?: number; ceiling?: number; fit?: 'contain' | 'cover'; gain?: number; cell?: number; accent?: number; margin?: number; ground?: boolean }
+interface SimulacrumProps { sound?: boolean; source?: string | HTMLImageElement | HTMLCanvasElement | SimulacrumSource; scatter?: number; erosion?: number; ceiling?: number; fit?: 'contain' | 'cover'; gain?: number; cell?: number; accent?: number; margin?: number; ground?: boolean; legible?: boolean | number }
 interface IconsProps { name: 'eye' | 'sol' | 'luna' | 'terminator' | 'threshold' | 'ear'; state?: 0 | 1 }
 interface BrushProps { points: Pt[]; width: number; seed: number; taper?: number; wobble?: number }
 interface SealProps { boil?: boolean }

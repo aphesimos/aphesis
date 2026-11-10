@@ -292,7 +292,7 @@
       x.texImage2D(x.TEXTURE_2D, 0, x.LUMINANCE, 1, 1, 0, x.LUMINANCE, x.UNSIGNED_BYTE, new Uint8Array([0]));
       return q;
     }
-    var P = glField(cv, 'precision highp float;uniform vec2 R,P;uniform float T,S,K,G,M,A,FIT,SC,ER,CE,GR,X;uniform vec3 F,N,AC,F2,N2,AC2;uniform vec2 IA;uniform sampler2D I,I2;' + NOISE + SWITCH_GLSL +
+    var P = glField(cv, 'precision highp float;uniform vec2 R,P;uniform float T,S,K,G,M,A,FIT,SC,ER,CE,GR,X,LG;uniform vec3 F,N,AC,F2,N2,AC2;uniform vec2 IA;uniform sampler2D I,I2;' + NOISE + SWITCH_GLSL +
       'void main(){vec2 cel=floor(gl_FragCoord.xy/S);vec2 c=cel*S+S*.5;vec2 uv=(c-R*.5)/min(R.x,R.y);' +
       'float d=fog(uv*.8,T);' +
       /* fit the image in the canvas */
@@ -300,7 +300,7 @@
       /* the picture breathes: before it settles its cells are pushed around by the fog */
       'vec2 jit=(vec2(fb(uv*3.+T*.05),fb(uv*3.+7.3-T*.04))-.5)*(1.-K)*.18*min(R.x,R.y);' +
       'vec2 iu=(c+jit-(R-sz)*.5)/sz;iu.y=1.-iu.y;float inside=step(0.,iu.x)*step(iu.x,1.)*step(0.,iu.y)*step(iu.y,1.);' +
-      'vec2 e=min(iu,1.-iu);float feather=smoothstep(0.,.07,min(e.x,e.y));' +
+      'vec2 e=min(iu,1.-iu);float feather=smoothstep(0.,mix(.07,.025,LG),min(e.x,e.y));' +
       'float img=pow(texture2D(I,clamp(iu,0.,1.)).r,1.15)*inside*feather;' +
       'vec2 pp=(P-R*.5)/min(R.x,R.y);float luz=exp(-dot(uv-pp,uv-pp)*9.);' +
       'float kk=clamp(K+luz*.35*K,0.,1.);' +
@@ -308,19 +308,21 @@
       /* never picture-perfect: erosion opens fog-shaped holes in the figure, the ceiling keeps even the lightest
          areas from going solid, and scatter lets some of the picture drift loose as lost points around it */
       'float er=smoothstep(.28,.78,fb(uv*4.2+vec2(T*.012,-T*.009)+3.1));' +
-      'float pic=img*G*(.82+.36*d)*mix(1.,.3+.7*er,ER)*CE;' +
+      /* legible (LG, informational pictures): the fog's own modulation of the tones, its mist and the organic part of
+         the threshold are reduced, not removed, so a cover reads at a glance and is still conjured stipple */
+      'float pic=img*G*mix(.82+.36*d,.94+.12*d,LG)*mix(1.,.3+.7*er,ER)*CE;' +
       /* the glow: a heavily blurred copy of the picture, padded by half its size on every side, so lost points
          thin out from the figure into the fog instead of stopping at its edge */
       'vec2 gu=(iu-.5)/2.+.5;gu.y=gu.y;float glow=texture2D(I2,clamp(gu,0.,1.)).r;' +
       'float stray=SC*(pow(glow,.8)*(.45+.8*d)*.75+.02*smoothstep(.36,.8,d))*clamp(1.-img*1.6,0.,1.);' +
-      'float dens=mix(mist,pic+stray+mist*.12,kk);' +
+      'float dens=mix(mist,pic+stray+mist*mix(.12,.05,LG),kk);' +
       /* threshold: interleaved gradient noise (even, blue-ish) mixed with a hash (organic), so tones read as tones */
-      'float ign=fract(52.9829189*fract(dot(cel,vec2(.06711056,.00583715))));float lit=step(mix(ign,h(cel),.35),dens);' +
+      'float ign=fract(52.9829189*fract(dot(cel,vec2(.06711056,.00583715))));float lit=step(mix(ign,h(cel),mix(.35,.12,LG)),dens);' +
       'float red=step(h(cel+31.7),A*img*kk);' +
       /* a theme change spreads in the same patches as the fog's */
       'float s=sw(cel,uv,X);vec3 Fc=mix(F,F2,s),Nc=mix(N,N2,s),Ac=mix(AC,AC2,s);' +
-      'vec3 col=mix(Nc,Ac,red);gl_FragColor=GR>.5?vec4(mix(Fc,col,lit*.72),1.):vec4(col,lit*.72);}',
-      ['R', 'P', 'T', 'S', 'K', 'G', 'M', 'A', 'FIT', 'SC', 'ER', 'CE', 'GR', 'X', 'F', 'N', 'AC', 'F2', 'N2', 'AC2', 'IA', 'I', 'I2', 'SO', 'SF'],
+      'float al=lit*mix(.72,.84,LG);vec3 col=mix(Nc,Ac,red);gl_FragColor=GR>.5?vec4(mix(Fc,col,al),1.):vec4(col,al);}',
+      ['R', 'P', 'T', 'S', 'K', 'G', 'M', 'A', 'FIT', 'SC', 'ER', 'CE', 'GR', 'X', 'LG', 'F', 'N', 'AC', 'F2', 'N2', 'AC2', 'IA', 'I', 'I2', 'SO', 'SF'],
       function (x) { tex = texture(x, x.TEXTURE0); tex2 = texture(x, x.TEXTURE1); x.activeTexture(x.TEXTURE0); if (lastImg) upload(lastImg); });
     var noop = function () {};
     if (!P) return { show: function (s, d) { d && d(); }, hide: function (d) { d && d(); }, set: function (s, d) { d && d(); }, stop: noop, start: noop, drawn: function (cb) { cb(); }, destroy: noop };
@@ -329,6 +331,7 @@
     window.addEventListener('pointermove', onMove);
     function upload(img) {
       lastImg = img;
+      if (legible()) img = prepare(img);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, img); IA = [img.naturalWidth || img.width, img.naturalHeight || img.height];
       /* glow texture: the picture at half size in the middle of a canvas twice as large, blurred wide */
       var g = document.createElement('canvas'), W = 192, H = Math.max(8, Math.round(192 * IA[1] / IA[0])); g.width = W; g.height = H; var x = g.getContext('2d');
@@ -336,7 +339,8 @@
       gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, tex2); gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, g); gl.activeTexture(gl.TEXTURE0);
     }
     var cur = {};   /* per-source overrides: {src, gain, scatter, erosion, ceiling} */
-    function opt(k, d) { return cur[k] !== undefined ? cur[k] : (o[k] !== undefined ? o[k] : d); }
+    function legible() { var v = cur.legible !== undefined ? cur.legible : o.legible; return v === true ? 1 : +v || 0; }
+    function opt(k, d) { return cur[k] !== undefined ? cur[k] : (o[k] !== undefined ? o[k] : (legible() && LEGIBLE[k] !== undefined ? LEGIBLE[k] : d)); }
     function load(src, cb) {
       if (src && src.src) { cur = src; src = src.src; } else cur = {};
       if (typeof src !== 'string') { if (!P.lost) upload(src); else lastImg = src; cb && cb(); return; }
@@ -345,9 +349,9 @@
     var L = loop(function (now) {
       var dt = Math.min(0.05, Math.max(0, now - last) / 1000); last = now; if (!REDUCED) t += dt;
       if (P.lost) return false;
-      var dpr = fit(cv, gl, o.cell || 2), c = colors(now);
+      var dpr = fit(cv, gl, o.cell || (legible() ? LEGIBLE.cell : 2)), c = colors(now);
       gl.uniform2f(U.R, cv.width, cv.height); gl.uniform2f(U.P, ptr[0] * dpr, cv.height - ptr[1] * dpr); gl.uniform1f(U.T, t);
-      gl.uniform1f(U.S, 1); gl.uniform1f(U.K, MJ(k)); gl.uniform1f(U.G, opt('gain', 1)); gl.uniform1f(U.SC, opt('scatter', 0.5)); gl.uniform1f(U.ER, opt('erosion', 0.45)); gl.uniform1f(U.CE, opt('ceiling', 0.8)); gl.uniform1f(U.M, o.margin === undefined ? 0.08 : o.margin);
+      gl.uniform1f(U.S, 1); gl.uniform1f(U.K, MJ(k)); gl.uniform1f(U.G, opt('gain', 1)); gl.uniform1f(U.SC, opt('scatter', 0.5)); gl.uniform1f(U.ER, opt('erosion', 0.45)); gl.uniform1f(U.CE, opt('ceiling', 0.8)); gl.uniform1f(U.LG, legible()); gl.uniform1f(U.M, o.margin === undefined ? 0.08 : o.margin);
       gl.uniform1f(U.A, o.accent || 0); gl.uniform1f(U.FIT, o.fit === 'cover' ? 1 : 0); gl.uniform1f(U.GR, o.ground === false ? 0 : 1); gl.uniform3fv(U.F, c.a[0]); gl.uniform3fv(U.N, c.a[1]); gl.uniform3fv(U.AC, c.a[2]); gl.uniform3fv(U.F2, c.b[0]); gl.uniform3fv(U.N2, c.b[1]); gl.uniform3fv(U.AC2, c.b[2]); gl.uniform1f(U.X, c.x); waveUniforms(gl, U, cv, dpr, c);
       gl.uniform2f(U.IA, IA[0], IA[1]); gl.uniform1i(U.I, 0); gl.uniform1i(U.I2, 1);
       if (o.ground === false) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); }
@@ -374,6 +378,35 @@
     return api;
   }
   /* a density map drawn with the brush: draw(ctx, w, h) paints white on black; returns a canvas to pass as source */
+  /* informational pictures (album covers, uploads): recognisable at a glance, still conjured stipple. About a third of
+     the hermetic erosion and scatter, a ceiling a little under 1, finer cells, and a map prepared to keep its detail */
+  var LEGIBLE = { legible: true, erosion: 0.15, scatter: 0.18, ceiling: 0.93, cell: 1.25 };
+  /* prepare(img): the legible map: auto levels (1st to 99.5th percentile), a gentle contrast curve and a mild unsharp
+     mask, at most 720px on the long side; no blur */
+  function prepare(img) {
+    var iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height, sc = Math.min(1, 720 / Math.max(iw, ih));
+    var w = Math.max(1, Math.round(iw * sc)), h = Math.max(1, Math.round(ih * sc));
+    var c = document.createElement('canvas'); c.width = w; c.height = h; var x = c.getContext('2d', { willReadFrequently: true });
+    x.drawImage(img, 0, 0, w, h);
+    var id = x.getImageData(0, 0, w, h), px = id.data, n = w * h, g = new Float32Array(n), hist = new Uint32Array(256), i;
+    for (i = 0; i < n; i++) { var v = (px[i * 4] * 0.299 + px[i * 4 + 1] * 0.587 + px[i * 4 + 2] * 0.114); g[i] = v; hist[v | 0]++; }
+    function pct(p) { var acc = 0, lim = n * p; for (var j = 0; j < 256; j++) { acc += hist[j]; if (acc >= lim) return j; } return 255; }
+    var lo = pct(0.01), hi = Math.max(lo + 1, pct(0.995));
+    var b = new Float32Array(n), y, xx;
+    for (y = 0; y < h; y++) for (xx = 0; xx < w; xx++) {
+      var s = 0, k = 0;
+      for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) { var yy = y + dy, xq = xx + dx; if (yy >= 0 && yy < h && xq >= 0 && xq < w) { s += g[yy * w + xq]; k++; } }
+      b[y * w + xx] = s / k;
+    }
+    for (i = 0; i < n; i++) {
+      var t = clamp(((g[i] + 0.6 * (g[i] - b[i])) - lo) / (hi - lo));
+      t = t * t * (3 - 2 * t) * 0.35 + t * 0.65;
+      var o8 = Math.round(t * 255); px[i * 4] = px[i * 4 + 1] = px[i * 4 + 2] = o8; px[i * 4 + 3] = 255;
+    }
+    x.putImageData(id, 0, 0);
+    return c;
+  }
+  Simulacrum.LEGIBLE = Object.freeze(LEGIBLE);
   Simulacrum.fromBrush = function (draw, w, h) {
     var c = document.createElement('canvas'); c.width = w || 512; c.height = h || 512; var x = c.getContext('2d');
     x.fillStyle = '#000'; x.fillRect(0, 0, c.width, c.height); x.fillStyle = '#fff'; draw(x, c.width, c.height);

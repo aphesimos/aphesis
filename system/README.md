@@ -62,7 +62,7 @@ Stipple is how areas exist. A density field (0 to 1) is compared, cell by cell, 
 
 `Aphesis.Simulacrum` turns an image into stipple that coalesces out of the fog and dissolves back into it. Use it for the experimental chambers, section openings, and anywhere a picture would otherwise appear. Never show a photograph or a raster image as itself.
 
-- **Informational pictures** (covers, user uploads) use the legible preset (`{legible: true}`, `Aphesis.Simulacrum.LEGIBLE`): readable at a glance, still stipple. Hermetic simulacra keep lost points and erosion, as below.
+- **Informational pictures** (covers, user uploads) use the legible preset (`{legible: true}`, `Aphesis.Simulacrum.LEGIBLE`): readable at a glance, still stipple. On a 1x screen its 1.25px cell rounds up to 2px (`LEGIBLE.up1x`), so the stipple stays visible there as on 2x and 3x screens; hermetic pictures round to the nearest. Hermetic simulacra keep lost points and erosion, as below.
 - **Never picture-perfect.** A simulacrum always keeps lost points: some of the picture drifts loose around the figure (`scatter`, default .5), fog-shaped holes open inside it (`erosion`, .45), and no area ever fills completely (`ceiling`, .8). A crisp silhouette with an empty ground around it reads as a print, not as something conjured; if a render looks finished, raise scatter and erosion.
 - **Choose by the ground, not the subject.** What works is a large, modelled, lit mass on a ground that is already dark: chiaroscuro painting (Caravaggio, Rembrandt, La Tour, Wright of Derby), inlaid pavements (Siena), engravings with big light (Flammarion, Doré). What fails: thin line art, even hatching (Khunrath), flat manuscript colour (most ouroboroi), and figures on mid-grey or busy grounds.
 - **Sculpture** on a plain ground arrives already isolated: give it `erosion` .5, `scatter` .85, `ceiling` .76, or it looks cut out.
@@ -70,6 +70,7 @@ Stipple is how areas exist. A density field (0 to 1) is compared, cell by cell, 
 - **Any source** is fine: the simulacrum is a recreation. Caption every one with work, artist and date: `saint jerome writing · Caravaggio, 1605–06`.
 - **Density maps.** Grayscale, 480 to 640px on the long side, white = dense; JPEG is fine. Crop to the figure and lose frames and borders. Levels: black point at the 30th percentile, white at the 97.5th, gamma 0.8 for dark paintings (lifts the half-tones), 1.1 for pavements, about 2 for white marble. Engravings: blur 1 to 2px first so hatching becomes tone. Paintings on light plaster (the Creation of Adam) keep only the warm skin and drapery.
 - **Drawn sources.** `Simulacrum.fromBrush` makes a density map from brush strokes, for symbols no picture holds.
+- **Blur in a 2D canvas.** Safari's 2D canvas has no `filter`. Where a screen blurs a map with `ctx.filter`, it keeps the filter when `Aphesis.canFilter(ctx)` is true and otherwise calls `Aphesis.blur2d(ctx, sigma)` (a box blur of the same radius); the Simulacrum's own glow does the same.
 - **Motion.** Coalesce over 2.6s, dissolve over 1.8s, swap with a dissolve first. The lost points drift with the fog; the pointer brings nearby cells forward. Keep `accent` at .05 or less: a few red cells, never a red picture.
 - **Captions** sit in a corner in `meta`, with the halo, never over the picture's center.
 

@@ -158,26 +158,28 @@
   }
   /* CSS pixels per stipple cell on this screen: `cell` CSS pixels rounded to whole device pixels, so every cell covers
      the same whole number of device pixels at any devicePixelRatio and stays a crisp square. Size a stipple canvas,
-     and move it, in multiples of this. */
-  function cellPx(cell) { var d = window.devicePixelRatio || 1; return Math.max(1, Math.round((cell || 2) * d)) / d; }
+     and move it, in multiples of this. up1x: on a 1x screen, round a fractional cell up instead of to the nearest. */
+  function cellPx(cell, up1x) { var d = window.devicePixelRatio || 1, n = (cell || 2) * d; return Math.max(1, up1x && d < 1.5 ? Math.ceil(n) : Math.round(n)) / d; }
   /* one canvas pixel per stipple cell: the canvas is sized to the cell grid and the browser scales it up with hard
      edges, so a cell stays a crisp square and the shader runs once per cell instead of once per screen pixel.
-     Returns k, canvas pixels per CSS pixel, to convert pointer and zone positions. */
-  function fit(cv, gl, cell) {
-    var r = cv.getBoundingClientRect(), c = cellPx(cell), w = Math.max(1, Math.round(r.width / c)), h = Math.max(1, Math.round(r.height / c));
+     Returns k, canvas pixels per CSS pixel, to convert pointer and zone positions. r: the canvas's rect, when the
+     frame has already read it (one read per frame). */
+  function fit(cv, gl, cell, r, up1x) {
+    r = r || cv.getBoundingClientRect(); var c = cellPx(cell, up1x), w = Math.max(1, Math.round(r.width / c)), h = Math.max(1, Math.round(r.height / c));
     if (cv.style.imageRendering !== 'pixelated') cv.style.imageRendering = 'pixelated';
     if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; gl.viewport(0, 0, w, h); }
     return w / Math.max(1, r.width);
   }
   /* the eye's theme shift (themeShift) drives the same switch as a wave instead: each cell turns when the wave from
      the origin reaches it, loosened by a hash and the fog's noise so the front is grainy and uneven. SO: the origin in
-     canvas pixels, z = 1 while a wave runs; SF: the distance to the farthest corner. */
+     canvas pixels, z = 1 while a wave runs; SF: the distance to the farthest corner. At rest (no wave, X = 1) every
+     cell has switched: step(edge, 1.) is 1 for any edge below 1, so the noise is not evaluated. */
   var SWITCH_GLSL = 'uniform vec3 SO;uniform float SF;' +
-    'float sw(vec2 cel,vec2 uv,float X){if(SO.z>.5)return step(.76*length(cel+.5-SO.xy)/SF+.14*h(cel+vec2(17.3,5.1))+.1*n(cel/23.+5.1),X);' +
+    'float sw(vec2 cel,vec2 uv,float X){if(SO.z<.5&&X>=1.)return 1.;if(SO.z>.5)return step(.76*length(cel+.5-SO.xy)/SF+.14*h(cel+vec2(17.3,5.1))+.1*n(cel/23.+5.1),X);' +
     'return step(smoothstep(.32,.68,fb(uv*1.7+vec2(3.7,9.1)))*.86+h(cel+vec2(17.3,5.1))*.14,X);}';
-  function waveUniforms(gl, U, cv, k, c) {
+  function waveUniforms(gl, U, cv, k, c, r) {
     var w = c.wave; if (!w) { gl.uniform3f(U.SO, 0, 0, 0); gl.uniform1f(U.SF, 1); return; }
-    var r = cv.getBoundingClientRect(), cpx = cv.width / Math.max(1, r.width);
+    r = r || cv.getBoundingClientRect(); var cpx = cv.width / Math.max(1, r.width);
     gl.uniform3f(U.SO, (w.o[0] - r.left) * cpx, cv.height - (w.o[1] - r.top) * cpx, 1); gl.uniform1f(U.SF, Math.max(1, w.far * cpx));
   }
   /* the theme's colours for a canvas, read the moment the theme changes. The change is a stipple dissolve over
@@ -249,15 +251,14 @@
     var L = loop(function (now) {
       var dt = Math.min(0.05, Math.max(0, now - last) / 1000); last = now; if (!REDUCED) t += dt;
       if (P.lost) return false;
-      dpr = fit(cv, gl, o.cell || 2);
-      var R = cv.getBoundingClientRect(); if (!ptr) ptr = [R.width / 2, R.height / 2]; if (!sm) sm = ptr.slice();
+      var R = cv.getBoundingClientRect(); dpr = fit(cv, gl, o.cell || 2, R); if (!ptr) ptr = [R.width / 2, R.height / 2]; if (!sm) sm = ptr.slice();
       sm[0] += (ptr[0] - sm[0]) * Math.min(1, dt * 3); sm[1] += (ptr[1] - sm[1]) * Math.min(1, dt * 3);
       ZB.fill(0); var i = 0;
       zEls.forEach(function (z) { if (i >= 12) return; var r = z.el ? z.el.getBoundingClientRect() : z; if (!r.width) return; var pad = z.pad || 12;
-        ZB.set([(r.left - R.left + r.width / 2) * dpr, cv.height - (r.top - R.top + r.height / 2) * dpr, (r.width / 2 + pad) * dpr, (r.height / 2 + pad) * dpr], i * 4); i++; });
+        var j = i * 4; ZB[j] = (r.left - R.left + r.width / 2) * dpr; ZB[j + 1] = cv.height - (r.top - R.top + r.height / 2) * dpr; ZB[j + 2] = (r.width / 2 + pad) * dpr; ZB[j + 3] = (r.height / 2 + pad) * dpr; i++; });
       var c = colors(now);
       gl.uniform4fv(U.Z, ZB); gl.uniform2f(U.R, cv.width, cv.height); gl.uniform1f(U.T, t); gl.uniform1f(U.S, 1);
-      gl.uniform3fv(U.F, c.a[0]); gl.uniform3fv(U.N, c.a[1]); gl.uniform3fv(U.F2, c.b[0]); gl.uniform3fv(U.N2, c.b[1]); gl.uniform1f(U.X, c.x); waveUniforms(gl, U, cv, dpr, c); gl.uniform2f(U.P, sm[0] * dpr, cv.height - sm[1] * dpr); gl.uniform1f(U.D, dens); gl.uniform1f(U.C, light);
+      gl.uniform3fv(U.F, c.a[0]); gl.uniform3fv(U.N, c.a[1]); gl.uniform3fv(U.F2, c.b[0]); gl.uniform3fv(U.N2, c.b[1]); gl.uniform1f(U.X, c.x); waveUniforms(gl, U, cv, dpr, c, R); gl.uniform2f(U.P, sm[0] * dpr, cv.height - sm[1] * dpr); gl.uniform1f(U.D, dens); gl.uniform1f(U.C, light);
       var cw = clearW == null ? lerp(0.94, 0.66, clamp((R.width - 480) / 720)) : clamp(clearW, 0.05, 1);
       gl.uniform2f(U.Q, clearAt(now), Math.max(1e-3, cw * 0.5 * cv.width / Math.min(cv.width, cv.height)));
       gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -271,6 +272,29 @@
       /* destroy(): stop for good: the loop, the pointer and theme listeners, and the WebGL context */
       destroy: function () { L.stop(); window.removeEventListener('pointermove', onMove); colors.off(); P.release(); }
     };
+  }
+
+  /* ---------- blur2d ----------
+     canFilter(ctx): whether a 2D canvas takes ctx.filter (Safari's does not: the property is missing, and a filter
+     set on it is silently ignored). blur2d(ctx, sigma, x, y, w, h): a Gaussian blur of sigma px over the canvas (or
+     the box x, y, w, h), as three box passes in each direction, every channel; the edges extend their own pixels.
+     Use it where ctx.filter = 'blur(..)' is missing, and keep the filter where it exists. */
+  function canFilter(x) { return typeof x.filter === 'string'; }
+  function blur2d(x, sigma, bx, by, W, H) {
+    bx = bx || 0; by = by || 0; W = W || x.canvas.width - bx; H = H || x.canvas.height - by;
+    var r = Math.max(1, Math.round((Math.sqrt(4 * sigma * sigma + 1) - 1) / 2)), id = x.getImageData(bx, by, W, H), d = id.data, n = W * H;
+    var a = new Float32Array(n), b = new Float32Array(n), ch, i, k;
+    function pass(src, dst, len, m, step, stride) {
+      for (var q = 0; q < m; q++) { var o = q * stride, s = 0, t, p;
+        for (t = -r; t <= r; t++) s += src[o + Math.min(len - 1, Math.max(0, t)) * step];
+        for (p = 0; p < len; p++) { dst[o + p * step] = s / (2 * r + 1); s += src[o + Math.min(len - 1, p + r + 1) * step] - src[o + Math.max(0, p - r) * step]; } }
+    }
+    for (ch = 0; ch < 4; ch++) {
+      for (i = 0; i < n; i++) a[i] = d[i * 4 + ch];
+      for (k = 0; k < 3; k++) { pass(a, b, W, H, 1, W); pass(b, a, H, W, W, 1); }
+      for (i = 0; i < n; i++) d[i * 4 + ch] = a[i];
+    }
+    x.putImageData(id, bx, by);
   }
 
   /* ---------- Simulacrum ----------
@@ -295,7 +319,7 @@
       var q = x.createTexture(); x.activeTexture(unit); x.bindTexture(x.TEXTURE_2D, q);
       x.texParameteri(x.TEXTURE_2D, x.TEXTURE_MIN_FILTER, x.LINEAR); x.texParameteri(x.TEXTURE_2D, x.TEXTURE_MAG_FILTER, x.LINEAR);
       x.texParameteri(x.TEXTURE_2D, x.TEXTURE_WRAP_S, x.CLAMP_TO_EDGE); x.texParameteri(x.TEXTURE_2D, x.TEXTURE_WRAP_T, x.CLAMP_TO_EDGE);
-      x.texImage2D(x.TEXTURE_2D, 0, x.LUMINANCE, 1, 1, 0, x.LUMINANCE, x.UNSIGNED_BYTE, new Uint8Array([0]));
+      x.texImage2D(x.TEXTURE_2D, 0, x.RGBA, 1, 1, 0, x.RGBA, x.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
       return q;
     }
     var P = glField(cv, 'precision highp float;uniform vec2 R,P;uniform float T,S,K,G,M,A,FIT,SC,ER,CE,GR,X,LG;uniform vec3 F,N,AC,F2,N2,AC2;uniform vec2 IA;uniform sampler2D I,I2;' + NOISE + SWITCH_GLSL +
@@ -304,7 +328,8 @@
       /* fit the image in the canvas */
       'vec2 box=R*(1.-M);float sc=FIT>.5?max(box.x/IA.x,box.y/IA.y):min(box.x/IA.x,box.y/IA.y);vec2 sz=IA*sc;' +
       /* the picture breathes: before it settles its cells are pushed around by the fog */
-      'vec2 jit=(vec2(fb(uv*3.+T*.05),fb(uv*3.+7.3-T*.04))-.5)*(1.-K)*.18*min(R.x,R.y);' +
+      /* once it has settled (K = 1) the push is exactly zero, so the noise is not evaluated */
+      'vec2 jit=vec2(0.);if(K<1.)jit=(vec2(fb(uv*3.+T*.05),fb(uv*3.+7.3-T*.04))-.5)*(1.-K)*.18*min(R.x,R.y);' +
       'vec2 iu=(c+jit-(R-sz)*.5)/sz;iu.y=1.-iu.y;float inside=step(0.,iu.x)*step(iu.x,1.)*step(0.,iu.y)*step(iu.y,1.);' +
       'vec2 e=min(iu,1.-iu);float feather=smoothstep(0.,mix(.07,.025,LG),min(e.x,e.y));' +
       'float img=pow(texture2D(I,clamp(iu,0.,1.)).r,1.15)*inside*feather;' +
@@ -313,10 +338,11 @@
       'float mist=smoothstep(.44,.78,d)*.5;' +
       /* never picture-perfect: erosion opens fog-shaped holes in the figure, the ceiling keeps even the lightest
          areas from going solid, and scatter lets some of the picture drift loose as lost points around it */
-      'float er=smoothstep(.28,.78,fb(uv*4.2+vec2(T*.012,-T*.009)+3.1));' +
       /* legible (LG, informational pictures): the fog's own modulation of the tones, its mist and the organic part of
-         the threshold are reduced, not removed, so a cover reads at a glance and is still conjured stipple */
-      'float pic=img*G*mix(.82+.36*d,.94+.12*d,LG)*mix(1.,.3+.7*er,ER)*CE;' +
+         the threshold are reduced, not removed, so a cover reads at a glance and is still conjured stipple.
+         Outside the picture (img = 0) pic is exactly 0, so the erosion's noise is not evaluated there */
+      'float pic=0.;if(img>0.){float er=smoothstep(.28,.78,fb(uv*4.2+vec2(T*.012,-T*.009)+3.1));' +
+      'pic=img*G*mix(.82+.36*d,.94+.12*d,LG)*mix(1.,.3+.7*er,ER)*CE;}' +
       /* the glow: a heavily blurred copy of the picture, padded by half its size on every side, so lost points
          thin out from the figure into the fog instead of stopping at its edge */
       'vec2 gu=(iu-.5)/2.+.5;gu.y=gu.y;float glow=texture2D(I2,clamp(gu,0.,1.)).r;' +
@@ -325,9 +351,11 @@
       /* threshold: interleaved gradient noise (even, blue-ish) mixed with a hash (organic), so tones read as tones */
       'float ign=fract(52.9829189*fract(dot(cel,vec2(.06711056,.00583715))));float lit=step(mix(ign,h(cel),mix(.35,.12,LG)),dens);' +
       'float red=step(h(cel+31.7),A*img*kk);' +
-      /* a theme change spreads in the same patches as the fog's */
+      /* a theme change spreads in the same patches as the fog's. With no ground, an unlit cell is (0,0,0,0), not the
+         cells' colour at alpha 0: a compositor that reads the buffer as premultiplied (WebKit's path for a canvas under
+         a CSS mask) would otherwise add that colour over the whole canvas */
       'float s=sw(cel,uv,X);vec3 Fc=mix(F,F2,s),Nc=mix(N,N2,s),Ac=mix(AC,AC2,s);' +
-      'float al=lit*mix(.72,.84,LG);vec3 col=mix(Nc,Ac,red);gl_FragColor=GR>.5?vec4(mix(Fc,col,al),1.):vec4(col,al);}',
+      'float al=lit*mix(.72,.84,LG);vec3 col=mix(Nc,Ac,red);gl_FragColor=GR>.5?vec4(mix(Fc,col,al),1.):vec4(col*lit,al);}',
       ['R', 'P', 'T', 'S', 'K', 'G', 'M', 'A', 'FIT', 'SC', 'ER', 'CE', 'GR', 'X', 'LG', 'F', 'N', 'AC', 'F2', 'N2', 'AC2', 'IA', 'I', 'I2', 'SO', 'SF'],
       function (x) { tex = texture(x, x.TEXTURE0); tex2 = texture(x, x.TEXTURE1); x.activeTexture(x.TEXTURE0); if (lastImg) upload(lastImg); });
     var noop = function () {};
@@ -335,14 +363,19 @@
     var gl = P.gl, U = P.U, colors = palette(cv, ['--bg', '--fog', '--accent']);
     function onMove(e) { var r = cv.getBoundingClientRect(); ptr = [e.clientX - r.left, e.clientY - r.top]; }
     window.addEventListener('pointermove', onMove);
+    /* the maps go up as RGBA and are read as .r: WebGL fills LUMINANCE from the red channel, so the samples are the
+       same, and RGBA is the format every GPU path (ANGLE on Metal included) takes from an image without a conversion */
     function upload(img) {
       lastImg = img;
       if (legible()) img = prepare(img);
-      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, img); IA = [img.naturalWidth || img.width, img.naturalHeight || img.height];
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img); IA = [img.naturalWidth || img.width, img.naturalHeight || img.height];
       /* glow texture: the picture at half size in the middle of a canvas twice as large, blurred wide */
       var g = document.createElement('canvas'), W = 192, H = Math.max(8, Math.round(192 * IA[1] / IA[0])); g.width = W; g.height = H; var x = g.getContext('2d');
-      x.fillStyle = '#000'; x.fillRect(0, 0, W, H); x.filter = 'blur(' + Math.round(W * 0.045) + 'px)'; x.drawImage(img, W / 4, H / 4, W / 2, H / 2); x.drawImage(g, 0, 0);
-      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, tex2); gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, g); gl.activeTexture(gl.TEXTURE0);
+      x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+      if (canFilter(x)) { x.filter = 'blur(' + Math.round(W * 0.045) + 'px)'; x.drawImage(img, W / 4, H / 4, W / 2, H / 2); x.drawImage(g, 0, 0); }
+      /* no canvas filter (Safari): the same two blurs as one box blur of their combined radius */
+      else { x.drawImage(img, W / 4, H / 4, W / 2, H / 2); blur2d(x, Math.SQRT2 * Math.round(W * 0.045)); }
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, tex2); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, g); gl.activeTexture(gl.TEXTURE0);
     }
     var cur = {};   /* per-source overrides: {src, gain, scatter, erosion, ceiling} */
     function legible() { var v = cur.legible !== undefined ? cur.legible : o.legible; return v === true ? 1 : +v || 0; }
@@ -355,10 +388,10 @@
     var L = loop(function (now) {
       var dt = Math.min(0.05, Math.max(0, now - last) / 1000); last = now; if (!REDUCED) t += dt;
       if (P.lost) return false;
-      var dpr = fit(cv, gl, o.cell || (legible() ? LEGIBLE.cell : 2)), c = colors(now);
+      var Rc = cv.getBoundingClientRect(), dpr = fit(cv, gl, o.cell || (legible() ? LEGIBLE.cell : 2), Rc, legible() && LEGIBLE.up1x), c = colors(now);
       gl.uniform2f(U.R, cv.width, cv.height); gl.uniform2f(U.P, ptr[0] * dpr, cv.height - ptr[1] * dpr); gl.uniform1f(U.T, t);
       gl.uniform1f(U.S, 1); gl.uniform1f(U.K, MJ(k)); gl.uniform1f(U.G, opt('gain', 1)); gl.uniform1f(U.SC, opt('scatter', 0.5)); gl.uniform1f(U.ER, opt('erosion', 0.45)); gl.uniform1f(U.CE, opt('ceiling', 0.8)); gl.uniform1f(U.LG, legible()); gl.uniform1f(U.M, o.margin === undefined ? 0.08 : o.margin);
-      gl.uniform1f(U.A, o.accent || 0); gl.uniform1f(U.FIT, o.fit === 'cover' ? 1 : 0); gl.uniform1f(U.GR, o.ground === false ? 0 : 1); gl.uniform3fv(U.F, c.a[0]); gl.uniform3fv(U.N, c.a[1]); gl.uniform3fv(U.AC, c.a[2]); gl.uniform3fv(U.F2, c.b[0]); gl.uniform3fv(U.N2, c.b[1]); gl.uniform3fv(U.AC2, c.b[2]); gl.uniform1f(U.X, c.x); waveUniforms(gl, U, cv, dpr, c);
+      gl.uniform1f(U.A, o.accent || 0); gl.uniform1f(U.FIT, o.fit === 'cover' ? 1 : 0); gl.uniform1f(U.GR, o.ground === false ? 0 : 1); gl.uniform3fv(U.F, c.a[0]); gl.uniform3fv(U.N, c.a[1]); gl.uniform3fv(U.AC, c.a[2]); gl.uniform3fv(U.F2, c.b[0]); gl.uniform3fv(U.N2, c.b[1]); gl.uniform3fv(U.AC2, c.b[2]); gl.uniform1f(U.X, c.x); waveUniforms(gl, U, cv, dpr, c, Rc);
       gl.uniform2f(U.IA, IA[0], IA[1]); gl.uniform1i(U.I, 0); gl.uniform1i(U.I2, 1);
       if (o.ground === false) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); }
       gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -385,8 +418,10 @@
   }
   /* a density map drawn with the brush: draw(ctx, w, h) paints white on black; returns a canvas to pass as source */
   /* informational pictures (album covers, uploads): recognisable at a glance, still conjured stipple. About a third of
-     the hermetic erosion and scatter, a ceiling a little under 1, finer cells, and a map prepared to keep its detail */
-  var LEGIBLE = { legible: true, erosion: 0.15, scatter: 0.18, ceiling: 0.93, cell: 1.25 };
+     the hermetic erosion and scatter, a ceiling a little under 1, finer cells, and a map prepared to keep its detail.
+     up1x: on a 1x screen the 1.25px cell rounds up to 2px, so the stipple stays visible there as it does on 2x and 3x
+     screens (false would round it to the nearest, 1px) */
+  var LEGIBLE = { legible: true, erosion: 0.15, scatter: 0.18, ceiling: 0.93, cell: 1.25, up1x: true };
   /* prepare(img): the legible map: auto levels (1st to 99.5th percentile), a gentle contrast curve and a mild unsharp
      mask, at most 720px on the long side; no blur */
   function prepare(img) {
@@ -510,13 +545,14 @@
     if (curEl || !FINE) return; root = root || document.body;
     curEl = document.createElement('div'); curEl.className = 'aph-cursor'; curEl.setAttribute('aria-hidden', 'true'); root.appendChild(curEl);
     document.documentElement.classList.add('aph-has-cursor');
-    var x = -100, y = -100, tx = -100, ty = -100, s = 0.2, ts = 0.2, down = false, last = performance.now();
+    var x = -100, y = -100, tx = -100, ty = -100, s = 0.2, ts = 0.2, down = false, last = performance.now(), lastTf = '';
     addEventListener('pointermove', function (e) { tx = e.clientX; ty = e.clientY; curEl.classList.add('on'); var t = e.target.closest && e.target.closest('a,button,[data-cursor]'); ts = t ? (+(t.dataset.cursor || 1)) : 0.2; });
     document.addEventListener('pointerleave', function () { curEl.classList.remove('on'); });
     addEventListener('pointerdown', function () { down = true; }); addEventListener('pointerup', function () { down = false; });
     (function step(now) { var dt = Math.min(0.05, (now - last) / 1000); last = now; var k = REDUCED ? 1 : Math.min(1, dt * 22), ks = REDUCED ? 1 : Math.min(1, dt * 10);
       x += (tx - x) * k; y += (ty - y) * k; s += ((down ? ts * 0.78 : ts) - s) * ks;
-      curEl.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) scale(' + s.toFixed(3) + ')'; requestAnimationFrame(step); })(last);
+      /* written only when it changes: a resting cursor costs no style work */
+      var tf = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) scale(' + s.toFixed(3) + ')'; if (tf !== lastTf) curEl.style.transform = lastTf = tf; requestAnimationFrame(step); })(last);
   }
 
   /* ================= THEME SHIFT ================= */
@@ -984,11 +1020,12 @@
     /* the ear's stipple breathes with the level while it sounds */
     var breathing = false;
     function breathe() {
-      if (breathing) return; breathing = true; var n = 0;
+      if (breathing) return; breathing = true; var n = 0, lastLvl = '', lastN = 0;
       (function f() {
         requestAnimationFrame(f); if (++n % 4 || !ears.length) return;
-        var l = running() && !muted ? clamp(E.level().rms * 18) : 0;
-        ears.forEach(function (b) { b.style.setProperty('--aph-lvl', l.toFixed(2)); });
+        /* written only on a change (a new ear is written once): each write starts a CSS transition */
+        var l = (running() && !muted ? clamp(E.level().rms * 18) : 0).toFixed(2); if (l === lastLvl && ears.length === lastN) return; lastLvl = l; lastN = ears.length;
+        ears.forEach(function (b) { b.style.setProperty('--aph-lvl', l); });
       })();
     }
     return api;
@@ -1379,7 +1416,7 @@
   }
 
   window.Aphesis = {
-    reducedMotion: REDUCED, MJ: MJ, cellPx: cellPx, lerp: lerp, clamp: clamp, tween: tween, rng: rng, cssColor: cssColor,
+    reducedMotion: REDUCED, MJ: MJ, cellPx: cellPx, canFilter: canFilter, blur2d: blur2d, lerp: lerp, clamp: clamp, tween: tween, rng: rng, cssColor: cssColor,
     brush: brush, arc: arc, line: line, stipple: stipple, inC: inC,
     icon: icon, ICONS: ICONS, SECTIONS: SECTIONS, PHI: PHI, seal: seal, Eye: Eye,
     Fog: Fog, Simulacrum: Simulacrum, Typist: Typist, tooltip: tooltip, cursor: cursor, letters: letters, themeShift: themeShift, themeColor: themeColor, Sound: Sound

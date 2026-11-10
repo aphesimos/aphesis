@@ -1,0 +1,77 @@
+{
+  "section": {
+    "name": "works",
+    "gloss": "opera",
+    "gloss_tip": "opera · works"
+  },
+  "works": [
+    {
+      "id": "heild",
+      "name": "heild",
+      "gloss": "totum",
+      "gloss_tip": "totum · the whole",
+      "year": "2026",
+      "role": "author: identity, design system, site and demo",
+      "description": "heild is old norse for the whole. it is a system that brings a company's tools into one place: a dashboard, a crm with whatsapp, a timesheet, finance, files and an app for the client. alongside them works a team of ai members, one for each area. the members prepare the work and a person approves it: transmitting, paying, signing and sending to the client always pass through an approval card that carries the name of whoever approved. it has not launched yet.",
+      "links": [
+        {
+          "label": "the site",
+          "href": "https://aphesimos.github.io/heild/"
+        },
+        {
+          "label": "the repository",
+          "href": "https://github.com/aphesimos/heild"
+        }
+      ],
+      "map": {
+        "file": "heild.png",
+        "caption": "the heild wordmark · he, the i pill, ld",
+        "settings": {
+          "scatter": 0.8,
+          "erosion": 0.58,
+          "ceiling": 0.74,
+          "gain": 1.0
+        }
+      },
+      "sources": {
+        "description": "heild README.md (main branch), translated from Portuguese",
+        "map": "heild design-system branch: design-system/logos/heild-wordmark-papel.svg"
+      },
+      "flags": {
+        "needs_owner_review": false
+      }
+    },
+    {
+      "id": "aphesis",
+      "name": "aφesis",
+      "gloss": "ἄφεσις",
+      "gloss_tip": "ἄφεσις · a letting go",
+      "year": "2026",
+      "role": "author: the design system, the font, the mark and the site",
+      "description": "aphes.is is an experimental, hermetic personal site, and this is part of it. it is one document that never reloads: a stippled fog, a φ drawn by hand that travels between the center and the corner, typewriter text and a brush script for names. it holds a design system where nothing is solid, aphesis script, a variable font drawn with the φ's brush, and the engine that redraws the φ live and closes it into the seal in the corner.",
+      "links": [
+        {
+          "label": "the repository",
+          "href": "https://github.com/aphesimos/aphesis"
+        }
+      ],
+      "map": {
+        "file": "aphesis.png",
+        "caption": "the φ · drawn by hand",
+        "settings": {
+          "scatter": 0.75,
+          "erosion": 0.55,
+          "ceiling": 0.76,
+          "gain": 1.0
+        }
+      },
+      "sources": {
+        "description": "aphesis README.md (main branch) and the mark branch README",
+        "map": "aphesis design-system branch: system/assets/Logos/phi.svg"
+      },
+      "flags": {
+        "needs_owner_review": false
+      }
+    }
+  ]
+}

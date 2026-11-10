@@ -1,0 +1,166 @@
+/* works · opera
+   layout: one screen, two views in the same place. the list is one quiet inscription line drawn with the brush,
+   under the section title; each work is a grain on the line, its name above in the text face and its gloss below
+   in Aphesis Script. two works face each other across the middle like a diptych; more spread along the same line,
+   and when they no longer fit across the screen the line turns and runs down it. choosing a work dissolves the
+   line and shows the work alone: its simulacrum on one side, its name, words, meta and links on the other (on a
+   phone, one above the other). the seal holds the top-left corner, the eye the bottom-left, the passage corner
+   stays free. */
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; overflow: hidden; background: var(--bg); color: var(--ink);
+  font: var(--type-body-weight) var(--type-body-size)/var(--type-body-line) var(--font-text);
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--duration-theme) var(--easing-settle), color var(--duration-theme) var(--easing-settle);
+}
+a { color: inherit; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; border-radius: var(--radius-none); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+#fog { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: var(--z-fog); pointer-events: none; }
+
+#seal {
+  position: fixed; z-index: var(--z-seal); display: block; color: var(--seal);
+  left: calc(var(--space-4) + env(safe-area-inset-left, 0px)); top: calc(var(--space-4) + env(safe-area-inset-top, 0px));
+  height: 64px; width: calc(64px * 385 / 533);
+}
+
+/* ---------- views ---------- */
+/* both views stand in the same place. Their parts (.scene) enter with a blur and a rise while the other view's
+   leave; the view itself only turns visible, and stays visible after leaving long enough for its parts to go
+   (--leave; the work also waits for its simulacrum to dissolve). */
+.view {
+  position: fixed; inset: 0; z-index: var(--z-main); overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  padding-left: max(var(--space-4), calc(var(--space-3) + env(safe-area-inset-left, 0px)));
+  padding-right: max(var(--space-4), calc(var(--space-3) + env(safe-area-inset-right, 0px)));
+  padding-top: calc(var(--space-7) + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(var(--space-7) + env(safe-area-inset-bottom, 0px));
+  visibility: hidden; transition: visibility 0s linear var(--leave, var(--duration-scene));
+  text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg);
+}
+.view.on { visibility: visible; transition-delay: 0s; }
+#work { --leave: 2s; }
+.scene {
+  opacity: 0; filter: blur(10px); transform: translateY(14px);
+  transition: opacity var(--duration-scene) var(--easing-settle), filter var(--duration-scene) var(--easing-settle),
+              transform var(--duration-scene) var(--easing-settle);
+}
+.view.on .scene { opacity: 1; filter: none; transform: none; }
+/* the leaving view goes a little faster, so the two never read as one */
+.view:not(.on) .scene { transition-duration: calc(var(--duration-scene) * .6); }
+
+/* the title: its gloss above it */
+.head { margin: 0; font-weight: 400; }
+.head:focus { outline: none; }
+.head .gloss-title {
+  display: block; margin-bottom: var(--space-3);
+  font: var(--type-gloss-title-weight) var(--type-gloss-title-size)/var(--type-gloss-title-line) var(--font-display);
+  letter-spacing: var(--type-gloss-title-tracking); font-variation-settings: "wght" 400, "slnt" -12;
+  color: var(--ink-soft); text-transform: lowercase;
+}
+.head .title {
+  display: block; padding-right: .2em; text-wrap: balance;
+  font: var(--type-title-weight) clamp(44px, 8vw, 96px)/var(--type-title-line) var(--font-display);
+  font-variation-settings: "wght" 400, "slnt" -12; text-transform: lowercase;
+}
+
+/* ---------- the list: one inscription line ---------- */
+#list { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-6); }
+#list .head { text-align: center; }
+#inscription { position: relative; width: min(880px, 100%); }
+#inscription .line { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; color: var(--line); }
+#inscription .line path { fill: currentColor; opacity: 0; transition: opacity var(--duration-scene) var(--easing-settle) .2s; }
+#inscription.drawn .line path { opacity: 1; }
+#names { list-style: none; margin: 0; padding: 0; display: flex; justify-content: space-around; gap: var(--space-4); }
+#names li { flex: 1 1 0; min-width: 0; display: flex; justify-content: center; }
+
+.work {
+  display: grid; grid-template-areas: "name" "node" "gl"; justify-items: center; row-gap: var(--space-3);
+  padding: var(--space-3) var(--space-4); text-decoration: none; color: var(--ink);
+}
+.work .name {
+  grid-area: name; white-space: nowrap;
+  font-size: var(--type-label-size); line-height: var(--type-label-line); letter-spacing: var(--type-label-tracking); text-transform: lowercase;
+}
+.work .node { grid-area: node; width: 24px; height: 24px; display: block; color: var(--ink-soft); transition: color var(--duration-slow) var(--easing-settle); }
+.work .node svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.work .node path { fill: currentColor; }
+.work .gl {
+  grid-area: gl; white-space: nowrap; padding-right: .2em;
+  font: var(--type-gloss-weight) var(--type-gloss-size)/var(--type-gloss-line) var(--font-display);
+  font-variation-settings: "wght" 400, "slnt" -12; letter-spacing: .02em; color: var(--ink-soft); text-transform: lowercase;
+  transition: transform var(--duration-slow) var(--easing-settle), color var(--duration-slow) var(--easing-settle);
+}
+.work:hover .gl, .work:focus-visible .gl { color: var(--accent-text); transform: translateY(-1px); }
+.work:hover .node, .work:focus-visible .node { color: var(--accent); }
+
+/* when the works no longer fit across, the line runs down the screen and the names stand to its right */
+#inscription.stack { width: min(420px, 100%); }
+#inscription.stack #names { flex-direction: column; gap: var(--space-4); }
+#inscription.stack #names li { justify-content: flex-start; }
+#inscription.stack .work { grid-template-areas: "node name" "node gl"; grid-template-columns: auto 1fr; justify-items: start; column-gap: var(--space-4); row-gap: var(--space-2); align-items: center; }
+#inscription.stack .work .node { align-self: center; }
+
+/* ---------- one work ---------- */
+#work {
+  display: grid; grid-template-columns: minmax(0, 36rem) minmax(0, 30rem); align-items: center; align-content: center;
+  justify-content: center; column-gap: var(--space-7); row-gap: var(--space-5);
+}
+#figure { position: relative; margin: 0; height: min(62vh, 600px); min-height: 220px; min-width: 0; }
+#picture {
+  position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  opacity: 0; transition: opacity var(--duration-scene) var(--easing-settle);
+}
+#picture.on { opacity: 1; }
+#caption {
+  position: absolute; right: 0; bottom: calc(-1 * var(--space-4)); margin: 0; max-width: 100%; text-align: right; text-transform: lowercase;
+  opacity: 0; transition: opacity var(--duration-scene) var(--easing-settle);
+}
+#caption.on { opacity: 1; transition-delay: .4s; }
+#text { min-width: 0; max-width: 34rem; display: flex; flex-direction: column; gap: var(--space-4); }
+#text .desc { margin: 0; max-width: 60ch; }
+#text .meta { margin: 0; letter-spacing: var(--type-meta-tracking); text-transform: lowercase; }
+#text .meta .sep { margin: 0 .6em; }
+.links { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); }
+
+/* links out and the ways back: text in the label style over a brushed underline; nothing solid */
+.ul, .way {
+  position: relative; display: inline-block; padding: var(--space-2) 0 var(--space-3); text-decoration: none;
+  font-size: var(--type-label-size); line-height: var(--type-label-line); letter-spacing: var(--type-label-tracking); text-transform: lowercase;
+  transition: color var(--duration-slow) var(--easing-settle);
+}
+.ul { color: var(--ink); }
+.ul svg, .way svg { position: absolute; left: 0; bottom: 2px; height: 8px; overflow: visible; pointer-events: none; color: var(--ink-soft); transition: color var(--duration-slow) var(--easing-settle); }
+.ul svg path, .way svg path { fill: currentColor; }
+.ul:hover, .ul:focus-visible { color: var(--accent-text); }
+.ul:hover svg, .ul:focus-visible svg, .way:hover svg, .way:focus-visible svg { color: var(--accent); }
+.ways { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: var(--space-2) var(--space-6); margin-top: var(--space-3); }
+.way { color: var(--ink-soft); }
+.way:hover, .way:focus-visible { color: var(--accent-text); }
+
+@media (max-width: 760px) {
+  #work { grid-template-columns: minmax(0, 1fr); justify-content: stretch; align-content: start; row-gap: var(--space-6); }
+  #figure { height: clamp(200px, 32vh, 340px); }
+  /* the work scrolls on a phone: it fades out under the seal and the eye, so the corners stay free */
+  #work {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--space-7), #000 calc(100% - var(--space-7)), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 var(--space-7), #000 calc(100% - var(--space-7)), transparent 100%);
+  }
+}
+
+/* ---------- corners ---------- */
+#controls {
+  position: fixed; z-index: var(--z-corner); display: flex; align-items: center; gap: var(--space-2);
+  left: calc(var(--space-3) + env(safe-area-inset-left, 0px)); bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+}
+#controls button { padding: var(--space-2); color: var(--ink-soft); }
+#controls button:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+#bTheme { width: 46px; height: 46px; position: relative; color: var(--accent) !important; }
+#bTheme .eye { position: absolute; inset: var(--space-2); display: block; transform-origin: 50% 50%;
+  transition: opacity var(--duration-quick) var(--easing-settle), transform var(--duration-slow) var(--easing-settle); }
+#bTheme .eye svg { width: 100%; height: 100%; display: block; overflow: visible; }
+#bTheme .eye.closed { opacity: 0; transform: scaleY(.2) translateY(-4px); }
+.is-dark #bTheme .eye.open { opacity: 0; transform: scaleY(.08); }
+.is-dark #bTheme .eye.closed { opacity: 1; transform: none; }

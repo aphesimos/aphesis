@@ -20,6 +20,9 @@ import { frame, once, STEP } from './motion.js';
 import { nextStep, saveStep, clearSteps } from './memory.js';
 
 const DOOR_FOG = 0.74, CHAMBER_FOG = 0.3;
+/* the sound, where the runtime has it: each chamber has its own voice, the door its own, and the door opening is an event */
+const sound = (f) => { try { const S = window.Aphesis && window.Aphesis.Sound; if (S) f(S); } catch (err) { console.error(err); } };
+const voice = (chamber) => sound((S) => S.scene('experimental', { chamber }));
 
 export function createJourney({ chambers, ground, door, caption, announce, zones, root: host }) {
   const html = document.documentElement;
@@ -42,6 +45,8 @@ export function createJourney({ chambers, ground, door, caption, announce, zones
     if (state !== 'door') return;
     def = chambers[next];
     mark('opening');
+    sound((S) => S.event('door'));
+    voice(def.id);
     ground.to(def.fog === undefined ? CHAMBER_FOG : def.fog, 2000);
     zones(def.final ? 'none' : 'chamber');
     root = document.createElement('div');
@@ -111,6 +116,7 @@ export function createJourney({ chambers, ground, door, caption, announce, zones
     }
     if (advanced) { next = Math.min(chambers.length - 1, next + 1); saveStep(next); }
     def = null;
+    voice('door');
     ground.to(DOOR_FOG, 2000);
     zones('door');
     mark('returning');
@@ -133,5 +139,6 @@ export function createJourney({ chambers, ground, door, caption, announce, zones
   })(last);
 
   mark('door');
+  voice('door');
   return { get state() { return state; }, get next() { return next; } };
 }

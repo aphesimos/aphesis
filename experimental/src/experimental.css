@@ -1,0 +1,148 @@
+
+/* experimental · ἄδυτον
+   layout: one screen. the fog is the ground (density .62); the threshold stands on the axis, title above it;
+   the seal holds the top-left corner, the eye and the pause the bottom-left, the passage corner stays free.
+   a chamber replaces the threshold with simulacra laid over the fog and blended into it. */
+
+/* simulacrum canvases paint their own ground; blended this way, the ground drops out and only cells remain:
+   the darker cell wins on the open eye, the lighter on the closed one */
+:root { --layer-blend: darken; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --layer-blend: lighten; } }
+:root[data-theme="dark"] { --layer-blend: lighten; }
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; overflow: hidden; background: var(--bg); color: var(--ink);
+  font: var(--type-body-weight) var(--type-body-size)/var(--type-body-line) var(--font-text);
+  touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  transition: background-color var(--duration-theme) var(--easing-settle), color var(--duration-theme) var(--easing-settle);
+}
+a { color: inherit; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; border-radius: var(--radius-none); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+#fog { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: var(--z-fog); pointer-events: none; }
+#trace { position: fixed; inset: 0; width: 100%; height: 100%; z-index: var(--z-ray); pointer-events: none; overflow: visible; }
+#trace path { fill: var(--ink-soft); opacity: 0; transition: opacity var(--duration-slow) var(--easing-settle); }
+#trace.on path { opacity: .7; }
+
+/* the seal: closed into the corner, it leads home */
+#seal {
+  position: fixed; z-index: var(--z-seal); display: block; color: var(--seal);
+  left: calc(var(--space-4) + env(safe-area-inset-left, 0px)); top: calc(var(--space-4) + env(safe-area-inset-top, 0px));
+  height: 64px; width: calc(64px * 385 / 533);
+}
+
+/* ---------- the threshold ---------- */
+#experimental { position: fixed; inset: 0; z-index: var(--z-main); pointer-events: none; }
+#threshold {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--space-6); text-align: center;
+  padding-block: var(--space-7);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  opacity: 0; filter: blur(10px); transform: translateY(14px); visibility: hidden;
+  transition: opacity var(--duration-scene) var(--easing-settle), filter var(--duration-scene) var(--easing-settle),
+              transform var(--duration-scene) var(--easing-settle), visibility 0s linear var(--duration-scene);
+}
+#threshold.active { opacity: 1; filter: none; transform: none; visibility: visible; transition-delay: 0s; }
+#threshold.active > * { pointer-events: auto; }
+
+#threshold h1 {
+  margin: 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-3);
+  font-weight: 400; text-shadow: 0 0 6px var(--bg), 0 0 16px var(--bg), 0 0 26px var(--bg);
+}
+#threshold h1:focus { outline: none; }
+#threshold h1:focus-visible .title { outline: 1px solid var(--accent); outline-offset: 4px; }
+/* titles and glosses lean: slant −12 (the φ alone stays upright); slanted script leans out of its box */
+.gloss {
+  font-family: var(--font-display); font-size: var(--type-gloss-title-size); line-height: var(--type-gloss-title-line);
+  letter-spacing: var(--type-gloss-title-tracking); font-variation-settings: "wght" 400, "slnt" -12;
+  color: var(--ink-soft); text-transform: lowercase; padding: 0 .2em; transition: color var(--duration-slow) var(--easing-settle);
+}
+.title {
+  font-family: var(--font-display); font-size: clamp(44px, 8vw, 96px); line-height: var(--type-title-line);
+  font-variation-settings: "wght" 400, "slnt" -12; text-transform: lowercase; padding: .06em .2em .12em; text-wrap: balance;
+}
+#threshold h1:hover .gloss { color: var(--accent-text); }
+.title .ltr { transition-duration: var(--duration-scene); transition-delay: calc(var(--i) * 30ms); }
+#threshold h1:hover .title .ltr { transform: translateY(-2px); }
+
+#limen { width: 56px; height: 56px; color: var(--accent); display: block; position: relative; }
+#limen svg { width: 100%; height: 100%; display: block; overflow: visible; }
+#limen path { fill: currentColor; }
+#limen .night { opacity: .85; }
+#limen:focus-visible { outline: 1px solid var(--accent); outline-offset: 4px; }
+
+#echo {
+  position: absolute; left: 0; right: 0; bottom: calc(var(--space-7) + env(safe-area-inset-bottom, 0px));
+  margin: 0; min-height: 1.7em; letter-spacing: var(--type-meta-tracking); text-transform: lowercase;
+  opacity: 0; transition: opacity var(--duration-slow) var(--easing-settle);
+}
+#echo.on { opacity: 1; }
+#found { width: 72px; height: 18px; color: var(--ink-soft); overflow: visible; margin-top: calc(-1 * var(--space-5)); }
+#found path { fill: currentColor; }
+
+/* ---------- chambers ---------- */
+.layer {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; display: block;
+  z-index: var(--z-main); pointer-events: none; mix-blend-mode: var(--layer-blend);
+  opacity: 0; transition: opacity var(--duration-scene) var(--easing-settle);
+}
+.layer.on { opacity: 1; }
+.chamber-text {
+  position: fixed; z-index: var(--z-main); margin: 0; color: var(--ink);
+  font: var(--type-lede-weight) var(--type-lede-size)/var(--type-lede-line) var(--font-text);
+  text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg), 0 0 28px var(--bg);
+  opacity: 0; filter: blur(10px); transform: translateY(14px);
+  transition: opacity var(--duration-scene) var(--easing-settle), filter var(--duration-scene) var(--easing-settle), transform var(--duration-scene) var(--easing-settle);
+}
+.chamber-text.on { opacity: 1; filter: none; transform: none; }
+.chamber-text .typed { white-space: pre-wrap; }
+.chamber-text .aph-caret { color: var(--ink-soft); }
+/* not a stacking context: the layers inside must blend with the fog itself */
+.chamber-root { display: contents; }
+.chamber-text { pointer-events: auto; max-width: 34ch; }
+.scholar-text { left: max(16px, 28vw); top: calc(13vh + env(safe-area-inset-top, 0px)); }
+.tablet-text {
+  left: max(var(--space-6), calc(env(safe-area-inset-left, 0px) + var(--space-6))); top: 50%; translate: 0 -50%;
+  max-width: min(26ch, calc(50vw - 300px)); font-size: var(--type-body-size); line-height: var(--type-body-line);
+}
+@media (max-width: 900px), (max-aspect-ratio: 11/10) {
+  .scholar-text, .tablet-text {
+    left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px));
+    top: calc(104px + env(safe-area-inset-top, 0px)); translate: none; max-width: 40ch; font-size: var(--type-body-size);
+  }
+}
+
+#caption {
+  position: fixed; z-index: var(--z-corner); margin: 0; text-align: right; max-width: min(380px, calc(100vw - 140px));
+  right: max(16px, calc(var(--space-4) + env(safe-area-inset-right, 0px))); top: calc(var(--space-5) + env(safe-area-inset-top, 0px));
+  opacity: 0; transition: opacity var(--duration-scene) var(--easing-settle);
+}
+#caption.on { opacity: 1; }
+
+/* ---------- corners ---------- */
+#controls {
+  position: fixed; z-index: var(--z-corner); display: flex; align-items: center; gap: var(--space-2);
+  left: calc(var(--space-3) + env(safe-area-inset-left, 0px)); bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+}
+#controls button { padding: var(--space-2); color: var(--ink-soft); text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg); }
+#controls button:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+#bTheme { width: 46px; height: 46px; position: relative; color: var(--accent) !important; }
+#bTheme .eye { position: absolute; inset: var(--space-2); display: block; transform-origin: 50% 50%;
+  transition: opacity var(--duration-quick) var(--easing-settle), transform var(--duration-slow) var(--easing-settle); }
+#bTheme .eye svg { width: 100%; height: 100%; display: block; overflow: visible; }
+#bTheme .eye.closed { opacity: 0; transform: scaleY(.2) translateY(-4px); }
+.is-dark #bTheme .eye.open { opacity: 0; transform: scaleY(.08); }
+.is-dark #bTheme .eye.closed { opacity: 1; transform: none; }
+#bPause { font-size: var(--type-label-size); letter-spacing: var(--type-label-tracking); line-height: 1; text-transform: lowercase; }
+#bPause[aria-pressed="true"] { color: var(--accent-text); }
+
+@media (max-width: 640px) {
+  #threshold { gap: var(--space-5); }
+  #limen { width: 48px; height: 48px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #threshold, .layer, .chamber-text, #caption, #echo, #trace path, #bTheme .eye { transition-duration: .01ms !important; }
+}

@@ -1044,17 +1044,18 @@
   }
   var SECTIONS = ['book', 'descent', 'archive', 'laboratory', 'works', 'wall', 'forum', 'music'];
 
-  /* book (liber): an open codex, two leaves bowing into the spine, a few lines of text in stipple on each */
+  /* book (liber): a closed grimoire, as an emblem book would engrave it: the cover, the band of the spine, two clasps
+     over the fore-edge, and an eight-rayed star on the cover in stipple */
   (function () {
-    var left = chain(bez([12, 7.6], [9.4, 5.4], [6, 5.3], [3.2, 6.4], 18), line(3.2, 6.4, 3.4, 17.6, 14), bez([3.4, 17.6], [6.2, 16.6], [9.6, 16.8], [12, 18.9], 18));
-    var right = chain(bez([12, 7.6], [14.6, 5.4], [18, 5.3], [20.8, 6.4], 18), line(20.8, 6.4, 20.6, 17.6, 14), bez([20.6, 17.6], [17.8, 16.6], [14.4, 16.8], [12, 18.9], 18));
-    var strokes = brush(left, 1.6, 201, 0.1) + brush(right, 1.6, 203, 0.1) + brush(line(12, 8.4, 12, 18.2, 16), 1.05, 205, 0.3, 0.05);
-    function text(x, y) {
-      var u = x < 12 ? (12 - x) / 8.8 : (x - 12) / 8.8; if (u < 0.12 || u > 0.86) return false;
-      var b = y - (1.5 * (1 - u) * (1 - u)); /* the lines bow down into the spine, as the leaves do */
-      return (b > 8.3 && b < 9.3) || (b > 10.7 && b < 11.7) || (b > 13.1 && b < 14.1 && u > 0.3);
+    var cover = chain(line(5, 3.6, 18.8, 3.8, 20), line(18.8, 3.8, 19, 20.4, 22), line(19, 20.4, 5.2, 20.6, 20), line(5.2, 20.6, 5, 3.6, 22));
+    var strokes = brush(cover, 1.6, 201, 0.04) + brush(line(7.6, 4.4, 7.7, 19.8, 20), 1.1, 203, 0.2, 0.05) +
+      brush(line(16.4, 7.4, 21, 7.3, 10), 1.35, 205, 0.3, 0.05) + brush(line(16.4, 16.8, 21, 16.9, 10), 1.35, 206, 0.3, 0.05);
+    /* the star: a four-pointed astroid and a smaller one turned 45 degrees */
+    function star(x, y) {
+      var dx = Math.abs(x - 13.2), dy = Math.abs(y - 12.1), u = Math.abs(dx - dy) / 1.414, v = (dx + dy) / 1.414;
+      return dx * dx + dy * dy < 1.4 || Math.sqrt(dx) + Math.sqrt(dy) < Math.sqrt(5.2) || Math.sqrt(u) + Math.sqrt(v) < Math.sqrt(3.2);
     }
-    ICONS.book = sectionIcon(strokes, [[text, 207, 2200, 0.52]], [12, 12]);
+    ICONS.book = sectionIcon(strokes, [[star, 207, 3200, 0.58]], [13.2, 12.1]);
   })();
 
   /* descent (κατάβασις): the threshold's arch with steps going down inside it, and the night thickening below them */
@@ -1113,21 +1114,26 @@
     ICONS.wall = sectionIcon(strokes, [[stones, 263, 1400, 0.62]], [12, 12], 0.94);
   })();
 
-  /* forum (ἀγορά): two voices, one speaking (three grains), one answering in stipple */
+  /* forum (ἀγορά): the stoa, a pediment over three columns on a step, and the assembly gathered between them in stipple */
   (function () {
-    var a = arc(9.4, 8.6, 6.6, 128, 458, 52, 4.6), b = arc(16, 16.6, 4.6, 75, 395, 44, 3.3);
-    var strokes = brush(a, 1.6, 271, 0.16) + brush(line(6.6, 12.6, 4.2, 16.4, 10), 1.35, 273, 0.36, 0.05) +
-      brush(b, 1.5, 275, 0.16) + brush(line(18.6, 19.2, 20.8, 22, 10), 1.2, 277, 0.4, 0.05);
-    function grains(x, y) { return inC(6.7, 8.6, 0.95)(x, y) || inC(9.4, 8.6, 0.95)(x, y) || inC(12.1, 8.6, 0.95)(x, y); }
-    ICONS.forum = sectionIcon(strokes, [[grains, 279, 1400, 0.62], [inE(16, 16.6, 3.3, 2.1), 281, 900, 0.55]], [12.4, 12.4]);
+    var strokes = brush(chain(line(2.8, 8.4, 12, 3.2, 18), line(12, 3.2, 21.2, 8.4, 18)), 1.6, 271, 0.12) +
+      brush(line(3, 9, 21, 9.1, 24), 1.6, 273, 0.1) + brush(line(2.6, 20.6, 21.4, 20.5, 26), 1.7, 275, 0.12) +
+      brush(line(6, 10.3, 6.1, 19.3, 12), 1.25, 277, 0.12, 0.05) + brush(line(12, 10.3, 12, 19.3, 12), 1.25, 278, 0.12, 0.05) +
+      brush(line(18, 10.3, 17.9, 19.3, 12), 1.25, 279, 0.12, 0.05);
+    function council(x, y) { return y > 13.4 && y < 19.6 && x > 3.4 && x < 20.6 && Math.abs(x - 6) > 1.2 && Math.abs(x - 12) > 1.2 && Math.abs(x - 18) > 1.2 && grain(x, y) < (y - 13) / 5; }
+    ICONS.forum = sectionIcon(strokes, [[council, 281, 1600, 0.6], [inC(12, 6.6, 0.9), 283, 300, 0.5]], [12, 16.6]);
   })();
 
-  /* music (phonotheca): the record ring as the deck draws it, grooves in stipple, a small centre, and the arm on it */
+  /* music (phonotheca): Apollo's lyre: the sounding bowl, two arms rising from it and curling out at the tips, the yoke
+     across them, and the strings in stipple, so a hover sets them trembling */
   (function () {
-    var strokes = brush(arc(12, 12.4, 8, -60, 290, 64), 1.8, 291) + brush(arc(12, 12.4, 1.5, 0, 360, 16), 1.05, 293, 0, 0.04) +
-      brush(chain(line(21.2, 2.6, 17.8, 9.8, 14), line(17.8, 9.8, 15.4, 11.6, 6)), 1.3, 295, 0.3, 0.05);
-    var grooves = function (x, y) { var r = Math.hypot(x - 12, y - 12.4); return (r > 3 && r < 4) || (r > 5 && r < 6.2); };
-    ICONS.music = sectionIcon(strokes, [[grooves, 297, 1500, 0.55]], [12, 12.4]);
+    var bowl = chain(arc(12, 18.2, 3.8, 0, 180, 24, 3), line(8.2, 18.2, 15.8, 18.2, 14));
+    var strokes = brush(bowl, 1.5, 291, 0.06) +
+      brush(chain(bez([8.6, 17.8], [6, 15.6], [4.6, 11.8], [6, 8.4], 22), bez([6, 8.4], [7.4, 6], [6.8, 3.4], [4.4, 2.6], 14)), 1.6, 293, 0.24) +
+      brush(chain(bez([15.4, 17.8], [18, 15.6], [19.4, 11.8], [18, 8.4], 22), bez([18, 8.4], [16.6, 6], [17.2, 3.4], [19.6, 2.6], 14)), 1.6, 294, 0.24) +
+      brush(line(3.6, 7.3, 20.4, 7.1, 26), 1.25, 295, 0.2, 0.05);
+    function strings(x, y) { return y > 7.9 && y < 17.6 && (Math.abs(x - 9.7) < 0.34 || Math.abs(x - 12) < 0.34 || Math.abs(x - 14.3) < 0.34); }
+    ICONS.music = sectionIcon(strokes, [[strings, 297, 3600, 0.44]], [12, 12.6], 0.9);
   })();
 
   function mountEar(el) {

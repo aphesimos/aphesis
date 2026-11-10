@@ -60,7 +60,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
 /* the title: its gloss above it */
 .head { margin: 0; font-weight: 400; }
-.head:focus { outline: none; }
+/* a title takes focus when its view opens: no ring for a click or a tap, the system's hairline for the keyboard */
+.head:focus:not(:focus-visible) { outline: none; }
 .head .gloss-title {
   display: block; margin-bottom: var(--space-3);
   font: var(--type-gloss-title-weight) var(--type-gloss-title-size)/var(--type-gloss-title-line) var(--font-display);
@@ -146,6 +147,15 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .way:hover, .way:focus-visible { color: var(--accent-text); }
 
 @media (max-width: 760px) {
+  /* the text scrolls between the corners: it dissolves before it reaches the seal, the eye and ear and the passage,
+     and ends above them. The mask would isolate the text from the fog, so it gives way while the eye's wave runs */
+  .view {
+    padding-top: calc(var(--space-7) + var(--space-6) + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(var(--space-8) + env(safe-area-inset-bottom, 0px));
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent calc(92px + env(safe-area-inset-top, 0px)), #000 calc(140px + env(safe-area-inset-top, 0px)), #000 calc(100% - 118px - env(safe-area-inset-bottom, 0px)), transparent calc(100% - 66px - env(safe-area-inset-bottom, 0px)));
+            mask-image: linear-gradient(to bottom, transparent 0, transparent calc(92px + env(safe-area-inset-top, 0px)), #000 calc(140px + env(safe-area-inset-top, 0px)), #000 calc(100% - 118px - env(safe-area-inset-bottom, 0px)), transparent calc(100% - 66px - env(safe-area-inset-bottom, 0px)));
+  }
+  .aph-shifting .view { -webkit-mask-image: none; mask-image: none; }
   #work { grid-template-columns: minmax(0, 1fr); justify-content: stretch; align-content: start; row-gap: var(--space-6); }
   #figure { height: clamp(200px, 32vh, 340px); }
 }

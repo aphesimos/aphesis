@@ -63,7 +63,7 @@ export function createLine(form, { secret }) {
   base.innerHTML = '<svg viewBox="0 0 240 14" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path fill="currentColor"/></svg>';
   const path = base.querySelector('path');
   /* grains: three or four cells of 2 CSS px on a 7 px square, fixed per position, so a character always lands as the
-     same grain; 7 px and a 3 px gap make an advance of 10 px, so 32 fit on the line of a 390 px phone */
+     same grain; 7 px and a 2 px gap make an advance of 9 px, so 34 fit on the line of a 360 px phone and 37 at 390 px */
   const GRAIN = [], rand = A.rng(907);
   const SPOTS = [[0, 0], [2.5, 0], [5, 0], [0, 2.5], [2.5, 2.5], [5, 2.5], [0, 5], [2.5, 5], [5, 5]];
   for (let i = 0; i < 64; i++) {
@@ -74,7 +74,7 @@ export function createLine(form, { secret }) {
 
   /* the cap: as many characters as the line holds at the current size, the caret's room kept */
   function advance() {
-    if (secret) return 10;
+    if (secret) return 9;
     const cs = getComputedStyle(mirror), g = document.createElement('canvas').getContext('2d');
     g.font = cs.fontSize + ' ' + cs.fontFamily;
     const ls = parseFloat(cs.letterSpacing) || 0;

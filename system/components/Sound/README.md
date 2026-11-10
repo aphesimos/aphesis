@@ -17,7 +17,7 @@ The sound of aphes.ist: one ambient, generative voice per screen, synthesized in
 ## Mobile Safari
 
 - The context unlocks inside `touchend`, `click` and `pointerdown`, and a silent one-sample buffer is played inside the gesture, which older iOS versions need.
-- **The silent switch silences it.** Where Safari supports `navigator.audioSession`, the session type is set to `ambient`, so the ringer switch mutes the sound and it mixes with any other audio on the phone instead of stopping it. Where Safari does not support it, Web Audio still follows the switch. This is deliberate: the sound is ambience, never a reason for a phone to make noise in a silent room.
+- **It plays despite the silent switch.** Where Safari supports `navigator.audioSession`, the session type is set to `playback`, so the ringer switch does not mute the sound, and iOS pauses other apps' audio (music, podcasts) while it plays. This is the owner's decision: the sound is part of the work. The ear is the way to silence it. Where Safari does not support `navigator.audioSession` (before iOS 17), Web Audio still follows the switch.
 - iOS suspends or interrupts the context when the tab goes to the background or a call comes in. On return, the sound tries to resume; if iOS refuses, the next touch resumes it.
 
 ## The voices

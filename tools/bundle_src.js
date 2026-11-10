@@ -790,8 +790,9 @@
     function running() { return E && E.ctx.state === 'running'; }
     function ensure() {
       if (E || !AC) return E;
-      /* polite on iPhone: an ambient session obeys the silent switch and mixes with what else is playing */
-      try { if (navigator.audioSession) navigator.audioSession.type = 'ambient'; } catch (e) {}
+      /* heard on iPhone: a playback session plays through the silent switch (the owner's decision); iOS pauses other
+         apps' audio while it plays */
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
       var ctx; try { ctx = new AC({ latencyHint: 'playback' }); } catch (e) { try { ctx = new AC(); } catch (e2) { return null; } }
       E = new SoundEngine(ctx);
       E.scene(voiceOf(want.name, want.o), 0.05, ctx.currentTime); E.name = want.name;

@@ -113,7 +113,7 @@ The site has a sound: one ambient voice per screen, made in Web Audio (`Aphesis.
 - **Living, not looping.** Slow movements run at the fog's drift rate times powers of φ, so the sound never repeats. The pointer brightens and leans it a little.
 - **Continuous.** The page never reloads, so a route change is a crossfade between voices (`scene`, `duration-voice`), never a restart. Moments of the visuals are heard as soft swells (`event`): a door, a picture coalescing or dissolving, a leaf turning, the eye's theme shift. Simulacra and the theme shift trigger theirs on their own.
 - **Kind.** Mute and unmute fade over `duration-hush`, never a cut. A hidden page fades out and sleeps. Anything that must be heard (a track in music) ducks the ambience almost to silence.
-- **Mobile.** On iPhone the silent switch silences it, by design.
+- **Mobile.** On iPhone it plays despite the silent switch (a `playback` audio session, the owner's decision), and iOS pauses other apps' audio while it plays; the ear is the way to silence it.
 
 ## Layout
 

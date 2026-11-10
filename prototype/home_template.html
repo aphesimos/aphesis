@@ -100,6 +100,10 @@ main h1:hover .ltr{transform:translateY(-3px)}
 #controls button:focus-visible{outline:1px solid var(--accent);outline-offset:2px}
 /* sections */
 main{position:fixed;inset:0;z-index:2;pointer-events:none}
+/* theme shift (design system): while the ground changes from the eye outward, black-and-white text blends by
+   difference with white ink, the negative of the cell beneath it, so it is right over old and new ground alike */
+.aph-shifting .aph-ink{mix-blend-mode:difference;color:#fff;--ink:#fff;--ink-soft:var(--shift-soft);--line:var(--shift-line);--bg:#000;--accent:var(--shift-soft);--accent-text:var(--shift-soft)}
+.aph-still body,.aph-still .aph-ink,.aph-still .aph-ink *{transition-property:opacity,filter,transform!important}
 main section{text-shadow:0 0 6px var(--bg),0 0 16px var(--bg);position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;
   padding-block:96px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
   max-width:900px;margin:0 auto;opacity:0;filter:blur(10px);transform:translateY(14px);
@@ -119,10 +123,10 @@ main p.nota{font:400 19px/1.6 var(--f-mono);color:var(--ink)}
  </filter>
 </svg>
 <canvas id="fog" aria-hidden="true"></canvas>
-<svg id="ray" aria-hidden="true"><line x1="0" y1="0" x2="0" y2="0"/></svg>
+<svg id="ray" class="aph-ink" aria-hidden="true"><line x1="0" y1="0" x2="0" y2="0"/></svg>
 <a id="seal" href="#home" aria-label="aphes.is — back to the center"><svg viewBox="-45 -90 1090 1090" aria-hidden="true"><g filter="url(#boil)"><path id="ink"/></g></svg></a>
-<nav id="inscription" aria-label="sections">__NAV__</nav>
-<main>__SECTIONS__</main>
+<nav id="inscription" class="aph-ink" aria-label="sections">__NAV__</nav>
+<main class="aph-ink">__SECTIONS__</main>
 <div id="passage"><span class="pre" aria-hidden="true">&gt;&gt;</span><span id="pText" aria-hidden="true"></span><span class="caret" aria-hidden="true"></span><span class="sr" id="pSr"></span></div>
 <div class="corner" id="controls"><button id="bTheme" type="button" aria-label="switch between light and dark" data-tip="open · close the eye"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="iSol"/><path id="iLuna"/><path id="iDots"/></svg></button></div>
 <div class="sr" aria-live="polite" id="announce"></div>
@@ -148,7 +152,7 @@ const FOG=(function(){
   const cv=$('fog'), gl=cv.getContext('webgl',{premultipliedAlpha:false,antialias:false});
   if(!gl) return {frame(){},colors(){}};
   const vs='attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}';
-  const fs=`precision highp float;uniform vec2 R;uniform float T;uniform vec3 F;uniform vec3 N;uniform vec2 P;uniform float D;uniform float C;uniform vec4 Z[12];
+  const fs=`precision highp float;uniform vec2 R;uniform float T;uniform vec3 F;uniform vec3 N;uniform vec3 F2,N2,SO;uniform float SF,X;uniform vec2 P;uniform float D;uniform float C;uniform vec4 Z[12];
   float h(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
   float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}
   float fb(vec2 p){float s=0.,a=.5;for(int i=0;i<5;i++){s+=a*n(p);p=mat2(1.6,1.2,-1.2,1.6)*p;a*=.5;}return s;}
@@ -169,18 +173,24 @@ const FOG=(function(){
       dens*=1.-.8*(1.-smoothstep(.45,1.05,length(q)));}}   // calm ground behind text
     float lim=h(cel);
     float pt=step(lim,dens);
-    gl_FragColor=vec4(mix(F,N,pt*.55),1.);
+    /* the eye's theme shift: a cell takes the new colours when the wave from the eye reaches it */
+    float s=SO.z>.5?step(.76*length(cel*2.+1.-SO.xy)/SF+.14*h(cel+vec2(17.3,5.1))+.1*n(cel/23.+5.1),X):1.;
+    gl_FragColor=vec4(mix(mix(F,F2,s),mix(N,N2,s),pt*.55),1.);
   }`;
   const sh=(t,s)=>{const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);return o;};
   const pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,vs));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,fs));gl.linkProgram(pr);gl.useProgram(pr);
   const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
   const lp=gl.getAttribLocation(pr,'p');gl.enableVertexAttribArray(lp);gl.vertexAttribPointer(lp,2,gl.FLOAT,false,0,0);
-  const U={};['R','T','F','N','P','D','C','Z'].forEach(k=>U[k]=gl.getUniformLocation(pr,k));
-  let F=[0,0,0],Nc=[1,1,1];
+  const U={};['R','T','F','N','F2','N2','SO','SF','X','P','D','C','Z'].forEach(k=>U[k]=gl.getUniformLocation(pr,k));
+  let F=[0,0,0],Nc=[1,1,1],F0=F,N0=Nc;
   function tamanho(){const w=innerWidth,hh=innerHeight;cv.width=w;cv.height=hh;gl.viewport(0,0,w,hh);}
   addEventListener('resize',tamanho);tamanho();
-  return {colors(){F=cssRGB('--bg');Nc=cssRGB('--fog');},
-    frame(t,p,d,c,z){gl.uniform4fv(U.Z,z);gl.uniform2f(U.R,cv.width,cv.height);gl.uniform1f(U.T,t);gl.uniform3fv(U.F,F);gl.uniform3fv(U.N,Nc);
+  return {colors(){F=cssRGB('--bg');Nc=cssRGB('--fog');if(!SHIFT){F0=F;N0=Nc;}},
+    hold(){F0=F;N0=Nc;},
+    frame(t,p,d,c,z){gl.uniform4fv(U.Z,z);gl.uniform2f(U.R,cv.width,cv.height);gl.uniform1f(U.T,t);
+      if(SHIFT){gl.uniform3fv(U.F,F0);gl.uniform3fv(U.N,N0);gl.uniform3f(U.SO,SHIFT.o[0],cv.height-SHIFT.o[1],1);gl.uniform1f(U.SF,SHIFT.far);gl.uniform1f(U.X,SHIFT.p);}
+      else{gl.uniform3fv(U.F,F);gl.uniform3fv(U.N,Nc);gl.uniform3f(U.SO,0,0,0);gl.uniform1f(U.SF,1);gl.uniform1f(U.X,1);}
+      gl.uniform3fv(U.F2,F);gl.uniform3fv(U.N2,Nc);
       gl.uniform2f(U.P,p[0],cv.height-p[1]);gl.uniform1f(U.D,d);gl.uniform1f(U.C,c);gl.drawArrays(gl.TRIANGLES,0,3);}};
 })();
 /* ---------- the seal: φ is drawn; entering a section, it closes into Φ and moves to the corner ---------- */
@@ -439,65 +449,49 @@ function loop(now){
 /* ---------- theme shift (the same as Aphesis.themeShift in the design system's runtime) ---------- */
 const cssColor=cssRGB;
   /* ================= THEME SHIFT ================= */
-  /* themeShift(apply, {origin, cell, fill, clear}): the change of theme as a stipple wave.
-     From the origin (the eye), square cells spread across the screen in the new theme's ground; in fog-shaped clumps
-     some of them are laid down as the new theme's fog points instead. When the wave is complete the screen already
-     looks like the new theme's fog: only then is the theme applied underneath (apply()), and the overlay melts away
-     while the real fog takes over its points. apply() must switch the theme (e.g. set data-theme). */
-  var shifting = false;
+  /* themeShift(apply, {origin, duration, done}): the theme changes in the ground only, and the page never stops.
+     apply() switches the theme at once (e.g. sets data-theme). Every stipple field (Fog, Simulacrum) then lets the
+     change seep outward from the origin (the eye) cell by cell, while its fog keeps drifting: a cell simply takes the
+     new theme's colours when the wave reaches it. Nothing is laid over the page, nothing hides, nothing pauses:
+     links, buttons and routes keep working while it runs.
+     Black-and-white text follows the ground pixel by pixel: while the wave runs, every element marked .aph-ink blends
+     by difference with white ink, which reads as the negative of whatever cell lies under it, so it is the right ink
+     over old cells and new ones alike. When the wave has covered the screen the blend is lifted; nothing visibly
+     changes. A call while a wave is running is ignored (returns false). */
+  var SHIFT = null;
   function themeShift(apply, o) {
     o = o || {};
-    if (shifting) return; shifting = true;
+    if (SHIFT) return false;
     var root = document.documentElement, before = root.getAttribute('data-theme');
-    /* read the new theme's colours without painting it: switch, read, switch back, all in one frame */
-    var dark = before ? before === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches, next = dark ? 'light' : 'dark';
-    root.setAttribute('data-theme', next); var BG = cssColor('--bg'), FG = cssColor('--fog');
-    if (before) root.setAttribute('data-theme', before); else root.removeAttribute('data-theme');
-    var cell = o.cell || 2, W = Math.ceil(innerWidth / cell), H = Math.ceil(innerHeight / cell);
-    var cv = document.createElement('canvas'); cv.width = W; cv.height = H; cv.setAttribute('aria-hidden', 'true');
-    cv.style.cssText = 'position:fixed;left:0;top:0;width:' + (W * cell) + 'px;height:' + (H * cell) + 'px;z-index:18;pointer-events:none;image-rendering:pixelated';
-    document.body.appendChild(cv);
-    var x = cv.getContext('2d'), img = x.createImageData(W, H), px = img.data;
-    var org = o.origin || [24, innerHeight - 24], ox = org[0] / cell, oy = org[1] / cell;
-    var far = Math.max(Math.hypot(ox, oy), Math.hypot(W - ox, oy), Math.hypot(ox, H - oy), Math.hypot(W - ox, H - oy));
-    /* per cell: when it turns (distance from the eye, loosened by a hash) and what it becomes (ground or a fog point) */
-    var at = new Float32Array(W * H), dot = new Uint8Array(W * H), r = rng(97);
-    var g = [], GS = 28, gw = Math.ceil(W / GS) + 2, gh = Math.ceil(H / GS) + 2;
-    for (var i = 0; i < gw * gh; i++) g.push(r());
-    function vn(cx, cy) { var X = cx / GS, Y = cy / GS, x0 = Math.floor(X), y0 = Math.floor(Y), fx = X - x0, fy = Y - y0; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
-      var a = g[y0 * gw + x0], b = g[y0 * gw + x0 + 1], c = g[(y0 + 1) * gw + x0], d = g[(y0 + 1) * gw + x0 + 1];
-      return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy; }
-    for (var yy = 0; yy < H; yy++) for (var xx = 0; xx < W; xx++) {
-      var k = yy * W + xx, h = r();
-      at[k] = 0.72 * Math.hypot(xx - ox, yy - oy) / far + 0.28 * h;
-      var m = vn(xx, yy); dot[k] = (m > 0.6 && r() < (m - 0.6) * 1.15) || r() < 0.01 ? 1 : 0;
+    var dark = before ? before === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    var softA = cssColor('--ink-soft'), lineA = cssColor('--line');
+    var org = o.origin || [24, innerHeight - 24], W = innerWidth, H = innerHeight;
+    var far = Math.max(Math.hypot(org[0], org[1]), Math.hypot(W - org[0], org[1]), Math.hypot(org[0], H - org[1]), Math.hypot(W - org[0], H - org[1]));
+    SHIFT = { o: org, far: far, p: 0 };
+    /* colour transitions would smear the switch into and out of difference: hold them off for two frames at each end */
+    function still() { root.classList.add('aph-still'); requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.remove('aph-still'); }); }); }
+    still(); FOG.hold(); apply();
+    var softB = cssColor('--ink-soft'), lineB = cssColor('--line');
+    /* a grey under difference shows as itself on a dark ground and as its negative on a light one:
+       take the grey that reads as each theme's own grey on its own ground */
+    function grey(a, b) { var dk = dark ? a : b, lt = dark ? b : a; return 'rgb(' + [0, 1, 2].map(function (i) { return Math.round((dk[i] + 1 - lt[i]) / 2 * 255); }).join(',') + ')'; }
+    root.style.setProperty('--shift-soft', grey(softA, softB)); root.style.setProperty('--shift-line', grey(lineA, lineB));
+    root.classList.add('aph-shifting');
+    var dur = o.duration || 5200, t = 0, last = null;
+    /* time advances at most 100 ms a frame, like tween(): a stalled frame pauses the wave instead of jumping it */
+    function tick(now) {
+      if (last !== null) t += Math.min(100, Math.max(0, now - last)); last = now;
+      var k = clamp(t / dur); SHIFT.p = MJ(k);
+      if (k < 1) { requestAnimationFrame(tick); return; }
+      still(); root.classList.remove('aph-shifting'); SHIFT = null; if (o.done) o.done();
     }
-    var mix = function (a, b, t) { return Math.round((a + (b - a) * t) * 255); };
-    var dotC = [mix(BG[0], FG[0], 0.55), mix(BG[1], FG[1], 0.55), mix(BG[2], FG[2], 0.55)], bgC = [BG[0] * 255, BG[1] * 255, BG[2] * 255];
-    var fill = o.fill || 1300, clear = o.clear || 900, t0 = null;
-    function frame(now) {
-      if (t0 === null) t0 = now;
-      var p = MJ((now - t0) / fill) * 1.04;
-      for (var k = 0, n = W * H; k < n; k++) {
-        var j = k * 4;
-        if (p >= at[k]) { var c = dot[k] ? dotC : bgC; px[j] = c[0]; px[j + 1] = c[1]; px[j + 2] = c[2]; px[j + 3] = 255; }
-        else px[j + 3] = 0;
-      }
-      x.putImageData(img, 0, 0);
-      if (now - t0 < fill) { requestAnimationFrame(frame); return; }
-      /* the screen is the new theme's fog: apply the theme beneath it, let the real fog paint, then melt away */
-      apply();
-      requestAnimationFrame(function () { requestAnimationFrame(function () { requestAnimationFrame(function () {
-        cv.style.transition = 'opacity ' + clear + 'ms cubic-bezier(.2,.7,.2,1)'; cv.style.opacity = '0';
-        setTimeout(function () { cv.remove(); shifting = false; }, clear + 60);
-      }); }); });
-    }
-    requestAnimationFrame(frame);
+    requestAnimationFrame(tick);
+    return true;
   }
 
 $('bTheme').onclick=()=>{const r=document.documentElement;const escuro=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
   const e=$('bTheme').getBoundingClientRect();
-  themeShift(()=>{r.dataset.theme=escuro?'light':'dark'; themeIcon(); FOG.colors(); [100,300,600,850].forEach(ms=>setTimeout(()=>FOG.colors(),ms));},
+  themeShift(()=>{r.dataset.theme=escuro?'light':'dark'; themeIcon(); FOG.colors();},
     {origin:[e.left+e.width/2,e.top+e.height/2]});};
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>FOG.colors());
 /* ---------- opening ---------- */

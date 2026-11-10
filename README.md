@@ -48,15 +48,32 @@ concatenated). Its fonts, tokens and runtime are dropped, since the page carries
   frames, observers, `matchMedia`) are the shell's sandbox.
 
 Inside the sandbox the section's runtime calls go to a scoped `Aphesis`: `Fog` hands back the shared fog (its
-`zones` and `set({density, light})` drive the one fog), `seal`, `cursor` and `tooltip` are the shell's own, and
-`Simulacrum` and `Typist` are tracked. The section's own `#fog`, `#seal` and `#controls` stay in its markup, so its
-script finds them, but never show.
+`zones` and `set({density, light})` drive the one fog), `seal`, `cursor` and `tooltip` are the shell's own,
+`Simulacrum` is tracked, and `Sound.scene` and `Sound.event` reach the shared sound only while the section is on
+screen. The section's own `#fog`, `#seal` and `#controls` stay in its markup, so its script finds them, but never show.
 
-Leaving, the section's text dissolves piece by piece (each `.aph-ink` block and each mark on its own, as the
-sections enter, so no ancestor is faded or filtered and the theme wave's blend stays intact) and its simulacra
-dissolve into the fog. After a second everything it started is stopped: timers, frames, listeners, observers, the
-runtime's own listeners, and its WebGL contexts are released. Then its markup and anything it added to the page go,
-and the next section mounts. The page never holds more than the fog and two simulacrum canvases.
+A section's script runs once, on its first visit; after that the section rests and wakes.
+
+- **Leaving**, its text dissolves piece by piece (each `.aph-ink` block and each mark on its own, as the sections
+  enter, so no ancestor is faded or filtered and the theme wave's blend stays intact) and its simulacra dissolve
+  into the fog.
+- **Resting**, a second later: its pending timers are held with the time they had left, its animation frames and
+  intervals are held, its listeners and observers are taken off, its simulacra stop and their WebGL contexts are
+  given back to the browser (`WEBGL_lose_context`). Its markup, anything it added to the page, its scroll positions,
+  its title and the classes it put on `<html>` are put aside, and its stylesheet is switched off.
+- **Waking**, everything is put back, the contexts are restored (the runtime's fields rebuild themselves; a canvas the
+  section drew on by itself is redrawn by routing the section to where it was), its pictures coalesce again and its
+  pieces condense in. Coming back by the section's own name (`#book`, `#works`) lands where it was left; an address
+  that names another sub-route (`#book/faust`) is followed.
+
+So book returns to its leaf, the archive to its post and scroll, works to its work, experimental to its chamber.
+Only the mounted section draws or listens, and the page never holds more than the fog and two simulacrum canvases.
+
+## Sound
+
+`Aphesis.Sound` (design system) starts at load with a fade as long as the φ's drawing, or on the first gesture where
+the browser waits for one. The ear beside the eye mutes it, and the choice is remembered. Every route change crossfades
+to that screen's voice (`Sound.scene`); experimental changes it per chamber and plays `door` when the door opens.
 
 ## Routes
 
@@ -89,7 +106,8 @@ each section in a comment at the top of the body.
 
 ## Adding a section
 
-Add one entry to `SECTIONS` in `site/build.py` (id, name, gloss, line). The section's branch needs a `build.py` that
+Add one entry to `SECTIONS` in `site/build.py` (id, name, gloss, line); the shell's routes, sandbox, rest and wake
+need nothing more. The section's branch needs a `build.py` that
 writes `--fragment OUT` with the same layout as the others: one `<style>` ending with `src/<name>.css`, the markup,
 the runtime script and the section script. Its routes are `#<name>` and `#<name>/...`. Route changes also call
 `Aphesis.Sound.scene(name)` (or `'home'`) where the runtime has a sound engine.

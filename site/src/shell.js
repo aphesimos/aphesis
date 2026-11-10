@@ -9,13 +9,14 @@
    A bare archive slug (#how-the-fog-is-made, the archive's own links before the merge) is redirected to
    #archive/<slug>. Any other hash is the home.
 
-   Mount and unmount. A section's script runs inside a sandbox: its window, document, location, history, timers,
-   animation frames, observers and listeners are the shell's stand-ins, so the shell knows everything it started.
-   Its runtime calls go to a scoped Aphesis: Fog hands back the shared fog (zones, set), seal, cursor and tooltip are
-   the shell's own, Simulacrum and Typist are tracked. Leaving, the section's text dissolves piece by piece (each
-   .aph-ink block and each mark on its own, as the sections enter, so no ancestor is ever faded or filtered) and its
-   simulacra dissolve into the fog; then everything it started is stopped, its WebGL contexts are released and its
-   markup removed. The next section mounts once the last one is gone, so only one section's stylesheet is ever live. */
+   Mount, rest and wake. A section's script runs once, inside a sandbox: its window, document, location, history,
+   timers, animation frames, observers and listeners are the shell's stand-ins, so the shell knows everything it
+   started. Its runtime calls go to a scoped Aphesis: Fog hands back the shared fog (zones, set), seal, cursor and
+   tooltip are the shell's own, Simulacrum and Sound are guarded. Leaving, the section's text dissolves piece by
+   piece (each .aph-ink block and each mark on its own, as the sections enter, so no ancestor is ever faded or
+   filtered) and its simulacra dissolve into the fog; then it rests: its timers and frames are held, its listeners
+   and observers taken off, its WebGL contexts given back and its markup set aside. Coming back wakes it where it was
+   left. The next section enters once the last one rests, so only one section's stylesheet is ever live. */
 
 /*__ENGINE__*/
 const reduz = false;   /* the site always animates, whatever the system setting (owner's decision) */
@@ -28,12 +29,12 @@ const ROOT = document.documentElement;
 const W = window, D = document;
 
 /* ---------- WebGL contexts: who made each one, so a section's are released with it ---------- */
-let OWNER = null;
+let OWNER = null, RUNTIME = false;   /* RUNTIME: a context the runtime makes, which rebuilds itself when it is given back */
 const GL = [];
 const getContext0 = HTMLCanvasElement.prototype.getContext;
 HTMLCanvasElement.prototype.getContext = function (type, o) {
   const c = getContext0.call(this, type, o);
-  if (c && /webgl/.test(type) && !c.__aph) { c.__aph = 1; GL.push({ c, owner: OWNER, canvas: this }); }
+  if (c && /webgl/.test(type) && !c.__aph) { c.__aph = 1; GL.push({ c, owner: OWNER, canvas: this, runtime: RUNTIME }); }
   return c;
 };
 const glAlive = () => GL.filter((g) => !g.c.isContextLost()).length;
@@ -201,6 +202,8 @@ $('aph-eye').addEventListener('click', () => {
 
 A.cursor();
 A.tooltip();
+/* the ear, beside the eye: it silences the sound and opens it again */
+if (A.Sound) A.Sound.ear($('aph-ear')); else $('aph-ear').remove();
 
 /* ================= routes ================= */
 const NAMES = SECTIONS.map((s) => s.id);
@@ -225,11 +228,16 @@ const IDENT = { toLocal: (g) => norm(g) === '#' ? '' : norm(g), toGlobal: (l) =>
 const xl = (name) => XLATE[name] || IDENT;
 
 /* ================= the sandbox ================= */
+/* A section's script runs once, on its first visit. Leaving, it goes dormant: its markup and anything it added to
+   the page are detached, its timers and animation frames are held (with the time they had left), its listeners
+   and observers are taken off, its simulacra stop and their WebGL contexts are given back to the browser. Coming
+   back, all of it is put back as it was, so the section is where it was left: the same leaf, post, scroll. */
 const KEEP_CLASSES = ['aph-shifting', 'aph-still', 'aph-has-cursor', 'is-dark'];
 function makeSandbox(name) {
   const X = xl(name);
-  const ctx = { name, active: true, dead: false, timers: new Set(), intervals: new Set(), rafs: new Set(), listeners: [],
-    observers: [], disposers: [], typists: [], cancels: [], sims: [], winProps: new Set(), zones: [], added: [] };
+  const ctx = { name, active: true, dormant: false, timers: new Map(), intervals: new Map(), rafs: new Map(), listeners: [],
+    observers: [], sims: [], zones: [], added: [] };
+  let seq = 0;
   const wrapped = new WeakMap();
   function wrap(fn) {
     let w = wrapped.get(fn);
@@ -243,17 +251,35 @@ function makeSandbox(name) {
     }
     return w;
   }
-  const addL = (t) => function (type, fn, o) { if (!fn || ctx.dead) return; const w = wrap(fn); t.addEventListener(type, w, o); ctx.listeners.push([t, type, w, o]); };
-  const remL = (t) => function (type, fn, o) { const w = fn && wrapped.get(fn); if (w) t.removeEventListener(type, w, o); };
-  const sT = (fn, ms, ...a) => { if (ctx.dead) return 0; const id = setTimeout(() => { ctx.timers.delete(id); if (!ctx.dead && typeof fn === 'function') fn(...a); }, ms); ctx.timers.add(id); return id; };
-  const cT = (id) => { clearTimeout(id); ctx.timers.delete(id); };
-  const sI = (fn, ms, ...a) => { if (ctx.dead) return 0; const id = setInterval(() => { if (!ctx.dead) fn(...a); }, ms); ctx.intervals.add(id); return id; };
-  const cI = (id) => { clearInterval(id); ctx.intervals.delete(id); };
-  const rA = (fn) => { if (ctx.dead) return 0; const id = requestAnimationFrame((t) => { ctx.rafs.delete(id); if (!ctx.dead) fn(t); }); ctx.rafs.add(id); return id; };
-  const cA = (id) => { cancelAnimationFrame(id); ctx.rafs.delete(id); };
+  const same = (a, b) => !!(a && typeof a === 'object' ? a.capture : a) === !!(b && typeof b === 'object' ? b.capture : b);
+  const addL = (t) => function (type, fn, o) {
+    if (!fn) return; const w = wrap(fn);
+    if (ctx.listeners.some((l) => l[0] === t && l[1] === type && l[2] === w && same(l[3], o))) return;
+    ctx.listeners.push([t, type, w, o]); if (!ctx.dormant) t.addEventListener(type, w, o);
+  };
+  const remL = (t) => function (type, fn, o) {
+    const w = fn && wrapped.get(fn); if (!w) return;
+    t.removeEventListener(type, w, o);
+    ctx.listeners = ctx.listeners.filter((l) => !(l[0] === t && l[1] === type && l[2] === w && same(l[3], o)));
+  };
+  /* timers keep their own ids, so a dormant section's pending timers can be held and set again later */
+  function arm(e, ms) { e.due = performance.now() + ms; e.real = setTimeout(() => { ctx.timers.delete(e.id); if (typeof e.fn === 'function') e.fn(...e.a); }, ms); }
+  const sT = (fn, ms, ...a) => { const e = { id: ++seq, fn, a, real: 0, due: 0, left: Math.max(0, +ms || 0) }; ctx.timers.set(e.id, e); if (!ctx.dormant) arm(e, e.left); return e.id; };
+  const cT = (id) => { const e = ctx.timers.get(id); if (e) { clearTimeout(e.real); ctx.timers.delete(id); } };
+  const sI = (fn, ms, ...a) => { const e = { id: ++seq, fn, a, ms, real: 0 }; ctx.intervals.set(e.id, e); if (!ctx.dormant) e.real = setInterval(() => fn(...a), ms); return e.id; };
+  const cI = (id) => { const e = ctx.intervals.get(id); if (e) { clearInterval(e.real); ctx.intervals.delete(id); } };
+  function frame(e) { e.real = requestAnimationFrame((t) => { ctx.rafs.delete(e.id); e.fn(t); }); }
+  const rA = (fn) => { const e = { id: ++seq, fn, real: 0 }; ctx.rafs.set(e.id, e); if (!ctx.dormant) frame(e); return e.id; };
+  const cA = (id) => { const e = ctx.rafs.get(id); if (e) { cancelAnimationFrame(e.real); ctx.rafs.delete(id); } };
   const mM = (q) => { const m = W.matchMedia(q); return { get matches() { return m.matches; }, media: m.media,
     addEventListener: addL(m), removeEventListener: remL(m), addListener: (f) => addL(m)('change', f), removeListener: (f) => remL(m)('change', f) }; };
-  const obs = (C) => C && class extends C { constructor(cb, ...r) { super((...a) => { if (!ctx.dead) cb(...a); }, ...r); ctx.observers.push(this); } };
+  /* observers remember what they watch, so they can be disconnected while dormant and watch it again on return */
+  const obs = (C) => C && class extends C {
+    constructor(cb, ...r) { super((...a) => { if (!ctx.dormant) cb(...a); }, ...r); this.__base = C; this.__w = []; ctx.observers.push(this); }
+    observe(t, o) { this.__w.push([t, o]); if (!ctx.dormant) super.observe(t, o); }
+    unobserve(t) { this.__w = this.__w.filter((x) => x[0] !== t); super.unobserve(t); }
+    disconnect() { this.__w = []; super.disconnect(); }
+  };
   const RO = obs(W.ResizeObserver), MO = obs(W.MutationObserver), IO = obs(W.IntersectionObserver);
   const fix = (u) => (typeof u === 'string' && u.startsWith('#')) ? X.toGlobal(u) : u;
   const L = W.location, H = W.history;
@@ -271,19 +297,6 @@ function makeSandbox(name) {
     get state() { return H.state; }, get length() { return H.length; },
     get scrollRestoration() { return H.scrollRestoration; }, set scrollRestoration(v) { H.scrollRestoration = v; },
   };
-  /* the runtime adds window and theme listeners of its own when a field is made: record them, to remove them with the section */
-  function capture(make) {
-    const oA = Object.getOwnPropertyDescriptor(W, 'addEventListener'), oM = W.matchMedia, oMO = W.MutationObserver;
-    W.addEventListener = function (t, f, o) { EventTarget.prototype.addEventListener.call(W, t, f, o); ctx.disposers.push(() => EventTarget.prototype.removeEventListener.call(W, t, f, o)); };
-    W.matchMedia = function (q) { const m = oM.call(W, q); return { get matches() { return m.matches; }, media: m.media,
-      addEventListener(t, f, o) { m.addEventListener(t, f, o); ctx.disposers.push(() => m.removeEventListener(t, f, o)); },
-      removeEventListener(t, f, o) { m.removeEventListener(t, f, o); } }; };
-    W.MutationObserver = class extends oMO { constructor(cb) { super(cb); const me = this; ctx.disposers.push(() => me.disconnect()); } };
-    try { return make(); } finally {
-      if (oA) Object.defineProperty(W, 'addEventListener', oA); else delete W.addEventListener;
-      W.matchMedia = oM; W.MutationObserver = oMO;
-    }
-  }
   /* the scoped runtime */
   const SA = Object.create(A);
   SA.Fog = function (canvas, o) {
@@ -291,17 +304,30 @@ function makeSandbox(name) {
     set(o || {});
     return {
       zones(list) { if (ctx.active) ctx.zones = (list || []).map((z) => (z instanceof Element ? { el: z } : z)).filter(Boolean); },
-      set, stop() {}, start() {},
+      set, stop() {}, start() {}, destroy() {},
     };
   };
   SA.seal = () => ({ stop() {} });
+  /* the sound: a section may change its own voice (experimental, per chamber) and mark moments, only while it is on
+     screen; its last voice is kept, so coming back to it sounds where it was left */
+  if (A.Sound) {
+    SA.Sound = Object.create(A.Sound);
+    SA.Sound.scene = (n, o) => { if (!ctx.active) return; ctx.scene = [n, o]; return A.Sound.scene(n, o); };
+    SA.Sound.event = (k) => { if (ctx.active) return A.Sound.event(k); };
+  }
   SA.cursor = () => {};
   SA.tooltip = () => {};
+  /* a simulacrum, with what it was doing: running or rested, gathered or dissolved */
   SA.Simulacrum = Object.assign(function (canvas, o) {
-    const s = capture(() => A.Simulacrum(canvas, o)); ctx.sims.push(s); return s;
+    RUNTIME = true; let s; try { s = A.Simulacrum(canvas, o); } finally { RUNTIME = false; }
+    const st = { s, running: true, want: !!(o && o.source) };
+    ctx.sims.push(st);
+    return {
+      show(src, d) { st.want = true; s.show(src, d); }, hide(d) { st.want = false; s.hide(d); }, set(src, d) { st.want = true; s.set(src, d); },
+      stop() { st.running = false; s.stop(); }, start() { st.running = true; s.start(); }, drawn: (cb) => s.drawn(cb),
+      destroy() { st.running = false; st.want = false; s.destroy(); },
+    };
   }, { fromBrush: A.Simulacrum.fromBrush });
-  SA.Typist = function (el, caret) { const t = new A.Typist(el, caret); ctx.typists.push(t); return t; };
-  SA.tween = (dur, fn, done) => { const c = A.tween(dur, (k) => { if (!ctx.dead) fn(k); }, done && (() => { if (!ctx.dead) done(); })); ctx.cancels.push(c); return c; };
   /* window and document as the section sees them */
   const bound = new Map();
   const bindTo = (t, k, v) => { let b = bound.get(k); if (!b || b.v !== v) { b = { v, f: v.bind(t) }; bound.set(k, b); } return b.f; };
@@ -327,39 +353,42 @@ function makeSandbox(name) {
       const v = Reflect.get(t, k);
       return (typeof v === 'function' && typeof k === 'string' && !/^[A-Z]/.test(k)) ? bindTo(t, 'w:' + k, v) : v;
     },
-    set(t, k, v) { if (!(k in t)) ctx.winProps.add(k); t[k] = v; return true; },
+    set(t, k, v) { t[k] = v; return true; },
   });
   ctx.args = [winP, winP, winP, docP, loc, hist, winL, winR, rA, cA, sT, cT, sI, cI, mM, RO, MO, IO];
+  /* hold everything the section started, and put it back */
+  ctx.hold = function () {
+    ctx.dormant = true;
+    const now = performance.now();
+    ctx.timers.forEach((e) => { clearTimeout(e.real); e.left = Math.max(0, e.due - now); });
+    ctx.intervals.forEach((e) => clearInterval(e.real));
+    ctx.rafs.forEach((e) => cancelAnimationFrame(e.real));
+    ctx.listeners.forEach(([t, type, w, o]) => t.removeEventListener(type, w, o));
+    ctx.observers.forEach((o) => o.__base.prototype.disconnect.call(o));
+  };
+  ctx.release = function () {
+    ctx.dormant = false;
+    ctx.listeners.forEach(([t, type, w, o]) => t.addEventListener(type, w, o));
+    ctx.observers.forEach((o) => o.__w.forEach(([t, opt]) => o.__base.prototype.observe.call(o, t, opt)));
+    ctx.timers.forEach((e) => arm(e, e.left));
+    ctx.intervals.forEach((e) => { e.real = setInterval(() => e.fn(...e.a), e.ms); });
+    ctx.rafs.forEach(frame);
+  };
   return ctx;
 }
 
-/* ================= mount, leave, unmount ================= */
+/* ================= mount, leave, return ================= */
 const host = $('aph-host');
+const DORMANT = {};          /* name -> a section that has been visited and is resting */
 let cur = null, leaving = null, pendingMount = null, mountTimer = 0;
 const styleOf = (n) => document.querySelector('style[data-sec="' + n + '"]');
 const tplOf = (n) => document.querySelector('template[data-sec="' + n + '"]');
 /* nodes added to <html> or <body> while a section is mounted are its own (a note box, a measuring probe) */
 const strays = new MutationObserver((list) => { const c = cur || leaving; if (!c) return;
-  list.forEach((m) => m.addedNodes.forEach((n) => { if (n.nodeType === 1 && n !== host && !n.id?.startsWith('aph-') && !n.classList.contains('aph-tip') && !n.classList.contains('aph-cursor')) c.added.push(n); })); });
+  list.forEach((m) => m.addedNodes.forEach((n) => { if (n.nodeType === 1 && n !== host && !n.id?.startsWith('aph-') && !n.classList.contains('aph-tip') && !n.classList.contains('aph-cursor')) c.added.push([n, m.target]); })); });
 strays.observe(document.body, { childList: true }); strays.observe(ROOT, { childList: true });
 
-function mount(name) {
-  const def = APH_SECTIONS[name]; if (!def) return;
-  const ctx = makeSandbox(name);
-  ctx.rootClasses = new Set(ROOT.classList);
-  ctx.rootData = Object.keys(ROOT.dataset);
-  cur = ctx;
-  ROOT.dataset.sec = name;
-  styleOf(name).media = 'all';
-  host.removeAttribute('inert');
-  host.dataset.sec = name;
-  host.appendChild(tplOf(name).content.cloneNode(true));
-  /* the section's links to its own routes point at the global hash */
-  const X = xl(name);
-  host.querySelectorAll('a[href^="#"]').forEach((a) => { const h = a.getAttribute('href'); if (h.length > 1) a.setAttribute('href', X.toGlobal(h)); });
-  OWNER = ctx;
-  try { def.run.apply(undefined, ctx.args); } catch (err) { console.error(err); }
-  /* keyboard: if the section did not take the focus, its heading does */
+function focusIn(ctx) {
   const fromRing = $('aph-ring').contains(document.activeElement);
   setTimeout(() => {
     if (cur !== ctx || !fromRing) return;
@@ -371,8 +400,31 @@ function mount(name) {
     if (h) h.focus({ preventScroll: true });
   }, 1400);
 }
+function show(name) {
+  ROOT.dataset.sec = name;
+  styleOf(name).media = 'all';
+  host.removeAttribute('inert');
+  host.dataset.sec = name;
+}
+function enter(name) {
+  if (DORMANT[name]) { wake(DORMANT[name]); return; }
+  const def = APH_SECTIONS[name]; if (!def) return;
+  const ctx = makeSandbox(name);
+  ctx.rootClasses = new Set(ROOT.classList);
+  ctx.rootData = Object.keys(ROOT.dataset);
+  cur = ctx; DORMANT[name] = ctx;
+  show(name);
+  host.appendChild(tplOf(name).content.cloneNode(true));
+  /* the section's links to its own routes point at the global hash */
+  const X = xl(name);
+  host.querySelectorAll('a[href^="#"]').forEach((a) => { const h = a.getAttribute('href'); if (h.length > 1) a.setAttribute('href', X.toGlobal(h)); });
+  OWNER = ctx;
+  try { APH_SECTIONS[name].run.apply(undefined, ctx.args); } catch (err) { console.error(err); }
+  focusIn(ctx);
+}
 
 /* the pieces that dissolve on their own: each .aph-ink block, and each subtree with no .aph-ink inside */
+const EASE = 'cubic-bezier(.2,.7,.2,1)', PROPS = ['transition', 'opacity', 'filter', 'translate'];
 function pieces(el, out) {
   for (const c of el.children) {
     if (c.matches('.aph-ink') || !c.querySelector('.aph-ink')) out.push(c); else pieces(c, out);
@@ -382,48 +434,77 @@ function pieces(el, out) {
 function leave() {
   const ctx = cur; if (!ctx) return;
   cur = null; leaving = ctx; ctx.active = false;
+  ctx.leftAt = sectionOf(prevHash) === ctx.name ? prevHash : '#' + ctx.name;
   host.setAttribute('inert', '');
-  ctx.sims.forEach((s) => { try { s.hide(); } catch (_) { /* already gone */ } });
-  const list = pieces(host, []);
-  list.forEach((el) => {
-    if (!el.style) return;
-    el.style.setProperty('transition', 'opacity .72s cubic-bezier(.2,.7,.2,1), filter .72s cubic-bezier(.2,.7,.2,1), translate .72s cubic-bezier(.2,.7,.2,1)', 'important');
-  });
-  requestAnimationFrame(() => list.forEach((el) => {
-    if (!el.style) return;
+  ctx.sims.forEach((st) => { st.wasShown = st.want; st.wasRunning = st.running; try { st.s.hide(); } catch (_) { /* gone */ } });
+  ctx.pieces = pieces(host, []).map((el) => ({ el, was: PROPS.map((p) => [el.style.getPropertyValue(p), el.style.getPropertyPriority(p)]) }));
+  const dur = '.72s ' + EASE;
+  ctx.pieces.forEach(({ el }) => el.style.setProperty('transition', `opacity ${dur}, filter ${dur}, translate ${dur}`, 'important'));
+  requestAnimationFrame(() => ctx.pieces.forEach(({ el }) => {
     el.style.setProperty('opacity', '0', 'important');
     if (el.tagName !== 'CANVAS') { el.style.setProperty('filter', 'blur(10px)', 'important'); el.style.setProperty('translate', '0 14px', 'important'); }
   }));
-  setTimeout(() => { destroy(ctx); if (leaving === ctx) leaving = null; tryMount(); }, 1000);
+  setTimeout(() => { rest(ctx); if (leaving === ctx) leaving = null; tryMount(); }, 1000);
 }
-function destroy(ctx) {
-  if (ctx.dead) return;
-  ctx.dead = true; ctx.active = false;
-  ctx.timers.forEach(clearTimeout); ctx.intervals.forEach(clearInterval); ctx.rafs.forEach(cancelAnimationFrame);
-  ctx.listeners.forEach(([t, type, w, o]) => t.removeEventListener(type, w, o));
-  ctx.observers.forEach((o) => { try { o.disconnect(); } catch (_) { /* fine */ } });
-  ctx.disposers.forEach((f) => { try { f(); } catch (_) { /* fine */ } });
-  ctx.typists.forEach((t) => t.stop());
-  ctx.cancels.forEach((c) => { try { c(); } catch (_) { /* fine */ } });
-  ctx.sims.forEach((s) => { try { s.stop(); } catch (_) { /* fine */ } });
-  GL.forEach((g) => { if (g.owner === ctx && !g.c.isContextLost()) { const x = g.c.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); } });
-  for (let i = GL.length - 1; i >= 0; i--) if (GL[i].owner === ctx) GL.splice(i, 1);
-  ctx.added.forEach((n) => n.remove());
-  ctx.winProps.forEach((k) => { try { delete W[k]; } catch (_) { /* fine */ } });
-  [...ROOT.classList].forEach((c) => { if (!ctx.rootClasses.has(c) && !KEEP_CLASSES.includes(c)) ROOT.classList.remove(c); });
-  Object.keys(ROOT.dataset).forEach((k) => { if (!ctx.rootData.includes(k) && k !== 'theme' && k !== 'sec') delete ROOT.dataset[k]; });
-  host.textContent = ''; delete host.dataset.sec;
+/* dormant: nothing of the section runs, draws or shows; it keeps its state */
+function rest(ctx) {
+  if (ctx.dormant) return;
+  ctx.hold();
+  ctx.sims.forEach((st) => st.s.stop());
+  GL.forEach((g) => { if (g.owner === ctx && !g.c.isContextLost()) { g.ext = g.c.getExtension('WEBGL_lose_context'); if (g.ext) { g.ext.loseContext(); g.held = true; } } });
+  /* scroll positions are lost when the markup leaves the page: keep them */
+  ctx.scrolls = [...host.querySelectorAll('*')].filter((el) => el.scrollTop || el.scrollLeft).map((el) => [el, el.scrollTop, el.scrollLeft]);
+  ctx.pageScroll = [scrollX, scrollY];
+  ctx.title = document.title;
+  ctx.frag = document.createDocumentFragment();
+  while (host.firstChild) ctx.frag.appendChild(host.firstChild);
+  ctx.added.forEach(([n]) => n.remove());
+  ctx.rootSaved = { classes: [...ROOT.classList].filter((c) => !ctx.rootClasses.has(c) && !KEEP_CLASSES.includes(c)), data: {} };
+  ctx.rootSaved.classes.forEach((c) => ROOT.classList.remove(c));
+  Object.keys(ROOT.dataset).forEach((k) => { if (!ctx.rootData.includes(k) && k !== 'theme' && k !== 'sec') { ctx.rootSaved.data[k] = ROOT.dataset[k]; delete ROOT.dataset[k]; } });
+  delete host.dataset.sec;
   styleOf(ctx.name).media = 'not all';
   if (!cur) delete ROOT.dataset.sec;
-  ctx.zones = [];
   if (OWNER === ctx) OWNER = null;
   scrollTo(0, 0);
+}
+/* back from rest: everything put back as it was, then the pieces condense in */
+function wake(ctx) {
+  cur = ctx; OWNER = ctx;
+  show(ctx.name);
+  ctx.rootSaved.classes.forEach((c) => ROOT.classList.add(c));
+  Object.entries(ctx.rootSaved.data).forEach(([k, v]) => { ROOT.dataset[k] = v; });
+  host.appendChild(ctx.frag); ctx.frag = null;
+  ctx.added.forEach(([n, p]) => p.appendChild(n));
+  ctx.scrolls.forEach(([el, t, l]) => { el.scrollTop = t; el.scrollLeft = l; });
+  scrollTo(ctx.pageScroll[0], ctx.pageScroll[1]);
+  if (ctx.title) document.title = ctx.title;
+  ctx.release();
+  ctx.active = true;
+  /* WebGL: the runtime's fields rebuild themselves when their context comes back; a context the section drew on
+     by itself does not, so that section is routed to where it was again and redraws */
+  let redraw = false;
+  GL.forEach((g) => { if (g.owner === ctx && g.held) { g.held = false; if (g.c.canvas && g.c.canvas.isConnected) { g.ext.restoreContext(); if (!g.runtime) redraw = true; } } });
+  ctx.sims.forEach((st) => { if (st.wasRunning || st.wasShown) st.s.start(); if (st.wasShown) st.s.show(); });
+  requestAnimationFrame(() => {
+    ctx.pieces.forEach(({ el, was }) => PROPS.slice(1).forEach((p, i) => { const [v, pr] = was[i + 1]; if (v) el.style.setProperty(p, v, pr); else el.style.removeProperty(p); }));
+    setTimeout(() => { if (cur !== ctx) return; ctx.pieces.forEach(({ el, was }) => { const [v, pr] = was[0]; if (v) el.style.setProperty('transition', v, pr); else el.style.removeProperty('transition'); }); }, 900);
+  });
+  /* a different sub-route in the address than the one left: the section follows it */
+  /* coming back by the section's own name lands where it was left; a sub-route in the address is followed */
+  if (location.hash === '#' + ctx.name && ctx.leftAt !== location.hash) { try { history.replaceState(null, '', ctx.leftAt); } catch (_) { /* fine */ } }
+  const here = location.hash;
+  if (redraw) { const back = here; try { history.replaceState(null, '', '#' + ctx.name); } catch (_) { /* fine */ } dispatchEvent(new HashChangeEvent('hashchange'));
+    try { history.replaceState(null, '', back); } catch (_) { /* fine */ } dispatchEvent(new HashChangeEvent('hashchange')); }
+  else if (here !== ctx.leftAt) dispatchEvent(new HashChangeEvent('hashchange'));
+  dispatchEvent(new Event('resize'));
+  focusIn(ctx);
 }
 function requestMount(name, delay) { pendingMount = name; clearTimeout(mountTimer); mountTimer = setTimeout(tryMount, delay); }
 function tryMount() {
   if (leaving || !pendingMount) return;
   const n = pendingMount; pendingMount = null;
-  if (route === n && !cur) mount(n);
+  if (route === n && !cur) enter(n);
 }
 
 /* ---------- calm zones behind text: the shell's marks and the mounted section's blocks, twelve at most ---------- */
@@ -450,7 +531,7 @@ function goTo(next, first) {
   const prev = route; route = next;
   const ring = $('aph-ring');
   /* the ambient sound crossfades per screen, where the runtime has it */
-  try { if (A.Sound && A.Sound.scene) A.Sound.scene(next || 'home'); } catch (err) { console.error(err); }
+  try { if (A.Sound) { const d = next && DORMANT[next]; if (d && d.scene) A.Sound.scene(d.scene[0], d.scene[1]); else A.Sound.scene(next || 'home'); } } catch (err) { console.error(err); }
   $('aph-seal').classList.toggle('in-corner', next !== '');
   if (cur) leave();
   if (next === '') {
@@ -480,9 +561,10 @@ function readRoute() {
   if (s === 'archive' && ARCHIVE_SLUGS.includes(h)) { try { history.replaceState(null, '', '#archive/' + h); } catch (_) { /* a sandbox may refuse */ } }
   return s;
 }
-addEventListener('hashchange', () => goTo(readRoute()));
+let prevHash = location.hash;   /* the address just before a route change: where a leaving section was */
+addEventListener('hashchange', (e) => { try { prevHash = new URL(e.oldURL).hash; } catch (_) { prevHash = ''; } goTo(readRoute()); });
 /* the seal always leads home, without relying on the hash */
-$('aph-seal').addEventListener('click', (e) => { e.preventDefault(); if (route === '') return; try { history.pushState(null, '', '#home'); } catch (_) { /* fine */ } goTo(''); });
+$('aph-seal').addEventListener('click', (e) => { e.preventDefault(); if (route === '') return; prevHash = location.hash; try { history.pushState(null, '', '#home'); } catch (_) { /* fine */ } goTo(''); });
 /* a section link written as a local hash (made after the mount) is sent to the section's global hash */
 document.addEventListener('click', (e) => {
   if (e.defaultPrevented || !cur || e.button) return;
@@ -522,6 +604,8 @@ Object.defineProperty(window, 'aphesis', { value: Object.freeze({ get route() { 
 /* ---------- opening ---------- */
 addEventListener('resize', () => { if (route === '') placeSeal(centerBox()); else placeSeal(cornerBox()); });
 const initial = readRoute();
+/* the sound creeps in under the φ as it is drawn (or starts on the first gesture, where the browser waits for one) */
+try { if (A.Sound) A.Sound.start({ fade: Math.round(relPhi.seg / VEL * 1000) + 700, scene: initial || 'home' }); } catch (err) { console.error(err); }
 if (initial) { placeSeal(cornerBox()); u = 1; paint(estadoT(1)); target.d = 0.62; target.l = 0.4; goTo(initial, true); newPassage(); }
 else {
   route = ''; placeSeal(centerBox());

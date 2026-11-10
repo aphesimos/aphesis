@@ -17,9 +17,8 @@ like a file explorer and listen with the player built in. The gloss is *phonothe
 - **The cover.** Album covers carry information, so they use the design system's legible preset
   (`{legible: true}`): recognisable at a glance, still stipple that coalesces out of the fog. A track with no cover
   shows a record drawn with the brush, which turns while the track plays (redrawn at the boil's 8 frames a second,
-  so it trembles as the seal does) and eases to a stop on pause. With nothing loaded, the design system's eye
-  (`Aphesis.Eye`) sits in the cover's place, following the pointer and glancing at the row the keyboard is on; it
-  is destroyed when a track loads and made again when the deck goes idle.
+  so it trembles as the seal does) and eases to a stop on pause. With nothing loaded, the same ring stands
+  still in the cover's place.
 - **Shuffle, random, loop.** *Shuffle* plays the current queue (a folder, an album, search results) in another
   order. *Random* is a radio over the whole archive: a random track each time, never one of the last 50 (about
   half the library when it is small); previous goes back through what played. *Loop* cycles off → archive (the

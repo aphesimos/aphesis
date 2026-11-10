@@ -232,7 +232,7 @@ export function mountView(root, lib, core, opts = {}) {
     const rows = vl.rows();
     if (rows.has(prev)) renderRow(prev, rows.get(prev));
     if (reveal) vl.reveal(i);
-    const el = vl.rows().get(i); if (el) { renderRow(i, el); glance(el); }
+    const el = vl.rows().get(i); if (el) renderRow(i, el);
     list.setAttribute('aria-activedescendant', 'mrow-' + i);
   }
   function activate(i) {
@@ -380,8 +380,7 @@ export function mountView(root, lib, core, opts = {}) {
   const simOpts = { ground: false, fit: 'contain', margin: 0.06, scatter: 0.6, erosion: 0.5, ceiling: 0.8, accent: 0.015, gain: 1 };
   const sim = A.Simulacrum(canvas, simOpts);
   let shownCover = undefined, simStarted = false, simShown = false;
-  const coverBox = $('.m-cover'), idleSlot = $('.m-idle');
-  const maps = new Map();
+    const maps = new Map();
   function mapCanvas(cid) {
     if (!maps.has(cid)) {
       maps.set(cid, new Promise((resolve) => {
@@ -403,17 +402,18 @@ export function mountView(root, lib, core, opts = {}) {
   const REC = 384, recCv = document.createElement('canvas');
   recCv.width = recCv.height = REC;
   const recX = recCv.getContext('2d');
-  const recRing = new Path2D(A.brush(A.arc(12, 12, 8.4, -80, 272, 64), 2.6, 361) + A.brush(A.arc(12, 12, 1.4, 0, 360, 16), 1.6, 363, 0, 0) +
-    A.brush(A.line(12, 5.4, 12, 6.9, 6), 1.1, 367, 0.3));
+  const RING = A.brush(A.arc(12, 12, 8.4, -80, 272, 64), 2.6, 361) + A.brush(A.arc(12, 12, 1.4, 0, 360, 16), 1.6, 363, 0, 0);
+  const recStill = new Path2D(RING), recRing = new Path2D(RING + A.brush(A.line(12, 5.4, 12, 6.9, 6), 1.1, 367, 0.3));
   const recDots = new Path2D(A.stipple((px, py) => { const r = Math.hypot(px - 12, py - 12); return r > 3.2 && r < 6.8; }, 365, 2400, 0.5));
   let recAngle = 0, recSpeed = 0, recSince = 0, recLast = 0;
-  function drawRecord() {
-    const j = (Math.random() - 0.5) * 0.03, sc = 1 + (Math.random() - 0.5) * 0.012;
+  /* still: the ring as it stands when nothing is loaded, unturned and without the tremble */
+  function drawRecord(still) {
+    const j = still ? 0 : (Math.random() - 0.5) * 0.03, sc = still ? 1 : 1 + (Math.random() - 0.5) * 0.012;
     recX.setTransform(1, 0, 0, 1, 0, 0);
     recX.fillStyle = '#000'; recX.fillRect(0, 0, REC, REC);
-    recX.translate(REC / 2, REC / 2); recX.rotate(recAngle + j); recX.scale(sc, sc); recX.translate(-REC / 2, -REC / 2);
+    recX.translate(REC / 2, REC / 2); recX.rotate(still ? 0 : recAngle + j); recX.scale(sc, sc); recX.translate(-REC / 2, -REC / 2);
     recX.scale(REC / 24, REC / 24);
-    recX.fillStyle = '#fff'; recX.fill(recRing);
+    recX.fillStyle = '#fff'; recX.fill(still ? recStill : recRing);
     recX.globalAlpha = 0.45; recX.fill(recDots); recX.globalAlpha = 1;
     return recCv;
   }
@@ -429,29 +429,11 @@ export function mountView(root, lib, core, opts = {}) {
     simOpts.sound = false; sim.show(recCv); simOpts.sound = true;
   }, 125);
 
-  /* nothing loaded: the design system's eye in the cover's place, as wide as the cover, following the pointer and
-     glancing at the row the keyboard is on. It is made when the deck goes idle and destroyed when a track loads; a
-     runtime without Aphesis.Eye shows the still ring instead */
-  let eye = null;
-  function idle(on) {
-    const has = typeof A.Eye === 'function';
-    coverBox.classList.toggle('idle-eye', on && has);
-    if (on && has && !eye) {
-      idleSlot.innerHTML = '<div class="m-eye"></div>';
-      try { eye = A.Eye(idleSlot.firstChild, { gaze: 'pointer', blink: true }); } catch (err) { console.error(err); eye = null; }
-    }
-    if (!on && eye) { try { eye.destroy(); } catch (_) { /* fine */ } eye = null; idleSlot.textContent = ''; }
-    return has;
-  }
-  /* the eye glances at the row the keyboard is on, where it can */
-  function glance(el) { if (eye && typeof eye.look === 'function' && el) { const r = el.getBoundingClientRect(); try { eye.look(r.left + r.width / 2, r.top + r.height / 2); } catch (_) { /* fine */ } } }
-
+  /* nothing loaded: the still ring, the record no one photographed (the same simulacrum, standing still) */
   function cover(t) {
     const key = !t ? 'idle' : (t.cover || 'record');
     if (key === shownCover) return;
     shownCover = key; recSince = performance.now();
-    if (key === 'idle' && idle(true)) { if (simShown) { simShown = false; sim.hide(); } return; }
-    idle(false);
     const go = (src) => {
       if (dead || shownCover !== key) return;
       simShown = true;
@@ -461,7 +443,8 @@ export function mountView(root, lib, core, opts = {}) {
         sim.show(src);
       } else sim.set(src);
     };
-    if (key === 'idle' || key === 'record') go(drawRecord());
+    if (key === 'idle') go(drawRecord(true));
+    else if (key === 'record') go(drawRecord());
     /* a cover carries information: the legible preset, so it reads at a glance and is still conjured stipple */
     else mapCanvas(key).then((c) => go(c ? { src: c, legible: true, erosion: 0.15, scatter: 0.18, ceiling: 0.93 } : drawRecord()));
   }
@@ -469,10 +452,10 @@ export function mountView(root, lib, core, opts = {}) {
   /* ---------- listening to the core ---------- */
   /* while the markup is out of the document (a host resting the section) nothing is drawn; back in, all of it is */
   let stale = false;
-  function redraw() { stale = false; if (eye) { try { eye.start(); } catch (_) { /* fine */ } } drawTrack(); drawState(); drawOptions(); }
+  function redraw() { stale = false; drawTrack(); drawState(); drawOptions(); }
   const off = core.on((type) => {
     if (dead) return 'off';
-    if (!root.isConnected) { if (!stale && eye) { try { eye.stop(); } catch (_) { /* fine */ } } stale = true; return undefined; }
+    if (!root.isConnected) { stale = true; return undefined; }
     if (stale) { redraw(); return undefined; }
     if (type === 'track') { drawTrack(); drawOptions(); }
     else if (type === 'state') { drawState(); vl.refresh(); }
@@ -573,7 +556,6 @@ export function mountView(root, lib, core, opts = {}) {
     dead = true;
     offs.forEach((f) => f()); off();
     cancelAnimationFrame(raf); clearInterval(spin);
-    if (eye) { try { eye.destroy(); } catch (_) { /* fine */ } eye = null; }
     try { ro.disconnect(); } catch (_) { /* fine */ }
     narrowMq.removeEventListener('change', onMq);
     vl.destroy();
@@ -587,8 +569,7 @@ export function mountView(root, lib, core, opts = {}) {
     /* the pieces that dissolve when the section leaves, each on its own */
     pieces: () => Array.from(root.querySelectorAll('.m-in, .m-list .row, .m-cover canvas')),
     get vlist() { return vl; },
-    /* for checks: the record's turn, and the eye in the idle slot */
-    get record() { return { shown: shownCover === 'record', angle: recAngle, speed: recSpeed }; },
-    get eye() { return eye; },
+    /* for checks: what the cover shows and the record's turn */
+    get record() { return { shown: shownCover === 'record' || shownCover === 'idle', key: shownCover, angle: recAngle, speed: recSpeed }; },
   };
 }

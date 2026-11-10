@@ -161,10 +161,6 @@ button:disabled { cursor: default; opacity: .45; }
 .m-modes button[aria-pressed="true"] svg, .c-loop:not([data-mode="off"]) .g-loop svg { color: var(--accent); }
 .c-loop { display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-1); }
 .c-loop .g-loop { display: block; width: 22px; height: 22px; }
-.m-idle { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; }
-.m-idle .m-eye { width: 86%; color: var(--accent); }
-.m-cover.idle-eye .m-idle { display: flex; }
-.m-cover.idle-eye canvas { opacity: 0 !important; }
 .c-lossless { color: var(--ink-soft); padding: var(--space-1) 0; text-underline-offset: 6px; }
 .c-lossless[aria-pressed="true"] { color: var(--ink); text-decoration: underline; text-decoration-color: var(--accent); }
 .m-ctl button:hover:not(:disabled) { color: var(--ink); }

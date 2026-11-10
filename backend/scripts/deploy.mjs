@@ -5,7 +5,7 @@
 //
 // Environment:
 //   WRANGLER                 the wrangler command (default `npx --yes wrangler@4.153.0`)
-//   BACKEND_CUSTOM_DOMAINS   "1" adds the service's custom domain; otherwise workers.dev only
+//   BACKEND_CUSTOM_DOMAINS   "1" serves the service on its custom domain only; otherwise on workers.dev only
 //   SECRETS_JSON             the repository secrets as JSON (`${{ toJSON(secrets) }}`); empty ones are skipped
 //   CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID   for wrangler
 //
@@ -45,6 +45,9 @@ let toml = readFileSync(path.join(dir, 'wrangler.toml'), 'utf8').replace(/^\[bui
 if (domains && svc.domain) {
   const at = toml.search(/^\[/m);
   toml = toml.slice(0, at) + `routes = [{ pattern = "${svc.domain}", custom_domain = true }]\n\n` + toml.slice(at);
+  /* with its own domain, the Worker is not also served on the account's workers.dev subdomain: that name belongs
+     to the account, not to this site, and nothing needs the second address */
+  toml = toml.replace(/^workers_dev\s*=\s*true\s*$/m, 'workers_dev = false');
 }
 const config = 'wrangler.deploy.toml';
 writeFileSync(path.join(dir, config), toml);

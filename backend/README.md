@@ -215,8 +215,9 @@ node --test e2e/*.test.mjs             # both Workers under wrangler dev, over H
    | `FORUM_POSTER_SALT` | `openssl rand -hex 32` |
    | `FORUM_ADMIN_SECRET` | `openssl rand -hex 32`, kept by the owner for moderation |
 
-   Variable: `BACKEND_CUSTOM_DOMAINS` = `1` once the `aphes.ist` zone is active on Cloudflare. Without it the
-   Workers answer on workers.dev only.
+   Variable: `BACKEND_CUSTOM_DOMAINS` = `1` once the `aphes.ist` zone is active on Cloudflare. With it each Worker
+   answers on its `aphes.ist` subdomain only, and its workers.dev address is switched off, since the account's
+   workers.dev name belongs to the account, not to this site. Without it the Workers answer on workers.dev only.
 
 Keep the salts once set: changing `FORUM_POSTER_SALT` changes every poster token, and so every sigil;
 changing a salt also resets the rate limits.
@@ -239,9 +240,9 @@ Worker secret); the workflow reads its matrix from there, so a new Worker is a n
 entry in that file.
 
 **What a first deploy does.** The bucket is created, both Workers are uploaded and their Durable Object classes made
-by their `v1` migrations, and the workers.dev URLs (`https://aphesis-wall.<subdomain>.workers.dev`,
-`https://aphesis-forum.<subdomain>.workers.dev`) printed; with `BACKEND_CUSTOM_DOMAINS = 1`, also
-`https://wall-api.aphes.ist` and `https://forum-api.aphes.ist`, whose DNS records Cloudflare makes. Then the secrets
+by their `v1` migrations, and their URLs printed: with `BACKEND_CUSTOM_DOMAINS = 1`, `https://wall-api.aphes.ist` and
+`https://forum-api.aphes.ist`, whose DNS records Cloudflare makes; without it, the workers.dev URLs
+(`https://aphesis-wall.<subdomain>.workers.dev`, `https://aphesis-forum.<subdomain>.workers.dev`). Then the secrets
 that are set are pushed. A deploy with some secrets still empty still succeeds, and the Workers stay closed for
 posting until they are set and the workflow is run again: without `TURNSTILE_SECRET` every post is refused (`403`),
 without the wall's `HASH_SALT` it answers `503`, without the forum's salts `503`; reading works (empty lists), and

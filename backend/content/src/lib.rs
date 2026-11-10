@@ -21,7 +21,7 @@
 //!   POST /v1/admin/{posts|books|works}/:id/publish     and /unpublish
 //!   POST /v1/admin/media                               a density map made in the browser (multipart: file)
 //!   GET  /v1/admin/wall                  DELETE /v1/admin/wall/:id                     the wall's admin API
-//!   GET  /v1/admin/forum/board           GET /v1/admin/forum/threads/:id               the forum's admin API
+//!   GET  /v1/admin/forum/board[?cursor]  GET /v1/admin/forum/threads/:id               the forum's admin API
 //!   GET  /v1/admin/forum/reports         DELETE /v1/admin/forum/threads/:id/posts/:n
 //!   POST /v1/admin/export                the nightly export, now
 //! ```
@@ -671,14 +671,26 @@ async fn admin(c: &Ctx, req: &mut Request, m: Method, p: &[&str]) -> Result<Resp
             .await
         }
         (Method::Get, ["forum", "board"]) => {
-            upstream(
-                c,
-                "FORUM_API",
-                "FORUM_ADMIN_SECRET",
-                Method::Get,
-                "/api/board",
-            )
-            .await
+            // the board is read a page at a time: the forum's cursor ("<bumped>-<seq>") passes through, checked
+            let url = req.url()?;
+            let cursor = url
+                .query_pairs()
+                .find(|(k, _)| k == "cursor")
+                .map(|(_, v)| v.to_string());
+            let path = match cursor {
+                Some(cu)
+                    if cu.split_once('-').is_some_and(|(a, b)| {
+                        !a.is_empty()
+                            && !b.is_empty()
+                            && a.bytes().chain(b.bytes()).all(|x| x.is_ascii_digit())
+                    }) =>
+                {
+                    format!("/api/board?cursor={cu}")
+                }
+                Some(_) => return c.fail(400, "a cursor is <bumped>-<seq>"),
+                None => "/api/board".into(),
+            };
+            upstream(c, "FORUM_API", "FORUM_ADMIN_SECRET", Method::Get, &path).await
         }
         (Method::Get, ["forum", "reports"]) => {
             upstream(

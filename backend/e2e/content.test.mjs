@@ -363,7 +363,12 @@ test('moderation through the content service: the wall and the forum, server to 
   r = await send('/v1/admin/forum/reports', { j });
   assert.ok((await r.json()).reports.some((x) => x.thread === thread && x.n === 2));
   r = await send('/v1/admin/forum/board', { j });
-  assert.ok((await r.json()).threads.some((t) => t.id === thread));
+  const board = await r.json();
+  assert.ok(board.threads.some((t) => t.id === thread));
+  assert.ok('next' in board, 'the board comes a page at a time');
+  r = await send('/v1/admin/forum/board?cursor=99999999999999-1', { j });
+  assert.equal(r.status, 200, 'a cursor passes through');
+  assert.equal((await send('/v1/admin/forum/board?cursor=x%26limit%3D1', { j })).status, 400, 'anything else is refused');
   r = await send(`/v1/admin/forum/threads/${thread}`, { j });
   assert.equal((await r.json()).posts.length, 2);
   r = await W(`/v1/admin/forum/threads/${thread}/posts/2`, 'DELETE');

@@ -219,7 +219,7 @@ CORS preflight, which only the site's origins pass):
 | POST | `/v1/admin/{posts,books,works}/:id/publish`, `/unpublish` | show it on the site, or take it back to a draft |
 | POST | `/v1/admin/media` | a density map made in the browser (multipart `file`: jpeg or png, at most 400 KB, 32 to 640 px) → `{key, url, w, h}` |
 | GET, DELETE | `/v1/admin/wall`, `/v1/admin/wall/:id` | the wall's lines and their removal, through the wall's admin API |
-| GET | `/v1/admin/forum/board`, `/threads/:id`, `/reports` | the forum's board, a thread, the reports |
+| GET | `/v1/admin/forum/board[?cursor=<next>]`, `/threads/:id`, `/reports` | the forum's board a page at a time, a thread, the reports |
 | DELETE | `/v1/admin/forum/threads/:id/posts/:n` | remove a post (post 1 removes the thread) |
 | POST | `/v1/admin/export` | the nightly export, now |
 

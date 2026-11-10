@@ -21,7 +21,7 @@ const ARROWS = { ArrowUp: 0, ArrowRight: 1, ArrowDown: 2, ArrowLeft: 3 };
 export function createGestures({ center, isFound, onEnter, onKnock, onEcho }) {
   let on = false;
   const st = {
-    wind: 0, lastA: null, lastWind: 0,                     // circle
+    wind: 0, lastA: null, lastWind: 0, pts: [], turns: [],  // circle
     holdT: 0, holdX: 0, holdY: 0, holdKey: false,          // hold
     restX: -1e4, restY: -1e4, restT: 0,                    // hover still on the threshold
     buf: '', bufT: 0,                                      // typing
@@ -32,23 +32,28 @@ export function createGestures({ center, isFound, onEnter, onKnock, onEcho }) {
   const input = () => { st.lastInput = performance.now(); };
   const enter = (id) => { if (!on) return; reset(); onEnter(id); };
   function reset() {
-    st.wind = 0; st.lastA = null; st.holdT = 0; st.holdKey = false; st.restT = 0;
+    st.wind = 0; st.lastA = null; st.pts = []; st.turns = []; st.holdT = 0; st.holdKey = false; st.restT = 0;
     st.buf = ''; st.revs = []; st.arrow = -1; onEcho('');
   }
   const goal = () => (isFound('ouroboros') ? 0.85 : 1) * TAU;
 
-  /* ---- circle ---- */
+  /* ---- circle ----
+     the stroke's own turning, added up: one loop of any size, anywhere on the screen, turns through a full circle.
+     Small backward wobbles of the hand subtract a little and do not reset it; a scribble's zigzags cancel out. */
   function wind(x, y) {
-    const [cx, cy] = center(), dx = x - cx, dy = y - cy, r = Math.hypot(dx, dy), far = 0.5 * Math.min(innerWidth, innerHeight);
-    if (r < 26 || r > Math.max(far, 160)) { st.lastA = null; return; }
-    const a = Math.atan2(dy, dx);
-    if (st.lastA !== null) {
-      let da = a - st.lastA; if (da > Math.PI) da -= TAU; if (da < -Math.PI) da += TAU;
-      if (st.wind && Math.sign(da) !== Math.sign(st.wind) && Math.abs(st.wind) > 0.6) st.wind = 0;
-      st.wind += da; st.lastWind = performance.now();
-      if (Math.abs(st.wind) >= goal()) enter('ouroboros');
-    }
-    st.lastA = a;
+    const now = performance.now(), last = st.pts[st.pts.length - 1];
+    if (last && Math.hypot(x - last[0], y - last[1]) < 7) return;
+    st.pts.push([x, y, now]); st.pts = st.pts.filter((p) => now - p[2] < 3200);
+    const n = st.pts.length; if (n < 3) return;
+    const [a, b, c] = [st.pts[n - 3], st.pts[n - 2], st.pts[n - 1]];
+    let dh = Math.atan2(c[1] - b[1], c[0] - b[0]) - Math.atan2(b[1] - a[1], b[0] - a[0]);
+    if (dh > Math.PI) dh -= TAU; if (dh < -Math.PI) dh += TAU;
+    if (Math.abs(dh) > 2.2) return;                       /* a sharp reversal belongs to a scribble, not a loop */
+    st.turns.push([dh, now]); st.turns = st.turns.filter((t) => now - t[1] < 3200);
+    st.wind = st.turns.reduce((s, t) => s + t[0], 0); st.lastWind = now;
+    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    for (const p of st.pts) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
+    if (Math.abs(st.wind) >= goal() * 0.92 && x1 - x0 > 50 && y1 - y0 > 50) enter('ouroboros');
   }
 
   /* ---- scribble ---- */

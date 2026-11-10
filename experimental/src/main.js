@@ -1,5 +1,5 @@
 /* experimental · ἄδυτον, as it will stand inside the site: fog at .62, the seal in the corner, the eye and the
-   pause in the bottom-left corner, the passage corner kept free, the runtime's cursor and tooltip. */
+   the eye in the bottom-left corner, the passage corner kept free, the runtime's cursor and tooltip. */
 
 import { setPaused, isPaused, pulse, onPause, REDUCED } from './motion.js';
 import { found } from './memory.js';
@@ -38,23 +38,6 @@ const ground = createGround($('fog'));
 let seal = A.seal($('seal'));
 A.cursor();
 A.tooltip();
-
-/* ---------- pause: everything that loops stops on demand ---------- */
-const bPause = $('bPause');
-A.letters(bPause);
-function pauseLabel(p) {
-  bPause.setAttribute('aria-pressed', String(p));
-  bPause.dataset.tip = p ? 'let the fog move again' : 'stop the fog and everything that moves';
-  bPause.textContent = p ? 'resume' : 'pause';
-  delete bPause.dataset.split; A.letters(bPause);
-}
-bPause.addEventListener('click', () => setPaused(!isPaused()));
-onPause((p) => {
-  pauseLabel(p);
-  seal.stop();
-  seal = A.seal($('seal'), { boil: !p });
-});
-pauseLabel(false);
 
 /* ---------- the threshold and its chambers ---------- */
 const threshold = createThreshold();

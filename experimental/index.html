@@ -69,7 +69,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
 
 /* experimental · ἄδυτον
    layout: one screen. the fog is the ground (density .62); the threshold stands on the axis, title above it;
-   the seal holds the top-left corner, the eye and the pause the bottom-left, the passage corner stays free.
+   the seal holds the top-left corner, the eye the bottom-left, the passage corner stays free.
    a chamber replaces the threshold with simulacra laid over the fog and blended into it. */
 
 /* simulacrum canvases paint their own ground; blended this way, the ground drops out and only cells remain:
@@ -204,8 +204,6 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 #bTheme .eye.closed { opacity: 0; transform: scaleY(.2) translateY(-4px); }
 .is-dark #bTheme .eye.open { opacity: 0; transform: scaleY(.08); }
 .is-dark #bTheme .eye.closed { opacity: 1; transform: none; }
-#bPause { font-size: var(--type-label-size); letter-spacing: var(--type-label-tracking); line-height: 1; text-transform: lowercase; }
-#bPause[aria-pressed="true"] { color: var(--accent-text); }
 
 @media (max-width: 640px) {
   #threshold { gap: var(--space-5); }
@@ -237,7 +235,6 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
 <div class="corner" id="controls">
   <button id="bTheme" type="button" aria-label="switch between light and dark" data-tip="open · close the eye" data-cursor=".55"><span class="eye open"></span><span class="eye closed"></span></button>
-  <button id="bPause" type="button" class="aph-label aph-wave" aria-pressed="false" data-tip="stop the fog and everything that moves" data-cursor=".55">pause</button>
 </div>
 
 <div class="sr" id="announce" aria-live="polite"></div>
@@ -375,8 +372,15 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     var lp = gl.getAttribLocation(pr, 'p'); gl.enableVertexAttribArray(lp); gl.vertexAttribPointer(lp, 2, gl.FLOAT, false, 0, 0);
     return { gl: gl, u: function (k) { return gl.getUniformLocation(pr, k); } };
   }
-  /* size a canvas to its CSS box in device pixels, capped so a cell stays a crisp square */
-  function fit(cv, gl) { var r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1); var w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr)); if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; gl.viewport(0, 0, w, h); } return dpr; }
+  /* one canvas pixel per stipple cell: the canvas is sized to the cell grid and the browser scales it up with hard
+     edges, so a cell stays a crisp square and the shader runs once per cell instead of once per screen pixel.
+     Returns k, canvas pixels per CSS pixel, to convert pointer and zone positions. */
+  function fit(cv, gl, cell) {
+    var r = cv.getBoundingClientRect(), w = Math.max(1, Math.round(r.width / cell)), h = Math.max(1, Math.round(r.height / cell));
+    if (cv.style.imageRendering !== 'pixelated') cv.style.imageRendering = 'pixelated';
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; gl.viewport(0, 0, w, h); }
+    return w / Math.max(1, r.width);
+  }
 
   /* ---------- Fog ----------
      Fog(canvas, {density, light, cell}) -> {zones(rects), stop()}
@@ -398,13 +402,13 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     cv.addEventListener('pointermove', function (e) { var r = cv.getBoundingClientRect(); ptr = [e.clientX - r.left, e.clientY - r.top]; });
     window.addEventListener('pointermove', function (e) { var r = cv.getBoundingClientRect(); ptr = [e.clientX - r.left, e.clientY - r.top]; });
     function frame(now) {
-      var dt = Math.min(0.05, (now - last) / 1000); last = now; if (!REDUCED) t += dt; dpr = fit(cv, gl);
+      var dt = Math.min(0.05, (now - last) / 1000); last = now; if (!REDUCED) t += dt; dpr = fit(cv, gl, o.cell || 2);
       var R = cv.getBoundingClientRect(); if (!ptr) ptr = [R.width / 2, R.height / 2]; if (!sm) sm = ptr.slice();
       sm[0] += (ptr[0] - sm[0]) * Math.min(1, dt * 3); sm[1] += (ptr[1] - sm[1]) * Math.min(1, dt * 3);
       ZB.fill(0); var i = 0;
       zEls.forEach(function (z) { if (i >= 12) return; var r = z.el ? z.el.getBoundingClientRect() : z; if (!r.width) return; var pad = z.pad || 12;
         ZB.set([(r.left - R.left + r.width / 2) * dpr, cv.height - (r.top - R.top + r.height / 2) * dpr, (r.width / 2 + pad) * dpr, (r.height / 2 + pad) * dpr], i * 4); i++; });
-      gl.uniform4fv(U.Z, ZB); gl.uniform2f(U.R, cv.width, cv.height); gl.uniform1f(U.T, t); gl.uniform1f(U.S, 2 * dpr);
+      gl.uniform4fv(U.Z, ZB); gl.uniform2f(U.R, cv.width, cv.height); gl.uniform1f(U.T, t); gl.uniform1f(U.S, 1);
       gl.uniform3fv(U.F, F); gl.uniform3fv(U.N, Nc); gl.uniform2f(U.P, sm[0] * dpr, cv.height - sm[1] * dpr); gl.uniform1f(U.D, dens); gl.uniform1f(U.C, light);
       gl.drawArrays(gl.TRIANGLES, 0, 3); raf = requestAnimationFrame(frame);
     }
@@ -484,9 +488,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       var im = new Image(); if (/^https?:/.test(src) && src.indexOf(location.origin) !== 0) im.crossOrigin = 'anonymous'; im.onload = function () { upload(im); cb && cb(); }; im.src = src;
     }
     function frame(now) {
-      var dt = Math.min(0.05, (now - last) / 1000); last = now; if (!REDUCED) t += dt; var dpr = fit(cv, gl);
+      var dt = Math.min(0.05, (now - last) / 1000); last = now; if (!REDUCED) t += dt; var dpr = fit(cv, gl, o.cell || 2);
       gl.uniform2f(U.R, cv.width, cv.height); gl.uniform2f(U.P, ptr[0] * dpr, cv.height - ptr[1] * dpr); gl.uniform1f(U.T, t);
-      gl.uniform1f(U.S, (o.cell || 2) * dpr); gl.uniform1f(U.K, MJ(k)); gl.uniform1f(U.G, opt('gain', 1)); gl.uniform1f(U.SC, opt('scatter', 0.5)); gl.uniform1f(U.ER, opt('erosion', 0.45)); gl.uniform1f(U.CE, opt('ceiling', 0.8)); gl.uniform1f(U.M, o.margin === undefined ? 0.08 : o.margin);
+      gl.uniform1f(U.S, 1); gl.uniform1f(U.K, MJ(k)); gl.uniform1f(U.G, opt('gain', 1)); gl.uniform1f(U.SC, opt('scatter', 0.5)); gl.uniform1f(U.ER, opt('erosion', 0.45)); gl.uniform1f(U.CE, opt('ceiling', 0.8)); gl.uniform1f(U.M, o.margin === undefined ? 0.08 : o.margin);
       gl.uniform1f(U.A, o.accent || 0); gl.uniform1f(U.FIT, o.fit === 'cover' ? 1 : 0); gl.uniform3fv(U.F, F); gl.uniform3fv(U.N, Nc); gl.uniform3fv(U.AC, AC);
       gl.uniform2f(U.IA, IA[0], IA[1]); gl.uniform1i(U.I, 0); gl.uniform1i(U.I2, 1); gl.drawArrays(gl.TRIANGLES, 0, 3); raf = requestAnimationFrame(frame);
     }
@@ -959,7 +963,7 @@ const ARROWS = { ArrowUp: 0, ArrowRight: 1, ArrowDown: 2, ArrowLeft: 3 };
 function createGestures({ center, isFound, onEnter, onKnock, onEcho }) {
   let on = false;
   const st = {
-    wind: 0, lastA: null, lastWind: 0,                     // circle
+    wind: 0, lastA: null, lastWind: 0, pts: [], turns: [],  // circle
     holdT: 0, holdX: 0, holdY: 0, holdKey: false,          // hold
     restX: -1e4, restY: -1e4, restT: 0,                    // hover still on the threshold
     buf: '', bufT: 0,                                      // typing
@@ -970,23 +974,28 @@ function createGestures({ center, isFound, onEnter, onKnock, onEcho }) {
   const input = () => { st.lastInput = performance.now(); };
   const enter = (id) => { if (!on) return; reset(); onEnter(id); };
   function reset() {
-    st.wind = 0; st.lastA = null; st.holdT = 0; st.holdKey = false; st.restT = 0;
+    st.wind = 0; st.lastA = null; st.pts = []; st.turns = []; st.holdT = 0; st.holdKey = false; st.restT = 0;
     st.buf = ''; st.revs = []; st.arrow = -1; onEcho('');
   }
   const goal = () => (isFound('ouroboros') ? 0.85 : 1) * TAU;
 
-  /* ---- circle ---- */
+  /* ---- circle ----
+     the stroke's own turning, added up: one loop of any size, anywhere on the screen, turns through a full circle.
+     Small backward wobbles of the hand subtract a little and do not reset it; a scribble's zigzags cancel out. */
   function wind(x, y) {
-    const [cx, cy] = center(), dx = x - cx, dy = y - cy, r = Math.hypot(dx, dy), far = 0.5 * Math.min(innerWidth, innerHeight);
-    if (r < 26 || r > Math.max(far, 160)) { st.lastA = null; return; }
-    const a = Math.atan2(dy, dx);
-    if (st.lastA !== null) {
-      let da = a - st.lastA; if (da > Math.PI) da -= TAU; if (da < -Math.PI) da += TAU;
-      if (st.wind && Math.sign(da) !== Math.sign(st.wind) && Math.abs(st.wind) > 0.6) st.wind = 0;
-      st.wind += da; st.lastWind = performance.now();
-      if (Math.abs(st.wind) >= goal()) enter('ouroboros');
-    }
-    st.lastA = a;
+    const now = performance.now(), last = st.pts[st.pts.length - 1];
+    if (last && Math.hypot(x - last[0], y - last[1]) < 7) return;
+    st.pts.push([x, y, now]); st.pts = st.pts.filter((p) => now - p[2] < 3200);
+    const n = st.pts.length; if (n < 3) return;
+    const [a, b, c] = [st.pts[n - 3], st.pts[n - 2], st.pts[n - 1]];
+    let dh = Math.atan2(c[1] - b[1], c[0] - b[0]) - Math.atan2(b[1] - a[1], b[0] - a[0]);
+    if (dh > Math.PI) dh -= TAU; if (dh < -Math.PI) dh += TAU;
+    if (Math.abs(dh) > 2.2) return;                       /* a sharp reversal belongs to a scribble, not a loop */
+    st.turns.push([dh, now]); st.turns = st.turns.filter((t) => now - t[1] < 3200);
+    st.wind = st.turns.reduce((s, t) => s + t[0], 0); st.lastWind = now;
+    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    for (const p of st.pts) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
+    if (Math.abs(st.wind) >= goal() * 0.92 && x1 - x0 > 50 && y1 - y0 > 50) enter('ouroboros');
   }
 
   /* ---- scribble ---- */
@@ -1658,7 +1667,7 @@ return { createManager };
 /* ---- main.js ---- */
 M["main.js"] = (function () {
 /* experimental · ἄδυτον, as it will stand inside the site: fog at .62, the seal in the corner, the eye and the
-   pause in the bottom-left corner, the passage corner kept free, the runtime's cursor and tooltip. */
+   the eye in the bottom-left corner, the passage corner kept free, the runtime's cursor and tooltip. */
 
 const { setPaused, isPaused, pulse, onPause, REDUCED } = M["motion.js"];
 const { found } = M["memory.js"];
@@ -1696,23 +1705,6 @@ const ground = createGround($('fog'));
 let seal = A.seal($('seal'));
 A.cursor();
 A.tooltip();
-
-/* ---------- pause: everything that loops stops on demand ---------- */
-const bPause = $('bPause');
-A.letters(bPause);
-function pauseLabel(p) {
-  bPause.setAttribute('aria-pressed', String(p));
-  bPause.dataset.tip = p ? 'let the fog move again' : 'stop the fog and everything that moves';
-  bPause.textContent = p ? 'resume' : 'pause';
-  delete bPause.dataset.split; A.letters(bPause);
-}
-bPause.addEventListener('click', () => setPaused(!isPaused()));
-onPause((p) => {
-  pauseLabel(p);
-  seal.stop();
-  seal = A.seal($('seal'), { boil: !p });
-});
-pauseLabel(false);
 
 /* ---------- the threshold and its chambers ---------- */
 const threshold = createThreshold();

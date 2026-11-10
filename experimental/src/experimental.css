@@ -1,7 +1,7 @@
 
 /* experimental · ἄδυτον
    layout: one screen. the fog is the ground (density .62); the threshold stands on the axis, title above it;
-   the seal holds the top-left corner, the eye and the pause the bottom-left, the passage corner stays free.
+   the seal holds the top-left corner, the eye the bottom-left, the passage corner stays free.
    a chamber replaces the threshold with simulacra laid over the fog and blended into it. */
 
 /* simulacrum canvases paint their own ground; blended this way, the ground drops out and only cells remain:
@@ -136,8 +136,6 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 #bTheme .eye.closed { opacity: 0; transform: scaleY(.2) translateY(-4px); }
 .is-dark #bTheme .eye.open { opacity: 0; transform: scaleY(.08); }
 .is-dark #bTheme .eye.closed { opacity: 1; transform: none; }
-#bPause { font-size: var(--type-label-size); letter-spacing: var(--type-label-tracking); line-height: 1; text-transform: lowercase; }
-#bPause[aria-pressed="true"] { color: var(--accent-text); }
 
 @media (max-width: 640px) {
   #threshold { gap: var(--space-5); }

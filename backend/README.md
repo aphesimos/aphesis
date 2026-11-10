@@ -63,7 +63,8 @@ and R2 for pictures:
   object starts (`MIGRATIONS` in `board.rs`; `v2` is the index for pages), so a deploy needs no wrangler migration
   for it;
 - R2 bucket `aphesis-forum-images`, written once per picture under a fresh random name: the original (jpeg, png, webp or gif, at most 4 MB and 40 megapixels, its type
-  read from its bytes) and the density map made in the browser (jpeg or png, at most 400 KB, 32 to 640 px), under
+  read from its bytes) and the density map made in the browser (jpeg or png, at most 900 KB, 32 to 960 px: 960 so the small text of a wide
+  screenshot still reads; a detailed 960 px map is about 470 KB as a JPEG), under
   `t/<thread>/<id>.<ext>` and `t/<thread>/<id>.density.<ext>`. Served with `nosniff`, `default-src 'none'; sandbox`
   and a year of cache (`immutable`).
 
@@ -130,7 +131,7 @@ Vars: `ALLOWED_ORIGINS`, `TTL_DAYS` (30), `BLOCKLIST` (extra words, comma-separa
 
 | method | path | what |
 | --- | --- | --- |
-| GET | `/api/board` | `{threads: [{id, first, replies, created, bumped, image}], next}`, newest activity first, one page; `cache-control: public, max-age=5` |
+| GET | `/api/board` | `{threads: [{id, first, replies, created, bumped, image}], next, density: {long: 960, bytes: 921600}}`, newest activity first, one page, and the density maps this Worker takes; `cache-control: public, max-age=5` |
 | GET | `/api/threads/:id` | `{id, created, posts: [{n, poster, text, created, image?} or {n, created, removed: true}]}` |
 | POST | `/api/threads` | a new thread, multipart: `text`, optional `image` + `density`, `turnstile` → `201 {thread, n: 1}` |
 | POST | `/api/threads/:id/posts` | a reply, the same fields; text may be empty with a picture → `201 {thread, n}` |
@@ -147,11 +148,15 @@ strictly below where the previous one ended (a thread answered meanwhile moves t
 malformed cursor is `400 {error: "bad cursor"}`. A client that reads only `threads`
 (the page before pages) gets the first 40, as before.
 
+**The density map's limits.** The board's pages carry `density: {long, bytes}`, what this Worker takes, so the page
+prepares maps to fit (960 px and 900 KB now). A page that finds no `density` there (an older Worker) keeps 640 px,
+the limit before.
+
 `image` is `{density, original, w, h, caption}` with paths relative to the Worker (`image` is `null` on the board when
 the opening post has none). Thread ids are 10 characters of `a-z2-9`. Status codes: `400` bad input (the error says
 what: `a post needs words`, `at most 2000 characters`, `at most 60 lines`, `only jpeg, png, webp or gif`, `the density
 map has the wrong size`, ...), `403` (`not from this site`, `the check did not pass`, `not allowed`), `404`, `409`
-(`this thread is full`, 500 posts), `413 too large` (over 5 MB), `429` with `Retry-After`, `503` without salts. Admin
+(`this thread is full`, 500 posts), `413 too large` (over 6 MB: the 4 MB original, the 900 KB map and the form), `429` with `Retry-After`, `503` without salts. Admin
 calls carry `Authorization: Bearer <ADMIN_SECRET>`.
 
 Vars: `ALLOWED_ORIGINS`, `RATE_POSTS` (4), `RATE_THREADS` (1), `RATE_WINDOW_SECONDS` (120),

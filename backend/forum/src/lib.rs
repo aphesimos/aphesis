@@ -2,7 +2,8 @@
 //! checks, R2 for pictures (the original and its density map), reports, and removal behind the admin secret.
 //!
 //! ```text
-//! GET    /api/board[?cursor=&limit=]         a page of threads, newest activity first, and the next page's cursor
+//! GET    /api/board[?cursor=&limit=]         a page of threads, newest activity first, the next page's cursor, and
+//!                                            the density map's limits ({density: {long, bytes}}) for the page
 //! GET    /api/threads/:id                    one thread, its posts in order
 //! POST   /api/threads                        a new thread   (multipart: text, image?, density?, w?, h?, turnstile?)
 //! POST   /api/threads/:id/posts              a reply        (the same fields)
@@ -43,9 +44,22 @@ use worker::{
 
 use model::{Entry, Image, NewPost};
 
+/// The board's page with the density map's limits beside it, so the page prepares maps this Worker accepts (a page
+/// that reads no limits keeps the old 640 px).
+fn with_limits(mut body: Value) -> Value {
+    if let Some(o) = body.as_object_mut() {
+        o.insert(
+            "density".into(),
+            json!({ "long": validate::DENSITY_LONG, "bytes": validate::DENSITY }),
+        );
+    }
+    body
+}
+
 /// the refusal while IP_SALT or POSTER_SALT is missing
 const NOT_SET_UP: &str = "the board is not open yet";
-const MAX_BODY: f64 = 5.0 * 1024.0 * 1024.0;
+/// the original (4 MB), the density map (900 KB), the words and the form's own bytes
+const MAX_BODY: f64 = 6.0 * 1024.0 * 1024.0;
 
 struct Ctx {
     env: Env,
@@ -379,7 +393,7 @@ async fn route(c: &Ctx, req: Request) -> Result<Response> {
         .await?;
         return c.json(
             200,
-            &body,
+            &with_limits(body),
             &http::Headers::new().with("cache-control", "public, max-age=5"),
         );
     }
@@ -530,6 +544,14 @@ mod tests {
         assert!(!image_file("abcdefghjkm.jpg"));
         assert!(!image_file("abcdefghjkmn.thumb.jpg"));
         assert!(!image_file("ABCDEFGHJKMN.jpg"));
+    }
+
+    #[test]
+    fn board_page_carries_the_density_limits() {
+        let b = with_limits(json!({ "threads": [], "next": null }));
+        assert_eq!(b["density"], json!({ "long": 960, "bytes": 900 * 1024 }));
+        assert_eq!(b["threads"], json!([]));
+        assert_eq!(with_limits(json!("x")), json!("x"));
     }
 
     #[test]

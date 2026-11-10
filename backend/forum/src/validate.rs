@@ -3,15 +3,17 @@
 //! - text: up to 2000 characters and 60 lines, control characters removed, line ends normalized;
 //! - the original picture: jpeg, png, webp or gif, up to 4 MB, its type read from its first bytes (never trusted
 //!   from the upload's own label), at most 40 megapixels;
-//! - the density map made in the browser: jpeg or png, up to 400 KB, 32 to 640 pixels on its sides.
+//! - the density map made in the browser: jpeg or png, up to 900 KB, 32 to 960 pixels on its sides (960 so the small
+//!   text of a wide screenshot still reads; a detailed 960 px map is about 470 KB as a JPEG at quality .88, noise at
+//!   most 660 KB, so 900 KB leaves room for a PNG of most pictures).
 
 use aphesis_common::time::is_js_space;
 
 pub const TEXT: usize = 2000;
 pub const LINES: usize = 60;
 pub const ORIGINAL: usize = 4 * 1024 * 1024;
-pub const DENSITY: usize = 400 * 1024;
-pub const DENSITY_LONG: u32 = 640;
+pub const DENSITY: usize = 900 * 1024;
+pub const DENSITY_LONG: u32 = 960;
 pub const DENSITY_SHORT: u32 = 32;
 pub const PIXELS: f64 = 40e6;
 
@@ -272,13 +274,19 @@ mod tests {
     }
 
     #[test]
-    fn density_maps_jpeg_or_png_light_640_at_most() {
+    fn density_maps_jpeg_or_png_light_960_at_most() {
         assert!(check_density(Some(&jpeg(560, 420))).is_ok());
         assert!(check_density(Some(&png(640, 480))).is_ok());
+        assert!(check_density(Some(&jpeg(960, 540))).is_ok());
+        assert!(check_density(Some(&png(720, 960))).is_ok());
+        assert!(check_density(Some(&jpeg(961, 540))).is_err());
         assert!(check_density(Some(&jpeg(1200, 900))).is_err());
         assert!(check_density(Some(&gif(560, 420))).is_err());
         assert!(check_density(Some(&webp_x(560, 420))).is_err());
         assert!(check_density(Some(&jpeg(560, 10))).is_err());
+        let mut fits = vec![0u8; DENSITY];
+        fits[..jpeg(960, 720).len()].copy_from_slice(&jpeg(960, 720));
+        assert!(check_density(Some(&fits)).is_ok());
         let mut heavy = vec![0u8; DENSITY + 1];
         heavy[..jpeg(560, 420).len()].copy_from_slice(&jpeg(560, 420));
         assert_eq!(

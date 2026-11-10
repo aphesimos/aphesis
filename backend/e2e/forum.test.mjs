@@ -16,8 +16,8 @@ const H = (ip, more = {}) => ({ 'CF-Connecting-IP': ip, Origin: SITE, ...more })
 function form(fields) { const fd = new FormData(); for (const [k, v] of Object.entries(fields)) fd.append(k, v); return fd; }
 const req = (w, p, init = {}) => fetch(w.url + p, init);
 const postForm = (w, p, ip, fields) => req(w, p, { method: 'POST', headers: H(ip), body: form(fields) });
-function jpeg(w, h) {
-  const b = new Uint8Array(200); b.set([0xff, 0xd8, 0xff, 0xc0, 0, 17, 8, h >> 8, h & 255, w >> 8, w & 255, 1]);
+function jpeg(w, h, size = 200) {
+  const b = new Uint8Array(size); b.set([0xff, 0xd8, 0xff, 0xc0, 0, 17, 8, h >> 8, h & 255, w >> 8, w & 255, 1]);
   return new Blob([b], { type: 'image/jpeg' });
 }
 /* the objects in the local R2 bucket (Miniflare keeps one blob file per object) */
@@ -55,7 +55,7 @@ test('a thread, replies, sigils per thread, the board', async () => {
   r = await req(f, '/api/board');
   assert.equal(r.headers.get('cache-control'), 'public, max-age=5');
   const b = await r.json();
-  assert.deepEqual(Object.keys(b), ['threads', 'next']);
+  assert.deepEqual(Object.keys(b), ['threads', 'next', 'density']);
   assert.equal(b.next, null, 'one page so far');
   assert.equal(b.threads[0].id, other);
   assert.equal(b.threads[1].id, thread);
@@ -111,6 +111,8 @@ test('uploads: checked, stored, served; bad ones refused', async () => {
   assert.equal((await g.arrayBuffer()).byteLength, 200);
   const board = await (await req(f, '/api/board')).json();
   assert.deepEqual(board.threads.find((x) => x.id === thread).image, im);
+  /* the board says what density maps it takes, so the page prepares them to fit */
+  assert.deepEqual(board.density, { long: 960, bytes: 900 * 1024 });
   /* a reply may be a picture alone */
   r = await postForm(f, `/api/threads/${thread}/posts`, '6.6.6.7', { image: jpeg(800, 600), density: jpeg(400, 300) });
   assert.equal(r.status, 201);
@@ -118,12 +120,17 @@ test('uploads: checked, stored, served; bad ones refused', async () => {
   r = await postForm(f, `/api/threads/${thread}/posts`, '7.7.7.7', { text: 'x', image: new Blob(['<html><script>1</script></html>'.padEnd(64)], { type: 'image/png' }), density: jpeg(560, 420) });
   assert.equal(r.status, 400);
   assert.deepEqual(await r.json(), { error: 'only jpeg, png, webp or gif' });
-  /* a density map that is too large, and one without its original */
-  r = await postForm(f, `/api/threads/${thread}/posts`, '8.8.8.8', { text: 'x', image: jpeg(800, 600), density: jpeg(1200, 900) });
+  /* a 960 px map near the byte limit is taken (the small text of a wide screenshot) */
+  r = await postForm(f, `/api/threads/${thread}/posts`, '8.8.8.6', { text: 'wide', image: jpeg(1920, 1080), density: jpeg(960, 540, 880 * 1024) });
+  assert.equal(r.status, 201);
+  /* a density map that is too large, too heavy, and one without its original */
+  r = await postForm(f, `/api/threads/${thread}/posts`, '8.8.8.8', { text: 'x', image: jpeg(800, 600), density: jpeg(961, 540) });
   assert.deepEqual([r.status, await r.json()], [400, { error: 'the density map has the wrong size' }]);
+  r = await postForm(f, `/api/threads/${thread}/posts`, '8.8.8.5', { text: 'x', image: jpeg(800, 600), density: jpeg(960, 540, 900 * 1024 + 1) });
+  assert.deepEqual([r.status, await r.json()], [400, { error: 'the density map is too heavy' }]);
   r = await postForm(f, `/api/threads/${thread}/posts`, '8.8.8.9', { text: 'x', density: jpeg(560, 420) });
   assert.deepEqual([r.status, await r.json()], [400, { error: 'a density map needs its original' }]);
-  assert.equal(blobs(f), before + 4, 'nothing stored for refused uploads');
+  assert.equal(blobs(f), before + 6, 'nothing stored for refused uploads');
   /* text checks */
   r = await postForm(f, '/api/threads', '8.8.8.10', { text: '  \n ' });
   assert.deepEqual([r.status, await r.json()], [400, { error: 'a post needs words' }]);
@@ -134,8 +141,8 @@ test('uploads: checked, stored, served; bad ones refused', async () => {
   assert.equal((await req(f, `/api/images/t/${thread}/x.svg`)).status, 404);
 });
 
-test('over 5 MB is refused before anything is read', async () => {
-  const big = new Uint8Array(5 * 1024 * 1024 + 1);
+test('over 6 MB is refused before anything is read', async () => {
+  const big = new Uint8Array(6 * 1024 * 1024 + 1);
   const r = await req(f, '/api/threads', { method: 'POST', headers: H('8.8.8.20', { 'content-type': 'application/octet-stream' }), body: big });
   assert.equal(r.status, 413);
   assert.deepEqual(await r.json(), { error: 'too large' });
@@ -235,7 +242,7 @@ async function allPages(w, limit) {
     const r = await req(w, '/api/board' + (q.size ? '?' + q : ''));
     assert.equal(r.status, 200);
     const b = await r.json();
-    assert.deepEqual(Object.keys(b), ['threads', 'next']);
+    assert.deepEqual(Object.keys(b), ['threads', 'next', 'density']);
     assert.ok(b.next === null || typeof b.next === 'string');
     if (b.next !== null) assert.equal(b.threads.length, Math.min(limit || 40, 100), 'full pages until the last');
     seen.push(...b.threads);
@@ -340,7 +347,7 @@ test('the board is permanent: hundreds of threads, none lost, read page by page'
     r = await req(big, '/api/board?cursor=abc');
     assert.deepEqual([r.status, await r.json()], [400, { error: 'bad cursor' }]);
     const end = await (await req(big, '/api/board?cursor=0-0')).json();
-    assert.deepEqual(end, { threads: [], next: null }, 'below the first thread there is nothing');
+    assert.deepEqual(end, { threads: [], next: null, density: { long: 960, bytes: 900 * 1024 } }, 'below the first thread there is nothing');
 
     /* the v2 migration ran, and the page scan walks its index */
     assert.deepEqual((await query(big.state, 'SELECT version FROM schema_version')).map((x) => x.version), [2]);

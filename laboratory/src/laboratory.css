@@ -169,9 +169,30 @@ em { font-style: normal; color: var(--ink); text-decoration: underline; text-dec
 .is-dark #bTheme .eye.closed { opacity: 1; transform: none; }
 
 /* ---------- a phone ---------- */
+@media (max-width: 640px), (max-height: 520px) {
+  /* the column scrolls in its own frame here, between the corners: it dissolves before it reaches the seal, the eye
+     and ear and the passage, and ends above them. Absolute with no z-index, so it is still no stacking context of
+     its own once the mask gives way while the eye's wave runs */
+  #laboratory {
+    position: absolute; inset: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scroll-padding-top: var(--space-7);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent calc(92px + env(safe-area-inset-top, 0px)), #000 calc(140px + env(safe-area-inset-top, 0px)), #000 calc(100% - 118px - env(safe-area-inset-bottom, 0px)), transparent calc(100% - 66px - env(safe-area-inset-bottom, 0px)));
+            mask-image: linear-gradient(to bottom, transparent 0, transparent calc(92px + env(safe-area-inset-top, 0px)), #000 calc(140px + env(safe-area-inset-top, 0px)), #000 calc(100% - 118px - env(safe-area-inset-bottom, 0px)), transparent calc(100% - 66px - env(safe-area-inset-bottom, 0px)));
+  }
+  .aph-shifting #laboratory { -webkit-mask-image: none; mask-image: none; }
+  .view { padding-top: calc(var(--space-7) + var(--space-6) + env(safe-area-inset-top, 0px)); }
+}
+
+/* a phone on its side: the corners take less of the height, so the frame fades in a narrower band */
+@media (min-aspect-ratio: 1/1) and (max-height: 520px) {
+  #laboratory {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent calc(84px + env(safe-area-inset-top, 0px)), #000 calc(108px + env(safe-area-inset-top, 0px)), #000 calc(100% - 84px - env(safe-area-inset-bottom, 0px)), transparent calc(100% - 56px - env(safe-area-inset-bottom, 0px)));
+            mask-image: linear-gradient(to bottom, transparent 0, transparent calc(84px + env(safe-area-inset-top, 0px)), #000 calc(108px + env(safe-area-inset-top, 0px)), #000 calc(100% - 84px - env(safe-area-inset-bottom, 0px)), transparent calc(100% - 56px - env(safe-area-inset-bottom, 0px)));
+  }
+  .aph-shifting #laboratory { -webkit-mask-image: none; mask-image: none; }
+  .view { padding-top: calc(var(--space-7) + var(--space-4) + env(safe-area-inset-top, 0px)); padding-bottom: calc(var(--space-7) + env(safe-area-inset-bottom, 0px)); }
+}
 @media (max-width: 640px) {
   .bench-grid { grid-template-columns: minmax(0, 1fr); }
-  .view { padding-top: calc(var(--space-7) + var(--space-4) + env(safe-area-inset-top, 0px)); }
   .slider { grid-template-columns: minmax(0, 1fr) auto; }
   .slider-name { grid-column: 1 / -1; }
   .sim .bench-grid { grid-template-columns: minmax(0, 1fr); }

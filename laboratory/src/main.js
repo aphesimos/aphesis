@@ -63,7 +63,7 @@ function show(slug, first) {
     view.innerHTML = e ? experimentView(e, EXPERIMENTS) : indexView(EXPERIMENTS);
     wave(view);
     document.title = e ? `${e.title} · laboratory · aphes.ist` : 'laboratory · aphes.ist';
-    scrollTo(0, 0);
+    scrollTo(0, 0); $('laboratory').scrollTop = 0;   /* the page, or on a phone the column's own frame */
     ground.watch(view);
     void view.offsetWidth;
     view.classList.remove('out');

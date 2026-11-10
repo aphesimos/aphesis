@@ -1,11 +1,13 @@
 # backend
 
-The servers behind aphes.ist: two Cloudflare Workers written in Rust, and their deploy.
+The servers behind aphes.ist: three Cloudflare Workers written in Rust, and their deploy.
 
 - **wall** (`wall-api.aphes.ist`): the lines drifting on the wall · *paries*.
 - **forum** (`forum-api.aphes.ist`): the anonymous board, forum · *ἀγορά*.
+- **content** (`content-api.aphes.ist`): archive posts, book entries and works entries, their pictures, and the
+  owner's gate and dashboard. See [the content service](#the-content-service) below.
 
-They replace the JavaScript Workers that live with their pages (`section/wall`: `wall/worker/`, `section/forum`:
+The wall and the forum replace the JavaScript Workers that live with their pages (`section/wall`: `wall/worker/`, `section/forum`:
 `forum/worker/`) and keep their HTTP API exactly: routes, JSON shapes, status codes, error words, headers, CORS and
 limits. The pages work against them unchanged.
 
@@ -18,6 +20,7 @@ backend/
   common/             what the Workers share
   wall/               the wall's Worker and its Durable Object
   forum/              the forum's Worker, its two Durable Object classes and R2
+  content/            the content service: D1 (migrations/), R2, the gate, the dashboard's API, tools/
   e2e/                end-to-end tests: each Worker under `wrangler dev`, driven over HTTP
   scripts/deploy.mjs  one Worker to Cloudflare: config, R2 buckets, deploy, secrets
 ```
@@ -25,7 +28,7 @@ backend/
 Each Worker is a Rust crate built with [workers-rs](https://github.com/cloudflare/workers-rs) (`worker` 0.8.7) to
 WebAssembly by `worker-build` 0.8.7, with its own `wrangler.toml`.
 
-**common** (`aphesis-common`): CORS for a list of origins (with an option for credentials, for a service that uses
+**common** (`aphesis-common`): reading a picture's type and size from its bytes (shared by the forum and the content service), CORS for a list of origins (with an option for credentials, for a service that uses
 cookies), the JSON error shape, SHA-256 and hex, comparing secrets in equal time (`Bearer` header rules), Turnstile's
 `siteverify`, rate limits as plain data (a sliding window with a gap, usable as a lockout, and a token bucket), the
 UTC day, and Durable Object plumbing (internal JSON calls, alarms at an absolute time). Everything that does not touch
@@ -137,6 +140,98 @@ calls carry `Authorization: Bearer <ADMIN_SECRET>`.
 Vars: `ALLOWED_ORIGINS`, `RATE_POSTS` (4), `RATE_THREADS` (1), `RATE_WINDOW_SECONDS` (120), `BOARD_LIMIT` (120),
 `ALLOW_NO_TURNSTILE` (local only). Secrets: `TURNSTILE_SECRET`, `IP_SALT`, `POSTER_SALT`, `ADMIN_SECRET`.
 
+## The content service
+
+`content/` serves what the archive, the book and works show, and holds the owner's gate. Edits from the dashboard are
+live at once: the sections read the public API when it answers and keep their built-in content when it does not.
+
+### Storage
+
+- **D1** (`aphesis-content`, `content/migrations/`): `posts` (slug, title, summary, stage, date, markdown body, notes,
+  figures, example, published), `books` (slug, title, author, year, note, quote with its language and English, caption,
+  picture, map adjustments, position, example, published), `works` (the fields of section/works `content/works.json`,
+  position, published), and the gate's `challenges`, `sessions` and `throttle`. Only hashes are kept there: of the
+  pending token, the code, the session and the visitor's address.
+- **R2** (`aphesis-content`): density maps under `m/<sha-256 of the bytes, 24 hex>.<png|jpg>` (a key never changes
+  what it holds, so they are served with a year of `immutable` cache and `Access-Control-Allow-Origin: *`, which the
+  sections' WebGL needs), and the email's φ at `mail/phi.png`.
+
+### The API
+
+Public, read-only, published entries only, CORS for `ALLOWED_ORIGINS`, `cache-control: public, max-age=30`:
+`GET /v1/posts`, `/v1/posts/:slug`, `/v1/books`, `/v1/books/:slug`, `/v1/works` (with the section's name and gloss),
+`/v1/works/:id`, `GET /media/:key`. Pictures come back as absolute URLs.
+
+The gate, as in the backlog (`docs/backlog.md` on `main`):
+
+1. `POST /v1/auth/password {password}`: the password is checked against `OWNER_PASSWORD_HASH`, a PBKDF2-SHA256 hash,
+   with WebCrypto. On success the Worker mails three Latin words (from `content/src/words.txt`: 2048 words, 3 to 8
+   lowercase letters, about 33 bits) to `OWNER_EMAIL`, from `EMAIL_FROM`, through the `send_email` binding, and sets
+   `aph_pending` (HttpOnly, Secure, SameSite=Strict, `Path=/v1/auth`, 10 minutes). A new password step replaces any
+   earlier code.
+2. `POST /v1/auth/code {code}`: the words in any case with any separators, within 10 minutes, five tries, single
+   use. On success: `aph_session` (HttpOnly, Secure, SameSite=Strict, `Path=/`, `SESSION_SECONDS`, two hours) and
+   `{csrf, expires}`.
+3. `GET /v1/auth/session` answers `{csrf, expires}` while the session lasts; `POST /v1/auth/logout` ends it.
+
+Every wrong answer on either step, and every answer while locked, is the same `401 {"error": "no"}`. Failures are
+counted per visitor (`SHA-256(AUTH_SALT|visitor|address)`) and for everyone: a visitor has 4 free failures, then
+each one locks for 1, 2, 4... minutes up to 6 hours (forgotten after a quiet day); everyone together has 30, then
+5 minutes doubling up to an hour. While locked even the right password is refused and no mail goes out.
+
+**The email** (`content/src/mail.rs`): subject *clavis*; HTML on the dark ground (the dark theme's `bg`) with the φ
+in rubedo as stipple (`mail/phi.png`, made by `content/tools/make-mail-phi.mjs` from the design system's φ) and the
+three words in the typewriter face (`'Special Elite', 'Courier New', Courier, 'Lucida Console', monospace`); a
+plain-text part with the same words. No "verification code", nothing to explain it.
+
+**Hashing and the CPU limit.** Measured under workerd on a 2.1 GHz Xeon, PBKDF2-SHA256 costs about 0.17 ms per
+thousand iterations (10,000: 1.9 ms; 25,000: 4.4 ms; 50,000: 8.3 ms; 100,000: 17.9 ms). The Workers Free plan allows
+10 ms of CPU a request, so the default is **25,000** iterations and the Worker refuses a stored hash above 60,000.
+
+The dashboard (`/v1/admin/...`) needs the session cookie; every request that changes something also needs an
+`Origin` in `ALLOWED_ORIGINS` and `X-CSRF-Token` equal to the session's token (a custom header, so it also needs a
+CORS preflight, which only the site's origins pass):
+
+| method | path | what |
+| --- | --- | --- |
+| GET | `/v1/admin/{posts,books,works}` | every entry, drafts too, with `published` |
+| GET | `/v1/admin/{posts,books,works}/:id` | one entry as the public API will answer it: the preview of a draft |
+| PUT | `/v1/admin/{posts,books,works}/:id` | create (`201`) or update (`200`); another id in the body renames (`409` if taken) |
+| DELETE | `/v1/admin/{posts,books,works}/:id` | remove |
+| POST | `/v1/admin/{posts,books,works}/:id/publish`, `/unpublish` | show it on the site, or take it back to a draft |
+| POST | `/v1/admin/media` | a density map made in the browser (multipart `file`: jpeg or png, at most 400 KB, 32 to 640 px) → `{key, url, w, h}` |
+| GET, DELETE | `/v1/admin/wall`, `/v1/admin/wall/:id` | the wall's lines and their removal, through the wall's admin API |
+| GET | `/v1/admin/forum/board`, `/threads/:id`, `/reports` | the forum's board, a thread, the reports |
+| DELETE | `/v1/admin/forum/threads/:id/posts/:n` | remove a post (post 1 removes the thread) |
+| POST | `/v1/admin/export` | the nightly export, now |
+
+Moderation calls the wall and the forum server to server (`WALL_API`, `FORUM_API`) with their admin secrets, which
+the content service holds as its own secrets; the pages never see them.
+
+**The nightly export** (`content/src/export.rs`, cron `17 3 * * *`): every entry, drafts too, as the files the section
+branches read (`archive/content/<slug>.md`, `book/content/<NN>-<slug>.md`, `works/content/works.json`), committed to
+this repository's `content` branch as the owner (`aphesimos`, the noreply address) through GitHub's git data API, only
+when something changed. It needs `EXPORT_GITHUB_TOKEN`; without it the cron does nothing.
+
+Vars: `ALLOWED_ORIGINS`, `EMAIL_FROM` (`clavis@aphes.ist`), `SESSION_SECONDS` (7200), `WALL_API`, `FORUM_API`,
+`EXPORT_REPO`, `EXPORT_BRANCH`, `PUBLIC_URL`. Secrets: `OWNER_PASSWORD_HASH`, `OWNER_EMAIL`, `AUTH_SALT`,
+`WALL_ADMIN_TOKEN`, `FORUM_ADMIN_SECRET`, `EXPORT_GITHUB_TOKEN`. Without `OWNER_PASSWORD_HASH`, `OWNER_EMAIL` or
+`AUTH_SALT` the gate refuses everything (the public API works).
+
+### Tools
+
+```sh
+node content/tools/hash-password.mjs            # the OWNER_PASSWORD_HASH line: asks twice, prints pbkdf2-sha256$25000$<salt>$<hash>
+node content/tools/seed.mjs --remote            # the one-time import of the section branches into D1 and R2
+node content/tools/seed.mjs --local --persist-to DIR    # the same into a local wrangler state
+NODE_PATH=$(npm root -g) node content/tools/make-mail-phi.mjs   # redraw content/assets/mail-phi.png (Playwright)
+```
+
+The seed reads `section/archive` (`archive/content/*.md`), `section/book` (`book/content/*.md`), `section/works`
+(`works/content/works.json`, `works/maps/`) and the design system's density maps with git (each ref, or
+`origin/<ref>`), uploads every picture under its content key, writes every entry as published, and puts the email's
+φ in the bucket. Running it again replaces those entries and nothing else.
+
 ## Local development
 
 Once:
@@ -158,6 +253,21 @@ npx --yes wrangler@4.153.0 dev --port 8788 --var ALLOW_NO_TURNSTILE:1 --var IP_S
   --var ADMIN_SECRET:dev --var ALLOWED_ORIGINS:http://127.0.0.1:8000
 ```
 
+The content service needs its D1 tables first, and the seed for something to show:
+
+```sh
+cd backend/content
+npx --yes wrangler@4.153.0 d1 migrations apply aphesis-content --local
+node tools/seed.mjs --local
+npx --yes wrangler@4.153.0 dev --port 8790 --var ALLOWED_ORIGINS:http://localhost:8000 --var AUTH_SALT:dev \
+  --var OWNER_EMAIL:owner@example.com --var "OWNER_PASSWORD_HASH:$(printf %s 'a local password' | node tools/hash-password.mjs --stdin)" \
+  --var WALL_API:http://127.0.0.1:8787 --var FORUM_API:http://127.0.0.1:8788 --var WALL_ADMIN_TOKEN:dev --var FORUM_ADMIN_SECRET:dev
+```
+
+Locally the `send_email` binding writes each mail to a `.eml` file under `.wrangler/tmp/` and logs its path; the three
+words are in it. Serve the page on `localhost` too (not `127.0.0.1`), so the API is the same site and the Secure
+cookies are kept.
+
 `wrangler dev` runs `worker-build --release` first. `ALLOW_NO_TURNSTILE` is for local runs only: it is never in
 `wrangler.toml` and never set by the deploy.
 
@@ -167,7 +277,7 @@ npx --yes wrangler@4.153.0 dev --port 8788 --var ALLOW_NO_TURNSTILE:1 --var IP_S
 cd backend
 cargo test --workspace                 # unit tests and the filter vectors in Rust
 node wall/tests/filter-parity.mjs      # the same vectors against the page's filter.js (read from section/wall)
-node --test e2e/*.test.mjs             # both Workers under wrangler dev, over HTTP
+node --test e2e/*.test.mjs             # the Workers under wrangler dev, over HTTP
 ```
 
 - **Unit** (`cargo test`): the JavaScript tests ported one by one (filter, both rate limiters, upload validation,
@@ -183,6 +293,13 @@ node --test e2e/*.test.mjs             # both Workers under wrangler dev, over H
   checked, stored in R2 and served with their headers, refused uploads leaving nothing behind, 413, reports, removal
   of a thread with its pictures, the board limit, per-thread poster tokens and their exact format, and that no
   address is ever in storage.
+- **The content service**: unit tests for hashing (RFC 7914 vectors, a vector from Node, the stored line), the words
+  (2048, 33 bits, loose reading), the lockout and its backoff, cookies and CSRF, validation of every kind of entry,
+  the email (the backlog's rules, and its colours against the design system's tokens) and the export's files; end to
+  end (`e2e/content.test.mjs`) with a local D1 and R2: the seed, the public API and CORS, the gate step by step with
+  the mail read from the local `send_email` binding (its HTML checked), code expiry, replacement and single use,
+  lockout on both steps, CSRF (token, origin), create, edit, preview, publish, rename and delete for each kind, uploads,
+  moderation against local wall and forum Workers, and the nightly export against a stand-in for GitHub's API.
 
 ## One-time setup
 
@@ -214,10 +331,24 @@ node --test e2e/*.test.mjs             # both Workers under wrangler dev, over H
    | `FORUM_IP_SALT` | `openssl rand -hex 32` |
    | `FORUM_POSTER_SALT` | `openssl rand -hex 32` |
    | `FORUM_ADMIN_SECRET` | `openssl rand -hex 32`, kept by the owner for moderation |
+   | `CONTENT_OWNER_PASSWORD_HASH` | the line printed by `node backend/content/tools/hash-password.mjs` |
+   | `CONTENT_OWNER_EMAIL` | the owner's address, verified in Email Routing (below) |
+   | `CONTENT_AUTH_SALT` | `openssl rand -hex 32` |
+   | `CONTENT_EXPORT_GITHUB_TOKEN` | a fine-grained token for this repository with *Contents: read and write*, for the nightly export |
+
+   The content service also gets `WALL_ADMIN_TOKEN` and `FORUM_ADMIN_SECRET`, for moderation.
 
    Variable: `BACKEND_CUSTOM_DOMAINS` = `1` once the `aphes.ist` zone is active on Cloudflare. With it each Worker
    answers on its `aphes.ist` subdomain only, and its workers.dev address is switched off, since the account's
    workers.dev name belongs to the account, not to this site. Without it the Workers answer on workers.dev only.
+
+7. **Email Routing**, for the gate's mail. In the Cloudflare dashboard, zone `aphes.ist` → Email → Email Routing →
+   enable it (Cloudflare adds its MX and SPF records), then Destination addresses → add the owner's address and open
+   the link Cloudflare mails to it, so it shows *Verified*. The `send_email` binding only delivers to verified
+   destinations, and `EMAIL_FROM` (`clavis@aphes.ist`) must be on the zone. The API token also needs Account →
+   *D1: Edit*.
+8. **The first content.** After the first deploy, once: `node backend/content/tools/seed.mjs --remote` (with
+   `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in the environment, and the section branches fetched).
 
 Keep the salts once set: changing `FORUM_POSTER_SALT` changes every poster token, and so every sigil;
 changing a salt also resets the rate limits.
@@ -230,7 +361,8 @@ hand (workflow_dispatch):
 1. **test**: `cargo test`, the filter parity against the page's `filter.js`, and the end-to-end tests;
 2. **build**: each Worker with `worker-build --release`, its size checked against the free plan's 3 MB
    (compressed) and bundled with `wrangler deploy --dry-run`;
-3. **deploy**: for each Worker, `scripts/deploy.mjs`: the R2 buckets it needs (created when missing),
+3. **deploy**: for each Worker, `scripts/deploy.mjs`: the R2 buckets and D1 databases it needs (created when missing;
+   a database's id is written into the shipped config and its migrations applied),
    `wrangler deploy` (wrangler 4.153.0, the same as the site), then its secrets with `wrangler secret bulk`. A secret
    whose repository secret is empty or missing is skipped and named in the log; no value is ever printed. The
    resulting URLs are printed and written to the run's summary.

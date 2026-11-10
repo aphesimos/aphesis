@@ -6,6 +6,7 @@ pub mod cors;
 pub mod durable;
 pub mod env;
 pub mod hash;
+pub mod image;
 pub mod http;
 pub mod ratelimit;
 pub mod secret;

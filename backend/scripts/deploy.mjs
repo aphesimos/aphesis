@@ -1,6 +1,7 @@
 // Ships one Worker of backend/services.json, from its existing build/ (made by worker-build).
 //
-//   node scripts/deploy.mjs <service>             deploy, create missing R2 buckets, push secrets
+//   node scripts/deploy.mjs <service>             deploy, create missing R2 buckets and D1 databases (and apply
+//                                                 their migrations), push secrets
 //   node scripts/deploy.mjs <service> --dry-run   bundle only, and report the upload size (no account needed)
 //
 // Environment:
@@ -51,6 +52,11 @@ if (domains && svc.domain) {
 }
 const config = 'wrangler.deploy.toml';
 writeFileSync(path.join(dir, config), toml);
+/* D1: the database's id goes into the shipped config (wrangler.toml keeps a placeholder) */
+function setDatabaseId(name, id) {
+  toml = toml.replace(new RegExp(`(database_name = "${name}"\\s*\\n(?:#[^\\n]*\\n)*database_id = )"[^"]*"`), `$1"${id}"`);
+  writeFileSync(path.join(dir, config), toml);
+}
 
 /* 2. the size of what is uploaded */
 const files = readdirSync(path.join(dir, 'build'), { recursive: true }).map((f) => path.join(dir, 'build', f))
@@ -74,6 +80,22 @@ for (const bucket of svc.r2 || []) {
   if (new RegExp(`\\b${bucket}\\b`).test(list.out)) { console.log(`r2 bucket ${bucket}: exists`); continue; }
   const made = wrangler(['r2', 'bucket', 'create', bucket]);
   if (!made.ok) process.exit(1);
+}
+
+/* 3b. D1 databases, created when missing, their ids in the config */
+for (const db of svc.d1 || []) {
+  const list = wrangler(['d1', 'list', '--json'], { quiet: true });
+  if (!list.ok) { console.error(list.out); console.error('could not list D1 databases'); process.exit(1); }
+  let found = (JSON.parse(list.out.slice(list.out.indexOf('['))) || []).find((d) => d.name === db.name);
+  if (!found) {
+    const made = wrangler(['d1', 'create', db.name]);
+    if (!made.ok) process.exit(1);
+    const again = wrangler(['d1', 'list', '--json'], { quiet: true });
+    found = JSON.parse(again.out.slice(again.out.indexOf('['))).find((d) => d.name === db.name);
+  } else console.log(`d1 database ${db.name}: exists`);
+  setDatabaseId(db.name, found.uuid);
+  const mig = wrangler(['d1', 'migrations', 'apply', db.name, '--remote', '-c', config]);
+  if (!mig.ok) process.exit(1);
 }
 
 /* 4. the Worker */

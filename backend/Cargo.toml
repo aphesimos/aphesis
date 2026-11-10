@@ -1,7 +1,7 @@
-# The Rust Workers behind aphes.ist: the wall, the forum, and the code they share.
+# The Rust Workers behind aphes.ist: the wall, the forum, the content service, and the code they share.
 [workspace]
 resolver = "2"
-members = ["common", "wall", "forum"]
+members = ["common", "wall", "forum", "content"]
 
 [workspace.package]
 edition = "2021"

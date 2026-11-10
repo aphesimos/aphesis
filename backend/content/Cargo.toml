@@ -1,0 +1,18 @@
+[package]
+name = "aphesis-content"
+version = "0.1.0"
+description = "content: archive posts, book entries and works entries in D1, their pictures in R2, and the owner's gate."
+edition.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+aphesis-common.workspace = true
+worker = { workspace = true, features = ["d1"] }
+wasm-bindgen.workspace = true
+js-sys.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true

@@ -1,10 +1,11 @@
-# Tests, builds and deploys the Rust Workers in backend/ (the wall and the forum) on every push to `backend` that
+# Tests, builds and deploys the Rust Workers in backend/ (the wall, the forum and the content service) on every push to `backend` that
 # touches them. The services are listed once, in backend/services.json; a new Worker is one entry there.
 #
 # Repository secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, TURNSTILE_SECRET, WALL_HASH_SALT,
-# WALL_ADMIN_TOKEN, FORUM_IP_SALT, FORUM_POSTER_SALT, FORUM_ADMIN_SECRET. Empty ones are skipped, and a Worker
-# without its Turnstile secret or salts refuses posts until they are set (see backend/README.md).
-# Repository variable: BACKEND_CUSTOM_DOMAINS = 1 serves wall-api.aphes.ist and forum-api.aphes.ist as custom
+# WALL_ADMIN_TOKEN, FORUM_IP_SALT, FORUM_POSTER_SALT, FORUM_ADMIN_SECRET, CONTENT_OWNER_PASSWORD_HASH,
+# CONTENT_OWNER_EMAIL, CONTENT_AUTH_SALT. Empty ones are skipped, a Worker without its Turnstile secret or salts
+# refuses posts until they are set, and the content service's gate stays shut without its own (see backend/README.md).
+# Repository variable: BACKEND_CUSTOM_DOMAINS = 1 serves wall-api, forum-api and content-api.aphes.ist as custom
 # domains; without it the Workers answer on workers.dev only.
 name: backend
 
@@ -41,8 +42,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Fetch the page's filter for the parity check
-        run: git fetch --depth=1 origin section/wall:refs/remotes/origin/section/wall
+      - name: Fetch the page's filter for the parity check, and what the content seed reads
+        run: |
+          for b in section/wall section/archive section/book section/works design-system; do
+            git fetch --depth=1 origin "$b:refs/remotes/origin/$b"
+          done
 
       - uses: actions/setup-node@v5
         with:

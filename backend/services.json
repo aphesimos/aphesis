@@ -1,17 +1,49 @@
 {
-  "about": "The Workers the deploy workflow ships, one entry each. secrets maps each Worker secret to the GitHub repository secret that holds it; r2 lists buckets created when missing; domain is the custom domain used when the repository variable BACKEND_CUSTOM_DOMAINS is 1.",
+  "about": "The Workers the deploy workflow ships, one entry each. secrets maps each Worker secret to the GitHub repository secret that holds it; r2 lists buckets created when missing; d1 lists databases created when missing, whose ids the deploy writes into the shipped config and whose migrations it applies; domain is the custom domain used when the repository variable BACKEND_CUSTOM_DOMAINS is 1.",
   "services": [
     {
       "name": "wall",
       "domain": "wall-api.aphes.ist",
       "r2": [],
-      "secrets": { "TURNSTILE_SECRET": "TURNSTILE_SECRET", "HASH_SALT": "WALL_HASH_SALT", "ADMIN_TOKEN": "WALL_ADMIN_TOKEN" }
+      "secrets": {
+        "TURNSTILE_SECRET": "TURNSTILE_SECRET",
+        "HASH_SALT": "WALL_HASH_SALT",
+        "ADMIN_TOKEN": "WALL_ADMIN_TOKEN"
+      }
     },
     {
       "name": "forum",
       "domain": "forum-api.aphes.ist",
-      "r2": ["aphesis-forum-images"],
-      "secrets": { "TURNSTILE_SECRET": "TURNSTILE_SECRET", "IP_SALT": "FORUM_IP_SALT", "POSTER_SALT": "FORUM_POSTER_SALT", "ADMIN_SECRET": "FORUM_ADMIN_SECRET" }
+      "r2": [
+        "aphesis-forum-images"
+      ],
+      "secrets": {
+        "TURNSTILE_SECRET": "TURNSTILE_SECRET",
+        "IP_SALT": "FORUM_IP_SALT",
+        "POSTER_SALT": "FORUM_POSTER_SALT",
+        "ADMIN_SECRET": "FORUM_ADMIN_SECRET"
+      }
+    },
+    {
+      "name": "content",
+      "domain": "content-api.aphes.ist",
+      "r2": [
+        "aphesis-content"
+      ],
+      "d1": [
+        {
+          "binding": "DB",
+          "name": "aphesis-content"
+        }
+      ],
+      "secrets": {
+        "OWNER_PASSWORD_HASH": "CONTENT_OWNER_PASSWORD_HASH",
+        "OWNER_EMAIL": "CONTENT_OWNER_EMAIL",
+        "AUTH_SALT": "CONTENT_AUTH_SALT",
+        "WALL_ADMIN_TOKEN": "WALL_ADMIN_TOKEN",
+        "FORUM_ADMIN_SECRET": "FORUM_ADMIN_SECRET",
+        "EXPORT_GITHUB_TOKEN": "CONTENT_EXPORT_GITHUB_TOKEN"
+      }
     }
   ]
 }

@@ -112,19 +112,19 @@ input, textarea, select, progress, meter, [contenteditable] { caret-color: var(-
 /* the canvas cells and the drawn marks never take a selection veil */
 svg ::selection, canvas::selection { background: transparent; }
 
-/* scrollbars. Firefox (and any engine without the WebKit pseudo-elements) draws the standard thin bar in soft ink.
+/* scrollbars. Firefox (and any engine without the WebKit pseudo-elements) draws the standard thin bar in accent.
    The standard properties stay out of WebKit and Blink on purpose: once scrollbar-width or scrollbar-color is set
    on an element, Chromium ignores ::-webkit-scrollbar for it, and the stipple below is lost. */
 @supports not selector(::-webkit-scrollbar) {
-  * { scrollbar-width: thin; scrollbar-color: color-mix(in oklch, var(--ink-soft) 55%, transparent) transparent; }
+  * { scrollbar-width: thin; scrollbar-color: color-mix(in oklch, var(--accent) 55%, transparent) transparent; }
 }
-/* Chromium and Safari: a thin, empty track and a thumb made of stipple: 2px square cells in soft ink, laid by four
+/* Chromium and Safari: a thin, empty track and a thumb made of stipple: 2px square cells in accent (rubedo), laid by five
    grids whose periods never line up, so the cells read as scattered rather than ruled. Hover adds two more grids. */
 ::-webkit-scrollbar { width: 8px; height: 8px; background: transparent; }
 ::-webkit-scrollbar-track, ::-webkit-scrollbar-track-piece, ::-webkit-scrollbar-corner { background: transparent; }
 ::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 ::-webkit-scrollbar-thumb {
-  --c: color-mix(in oklch, var(--ink-soft) 80%, transparent);
+  --c: color-mix(in oklch, var(--accent) 80%, transparent);
   border: 0; border-radius: var(--radius-none);
   background-color: transparent;
   background-image:
@@ -141,7 +141,7 @@ svg ::selection, canvas::selection { background: transparent; }
   background-position: 0 0, 4px 4px, 8px 6px, 12px 2px, 16px 4px;
 }
 ::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active {
-  --c: var(--ink-soft);
+  --c: var(--accent);
   background-image:
     conic-gradient(at 2px 2px, transparent 75%, var(--c) 0),
     conic-gradient(at 2px 2px, transparent 75%, var(--c) 0),

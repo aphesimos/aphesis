@@ -6,7 +6,7 @@ Single source of truth for everyone drawing glyphs. The lead designer owns this 
 `work/<group>/`. No git, no publishing, no external services.
 
 ## 1. What we are making
-"Aphesis Script" is the authorial display face of aphes.is, a hermetic, cult, Latin, experimental personal
+"Aphesis Script" is the authorial display face of aphes.ist, a hermetic, cult, Latin, experimental personal
 site. Its logo is a hand-drawn brush **φ**; the wordmark is **aφesis**. The face is **lowercase only**.
 
 The hand: a wide, upright *humanist cursive* — the cancellaresca of the Renaissance hermeticists, with

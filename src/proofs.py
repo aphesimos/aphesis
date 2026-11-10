@@ -83,7 +83,7 @@ def _():
 def _():
     return [row('0123456789 1984 2026 30570 16 89 4·4', 96, label='oldstyle figures'),
             row('no. 7, in 1463; so: 16! or 89? (pa) [ha] a-e n–o s—o a/e a\\e', 96, label='punctuation'),
-            row('‘a’ “e” \'i\' "o" … _ · & @ # * aφesis@aphes.is #7 a&e', 96),
+            row('‘a’ “e” \'i\' "o" … _ · & @ # * aφesis@aphes.ist #7 a&e', 96),
             row('á à â ã ä å é è ê ë í ì î ï ó ò ô õ ö ú ù û ü ç ñ ý ÿ œ æ ß', 80, label='latin-1'),
             row('0123456789 no. 7, in 1463; so: 16! or 89? (pa) [ha] ‘a’ “e” · & @ # *', 80, 300),
             row('0123456789 no. 7, in 1463; so: 16! or 89? (pa) [ha] ‘a’ “e” · & @ # *', 80, 800),

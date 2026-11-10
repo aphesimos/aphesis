@@ -9,7 +9,7 @@
 
 # font
 
-**Aphesis Script**, the authorial display face of aphes.is: lowercase only, every mark drawn with the φ's brush
+**Aphesis Script**, the authorial display face of aphes.ist: lowercase only, every mark drawn with the φ's brush
 (broad nib at 38°, thick/thin ≈ 2.8, tapered ends, hand-moved edges). Variable axes `wght` 300–800 (400 = the φ's
 own stroke) and `slnt` −16…0; the φ follows the weight and never leans.
 
@@ -28,7 +28,7 @@ own stroke) and `slnt` −16…0; the φ follows the weight and never leans.
   <img alt="Aphesis Script for titles and glosses, Special Elite for text" src="assets/readme/type-light.svg" width="100%">
 </picture>
 
-aphes.is uses two faces: Aphesis Script for the wordmark, titles, headings and glosses, slanted at −12, and Special
+aphes.ist uses two faces: Aphesis Script for the wordmark, titles, headings and glosses, slanted at −12, and Special
 Elite for text, which falls back to Aphesis Script for Greek and CJK.
 
 ## Files

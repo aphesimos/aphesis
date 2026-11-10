@@ -2,7 +2,7 @@
 
 ## What this is
 
-Aphesis Script is a lowercase-only display hand for aphes.is: a wide, upright humanist cursive — the cancellaresca of the Renaissance hermeticists, with some half-uncial roundness — written with the brush of the hand-drawn φ. It began as a spacing repair for six letters. The owner then widened the brief to the whole family in one run, with freedom to rebuild, so the earlier skeletons and numbers were used as input, not as limits.
+Aphesis Script is a lowercase-only display hand for aphes.ist: a wide, upright humanist cursive — the cancellaresca of the Renaissance hermeticists, with some half-uncial roundness — written with the brush of the hand-drawn φ. It began as a spacing repair for six letters. The owner then widened the brief to the whole family in one run, with freedom to rebuild, so the earlier skeletons and numbers were used as input, not as limits.
 
 Three things were kept from the first version because they are the identity: the brush (centreline plus width profile, nib at 38°, thick/thin 2.8, tapered ends, unsure edges), the φ drawing itself, and the axes (wght 300–800 with 400 = the φ’s stroke, slnt −16…0 with the φ upright at every slant).
 

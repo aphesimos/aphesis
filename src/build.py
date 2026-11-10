@@ -232,9 +232,9 @@ def finish(font, style='Regular', wght=400, slnt=0):
     """Names, STAT and the small tables a production font carries."""
     name = font['name']
     def setn(i, s): name.setName(s, i, 3, 1, 0x409)
-    setn(0, 'Copyright 2026 The Aphesis Script Project Authors (aphes.is)')
+    setn(0, 'Copyright 2026 The Aphesis Script Project Authors (aphes.ist)')
     setn(5, f'Version {VERSION}'); setn(3, f'{VERSION};APHS;AphesisScript-{style.replace(" ", "")}')
-    setn(8, 'aphes.is'); setn(9, 'aphes.is'); setn(11, 'https://aphes.is'); setn(12, 'https://aphes.is')
+    setn(8, 'aphes.ist'); setn(9, 'aphes.ist'); setn(11, 'https://aphes.ist'); setn(12, 'https://aphes.ist')
     setn(10, 'A lowercase-only brush script for Latin and Greek (monotonic and polytonic), written with the brush of a hand-drawn φ; '
              'with the four characters of 色即是空. Every glyph is brush strokes; nothing is solid.')
     font['head'].fontRevision = float(VERSION); font['head'].flags |= 0b1011

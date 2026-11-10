@@ -2,7 +2,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/hero-dark.svg">
-  <img alt="aφesis: a hand-drawn φ, a stippled fog, typewriter text" src="assets/readme/hero-light.svg" width="100%">
+  <img alt="aφesis: the φ drawn in the fog. what is loosed below is loosed above." src="assets/readme/hero-light.svg" width="100%">
 </picture>
 
 </div>

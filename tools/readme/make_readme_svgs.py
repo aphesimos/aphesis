@@ -154,26 +154,30 @@ def phi_group(x, y, h, color, draw=True, dur=14, boil=True, fid='boil'):
     filt = ('<filter id="%s" x="-5%%" y="-5%%" width="110%%" height="110%%"><feTurbulence type="fractalNoise" baseFrequency=".03" numOctaves="1" seed="2">'
             '<animate attributeName="seed" dur="1s" repeatCount="indefinite" calcMode="discrete" values="2;7;13;21;34;55;89;144"/></feTurbulence>'
             '<feDisplacementMap in="SourceGraphic" scale="6" xChannelSelector="R" yChannelSelector="G"/></filter>' % fid) if boil else ''
-    mask = ''
+    mask = ''; fade = ''
     if draw:
-        # the pen: left lobe, right lobe, then the stem (art coordinates of phi.svg)
-        strokes = ['M244 12 C150 20 76 120 80 175 C84 240 150 335 244 344', 'M282 12 C370 20 448 110 446 160 C440 250 380 330 282 344', 'M262 -8 L262 530']
-        t = [(0.02, .16), (.16, .30), (.30, .40)]
-        segs = []
-        for (a, b), d in zip(t, strokes):
-            segs.append('<path d="%s" pathLength="1" fill="none" stroke="#fff" stroke-width="118" stroke-linecap="round" stroke-dasharray="1 1">'
-                        '<animate attributeName="stroke-dashoffset" dur="%ss" repeatCount="indefinite" keyTimes="0;%s;%s;.86;.94;1" values="1;1;0;0;1;1" calcMode="spline" keySplines="0 0 1 1;.45 0 .2 1;0 0 1 1;.5 0 .5 1;0 0 1 1"/></path>'
-                        % (d, dur, f(a), f(b)))
-        mask = '<mask id="pen" maskUnits="userSpaceOnUse" x="%s" y="%s" width="%s" height="%s">%s</mask>' % (f(vb[0] - 80), f(vb[1] - 80), f(vb[2] + 160), f(vb[3] + 160), ''.join(segs))
-    return ('<defs>%s%s</defs><g transform="translate(%s %s) scale(%s)"><path d="%s" fill="%s" fill-rule="evenodd"%s%s/></g>'
-            % (filt, mask, f(tx), f(ty), f(s), PHI['d'], color, ' filter="url(#%s)"' % fid if boil else '', ' mask="url(#pen)"' if draw else ''))
+        # the pen, in the engine's order: the stem from top to bottom, then the ring swept around its centre, starting
+        # just right of the stem and ending at the free tip on the upper left (art coordinates of phi.svg).
+        # The ring is revealed as a growing pie: a circle of radius R/2 stroked R wide, its dash opening clockwise.
+        cxr, cyr, R = 262, 172, 230; r = R / 2; L = 2 * math.pi * r
+        k = lambda a, b, c, d: 'keyTimes="0;%s;%s;.95;1" values="%s;%s;%s;%s;%s"' % (f(a), f(b), c, c, d, d, c)
+        stem = ('<path d="M262 -40 L262 540" fill="none" stroke="#fff" stroke-width="46" pathLength="1" stroke-dasharray="1 1">'
+                '<animate attributeName="stroke-dashoffset" dur="%ss" repeatCount="indefinite" calcMode="spline" keySplines="0 0 1 1;.45 0 .25 1;0 0 1 1;0 0 1 1" %s/></path>' % (dur, k(.03, .14, 1, 0)))
+        ring = ('<circle cx="%s" cy="%s" r="%s" fill="none" stroke="#fff" stroke-width="%s" stroke-dasharray="%s %s" transform="rotate(-76 %s %s)">'
+                '<animate attributeName="stroke-dashoffset" dur="%ss" repeatCount="indefinite" calcMode="spline" keySplines="0 0 1 1;.4 0 .3 1;0 0 1 1;0 0 1 1" %s/></circle>'
+                % (cxr, cyr, f(r), R, f(L), f(L), cxr, cyr, dur, k(.15, .40, f(L), 0)))
+        mask = ('<filter id="soft" x="-20%%" y="-20%%" width="140%%" height="140%%"><feGaussianBlur stdDeviation="12"/></filter>'
+                '<mask id="pen" maskUnits="userSpaceOnUse" x="%s" y="%s" width="%s" height="%s">%s<g filter="url(#soft)">%s</g></mask>' % (f(vb[0] - 80), f(vb[1] - 80), f(vb[2] + 160), f(vb[3] + 160), stem, ring))
+        fade = '<animate attributeName="opacity" dur="%ss" repeatCount="indefinite" keyTimes="0;.86;.93;1" values="1;1;0;0"/>' % dur
+    return ('<defs>%s%s</defs><g transform="translate(%s %s) scale(%s)">%s<path d="%s" fill="%s" fill-rule="evenodd"%s%s/></g>'
+            % (filt, mask, f(tx), f(ty), f(s), fade, PHI['d'], color, ' filter="url(#%s)"' % fid if boil else '', ' mask="url(#pen)"' if draw else ''))
 
 def icon(name, x, y, size, color, inner=''):
     g = MARKS[name]; s = size / 24
     return '<g transform="translate(%s %s) scale(%s)">%s<path d="%s" fill="%s"/>%s</g>' % (f(x), f(y), f(s), inner, g['strokes'], color,
                                                                                          '<path d="%s" fill="%s" opacity=".85"/>' % (g['dots'], color) if g['dots'] else '')
 
-def typed(text, x, y, size, color, dur, start, hold, cls='elite halo', anchor='start', spacing=0, erase=True):
+def typed(text, x, y, size, color, dur, start, hold, cls='elite halo-s', anchor='start', spacing=0, erase=True):
     """types `text` one character at a time like the Typist (uneven rhythm), holds, then erases word by word"""
     adv = advance(text, size, spacing=spacing); total = sum(adv)
     if anchor == 'end': x -= total
@@ -197,9 +201,11 @@ def typed(text, x, y, size, color, dur, start, hold, cls='elite halo', anchor='s
         cx += adv[i]
     # caret
     caret_x = ['%s' % f(x + sum(adv[:i + 1])) for i in range(len(text))]
-    out.append('<rect y="%s" width="%s" height="%s" fill="%s" opacity=".75" x="%s"><animate attributeName="x" dur="%ss" repeatCount="indefinite" calcMode="discrete" keyTimes="0;%s;1" values="%s;%s;%s"/>'
+    on, off = max(0, start - .25) / dur, min(.999, (end + nw * .16 + .3) / dur)
+    out.append('<rect y="%s" width="%s" height="%s" fill="%s" opacity=".75" x="%s" visibility="hidden"><animate attributeName="x" dur="%ss" repeatCount="indefinite" calcMode="discrete" keyTimes="0;%s;1" values="%s;%s;%s"/>'
+               '<animate attributeName="visibility" dur="%ss" repeatCount="indefinite" calcMode="discrete" keyTimes="0;%s;%s" values="hidden;visible;hidden"/>'
                '<animate attributeName="opacity" dur="1.06s" repeatCount="indefinite" calcMode="discrete" values=".75;0"/></rect>'
-               % (f(y - size * .78), f(size * .55), f(size * .95), color, f(x), dur, ';'.join(f(tt / dur) for tt in times), f(x), ';'.join(caret_x), caret_x[-1]))
+               % (f(y - size * .78), f(size * .55), f(size * .95), color, f(x), dur, ';'.join(f(tt / dur) for tt in times), f(x), ';'.join(caret_x), caret_x[-1], dur, f(on), f(off)))
     return ''.join(out)
 
 def svg(name, W, H, body_fn, aph_text='', elite_text='', title=''):
@@ -210,7 +216,7 @@ def svg(name, W, H, body_fn, aph_text='', elite_text='', title=''):
         css.append(".aph{font-family:'Aphesis Script',serif;font-variation-settings:'wght' 400,'slnt' -12}"
                    ".aphu{font-family:'Aphesis Script',serif;font-variation-settings:'wght' 400,'slnt' 0}"
                    ".elite{font-family:'Special Elite',monospace}"
-                   ".halo{paint-order:stroke;stroke:%s;stroke-width:7px;stroke-linejoin:round;stroke-opacity:.92}" % T['bg'])
+                   ".halo{paint-order:stroke;stroke:%s;stroke-width:7px;stroke-linejoin:round;stroke-opacity:.92}.halo-s{paint-order:stroke;stroke:%s;stroke-width:2.5px;stroke-linejoin:round}" % (T['bg'], T['bg']))
         body = body_fn(T, tid)
         doc = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d" role="img"><title>%s</title><style>%s</style>'
                '<rect width="%d" height="%d" fill="%s"/>%s</svg>' % (W, H, W, H, title, ''.join(css), W, H, T['bg'], body))
@@ -222,7 +228,7 @@ def hero():
     W, H = 1200, 500
     calm = [(300, 250, 230, 250), (790, 240, 360, 150), (1020, 470, 220, 50)]
     layers = fog_layers(W, H, 4, 11, calm)
-    tag = 'a hand-drawn φ, a stippled fog, typewriter text'
+    tag = 'what is loosed below is loosed above.'   # the Emerald Tablet, turned toward the name: aphesis, a loosing
     passage = 'solve et coagula'
     def body(T, tid):
         return (fog_svg(layers, T['fog']) + phi_group(190, 40, 420, T['seal']) +
@@ -319,9 +325,9 @@ def simulacrum(mapname='hands', title='the two hands'):
     cap = '%s · Michelangelo, Sistine Chapel, c. 1512' % title
     def body(T, tid):
         out = []; dur = 12
-        kts = ['0;.08;.2;.3;.9;1', '0;.18;.3;.4;.82;.9;1', '0;.3;.42;.8;.9;1']
-        vals = ['1;1;0;0;0;1', '0;0;1;0;0;1;0', '0;0;1;1;0;0']
-        kts[1] = '0;.2;.3;.4;.8;.88;1'; vals[1] = '0;0;1;0;0;1;0'
+        # fog -> half-formed -> formed, hold, back to fog: the layers always sum to one, so nothing blinks out
+        kts = ['0;.15;.3;.8;.92;1', '0;.15;.3;.45;1', '0;.3;.45;.8;.92;1']
+        vals = ['1;1;0;0;1;1', '0;0;1;0;0', '0;0;1;1;0;0']
         for p, kt, v in zip(paths, kts, vals):
             out.append('<path d="%s" fill="%s" opacity=".72" fill-opacity="0"><animate attributeName="fill-opacity" dur="%ss" repeatCount="indefinite" keyTimes="%s" values="%s" calcMode="linear"/></path>' % (p, T['fog'], dur, kt, v))
         out.append('<text x="1176" y="500" text-anchor="end" class="elite" font-size="12" letter-spacing="1.6" fill="%s">%s</text>' % (T['ink-soft'], cap))

@@ -239,7 +239,7 @@ Vars: `ALLOWED_ORIGINS`, `EMAIL_FROM` (`clavis@aphes.ist`), `SESSION_SECONDS` (7
 ### Tools
 
 ```sh
-node content/tools/hash-password.mjs            # the OWNER_PASSWORD_HASH line: asks twice, prints pbkdf2-sha256$25000$<salt>$<hash>
+node content/tools/hash-password.mjs            # the OWNER_PASSWORD_HASH line (12 to 32 characters): asks twice, prints pbkdf2-sha256$25000$<salt>$<hash>
 node content/tools/seed.mjs --remote            # the one-time import of the section branches into D1 and R2
 node content/tools/seed.mjs --local --persist-to DIR    # the same into a local wrangler state
 NODE_PATH=$(npm root -g) node content/tools/make-mail-phi.mjs   # redraw content/assets/mail-phi.png (Playwright)

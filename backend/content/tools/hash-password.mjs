@@ -5,7 +5,7 @@
 //   printf %s "$PASSWORD" | node backend/content/tools/hash-password.mjs --stdin     reads it from a pipe
 //   ... --iterations 25000                                       (10,000 to 60,000; 25,000 by default)
 //
-// The line is pbkdf2-sha256$<iterations>$<salt>$<hash>: PBKDF2-SHA256 with a fresh 16-byte salt, the same
+// 12 to 32 characters: the gate's line on a phone holds no more. The line is pbkdf2-sha256$<iterations>$<salt>$<hash>: PBKDF2-SHA256 with a fresh 16-byte salt, the same
 // derivation the Worker runs with WebCrypto. The password itself is never printed or written anywhere.
 import { pbkdf2Sync, randomBytes } from 'node:crypto';
 
@@ -49,7 +49,11 @@ async function read() {
 }
 
 const password = await read();
+/* the gate's line holds 34 characters on the narrowest phones (360 px) and refuses more, so a longer password could
+   never be typed there */
+const MAX = 32;
 if (password.length < 12) { console.error('use at least 12 characters (a few unrelated words is best)'); process.exit(1); }
+if ([...password].length > MAX) { console.error(`use at most ${MAX} characters: the gate's line on a phone holds no more`); process.exit(1); }
 const salt = randomBytes(16);
 const hash = pbkdf2Sync(Buffer.from(password, 'utf8'), salt, iterations, 32, 'sha256');
 console.log(`pbkdf2-sha256$${iterations}$${salt.toString('base64')}$${hash.toString('base64')}`);

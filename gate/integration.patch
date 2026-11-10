@@ -1,0 +1,138 @@
+diff --git a/site/build.py b/site/build.py
+index be697fd..e0ca049 100644
+--- a/site/build.py
++++ b/site/build.py
+@@ -57,6 +57,8 @@ SECTIONS = [
+     dict(id='works', name='works', gl='opera', desc='things I have built.'),
+     dict(id='wall', name='wall', gl='paries', desc='anonymous messages that drift in the fog and fade with time.'),
+     dict(id='forum', name='forum', gl='ἀγορά', desc='a plain anonymous forum, in threads.'),
++    # the owner's gate and desk: no name in the inscription, no route; the shell opens it on an `aph:entrance` event
++    dict(id='gate', name='', gl='', desc='', hidden=True),
+ ]
+ PASSAGES = [
+     dict(o='ἓν τὸ πᾶν', l='grc', t='the one is the all', a='Chrysopoeia of Cleopatra'),
+@@ -150,6 +152,17 @@ def build_section(name, ref):
+     return markup, own, scripts[1], commit
+ 
+ 
++def entrances(ref):
++    """section/gate's entrances.js (the ritual, the phrase, the route), built by its own build.py, which hashes the phrase
++    and the route from APHESIS_GATE_PHRASE and APHESIS_GATE_ROUTE in the environment"""
++    with tempfile.TemporaryDirectory() as tmp:
++        tarfile.open(fileobj=io.BytesIO(git('archive', ref, 'gate', binary=True))).extractall(tmp, filter='data')
++        out = os.path.join(tmp, 'entrances.js')
++        subprocess.run([sys.executable, os.path.join(tmp, 'gate', 'build.py'), '--entrances', out], check=True,
++                       env=dict(os.environ, GIT_DIR=GIT_DIR), cwd=tmp, capture_output=True)
++        return open(out, encoding='utf-8').read()
++
++
+ def section_modules(refs):
+     tpl, styles, js, info = [], [], [], {}
+     for s in SECTIONS:
+@@ -170,11 +183,11 @@ def build(fragment, refs):
+     bcss = re.sub(r'@import url\([^)]*\);\s*', '', show('design-system', 'system/components/bundle.css'))
+     css = faces() + tokens_css(tok) + bcss + open(os.path.join(D, 'src', 'shell.css'), encoding='utf-8').read()
+     nav = ''.join(f'<a href="#{s["id"]}">{html.escape(s["name"])}<span class="gl" lang="{lang(s["gl"])}">{html.escape(s["gl"])}</span></a>'
+-                  for s in SECTIONS)
++                  for s in SECTIONS if not s.get('hidden'))
+     tpl, styles, secjs, info = section_modules(refs)
+     shell = open(os.path.join(D, 'src', 'shell.js'), encoding='utf-8').read()
+     shell = (shell.replace('/*__ENGINE__*/', show('mark', 'engine/model.js') + '\n' + show('mark', 'engine/core.js'))
+-             .replace('/*__SECTIONSJS__*/', json.dumps([dict(id=s['id'], name=s['name']) for s in SECTIONS], ensure_ascii=False))
++             .replace('/*__SECTIONSJS__*/', json.dumps([dict(id=s['id'], name=s['name'], hidden=bool(s.get('hidden'))) for s in SECTIONS], ensure_ascii=False))
+              .replace('/*__PASSAGES__*/', json.dumps(PASSAGES, ensure_ascii=False))
+              .replace('/*__ICONRED__*/', json.dumps({'light': T.color('rubedo', 'light', tok), 'dark': T.color('rubedo', 'dark', tok)})))
+     page = open(os.path.join(D, 'src', 'shell.html'), encoding='utf-8').read()
+@@ -184,7 +197,7 @@ def build(fragment, refs):
+     page = page.replace('<!--__HEADLINKS__-->', links)
+     page = (page.replace('/*__CSS__*/', css).replace('<!--__NAV__-->', nav).replace('<!--__STYLES__-->', styles)
+             .replace('<!--__TEMPLATES__-->', tpl).replace('/*__BUNDLE__*/', show('design-system', 'system/components/bundle.js'))
+-            .replace('/*__SECTIONS__*/', secjs).replace('/*__SHELL__*/', shell)
++            .replace('/*__SECTIONS__*/', secjs).replace('/*__SHELL__*/', shell).replace('/*__ENTRANCES__*/', entrances(refs.get('gate', 'section/gate')))
+             .replace('<!--__BUILT__-->', '<!-- sections: ' + ', '.join(f'{k} {v}' for k, v in info.items()) + ' -->'))
+     if fragment:
+         return '<meta charset="utf-8">\n' + page.replace('<!--__BODY__-->', '', 1)
+@@ -198,6 +211,9 @@ if __name__ == '__main__':
+     out, frag = os.path.join(D, 'index.html'), False
+     if args and args[0] == '--fragment':
+         out, frag, args = args[1], True, args[2:]
++    if '--content-api' in args:
++        # the content service, for archive, book, works and the gate: their builds read APHESIS_CONTENT_API
++        i = args.index('--content-api'); os.environ['APHESIS_CONTENT_API'] = args[i + 1]; del args[i:i + 2]
+     refs = dict(a.split('=', 1) for a in args)
+     page = build(frag, refs)
+     open(out, 'w', encoding='utf-8').write(page)
+diff --git a/site/src/shell.html b/site/src/shell.html
+index 732f664..daeb5e0 100644
+--- a/site/src/shell.html
++++ b/site/src/shell.html
+@@ -40,3 +40,6 @@ window.__aphSections = APH_SECTIONS;
+ /*__SHELL__*/
+ })();
+ </script>
++<script>
++/*__ENTRANCES__*/
++</script>
+diff --git a/site/src/shell.js b/site/src/shell.js
+index 2edff99..d7f817a 100644
+--- a/site/src/shell.js
++++ b/site/src/shell.js
+@@ -224,7 +224,10 @@ A.tooltip();
+ if (A.Sound) A.Sound.ear($('aph-ear')); else $('aph-ear').remove();
+ 
+ /* ================= routes ================= */
+-const NAMES = SECTIONS.map((s) => s.id);
++/* a hidden section (the gate) has no route of its own: it is opened by an entrance, never by an address */
++const NAMES = SECTIONS.filter((s) => !s.hidden).map((s) => s.id);
++const HIDDEN = new Set(SECTIONS.filter((s) => s.hidden).map((s) => s.id));
++let gateOpen = false;
+ const ARCHIVE_SLUGS = APH_SECTIONS.archive ? APH_SECTIONS.archive.slugs : [];
+ /* the section a global hash belongs to ('' for the home) */
+ function sectionOf(hash) {
+@@ -510,6 +513,7 @@ function wake(ctx) {
+   });
+   /* a different sub-route in the address than the one left: the section follows it */
+   /* coming back by the section's own name lands where it was left; a sub-route in the address is followed */
++  if (HIDDEN.has(ctx.name)) { dispatchEvent(new Event('resize')); focusIn(ctx); return; }   /* no address to follow */
+   if (location.hash === '#' + ctx.name && ctx.leftAt !== location.hash) { try { history.replaceState(null, '', ctx.leftAt); } catch (_) { /* fine */ } }
+   const here = location.hash;
+   if (redraw) { const back = here; try { history.replaceState(null, '', '#' + ctx.name); } catch (_) { /* fine */ } dispatchEvent(new HashChangeEvent('hashchange'));
+@@ -564,7 +568,7 @@ function goTo(next, first) {
+         if (prev && (!a || a === document.body)) { const l = links.find((x) => x.getAttribute('href') === '#' + prev); if (l) l.focus({ preventScroll: true }); }
+       });
+   } else {
+-    const sec = SECTIONS.find((s) => s.id === next); document.title = sec.name + ' · aphes.ist'; $('aph-announce').textContent = sec.name;
++    const sec = SECTIONS.find((s) => s.id === next); document.title = sec.name ? sec.name + ' · aphes.ist' : 'aphes.ist'; $('aph-announce').textContent = sec.name;
+     ring.classList.remove('visible', 'focus'); $('aph-ray').querySelector('line').style.opacity = 0;
+     if (prev === '' || prev === null) {
+       const de = { ...sealBox }, para = cornerBox(), u0 = u;
+@@ -574,15 +578,27 @@ function goTo(next, first) {
+   }
+ }
+ function readRoute() {
++  if (gateOpen) return 'gate';
+   const s = sectionOf(location.hash);
+   const h = decodeURIComponent(location.hash.replace(/^#/, ''));
+   if (s === 'archive' && ARCHIVE_SLUGS.includes(h)) { try { history.replaceState(null, '', '#archive/' + h); } catch (_) { /* a sandbox may refuse */ } }
+   return s;
+ }
+ let prevHash = location.hash;   /* the address just before a route change: where a leaving section was */
+-addEventListener('hashchange', (e) => { try { prevHash = new URL(e.oldURL).hash; } catch (_) { prevHash = ''; } goTo(readRoute()); });
++addEventListener('hashchange', (e) => { if (!e.isTrusted && gateOpen) return; gateOpen = false; try { prevHash = new URL(e.oldURL).hash; } catch (_) { prevHash = ''; } goTo(readRoute()); });
++/* the gate: every entrance (the ritual, the phrase, the route, experimental's tenth door) dispatches aph:entrance;
++   the gate opens over wherever the visitor is, with no address of its own. Back, the seal, Escape or a new address
++   close it. */
++addEventListener('aph:entrance', () => {
++  if (!APH_SECTIONS.gate || gateOpen) return;
++  gateOpen = true; prevHash = location.hash;
++  try { history.pushState({ aphGate: 1 }, '', location.href); } catch (_) { /* a sandbox may refuse */ }
++  goTo('gate');
++});
++addEventListener('popstate', () => { if (gateOpen && !(history.state && history.state.aphGate)) { gateOpen = false; goTo(readRoute()); } });
++addEventListener('aph:gate-close', () => { if (!gateOpen) return; gateOpen = false; goTo(readRoute()); });
+ /* the seal always leads home, without relying on the hash */
+-$('aph-seal').addEventListener('click', (e) => { e.preventDefault(); if (route === '') return; prevHash = location.hash; try { history.pushState(null, '', '#home'); } catch (_) { /* fine */ } goTo(''); });
++$('aph-seal').addEventListener('click', (e) => { e.preventDefault(); gateOpen = false; if (route === '') return; prevHash = location.hash; try { history.pushState(null, '', '#home'); } catch (_) { /* fine */ } goTo(''); });
+ /* a section link written as a local hash (made after the mount) is sent to the section's global hash */
+ document.addEventListener('click', (e) => {
+   if (e.defaultPrevented || !cur || e.button) return;

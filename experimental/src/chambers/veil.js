@@ -20,7 +20,7 @@ export const veil = {
     /* the shroud: the bust blurred into a soft mass, dimmer than the marble */
     const shroud = mk(), sx = shroud.getContext('2d');
     sx.fillStyle = '#000'; sx.fillRect(0, 0, W, H);
-    sx.filter = 'blur(14px) brightness(0.72)'; sx.drawImage(img, 0, 0); sx.filter = 'none';
+    sx.filter = 'blur(8px) brightness(0.62)'; sx.drawImage(img, 0, 0); sx.filter = 'none';
     const mask = mk(), kx = mask.getContext('2d');
     const part = mk(), px = part.getContext('2d');
     const map = mk(), mx = map.getContext('2d');
@@ -41,12 +41,12 @@ export const veil = {
       mx.globalCompositeOperation = 'destination-over'; mx.fillStyle = '#000'; mx.fillRect(0, 0, W, H);
       mx.globalCompositeOperation = 'source-over';
     }
-    const hem = (p) => H * (1.12 - 1.42 * p);
+    const hem = (p) => H * (0.72 - 1.02 * p);   /* at first the shroud covers the head and leaves the marble of the breast bare */
     draw(hem(0), 0);
 
     const portrait = innerHeight > innerWidth * 1.1;
     /* sculpture on a plain ground: erosion .5, scatter .85, ceiling .76 */
-    const sim = picture(ctx.root, { margin: portrait ? 0.04 : 0.07, erosion: 0.5, scatter: 0.85, ceiling: 0.76, gain: 0.85 });
+    const sim = picture(ctx.root, { margin: portrait ? 0.04 : 0.07, erosion: 0.5, scatter: 0.85, ceiling: 0.76, gain: 1.05 });
     const shown = chaser(650);
     const need = () => Math.max(1400, 2.8 * Math.min(innerWidth, innerHeight));
     let playing = false, lifted = false, end = null, spark = 0, moved = 0, lastDraw = 0, drawnSig = '', lastKey = 0;
@@ -81,7 +81,7 @@ export const veil = {
         }
         if (lifted) spark = Math.min(1, spark + dt * 1.5);
         sim.o.accent = 0.05 * smooth(0, 1, spark);
-        sim.o.gain = 0.85 + 0.2 * p;
+        sim.o.gain = 1.05 + 0.15 * p;
         /* the hem stirs while there is a shroud to stir */
         const phase = now / 1300;
         const y = hem(p), sig = Math.round(y) + ':' + (p < 0.999 ? Math.round(phase * 20) : 'still');

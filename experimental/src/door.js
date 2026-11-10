@@ -7,7 +7,6 @@
      enter (click, tap, Enter or Space): the night fills the doorway square by square, the doorway grows toward the
        viewer, and its stipple dissolves into the fog while the chamber's picture coalesces behind it (about 2 s).
      return: the doorway comes back from close by, full of night, and its night thins away square by square.
-     sealed (after the ending): it returns filled with night and stays so.
    It is painted on one 2D canvas over the whole screen, so it can grow past its own box. Every square is drawn at
    whole device pixels with no smoothing, so the stipple stays crisp and square at any size. Everything that travels
    is eased with minimum jerk; the canvas is only redrawn while something moves. */
@@ -149,9 +148,7 @@ export function createDoor(el, canvas) {
     /* return: from close by, full of night, which then thins away square by square (1.8 s) */
     show(done) {
       mode = 'returning';
-      el.classList.remove('sealed');
-      el.inert = false; el.removeAttribute('aria-hidden'); el.removeAttribute('aria-disabled');
-      el.setAttribute('aria-label', 'a door'); el.dataset.tip = 'limen · the threshold';
+      el.inert = false; el.removeAttribute('aria-hidden');
       st.dis = 0; st.hov = 0;
       run(1800, (ms) => {
         st.shown = seg(ms, 0, 900);
@@ -181,20 +178,6 @@ export function createDoor(el, canvas) {
         if (!midSent && mid) mid();
         if (done) done();
       });
-    },
-    /* closed for good: it returns filled with night, square by square, and stays so (3.2 s) */
-    seal(done) {
-      mode = 'sealed';
-      el.classList.add('sealed');
-      el.inert = false; el.removeAttribute('aria-hidden'); el.setAttribute('aria-disabled', 'true');
-      el.setAttribute('aria-label', 'the door, closed. the seal leads back.'); el.dataset.tip = 'clausum · closed';
-      st.dis = 0; st.hov = 0; st.fill = 0;
-      run(3200, (ms) => {
-        st.shown = seg(ms, 0, 1200);
-        st.scale = 1 + 0.22 * (1 - seg(ms, 0, 1800));
-        st.strokes = 1;
-        st.fill = seg(ms, 700, 3200);
-      }, done);
     },
     get state() { return Object.assign({ mode }, st); },
   };

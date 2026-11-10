@@ -37,7 +37,7 @@ export const fortune = {
     draw(0);
 
     const portrait = innerHeight > innerWidth * 1.1;
-    const sim = picture(ctx.root, { margin: portrait ? 0.03 : 0.08, gain: 0.8, erosion: 0.58, scatter: 0.7, ceiling: 0.72 });
+    const sim = picture(ctx.root, { margin: portrait ? 0.03 : 0.08, gain: 1.05, erosion: 0.5, scatter: 0.6, ceiling: 0.76 });
     const shown = chaser(900);
     let playing = false, turned = false, end = null, spark = 0, turns = 0, drawnA = 0, lastDraw = 0;
 
@@ -68,10 +68,10 @@ export const fortune = {
         /* at rest the wheel rocks on its hub, less as it turns */
         const rock = turned ? 0 : 0.035 * Math.sin(now / 1100) * (1 - p);
         const a = TAU * p + rock;
-        sim.o.gain = 0.8 + 0.28 * p;
-        sim.o.erosion = 0.58 - 0.18 * p;
-        sim.o.scatter = 0.7 - 0.22 * p;
-        sim.o.ceiling = 0.72 + 0.06 * p;
+        sim.o.gain = 1.05 + 0.2 * p;
+        sim.o.erosion = 0.5 - 0.15 * p;
+        sim.o.scatter = 0.6 - 0.15 * p;
+        sim.o.ceiling = 0.76 + 0.06 * p;
         sim.o.accent = 0.05 * smooth(0, 1, spark);
         /* a new density map at most fifteen times a second, and only when the wheel has moved */
         if (sim.ready && Math.abs(a - drawnA) > 0.003 && now - lastDraw >= 66) { draw(a); sim.redraw(map); drawnA = a; lastDraw = now; }

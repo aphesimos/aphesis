@@ -1,4 +1,4 @@
-/* experimental · ἄδυτον
+/* descent · κατάβασις (the branch and its files keep their first name, experimental)
    layout: one screen. dark fog is the ground (density .74 at the door, .3 inside a chamber); the door stands alone
    on the axis, in a small clearing of the fog. the seal holds the top-left corner, the eye the bottom-left, the
    passage corner stays free. a chamber replaces the door with simulacra laid over the fog: their ground is
@@ -36,8 +36,6 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 #door[inert] { pointer-events: none; }
 #door:focus { outline: none; }
 #door:focus-visible { outline: 1px solid var(--accent); outline-offset: 4px; }
-#door.sealed { cursor: default; }
-#door.sealed:focus-visible { outline-color: var(--ink-soft); }
 #doorway { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; display: block; z-index: var(--z-main); pointer-events: none; }
 
 /* ---------- chambers ---------- */

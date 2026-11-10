@@ -32,8 +32,8 @@ export const ouroboros = {
     const sx = snake.getContext('2d');
 
     const margin = portrait ? 0.02 : 0.1;
-    const woman = picture(ctx.root, { margin, accent: 0.02 });
-    const serpent = picture(ctx.root, { margin, gain: 1.05, scatter: 0.4, erosion: 0.3, ceiling: 0.82 });
+    const woman = picture(ctx.root, { margin, accent: 0.02, gain: 1.2 });
+    const serpent = picture(ctx.root, { margin, gain: 1.25, scatter: 0.4, erosion: 0.28, ceiling: 0.84 });
 
     const shown = chaser(900);
     let tail = Math.PI * 0.62, nudge = 0, bite = 0, playing = false, finished = false, lastDraw = 0, drawn = -1;
@@ -100,7 +100,7 @@ export const ouroboros = {
         /* the moment of impact: a few red cells in the serpent as it bites */
         serpent.o.accent = 0.05 * smooth(0, 1, bite);
         /* the woman comes apart as the serpent closes */
-        woman.o.erosion = 0.45 + 0.4 * p; woman.o.scatter = 0.5 + 0.35 * p; woman.o.gain = 1 - 0.5 * p;
+        woman.o.erosion = 0.45 + 0.4 * p; woman.o.scatter = 0.5 + 0.35 * p; woman.o.gain = 1.2 - 0.6 * p;
         /* a new density map at most ten times a second, and only when it has changed */
         const sig = Math.round(span * 400) + bite * 1e4 + Math.round(tail * 400) * 1e6;
         if (now - lastDraw >= 100 && sig !== drawn && serpent.ready) { draw(span); serpent.redraw(snake); drawn = sig; lastDraw = now; }

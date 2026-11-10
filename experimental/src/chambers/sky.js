@@ -47,7 +47,7 @@ export const sky = {
     draw(...mix(0, 0));
 
     const portrait = innerHeight > innerWidth * 1.1;
-    const sim = picture(ctx.root, { margin: portrait ? -0.25 : 0.06, gain: 1, erosion: 0.5, scatter: 0.6 });
+    const sim = picture(ctx.root, { margin: portrait ? -0.25 : 0.06, gain: 1.15, erosion: 0.45, scatter: 0.55 });
     let playing = false, open = false, end = null, spark = 0, lastDraw = 0, drawnSig = '';
     const press = presses(() => playing);
     const h = hold(9, 22);
@@ -62,8 +62,8 @@ export const sky = {
         sim.o.accent = 0.05 * smooth(0, 1, spark);
         const e = A.MJ(p), glint = open ? 0 : 0.05 * (0.5 + 0.5 * Math.sin(now / 900)) * (1 - p);
         const [w, b] = mix(e, glint);
-        sim.o.erosion = 0.5 - 0.15 * e;
-        sim.o.gain = 1 + 0.15 * e;
+        sim.o.erosion = 0.45 - 0.12 * e;
+        sim.o.gain = 1.15 + 0.15 * e;
         const sig = Math.round(w * 200) + ':' + Math.round(b * 150);
         if (sim.ready && sig !== drawnSig && now - lastDraw >= 66) { draw(w, b); sim.redraw(map); drawnSig = sig; lastDraw = now; }
       },

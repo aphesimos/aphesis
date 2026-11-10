@@ -1,11 +1,12 @@
 /* 4 · the emerald tablet.
-   Hermes Trismegistus from the pavement of Siena, sunk in the fog. The motion: strike the tablet: each click,
+   Hermes Trismegistus from the pavement of Siena, sunk in the fog but legible: three robed figures and the tablet.
+   The inlaid lines are finer than a cell, so the map is blurred a little and its half-tones lifted here (levels). The motion: strike the tablet: each click,
    tap, Enter or Space brings him up one step, six in all. Each step travels with minimum jerk, and the fog around
    him shivers once as it lands. At the sixth he stands clear for a breath, and the chamber ends.
    At rest he sinks a little and rises again: the only hint. */
 
 import { MAPS } from '../assets.js';
-import { image, picture, chaser } from '../stage.js';
+import { image, picture, chaser, levels } from '../stage.js';
 
 const STRIKES = 6;
 
@@ -14,9 +15,10 @@ export const tablet = {
   caption: 'hermes trismegistus · Siena Cathedral pavement, 1488',
   label: 'a robed figure on a stone pavement, sunk in the fog.',
   async create(ctx) {
-    const img = await image(MAPS.trismegistus);
+    /* the inlaid lines are finer than a cell: blurred a little so they read as tone, and the half-tones lifted */
+    const img = levels(await image(MAPS.trismegistus), { blur: 1.4, lo: 0.08, hi: 0.82, gamma: 0.8 });
     const portrait = innerHeight > innerWidth * 1.1;
-    const sim = picture(ctx.root, { margin: portrait ? 0.02 : 0.08, gain: 0.42, erosion: 0.8, scatter: 0.8, ceiling: 0.62 });
+    const sim = picture(ctx.root, { margin: portrait ? 0.02 : 0.08, gain: 0.95, erosion: 0.52, scatter: 0.65, ceiling: 0.74 });
     const shown = chaser(1100);
     let playing = false, struck = 0, clear = false, end = null, shiver = -1;
     const strike = () => {
@@ -41,10 +43,10 @@ export const tablet = {
         /* the shiver: a smooth swell of loose points around him, 0.8 s, after each strike */
         const s = shiver < 0 || Math.max(0, Math.min(1, (now - shiver) / 800));
         const swell = s > 0 && s < 1 ? Math.sin(Math.PI * s) ** 2 : 0;
-        sim.o.gain = 0.42 + 0.68 * p + rest;
-        sim.o.erosion = 0.85 - 0.65 * p;
-        sim.o.scatter = 0.8 - 0.45 * p + 0.25 * swell;
-        sim.o.ceiling = 0.62 + 0.2 * p;
+        sim.o.gain = 0.95 + 0.4 * p + rest;
+        sim.o.erosion = 0.52 - 0.32 * p;
+        sim.o.scatter = 0.65 - 0.3 * p + 0.25 * swell;
+        sim.o.ceiling = 0.74 + 0.1 * p;
       },
       destroy() { removeEventListener('pointerdown', onDown); removeEventListener('keydown', onKey); },
     };

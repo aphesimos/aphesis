@@ -1,10 +1,9 @@
-/* 5 · the ending.
+/* 9 · the ending.
    The door opens onto nothing: no picture, only more fog. A field of stipple gathers over everything, thin at
    first, then closing in from the edges toward the middle until the screen is swallowed (its gain rises over
-   eight seconds; nothing is uploaded after the first frame). Under it, unseen but for a few holes, the door
-   returns for the last time, filled with night and, once, in rubedo. The field dissolves and the door stands
-   closed for good. No motion is asked; it only happens. Afterwards the seal in the corner is the way back,
-   and the next visit begins the journey again. */
+   eight seconds; nothing is uploaded after the first frame). It holds for a breath; then the journey sends the
+   visitor home, and the field dissolves with the section while the seal travels back to the centre. No motion is
+   asked; it only happens. The door is not sealed: coming back, it stands open on the first chamber. */
 
 import { picture, screen } from '../stage.js';
 import { travel } from '../motion.js';
@@ -36,8 +35,7 @@ export const ending = {
       pictures: [[sim, field()]],
       play(done) {
         stop = travel(8000, (e) => { sim.o.gain = 0.25 + 1.05 * e; sim.o.erosion = 0.4 - 0.15 * e; }, () => {
-          ctx.door.seal();
-          timers.push(setTimeout(done, 2600));
+          timers.push(setTimeout(done, 1600));
         });
       },
       loop() {},

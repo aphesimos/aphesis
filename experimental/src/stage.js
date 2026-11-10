@@ -35,6 +35,24 @@ export function cut(img, { crop, pad = [0, 0, 0, 0], masks = [], scale = 1 } = {
   return c;
 }
 
+/* a density map prepared for one chamber, without touching the design system's file: an optional blur first (so
+   fine hatching becomes tone, as the map rules ask for engravings), then levels: black point lo, white point hi,
+   gamma (below 1 lifts the half-tones). src is an image or a canvas; returns a new canvas. */
+export function levels(src, { blur = 0, lo = 0, hi = 1, gamma = 1 } = {}) {
+  const w = src.naturalWidth || src.width, h = src.naturalHeight || src.height;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.fillStyle = '#000'; x.fillRect(0, 0, w, h);
+  if (blur) x.filter = 'blur(' + blur + 'px)';
+  x.drawImage(src, 0, 0);
+  x.filter = 'none';
+  const d = x.getImageData(0, 0, w, h), px = d.data, lut = new Uint8ClampedArray(256);
+  for (let i = 0; i < 256; i++) lut[i] = Math.round(255 * Math.pow(Math.max(0, Math.min(1, (i / 255 - lo) / Math.max(1e-3, hi - lo))), gamma));
+  for (let i = 0; i < px.length; i += 4) { const v = lut[px[i]]; px[i] = px[i + 1] = px[i + 2] = v; }
+  x.putImageData(d, 0, 0);
+  return c;
+}
+
 /* ---------- the cell grid ---------- */
 /* every stipple canvas is sized and moved in whole cells (Aphesis.cellPx: 2 CSS pixels rounded to whole device
    pixels), so its cells land on whole device pixels, stay square and line up with the fog's. The full-screen size is

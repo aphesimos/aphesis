@@ -1,4 +1,5 @@
-"""Build experimental/index.html: the experimental section as one self-contained page.
+"""Build experimental/index.html: the descent section (κατάβασις) as one self-contained page.
+The section was first called experimental; its branch (section/experimental), folder and files keep that name.
 
 Everything the page needs is inlined: tokens.css (generated from the design system's tokens.json),
 bundle.css and bundle.js, the two faces, the density maps and the section's own modules.
@@ -21,8 +22,14 @@ DS = 'design-system'
 
 
 def ds(path, binary=False):
-    out = subprocess.run(['git', '-C', REPO, 'show', f'{DS}:system/{path}'], capture_output=True, check=True).stdout
-    return out if binary else out.decode('utf-8')
+    """A file of the design system. A density map that the local branch does not have yet (a checkout that has not
+    pulled the design system since the map was added) is read from origin/design-system."""
+    refs = [DS] + ([f'origin/{DS}'] if path.startswith('assets/') else [])
+    for ref in refs:
+        r = subprocess.run(['git', '-C', REPO, 'show', f'{ref}:system/{path}'], capture_output=True)
+        if r.returncode == 0:
+            return r.stdout if binary else r.stdout.decode('utf-8')
+    raise SystemExit(f'design-system: system/{path} not found in {", ".join(refs)}')
 
 
 def b64(data):
@@ -62,11 +69,11 @@ def tokens_css(tok):
 # ---------- modules ----------
 ORDER = ['assets.js', 'motion.js', 'memory.js', 'stage.js', 'gestures.js', 'door.js',
          'chambers/ouroboros.js', 'chambers/hands.js', 'chambers/scholar.js', 'chambers/tablet.js',
-         'chambers/fortune.js', 'chambers/veil.js', 'chambers/alchemist.js', 'chambers/sky.js', 'chambers/ending.js',
+         'chambers/fortune.js', 'chambers/veil.js', 'chambers/alchemist.js', 'chambers/sky.js', 'chambers/ending.js', 'entrance.js',
          'journey.js', 'main.js']
 
 MAPS = {  # density maps from system/assets/Simulacra
-    'cagnacci': 'cagnacci.jpg', 'hands': 'hands.png',
+    'cagnacci': 'cagnacci.jpg', 'panel': 'creation_panel.jpg', 'hands': 'creation_hands.jpg',
     'jerome': 'jerome.jpg', 'trismegistus': 'trismegistus.png',
     'fortune': 'fortune.jpg', 'veiled': 'veiled.jpg', 'alchemist': 'alchemist.jpg', 'flammarion': 'flammarion.png',
 }

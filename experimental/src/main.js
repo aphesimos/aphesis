@@ -1,4 +1,4 @@
-/* experimental · ἄδυτον, as it will stand inside the site: dark fog, the seal in the corner, the eye in the
+/* descent · κατάβασις, as it will stand inside the site: dark fog, the seal in the corner, the eye in the
    bottom-left, the passage corner kept free, the runtime's cursor and tooltip. Nothing else but a door.
    Eight chambers stand behind it, then the ending:
      1 the ouroboros (circling) · 2 the two hands (holding) · 3 the scholar (holding) · 4 the emerald tablet (striking)

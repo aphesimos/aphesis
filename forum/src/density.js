@@ -133,9 +133,13 @@ export async function prepareMap(file, { mode = 'legible' } = {}) {
   const out = document.createElement('canvas'); out.width = W; out.height = H;
   const ox = out.getContext('2d', { willReadFrequently: true });
   ox.imageSmoothingQuality = 'high';
-  if (lightGround && hermetic) ox.filter = 'blur(1px)';
+  /* a light ground's hermetic picture is softened by 1px; where the 2D canvas has no filter (Safari), by the runtime's
+     box blur of the same radius */
+  const soft = lightGround && hermetic, viaFilter = typeof ox.filter === 'string' || !window.Aphesis || !window.Aphesis.blur2d;
+  if (soft && viaFilter) ox.filter = 'blur(1px)';
   ox.fillStyle = lightGround ? '#fff' : '#000'; ox.fillRect(0, 0, W, H);   /* the margin reads as ground */
   ox.drawImage(src, cx, cy, cw, ch, P, P, IW, IH);
+  if (soft && !viaFilter) window.Aphesis.blur2d(ox, 1);
   ox.filter = 'none';
   if (src.close) src.close();
   const img = ox.getImageData(0, 0, W, H);

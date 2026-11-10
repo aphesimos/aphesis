@@ -15,7 +15,8 @@ const A = window.Aphesis;
 const PRESET = Object.assign({ erosion: 0.15, scatter: 0.18, ceiling: 0.93, cell: 1.25 }, (A.Simulacrum && A.Simulacrum.LEGIBLE) || {});
 
 export const HERMETIC = { scatter: 0.5, erosion: 0.45, ceiling: 0.8, gain: 1, cell: 2, threshold: 0.35, fogMod: 0.36, curve: 1.15, feather: 0.07, alpha: 0.72, prepare: false };
-export const MIDDLE = { scatter: PRESET.scatter, erosion: PRESET.erosion, ceiling: PRESET.ceiling, gain: 1, cell: PRESET.cell,
+/* up1x: the preset's cell rounds up to 2px on a 1x screen, as the live viewer's does */
+export const MIDDLE = { scatter: PRESET.scatter, erosion: PRESET.erosion, ceiling: PRESET.ceiling, gain: 1, cell: PRESET.cell, up1x: !!PRESET.up1x,
   threshold: 0.12, fogMod: 0.12, curve: 1.15, feather: 0.025, alpha: 0.84, prepare: true };
 export const CLEAN = { scatter: 0, erosion: 0, ceiling: 1, gain: 1, cell: 1, threshold: 0, fogMod: 0, curve: 1, feather: 0, alpha: 0.9, prepare: true };
 

@@ -44,7 +44,9 @@ button { font: inherit; letter-spacing: inherit; color: inherit; background: non
 }
 @media (max-width: 820px) {
   #scroller {
-    top: calc(96px + env(safe-area-inset-top, 0px)); bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    /* the bottom stops above the corner band (the eye and ear, the passage up to three lines), so a post's reply and
+       report never sit under the passage */
+    top: calc(96px + env(safe-area-inset-top, 0px)); bottom: calc(var(--space-7) + env(safe-area-inset-bottom, 0px));
     -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--space-4), #000 calc(100% - var(--space-5)), transparent);
     mask-image: linear-gradient(to bottom, transparent, #000 var(--space-4), #000 calc(100% - var(--space-5)), transparent);
   }
@@ -79,6 +81,11 @@ h1 .w { display: inline-block; }
 .act { font-size: var(--type-label-size); letter-spacing: var(--type-label-tracking); line-height: 1; padding: var(--space-2) 0; color: var(--ink); text-decoration: none; display: inline-block; }
 .act:hover { color: var(--accent-text); }
 .act[disabled] { color: var(--ink-soft); }
+/* small labels that act keep their size; their hit area is at least 44px each way, so a finger can take them */
+.act, .tools button, .pm button, .pm .num { position: relative; }
+.act::after, .tools button::after, .pm button::after, .pm .num::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 100%; min-width: 44px; height: 44px; transform: translate(-50%, -50%);
+}
 
 /* ---------- the board ---------- */
 .board-top { margin-top: var(--space-6); }
@@ -103,7 +110,7 @@ h1 .w { display: inline-block; }
 .pm .sigil { width: 36px; height: 36px; color: var(--ink-soft); display: inline-block; margin-right: var(--space-1);
   transition: color var(--duration-slow) var(--easing-settle); }
 .pm .sigil svg { width: 100%; height: 100%; display: block; }
-.post.hit .sigil { color: var(--accent); }
+.post.hit .sigil, .post:focus-visible .sigil { color: var(--accent); }
 .pm .num { color: var(--ink); text-decoration: none; }
 .pm button, .pm .num { padding: var(--space-1) 0; }
 .pm button { color: var(--ink-soft); }

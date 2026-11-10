@@ -61,7 +61,7 @@ function prepare(img) {
 export function stillSimulacrum(img, box, o = {}) {
   const gain = o.gain ?? 1, scatter = o.scatter ?? 0.5, erosion = o.erosion ?? 0.45, ceiling = o.ceiling ?? 0.8, seed = o.seed ?? 1;
   const alpha = o.alpha ?? 0.72, mixT = o.threshold ?? 0.35, edge = o.feather ?? 0.07, fogMod = o.fogMod ?? 0.36, curve = o.curve ?? 1.15;
-  const c = A.cellPx(o.cell || 2);
+  const c = A.cellPx(o.cell || 2, o.up1x);
   const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
   const k = Math.min(box[0] / iw, box[1] / ih);
   const gw = Math.max(8, Math.round(iw * k / c)), gh = Math.max(8, Math.round(ih * k / c));
@@ -78,8 +78,10 @@ export function stillSimulacrum(img, box, o = {}) {
   const g = document.createElement('canvas'); g.width = W; g.height = H;
   const gx = g.getContext('2d', { willReadFrequently: true });
   gx.fillStyle = '#000'; gx.fillRect(0, 0, W, H);
-  gx.filter = 'blur(' + Math.max(2, Math.round(W * 0.06)) + 'px)';
-  gx.drawImage(cv, 0, 0);
+  const gr = Math.max(2, Math.round(W * 0.06));
+  /* Safari's 2D canvas has no filter: the runtime's box blur of the same radius stands in */
+  if (typeof gx.filter === 'string' || !A.blur2d) { gx.filter = 'blur(' + gr + 'px)'; gx.drawImage(cv, 0, 0); }
+  else { gx.drawImage(cv, 0, 0); A.blur2d(gx, gr); }
   const gp = gx.getImageData(0, 0, W, H).data;
   const sx = seed * 13.37 % 100, sy = seed * 7.77 % 100;
   let d = '';

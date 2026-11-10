@@ -6,7 +6,7 @@ aphes.is is one document that never reloads: a stippled fog, a hand-drawn φ tha
 - **One hand.** The brush is measured from the φ: broad nib at 38°, thick to thin about 2.8 to 1, tapered ends. The icons, the font and the seal are all drawn by it.
 - **The fog is the ground.** Content sits on calm zones in the fog, never on boxes. Text on fog carries the `aph-on-fog` halo.
 - **Red is rare.** `accent` (rubedo) is for the seal, icons, focus, and moments of impact. Never for large areas or decoration.
-- **Slow and human.** Things arrive and settle; typing has rhythm and mistakes; nothing bounces, nothing is instant except for people who ask for reduced motion.
+- **Slow and human.** Things arrive and settle; typing has rhythm and mistakes; nothing bounces, nothing is instant, and the site animates for everyone.
 - **Hermetic, not explained.** Sections name themselves in English with a Latin or Greek gloss. Experimental chambers carry no instructions.
 
 ## Content fundamentals
@@ -91,7 +91,8 @@ The φ is the only logo. It is always `seal` red, with a boil that reseeds 8 tim
 - Anything that travels uses minimum-jerk easing (`Aphesis.MJ`): the seal in 1.6 to 1.8s, a simulacrum in 2.6s.
 - CSS transitions use `easing-settle` with `duration-quick` (tooltip), `duration-slow` (letter wave), `duration-theme`, `duration-scene` (sections enter with a blur of 10px and a rise of 14px).
 - Text hovers are small and kind: letters lift 2px one after another (`Aphesis.letters` with `.aph-wave`); a gloss turns `accent-text`. Nothing changes size or pushes its neighbours.
-- `prefers-reduced-motion`: no boil, no drift, no typing (text appears whole), transitions near zero. Every looping animation must also stop on demand; until a global pause exists, offer one per screen.
+- The site always animates. It does not follow the system's reduce-motion setting and has no pause control: the motion is part of the work (the owner's decision). Do not add `prefers-reduced-motion` rules.
+- Performance: stipple renders at one canvas pixel per cell (the runtime does this). Keep a screen to the fog plus at most two simulacra running at once; stop a simulacrum's canvas when it is hidden.
 
 ## Interaction
 

@@ -49,7 +49,3 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
 /* text on fog keeps a halo of ground so it never sits on dots */
 .aph-on-fog { text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg); }
 
-@media (prefers-reduced-motion: reduce) {
-  .ltr { transition: none !important; transform: none !important; }
-  .aph-caret.blink { animation: none; }
-}

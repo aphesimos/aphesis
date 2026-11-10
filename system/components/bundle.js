@@ -4,7 +4,8 @@
    and the STIPPLE (small square cells that light up where a density field passes a fixed threshold). Nothing is solid. */
 (function () {
   'use strict';
-  var REDUCED = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /* the site always animates, whatever the system's reduce-motion setting: the motion is the work (owner's decision) */
+  var REDUCED = false;
   var FINE = typeof matchMedia === 'function' && matchMedia('(hover:hover) and (pointer:fine)').matches;
 
   /* ---------- math ---------- */

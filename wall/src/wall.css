@@ -1,0 +1,137 @@
+/* wall · paries
+   layout: one screen. the fog thinned for a section (density .62) is the ground. the gloss and title stand at the
+   top on the axis; the line to write in sits low on the axis, above the corners; the lines drift in the field between.
+   the seal holds the top-left corner, the eye the bottom-left, the passage corner (bottom-right) stays free. */
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; overflow: hidden; background: var(--bg); color: var(--ink);
+  font: var(--type-body-weight) var(--type-body-size)/var(--type-body-line) var(--font-text);
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--duration-theme) var(--easing-settle), color var(--duration-theme) var(--easing-settle);
+}
+a { color: inherit; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; border-radius: var(--radius-none); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* the fog: hidden until its first frame is drawn */
+#fog {
+  position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: var(--z-fog); pointer-events: none;
+  opacity: 0; transition: opacity var(--duration-scene) var(--easing-settle);
+}
+#fog.on { opacity: 1; }
+
+/* the seal: closed into the corner, it leads home */
+#seal {
+  position: fixed; z-index: var(--z-seal); display: block; color: var(--seal);
+  left: calc(var(--space-4) + env(safe-area-inset-left, 0px)); top: calc(var(--space-4) + env(safe-area-inset-top, 0px));
+  height: 64px; width: calc(64px * 385 / 533);
+}
+
+/* ---------- the section enters with a blur and a rise ---------- */
+#wall { position: fixed; inset: 0; z-index: var(--z-main); pointer-events: none; }
+#wallHead, #composer { animation: enter var(--duration-scene) var(--easing-settle) both; }
+#composer { animation-delay: .25s; }
+@keyframes enter { from { opacity: 0; filter: blur(10px); transform: translate(-50%, 14px); } to { opacity: 1; filter: blur(0); transform: translate(-50%, 0); } }
+
+/* ---------- gloss and title ---------- */
+#wallHead {
+  position: absolute; left: 50%; transform: translateX(-50%); text-align: center;
+  top: calc(var(--space-4) + env(safe-area-inset-top, 0px)); margin: 0; pointer-events: auto;
+}
+.gloss-title {
+  margin: 0 0 var(--space-1); font-size: var(--type-gloss-title-size); line-height: var(--type-gloss-title-line);
+  letter-spacing: var(--type-gloss-title-tracking); padding-left: var(--type-gloss-title-tracking);
+}
+.title { margin: 0; font-size: clamp(44px, 8vw, 96px); line-height: var(--type-title-line); padding: 0 .2em; }
+
+/* ---------- the lines ---------- */
+#lines { list-style: none; margin: 0; padding: 0; position: absolute; inset: 0; pointer-events: none; }
+.line {
+  position: absolute; left: 0; top: 0; display: block; pointer-events: auto; will-change: transform, opacity, filter;
+  padding: var(--space-1) var(--space-2); text-transform: lowercase; text-wrap: balance;
+}
+.line.faint { pointer-events: none; }
+.line-text {
+  display: block; font-size: var(--size); line-height: 1.45; letter-spacing: .02em; color: var(--ink);
+  opacity: var(--alpha); filter: blur(var(--blur)); transform-origin: 50% 60%;
+  transition: opacity var(--duration-slow) var(--easing-settle), filter var(--duration-slow) var(--easing-settle),
+    transform var(--duration-slow) var(--easing-settle), color var(--duration-theme) var(--easing-settle);
+}
+/* held: still, clear and a step forward */
+.line.fwd { z-index: 2; }
+.line.fwd .line-text { opacity: 1; filter: none; transform: scale(min(var(--lift), 1.18)); }
+.line:focus { outline: none; }
+.line:focus-visible .line-text { outline: 1px solid var(--accent); outline-offset: 4px; }
+
+/* ---------- the line to write in ---------- */
+#composer {
+  position: absolute; left: 50%; transform: translateX(-50%); pointer-events: auto; margin: 0;
+  width: min(560px, calc(100vw - 2 * max(var(--space-4), 4vw)));
+  bottom: calc(var(--space-6) + var(--space-3) + env(safe-area-inset-bottom, 0px));
+}
+.write { position: relative; display: flex; align-items: baseline; gap: var(--space-3); }
+#line {
+  flex: 1; min-width: 0; margin: 0; padding: var(--space-2) 0 var(--space-1); background: none; border: 0; border-radius: var(--radius-none);
+  font: 400 var(--type-lede-size)/1.4 var(--font-text); letter-spacing: .02em; color: var(--ink); caret-color: transparent;
+  text-transform: lowercase; outline: none;
+}
+#line::placeholder { color: var(--ink-soft); opacity: 1; }
+#line::selection { background: var(--accent); color: var(--bg); }
+.mirror {
+  position: absolute; left: 0; top: 0; visibility: hidden; white-space: pre; pointer-events: none;
+  font: 400 var(--type-lede-size)/1.4 var(--font-text); letter-spacing: .02em; text-transform: lowercase;
+}
+/* the caret is the typewriter's own underscore */
+.caret {
+  position: absolute; left: 0; top: var(--space-2); pointer-events: none; opacity: 0;
+  font: 400 var(--type-lede-size)/1.4 var(--font-text); color: var(--accent-text);
+}
+.caret.on { opacity: 1; }
+.caret.on.blink { animation: caret 1.06s steps(1, end) infinite; }
+@keyframes caret { 50% { opacity: 0; } }
+#send { color: var(--ink-soft); padding: var(--space-2) 0 var(--space-2) var(--space-2); transition: color var(--duration-quick) var(--easing-settle); }
+#send:hover, #send:focus-visible { color: var(--accent-text); }
+#send:focus-visible { outline: 1px solid var(--accent); outline-offset: 4px; }
+.busy #send { color: var(--ink-soft); }
+
+.baseline { display: block; width: 100%; height: 10px; color: var(--ink-soft); overflow: visible; transition: color var(--duration-slow) var(--easing-settle); }
+#composer:focus-within .baseline { color: var(--accent); }
+
+.under { display: flex; justify-content: space-between; gap: var(--space-3); margin: var(--space-1) 0 0; min-height: 1.7em; }
+#status { flex: 1; transition: color var(--duration-quick) var(--easing-settle); }
+#status.refused { color: var(--accent-text); }
+#count { white-space: nowrap; font-variant-numeric: tabular-nums; }
+#count.near { color: var(--accent-text); }
+
+/* the written line lifting off the baseline */
+.ghost {
+  position: absolute; top: var(--space-2); white-space: pre; pointer-events: none; color: var(--ink);
+  font: 400 var(--type-lede-size)/1.4 var(--font-text); letter-spacing: .02em; text-transform: lowercase;
+}
+
+/* Turnstile: no frame of its own, invisible unless Cloudflare has to ask */
+#turnstile { display: none; margin-top: var(--space-2); }
+#turnstile.on { display: block; }
+#turnstile iframe { border: 0 !important; }
+
+/* ---------- corners ---------- */
+#controls {
+  position: fixed; z-index: var(--z-corner); display: flex; align-items: center; gap: var(--space-2);
+  left: calc(var(--space-3) + env(safe-area-inset-left, 0px)); bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+}
+#controls button { padding: var(--space-2); color: var(--ink-soft); }
+#controls button:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+#bTheme { width: 46px; height: 46px; position: relative; color: var(--accent) !important; }
+#bTheme .eye { position: absolute; inset: var(--space-2); display: block; transform-origin: 50% 50%;
+  transition: opacity var(--duration-quick) var(--easing-settle), transform var(--duration-slow) var(--easing-settle); }
+#bTheme .eye svg { width: 100%; height: 100%; display: block; overflow: visible; }
+#bTheme .eye.closed { opacity: 0; transform: scaleY(.2) translateY(-4px); }
+.is-dark #bTheme .eye.open { opacity: 0; transform: scaleY(.08); }
+.is-dark #bTheme .eye.closed { opacity: 1; transform: none; }
+
+@media (max-width: 560px) {
+  #line, .mirror, .caret, .ghost { font-size: 17px; }
+  #composer { bottom: calc(var(--space-7) + env(safe-area-inset-bottom, 0px)); }
+}

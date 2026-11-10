@@ -1,0 +1,26 @@
+# wall · paries: the Worker and its Durable Object. Placeholder names only; see README.md before deploying.
+name = "aphesis-wall"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+[vars]
+ALLOWED_ORIGINS = "https://example.com"
+TTL_DAYS = "30"
+BLOCKLIST = ""
+# ALLOW_NO_TURNSTILE = "1"   # local development only, never in production
+
+# Secrets are not kept here. Set them with:
+#   wrangler secret put TURNSTILE_SECRET
+#   wrangler secret put HASH_SALT
+#   wrangler secret put ADMIN_TOKEN
+
+[[durable_objects.bindings]]
+name = "WALL"
+class_name = "Wall"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Wall"]
+
+# A custom domain or route, once the site's zone is on Cloudflare:
+# routes = [{ pattern = "wall-api.example.com", custom_domain = true }]

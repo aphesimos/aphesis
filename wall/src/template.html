@@ -1,0 +1,48 @@
+<title>aphes.is wall</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="wall · paries: anonymous lines drifting in the fog. leave one.">
+<!--__CONFIG__-->
+<style>
+/*__CSS__*/
+</style>
+<!--__BODY__-->
+<canvas id="fog" aria-hidden="true"></canvas>
+
+<a id="seal" href="#home" aria-label="aphes.is · back to the center" data-cursor=".9"></a>
+
+<main id="wall">
+  <header id="wallHead">
+    <p class="gloss-title aph-gloss aph-on-fog" lang="la" aria-hidden="true">paries</p>
+    <h1 class="title aph-display aph-on-fog">wall <span class="sr">· <span lang="la">paries</span>: anonymous lines in the fog</span></h1>
+  </header>
+
+  <form id="composer" autocomplete="off" novalidate>
+    <label class="sr" for="line">a line for the wall, 140 characters at most, no names</label>
+    <div class="write">
+      <input id="line" name="line" type="text" maxlength="140" enterkeyhint="send" spellcheck="false" autocomplete="off"
+        autocapitalize="none" placeholder="leave a line in the fog" class="aph-on-fog" data-cursor=".55"
+        data-tip="one line · no names · it fades after thirty days" aria-describedby="status">
+      <span class="mirror" aria-hidden="true"></span>
+      <span class="caret blink" aria-hidden="true">_</span>
+      <button id="send" type="submit" class="aph-label aph-on-fog" data-cursor=".55" data-tip="or press enter">send</button>
+    </div>
+    <svg class="baseline" aria-hidden="true" focusable="false" preserveAspectRatio="none"></svg>
+    <p class="under"><span id="status" class="aph-meta aph-on-fog" role="status" aria-live="polite"></span><span id="count" class="aph-meta aph-on-fog" aria-hidden="true"></span></p>
+    <div id="turnstile" aria-label="a quick check"></div>
+  </form>
+
+  <ul id="lines" aria-label="lines on the wall"></ul>
+</main>
+
+<div class="corner" id="controls">
+  <button id="bTheme" type="button" aria-label="switch between light and dark" data-tip="open · close the eye" data-cursor=".55"><span class="eye open"></span><span class="eye closed"></span></button>
+</div>
+
+<div class="sr" id="announce" aria-live="polite"></div>
+
+<script>
+/*__BUNDLE__*/
+</script>
+<script>
+/*__SCRIPT__*/
+</script>

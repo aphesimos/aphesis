@@ -18,3 +18,15 @@ python3 tools/readme/make_readme_svgs.py --tokens <tokens.json> --aphesis <Aphes
 
 Then copy each branch's images into that branch's `assets/readme/`. Greek glosses are left out while the font lacks
 the glyphs; the script says which. Run it again when the Greek extension lands.
+
+## Checking every frame
+
+A single screenshot only shows one moment. Before committing, pause each image at several moments and look at them:
+
+```bash
+(cd assets/readme && python3 -m http.server 8767) &
+node tools/readme/qa_frames.js hero-dark,hero-light,mark-dark   # writes qa/<name>-<seconds>.png
+```
+
+`qa_frames.js` pauses both timelines (SMIL with `setCurrentTime`, CSS with the Web Animations API) at 0.4, 1.2, 2.2,
+3.6, 6, 9 and 12.4 seconds.

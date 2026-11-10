@@ -12,5 +12,5 @@ which stays a hub.
 | `site` | The Astro + Cloudflare app: the shell (fog, seal, inscription, passage, routing) and, as they are built, each section. |
 
 Sections get their own branches when work on them starts, cut from `site`:
-`section/book`, `section/experimental`, `section/archive`, `section/laboratory`, `section/works`, `section/wall`, `section/forum`.
+`section/book`, `section/experimental`, `section/archive`, `section/laboratory`, `section/works`, `section/wall`, `section/forum`, `section/music`.
 They merge back into `site` when finished.

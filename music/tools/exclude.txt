@@ -1,0 +1,6 @@
+# One line per thing to keep off the site; the next sync removes it from the bucket and the index.
+# A line is a path inside the library, as it appears there (case does not matter):
+#   Some Artist/Some Album/03 a track.flac      one track
+#   Some Artist/Unreleased                       a whole folder
+#   */demos/*                                    a pattern (* and ? as in a shell)
+# Lines starting with # are ignored.

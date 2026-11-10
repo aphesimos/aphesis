@@ -1,0 +1,85 @@
+<title>aphes.ist music</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="music · phonotheca: what I listen to, as it sits on my disk. browse it like a file explorer and listen.">
+<style>
+/*__CSS__*/
+</style>
+<!--__BODY__-->
+<canvas id="fog" aria-hidden="true"></canvas>
+
+<a id="seal" href="#home" aria-label="aphes.ist · back to the center" data-cursor=".9"></a>
+
+<main id="music" class="music" aria-labelledby="m-title">
+  <div class="m-explorer">
+    <header class="m-head">
+      <p class="m-gloss aph-gloss aph-ink m-in" lang="la">phonotheca</p>
+      <h1 id="m-title" class="m-title aph-display aph-ink m-in" tabindex="-1">music</h1>
+      <p class="m-lede aph-ink m-in">what I listen to, as it sits on my disk: niche, mostly unknown, mostly lossless.</p>
+      <p class="m-stats aph-meta aph-ink m-in"></p>
+    </header>
+    <div class="m-bar">
+      <div class="m-views aph-ink m-in" role="group" aria-label="browse by">
+        <button type="button" class="aph-label" data-mode="folders" aria-pressed="true" data-cursor=".55">folders</button><span class="dot" aria-hidden="true">·</span><button type="button" class="aph-label" data-mode="artists" aria-pressed="false" data-cursor=".55">artists</button><span class="dot" aria-hidden="true">·</span><button type="button" class="aph-label" data-mode="albums" aria-pressed="false" data-cursor=".55">albums</button>
+      </div>
+      <label class="m-search aph-ink m-in"><span class="sr">search the library</span><input type="search" placeholder="search" autocomplete="off" spellcheck="false" enterkeyhint="search" data-tip="search · /"><span class="m-search-line" aria-hidden="true"></span></label>
+    </div>
+    <nav class="m-crumbs aph-meta aph-ink m-in" aria-label="where you are"></nav>
+    <div class="m-here">
+      <span class="h-thumb aph-ink m-in" aria-hidden="true" hidden></span>
+      <span class="h-text aph-meta aph-ink m-in"></span>
+      <span class="h-acts aph-ink m-in"><button type="button" class="h-play aph-label" data-cursor=".55">play</button><span class="dot" aria-hidden="true">·</span><button type="button" class="h-shuffle aph-label" data-cursor=".55">shuffle</button></span>
+    </div>
+    <div class="m-cols aph-meta aph-ink m-in" aria-hidden="true"><span class="c-g"></span><span>name</span><span>time</span><span>format</span><span>depth</span><span>rate</span></div>
+    <div class="m-pane">
+      <div class="m-list" role="listbox" tabindex="0" aria-label="music"></div>
+    </div>
+  </div>
+
+  <aside class="m-deck idle" aria-label="player">
+    <div class="m-cover m-in"><canvas aria-hidden="true"></canvas></div>
+    <p class="m-caption aph-meta aph-ink m-in" aria-hidden="true"></p>
+    <div class="m-now aph-ink m-in" aria-live="off">
+      <p class="n-title">nothing playing</p>
+      <p class="n-by">choose a track, or play a folder</p>
+      <p class="n-tech aph-meta"></p>
+    </div>
+    <div class="m-seek">
+      <div class="s-track aph-ink m-in"><span class="s-line" aria-hidden="true"></span><span class="s-fill" aria-hidden="true"><span class="s-fill-cells"></span></span>
+        <input type="range" min="0" max="1000" step="1" value="0" aria-label="seek" data-cursor=".55"></div>
+      <div class="s-times aph-meta aph-ink m-in"><span class="t-now">0:00</span><span class="t-end">0:00</span></div>
+    </div>
+    <div class="m-ctl m-in">
+      <button type="button" class="c-prev aph-ink" aria-label="previous" data-tip="previous · p" data-cursor=".55" data-glyph="prev"></button>
+      <button type="button" class="c-play" aria-label="play" data-tip="play · space" data-cursor=".55"></button>
+      <button type="button" class="c-next aph-ink" aria-label="next" data-tip="next · n" data-cursor=".55" data-glyph="next"></button>
+      <button type="button" class="c-shuffle aph-ink" aria-label="shuffle" aria-pressed="false" data-tip="shuffle · s" data-cursor=".55" data-glyph="shuffle"></button>
+      <button type="button" class="c-lossless aph-label aph-ink" aria-pressed="false" data-tip="lossless: load the original flac · f" data-cursor=".55">lossless</button>
+    </div>
+    <div class="m-vol m-in">
+      <button type="button" class="c-vol aph-ink" aria-label="mute" data-tip="mute · m" data-cursor=".55"></button>
+      <div class="s-track aph-ink"><span class="s-line" aria-hidden="true"></span><span class="s-fill" aria-hidden="true"><span class="s-fill-cells"></span></span>
+        <input type="range" min="0" max="100" step="1" value="100" aria-label="volume" data-cursor=".55"></div>
+    </div>
+    <section class="m-queue" aria-label="queue">
+      <p class="q-head aph-meta aph-ink m-in">queue · empty</p>
+      <ol></ol>
+    </section>
+  </aside>
+  <div class="sr m-sr" aria-live="polite"></div>
+</main>
+
+<nav id="m-away" class="m-away" aria-label="the rest of the site" hidden>
+  <a href="#music" class="aph-ink" data-cursor=".9"><span class="aph-label">music</span><span class="aph-gloss" lang="la">phonotheca</span></a>
+  <p class="aph-meta aph-ink">the rest of the site would be here. what is playing keeps playing: top right.</p>
+</nav>
+
+<div class="corner" id="controls">
+  <button id="bTheme" type="button" aria-label="switch between light and dark" data-tip="open · close the eye" data-cursor=".55"><span class="eye open"></span><span class="eye closed"></span></button>
+</div>
+
+<script>
+/*__BUNDLE__*/
+</script>
+<script>
+/*__SCRIPT__*/
+</script>

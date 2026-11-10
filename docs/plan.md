@@ -13,6 +13,7 @@
    - **works** · *opera*: finished projects.
    - **wall** · *paries*: anonymous messages floating in the fog.
    - **forum** · *ἀγορά*: a basic anonymous imageboard.
+   - **music** · *phonotheca*: my music library, browsed like a file explorer, with a player that keeps playing across the site.
 5. **Later**: further sections from the research survey, to be scoped once the above exist.
 
 ## Open items

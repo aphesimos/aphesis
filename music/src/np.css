@@ -1,0 +1,36 @@
+/* the now-playing line: the player core's own mark, which outlives the section. The core puts this stylesheet in
+   <head> itself, so it stays when the section's stylesheet goes. Top-right, the one corner the site leaves free
+   (the seal is top-left, the eye bottom-left, the passage bottom-right). One small line of meta text, a play mark
+   and a stippled progress under it. The line is itself the .aph-ink element: it holds no red, and being fixed it
+   blends with the fog as a whole while the eye's wave runs. */
+#aph-np {
+  position: fixed; z-index: var(--z-corner);
+  top: calc(var(--space-4) + env(safe-area-inset-top, 0px)); right: max(var(--space-4), env(safe-area-inset-right, 0px));
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-2);
+  max-width: min(360px, calc(100vw - 112px)); padding: var(--space-1) 0 var(--space-2);
+  font: var(--type-meta-weight) var(--type-meta-size)/var(--type-meta-line) var(--font-text); letter-spacing: var(--type-meta-tracking);
+  color: var(--ink-soft); text-transform: none;
+  text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg);
+  opacity: 0; filter: blur(10px); translate: 0 -14px; visibility: hidden; pointer-events: none;
+  transition: opacity var(--duration-scene) var(--easing-settle), filter var(--duration-scene) var(--easing-settle),
+    translate var(--duration-scene) var(--easing-settle), visibility 0s linear var(--duration-scene), color var(--duration-theme) var(--easing-settle);
+}
+#aph-np.on { opacity: 1; filter: none; translate: none; visibility: visible; pointer-events: auto; transition-delay: 0s; }
+/* inside the music section, on a wide screen, the deck says all of this already */
+@media (min-width: 900px) { :root[data-sec="music"] #aph-np.on { opacity: 0; filter: blur(10px); visibility: hidden; pointer-events: none; } }
+.aph-shifting #aph-np { text-shadow: none; }
+#aph-np button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; border-radius: var(--radius-none); }
+#aph-np .np-play { width: 22px; height: 22px; display: block; color: var(--ink); }
+#aph-np .np-play svg { width: 100%; height: 100%; display: block; }
+#aph-np .np-play .g-pause { display: none; }
+#aph-np.playing .np-play .g-pause { display: block; }
+#aph-np.playing .np-play .g-play { display: none; }
+#aph-np .np-name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--ink); text-decoration: none; }
+#aph-np .np-name:hover { text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--accent); }
+#aph-np .np-by { color: var(--ink-soft); }
+#aph-np .np-time { font-variant-numeric: tabular-nums; white-space: nowrap; }
+#aph-np .np-bar { grid-column: 1 / -1; position: relative; height: 4px; margin-top: var(--space-1); overflow: hidden; color: var(--line); }
+#aph-np .np-bar > svg { position: absolute; left: 0; top: 0; width: 100%; height: 4px; }
+#aph-np .np-fill { position: absolute; left: 0; top: 0; height: 4px; width: 100%; color: var(--fog); clip-path: inset(0 100% 0 0); }
+#aph-np .np-fill svg { display: block; }
+#aph-np :focus-visible { outline: 1px solid var(--accent); outline-offset: 4px; }

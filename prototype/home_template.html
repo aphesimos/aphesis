@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>aphes.is</title>
+<title>aphes.ist</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Elite&display=swap">
@@ -124,7 +124,7 @@ main p.nota{font:400 19px/1.6 var(--f-mono);color:var(--ink)}
 </svg>
 <canvas id="fog" aria-hidden="true"></canvas>
 <svg id="ray" aria-hidden="true"><line x1="0" y1="0" x2="0" y2="0"/></svg>
-<a id="seal" href="#home" aria-label="aphes.is — back to the center"><svg viewBox="-45 -90 1090 1090" aria-hidden="true"><g filter="url(#boil)"><path id="ink"/></g></svg></a>
+<a id="seal" href="#home" aria-label="aphes.ist — back to the center"><svg viewBox="-45 -90 1090 1090" aria-hidden="true"><g filter="url(#boil)"><path id="ink"/></g></svg></a>
 <nav id="inscription" aria-label="sections">__NAV__</nav>
 <main>__SECTIONS__</main>
 <div id="passage"><span class="pre" aria-hidden="true">&gt;&gt;</span><span id="pText" aria-hidden="true"></span><span class="caret" aria-hidden="true"></span><span class="sr" id="pSr"></span></div>
@@ -327,12 +327,12 @@ function goTo(next,first){
   const ins=$('inscription');
   $('seal').classList.toggle('in-corner',next!=='');
   if(next===''){ // back to the center: Φ reopens into φ on the way
-    document.title='aphes.is'; $('announce').textContent='home';
+    document.title='aphes.ist'; $('announce').textContent='home';
     const de={...sealBox}, para=centerBox(), u0=u;
     tween(first||reduz?1:1600,k=>{const e=MJ(k);placeSeal({x:lerp(de.x,para.x,e),y:lerp(de.y,para.y,e),s:lerp(de.s,para.s,e)});u=lerp(u0,0,k);paint(estadoT(u));},
       ()=>{ins.classList.add('visible');});
   } else {
-    const sec=SECTIONS.find(s=>s.id===next); document.title=sec.name+' · aphes.is'; $('announce').textContent=sec.name;
+    const sec=SECTIONS.find(s=>s.id===next); document.title=sec.name+' · aphes.ist'; $('announce').textContent=sec.name;
     ins.classList.remove('visible','focus'); $('ray').querySelector('line').style.opacity=0;
     const de={...sealBox}, para=cornerBox(), u0=u;
     tween(first||reduz?1:1800,k=>{const e=MJ(k);placeSeal({x:lerp(de.x,para.x,e),y:lerp(de.y,para.y,e),s:lerp(de.s,para.s,e)});u=lerp(u0,1,k);paint(estadoT(u));},

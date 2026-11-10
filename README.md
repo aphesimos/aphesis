@@ -1,6 +1,6 @@
 # site
 
-The aphes.is app. For now it holds the working prototype of the shell; the Astro + Cloudflare project
+The aphes.ist app. For now it holds the working prototype of the shell; the Astro + Cloudflare project
 replaces it once the design system is settled.
 
 - `prototype/home_template.html`: the shell: stippled fog (WebGL), the φ seal that travels to the corner,

@@ -878,11 +878,14 @@
       ['play', 'pause', 'ended'].forEach(function (k) { document.addEventListener(k, onMedia, true); });
     }
     function paintEars() { ears.forEach(function (b) { earState(b, !muted); }); }
+    /* aph:sound on window, {detail: {muted}}: once at start and on every change of the mute, so anything else that
+       sounds in the page (the music player) can follow the ear */
+    function announce() { try { dispatchEvent(new CustomEvent('aph:sound', { detail: { muted: muted } })); } catch (e) {} }
     var api = {
       /* start({fade, scene, chamber}): call once at load. Muted visitors stay silent and nothing is created. */
       start: function (o) {
         o = o || {}; if (o.fade) fadeMs = o.fade; if (o.scene) { want.name = o.scene; want.o = o; }
-        hook(); if (muted || !AC) return api;
+        hook(); announce(); if (muted || !AC) return api;
         if (!ensure()) return api;
         if (document.hidden) { arm(); return api; }
         resume(); if (!running()) arm();
@@ -900,7 +903,7 @@
       duck: function (level, ms) { if (E) E.duck.go(clamp(level === undefined ? 0.2 : level), (ms || 1500) / 1000); return api; },
       /* mute(true|false): a slow fade (1.2 s), remembered for the next visit */
       mute: function (m) {
-        m = m === undefined ? !muted : !!m; muted = m; store(); paintEars();
+        m = m === undefined ? !muted : !!m; var changed = m !== muted; muted = m; store(); paintEars(); if (changed) announce();
         var hush = cssMs('--duration-hush', 1200) / 1000;
         if (m) { if (E) { E.mute.go(0, hush); disarm(); clearTimeout(sleepT); sleepT = setTimeout(function () { if (E && muted) try { E.ctx.suspend(); } catch (e) {} }, 1800); } }
         else {

@@ -36,6 +36,7 @@ interface Sound {
   duck(level: number, ms?: number): Sound;
   /** fade out or in over duration-hush (1.2 s); no argument toggles. Remembered in localStorage ('aphesis.sound'). */
   mute(muted?: boolean): Sound;
+  /** true while the ear is closed; the stored choice from an earlier visit counts from the first moment */
   readonly muted: boolean;
   /** 'none' before anything was created, then the AudioContext's state */
   readonly state: 'none' | AudioContextState | 'interrupted';
@@ -71,3 +72,5 @@ interface Aphesis {
   Sound: Sound;
 }
 declare const Aphesis: Aphesis;
+/** fired on window by Sound.start() and on every change of the mute, so anything else that sounds can follow the ear */
+interface WindowEventMap { 'aph:sound': CustomEvent<{ muted: boolean }> }

@@ -130,8 +130,15 @@
     var lp = gl.getAttribLocation(pr, 'p'); gl.enableVertexAttribArray(lp); gl.vertexAttribPointer(lp, 2, gl.FLOAT, false, 0, 0);
     return { gl: gl, u: function (k) { return gl.getUniformLocation(pr, k); } };
   }
-  /* size a canvas to its CSS box in device pixels, capped so a cell stays a crisp square */
-  function fit(cv, gl) { var r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1); var w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr)); if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; gl.viewport(0, 0, w, h); } return dpr; }
+  /* one canvas pixel per stipple cell: the canvas is sized to the cell grid and the browser scales it up with hard
+     edges, so a cell stays a crisp square and the shader runs once per cell instead of once per screen pixel.
+     Returns k, canvas pixels per CSS pixel, to convert pointer and zone positions. */
+  function fit(cv, gl, cell) {
+    var r = cv.getBoundingClientRect(), w = Math.max(1, Math.round(r.width / cell)), h = Math.max(1, Math.round(r.height / cell));
+    if (cv.style.imageRendering !== 'pixelated') cv.style.imageRendering = 'pixelated';
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; gl.viewport(0, 0, w, h); }
+    return w / Math.max(1, r.width);
+  }
 
   /* ---------- Fog ----------
      Fog(canvas, {density, light, cell}) -> {zones(rects), stop()}
@@ -153,13 +160,13 @@
     cv.addEventListener('pointermove', function (e) { var r = cv.getBoundingClientRect(); ptr = [e.clientX - r.left, e.clientY - r.top]; });
     window.addEventListener('pointermove', function (e) { var r = cv.getBoundingClientRect(); ptr = [e.clientX - r.left, e.clientY - r.top]; });
     function frame(now) {
-      var dt = Math.min(0.05, (now - last) / 1000); last = now; if (!REDUCED) t += dt; dpr = fit(cv, gl);
+      var dt = Math.min(0.05, (now - last) / 1000); last = now; if (!REDUCED) t += dt; dpr = fit(cv, gl, o.cell || 2);
       var R = cv.getBoundingClientRect(); if (!ptr) ptr = [R.width / 2, R.height / 2]; if (!sm) sm = ptr.slice();
       sm[0] += (ptr[0] - sm[0]) * Math.min(1, dt * 3); sm[1] += (ptr[1] - sm[1]) * Math.min(1, dt * 3);
       ZB.fill(0); var i = 0;
       zEls.forEach(function (z) { if (i >= 12) return; var r = z.el ? z.el.getBoundingClientRect() : z; if (!r.width) return; var pad = z.pad || 12;
         ZB.set([(r.left - R.left + r.width / 2) * dpr, cv.height - (r.top - R.top + r.height / 2) * dpr, (r.width / 2 + pad) * dpr, (r.height / 2 + pad) * dpr], i * 4); i++; });
-      gl.uniform4fv(U.Z, ZB); gl.uniform2f(U.R, cv.width, cv.height); gl.uniform1f(U.T, t); gl.uniform1f(U.S, 2 * dpr);
+      gl.uniform4fv(U.Z, ZB); gl.uniform2f(U.R, cv.width, cv.height); gl.uniform1f(U.T, t); gl.uniform1f(U.S, 1);
       gl.uniform3fv(U.F, F); gl.uniform3fv(U.N, Nc); gl.uniform2f(U.P, sm[0] * dpr, cv.height - sm[1] * dpr); gl.uniform1f(U.D, dens); gl.uniform1f(U.C, light);
       gl.drawArrays(gl.TRIANGLES, 0, 3); raf = requestAnimationFrame(frame);
     }
@@ -239,9 +246,9 @@
       var im = new Image(); if (/^https?:/.test(src) && src.indexOf(location.origin) !== 0) im.crossOrigin = 'anonymous'; im.onload = function () { upload(im); cb && cb(); }; im.src = src;
     }
     function frame(now) {
-      var dt = Math.min(0.05, (now - last) / 1000); last = now; if (!REDUCED) t += dt; var dpr = fit(cv, gl);
+      var dt = Math.min(0.05, (now - last) / 1000); last = now; if (!REDUCED) t += dt; var dpr = fit(cv, gl, o.cell || 2);
       gl.uniform2f(U.R, cv.width, cv.height); gl.uniform2f(U.P, ptr[0] * dpr, cv.height - ptr[1] * dpr); gl.uniform1f(U.T, t);
-      gl.uniform1f(U.S, (o.cell || 2) * dpr); gl.uniform1f(U.K, MJ(k)); gl.uniform1f(U.G, opt('gain', 1)); gl.uniform1f(U.SC, opt('scatter', 0.5)); gl.uniform1f(U.ER, opt('erosion', 0.45)); gl.uniform1f(U.CE, opt('ceiling', 0.8)); gl.uniform1f(U.M, o.margin === undefined ? 0.08 : o.margin);
+      gl.uniform1f(U.S, 1); gl.uniform1f(U.K, MJ(k)); gl.uniform1f(U.G, opt('gain', 1)); gl.uniform1f(U.SC, opt('scatter', 0.5)); gl.uniform1f(U.ER, opt('erosion', 0.45)); gl.uniform1f(U.CE, opt('ceiling', 0.8)); gl.uniform1f(U.M, o.margin === undefined ? 0.08 : o.margin);
       gl.uniform1f(U.A, o.accent || 0); gl.uniform1f(U.FIT, o.fit === 'cover' ? 1 : 0); gl.uniform3fv(U.F, F); gl.uniform3fv(U.N, Nc); gl.uniform3fv(U.AC, AC);
       gl.uniform2f(U.IA, IA[0], IA[1]); gl.uniform1i(U.I, 0); gl.uniform1i(U.I2, 1); gl.drawArrays(gl.TRIANGLES, 0, 3); raf = requestAnimationFrame(frame);
     }

@@ -62,7 +62,7 @@ function show(slug, first) {
     const e = EXPERIMENTS.find((x) => x.slug === slug);
     view.innerHTML = e ? experimentView(e, EXPERIMENTS) : indexView(EXPERIMENTS);
     wave(view);
-    document.title = e ? `${e.title} · laboratory · aphes.is` : 'laboratory · aphes.is';
+    document.title = e ? `${e.title} · laboratory · aphes.ist` : 'laboratory · aphes.ist';
     scrollTo(0, 0);
     ground.watch(view);
     void view.offsetWidth;

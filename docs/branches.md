@@ -13,5 +13,5 @@ which stays a hub.
 | `backend` | The Rust Workers behind the wall and the forum, and their deploy. |
 
 Sections get their own branches when work on them starts, cut from `site`:
-`section/book`, `section/experimental`, `section/archive`, `section/laboratory`, `section/works`, `section/wall`, `section/forum`.
+`section/book`, `section/experimental` (the descent section; the branch keeps its first name), `section/archive`, `section/laboratory`, `section/works`, `section/wall`, `section/forum`.
 They merge back into `site` when finished.

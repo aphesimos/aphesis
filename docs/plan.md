@@ -7,7 +7,7 @@
    Lives on `font`.
 4. **Sections**, one screen at a time, each following the design system:
    - **book** · *liber*: authors, works and what shaped the author, leafed through like a codex.
-   - **experimental** · *ἄδυτον*: chambers discovered through gestures; symbols, motion, stipple images, no explanation.
+   - **descent** · *κατάβασις* (first called experimental, branch `section/experimental`): a door and nine chambers, a journey down and back; symbols, motion, stipple images, no explanation.
    - **archive** · *codex*: the blog, from draft (nigredo) to finished (rubedo).
    - **laboratory** · *officina*: measured experiments.
    - **works** · *opera*: finished projects.

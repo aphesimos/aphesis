@@ -11,8 +11,10 @@ the other. Arrow keys, swipe or the page edge turn the leaf; the turn is a disso
 **Entries:** title, author, year, a note of 60–200 words, an optional quote typed by the Typist, the density map.
 **Data:** markdown files with front matter (Astro content collection). No backend.
 
-## experimental · *ἄδυτον*
-**What:** chambers discovered through gestures. Symbols, motion, simulacra, no explanation.
+## descent · *κατάβασις*
+(First called experimental · *ἄδυτον*; its branch keeps that name, `section/experimental`.)
+**What:** a katabasis, the journey down and back: a red door, nine chambers opened by simple gestures, and an ominous
+ending that returns the visitor home, the door openable again. Symbols, motion, simulacra, no explanation.
 **Screen:** a threshold icon and nothing else. Each chamber is entered by a gesture (holding still, drawing a circle,
 typing a word, waiting), and is one full-screen piece: a simulacrum that answers the pointer, a brush that draws a
 sigil, a passage that types itself into the fog. Awwwards-level craft, one idea per chamber, no navigation chrome

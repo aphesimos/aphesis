@@ -14,7 +14,7 @@ Work that waits on something else. Remove an item when it is done.
 - **Dashboard:** inside the site, in its style. It writes and edits archive posts (markdown, footnotes, stage, drafts), book entries (picture upload turned into a density map in the browser) and works entries, and moderates the wall and forum (delete, reports). The live preview matches the page exactly.
 - **Entrances:** all of them lead to one hidden gate, and a wrong or incomplete attempt does nothing visible.
   - The ritual: click the bottom-right passage three times (its text stutters slightly at each click), then hold the φ for 7 s (it fills with stipple and lets go). It must work on touch.
-  - The tenth door: after experimental's ending, a full circle drawn around the sealed door.
+  - The tenth door: on descent's door screen, at any time, a full circle drawn around the door. The section dispatches `aph:entrance` with `{via: 'door'}`, and a plain click still opens the door.
   - A phrase typed anywhere (desktop).
   - A secret route (a bookmark).
   - The phrase and the route are chosen by the owner and set as configuration, never committed in clear.

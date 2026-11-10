@@ -4,7 +4,7 @@
   "type": "module",
   "description": "forum · ἀγορά: the anonymous board's Worker, with a Durable Object per thread and one for the board.",
   "scripts": {
-    "test": "node --test test/",
+    "test": "node --test test/*.test.js",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy"
   },

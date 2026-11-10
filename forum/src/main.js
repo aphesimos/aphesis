@@ -125,7 +125,7 @@ async function show(r, opts = {}) {
   view.classList.remove('leaving');
   if (!opts.quiet) enter(v.items);
   scroller.scrollTop = keep;
-  document.title = (r.thread ? 'a thread · ' : '') + 'forum · aphes.is';
+  document.title = (r.thread ? 'a thread · ' : '') + 'forum · aphes.ist';
   if (!opts.quiet) {
     announce(err ? 'not found' : r.thread ? 'thread, ' + data.posts.length + ' posts' : 'board, ' + data.threads.length + ' threads');
     if (r.thread && r.n) setTimeout(() => highlight(r.n, !first), 450);

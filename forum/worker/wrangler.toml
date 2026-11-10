@@ -7,7 +7,7 @@ compatibility_date = "2024-11-01"
 
 [vars]
 # the site's origin(s), comma-separated; CORS answers only these
-ALLOWED_ORIGINS = "https://aphes.is"
+ALLOWED_ORIGINS = "https://aphes.ist"
 # requests per window for each IP hash
 RATE_POSTS = "4"
 RATE_THREADS = "1"

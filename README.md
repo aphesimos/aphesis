@@ -2,14 +2,14 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/site-dark.svg">
-  <img alt="The aphes.is home: the φ in the fog, the sections around it as an inscription, a passage typed in the corner" src="assets/readme/site-light.svg" width="100%">
+  <img alt="The aphes.ist home: the φ in the fog, the sections around it as an inscription, a passage typed in the corner" src="assets/readme/site-light.svg" width="100%">
 </picture>
 
 </div>
 
 # site
 
-The aphes.is app. For now it holds the working prototype of the shell; the Astro + Cloudflare project
+The aphes.ist app. For now it holds the working prototype of the shell; the Astro + Cloudflare project
 replaces it once the design system is settled.
 
 - `prototype/home_template.html`: the shell: stippled fog (WebGL), the φ seal that travels to the corner,

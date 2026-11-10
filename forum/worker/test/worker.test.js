@@ -36,11 +36,11 @@ function r2() {
   };
 }
 function makeEnv(extra = {}) {
-  const env = Object.assign({ ALLOWED_ORIGINS: 'https://aphes.is', IP_SALT: 's1', POSTER_SALT: 's2', ADMIN_SECRET: 'open-sesame', RATE_POSTS: '3', RATE_THREADS: '2', RATE_WINDOW_SECONDS: '120' }, extra);
+  const env = Object.assign({ ALLOWED_ORIGINS: 'https://aphes.ist', IP_SALT: 's1', POSTER_SALT: 's2', ADMIN_SECRET: 'open-sesame', RATE_POSTS: '3', RATE_THREADS: '2', RATE_WINDOW_SECONDS: '120' }, extra);
   env.THREADS = namespace(Thread, env); env.BOARD = namespace(Board, env); env.IMAGES = r2();
   return env;
 }
-const H = (ip, more = {}) => Object.assign({ 'CF-Connecting-IP': ip, Origin: 'https://aphes.is' }, more);
+const H = (ip, more = {}) => Object.assign({ 'CF-Connecting-IP': ip, Origin: 'https://aphes.ist' }, more);
 function form(fields) { const f = new FormData(); for (const [k, v] of Object.entries(fields)) f.append(k, v); return f; }
 const req = (env, path, init = {}) => worker.fetch(new Request('https://forum.test' + path, init), env);
 function jpeg(w, h) {
@@ -52,7 +52,7 @@ test('a thread, replies, sigils per thread, the board', async () => {
   const env = makeEnv();
   let r = await req(env, '/api/threads', { method: 'POST', headers: H('1.1.1.1'), body: form({ text: 'first line\nsecond' }) });
   assert.equal(r.status, 201);
-  assert.equal(r.headers.get('access-control-allow-origin'), 'https://aphes.is');
+  assert.equal(r.headers.get('access-control-allow-origin'), 'https://aphes.ist');
   const { thread } = await r.json();
   r = await req(env, '/api/threads/' + thread + '/posts', { method: 'POST', headers: H('2.2.2.2'), body: form({ text: '>>1 yes' }) });
   assert.deepEqual(await r.json(), { thread, n: 2 });
@@ -92,7 +92,7 @@ test('uploads: checked, stored, served; bad ones refused', async () => {
   const im = t.posts[0].image;
   assert.match(im.density, /^\/api\/images\/t\/[a-z2-9]{10}\/[a-z2-9]{12}\.density\.jpg$/);
   assert.equal(env.IMAGES.m.size, 2);
-  const g = await req(env, im.original, { headers: { Origin: 'https://aphes.is' } });
+  const g = await req(env, im.original, { headers: { Origin: 'https://aphes.ist' } });
   assert.equal(g.status, 200);
   assert.equal(g.headers.get('content-type'), 'image/jpeg');
   assert.equal(g.headers.get('x-content-type-options'), 'nosniff');
@@ -131,9 +131,9 @@ test('reports and admin removal', async () => {
 
 test('CORS: the site origin only; preflight answered', async () => {
   const env = makeEnv();
-  let r = await req(env, '/api/board', { method: 'OPTIONS', headers: { Origin: 'https://aphes.is', 'Access-Control-Request-Method': 'POST' } });
+  let r = await req(env, '/api/board', { method: 'OPTIONS', headers: { Origin: 'https://aphes.ist', 'Access-Control-Request-Method': 'POST' } });
   assert.equal(r.status, 204);
-  assert.equal(r.headers.get('access-control-allow-origin'), 'https://aphes.is');
+  assert.equal(r.headers.get('access-control-allow-origin'), 'https://aphes.ist');
   r = await req(env, '/api/board', { headers: { Origin: 'https://elsewhere.example' } });
   assert.equal(r.headers.get('access-control-allow-origin'), null);
   r = await req(env, '/api/threads', { method: 'POST', headers: { Origin: 'https://elsewhere.example', 'CF-Connecting-IP': '1.2.3.4' }, body: form({ text: 'x' }) });

@@ -152,7 +152,12 @@ which is the same site as `aphes.ist` and `www.aphes.ist`, so the desk works the
 site) the browser keeps the cookie back and the gate cannot open: use the real domain. The origins are the content
 service's `ALLOWED_ORIGINS` (backend/README.md on `backend`).
 
-## 7. Optional
+## 7. The design system
+
+The gate's eye is the design system's `Aphesis.Eye` (`design-system` at `93ca2db` or later). The shell already
+takes `bundle.js` from `design-system`, so a build after that commit carries it; nothing else is needed.
+
+## 8. Optional
 
 - A voice for the gate in the design system's `Aphesis.Sound` `VOICES` (`gate`); until then `Sound.scene('gate')`
   falls back to the home's voice.

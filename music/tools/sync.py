@@ -53,8 +53,8 @@ def log(*a):
         print(*a, flush=True)
 
 
-def run(cmd, binary=False, check=True):
-    p = subprocess.run(cmd, capture_output=True)
+def run(cmd, binary=False, check=True, stdin=None):
+    p = subprocess.run(cmd, stdin=stdin, capture_output=True)
     if check and p.returncode:
         raise RuntimeError(f'{os.path.basename(cmd[0])} failed ({p.returncode}): {p.stderr.decode("utf-8", "replace")[-600:]}')
     return p.stdout if binary else p.stdout.decode('utf-8', 'replace')
@@ -298,8 +298,13 @@ class Rclone:
 
     def put(self, local, key, cache='public, max-age=31536000, immutable'):
         ctype = MIME.get(os.path.splitext(key)[1].lower(), 'application/octet-stream')
-        run(['rclone', 'copyto', local, self.url(key), '--header-upload', 'Content-Type: ' + ctype,
-             '--header-upload', 'Cache-Control: ' + cache] + self.extra)
+        # the file's bytes go in on stdin (rcat), so rclone never reads the local name: on Windows rclone turns
+        # full-width characters in names (＼ ｜ ？ ＊ ： and so on, common in titles) into their ASCII forms, and a
+        # name holding ＼ then points into a folder that does not exist
+        with open(local, 'rb') as f:
+            run(['rclone', 'rcat', self.url(key), '--size', str(os.path.getsize(local)),
+                 '--header-upload', 'Content-Type: ' + ctype, '--header-upload', 'Cache-Control: ' + cache] + self.extra,
+                stdin=f)
 
     def delete(self, key):
         run(['rclone', 'deletefile', self.url(key)] + self.extra, check=False)

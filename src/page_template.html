@@ -1,0 +1,302 @@
+<title>Aphesis Script</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Elite&display=swap">
+<style>
+/* layout: one manuscript column; a black plate carries the red wordmark; red rubrics head each
+   section; everything set in Aphesis Script reacts to one pair of sliders that stays in reach */
+@font-face { font-family: "Aphesis Script"; src: url(data:font/woff2;base64,{{VF_WOFF2}}) format("woff2"); font-weight: 300 800; font-display: block; }
+@font-face { font-family: "Aphesis Before"; src: url(data:font/woff2;base64,{{BEFORE_WOFF2}}) format("woff2"); font-weight: 300 800; font-display: block; }
+:root {
+  --ground: oklch(0.11 0.004 25); --panel: oklch(0.155 0.006 25); --rule: oklch(0.27 0.01 25);
+  --ink: oklch(0.89 0.012 55); --dim: oklch(0.66 0.014 40); --red: oklch(0.57 0.2 26);
+  --plate: oklch(0.11 0.004 25); --plate-ink: oklch(0.89 0.012 55); --plate-dim: oklch(0.66 0.014 40); --plate-rule: oklch(0.27 0.01 25);
+  --display: "Aphesis Script", "Special Elite", Georgia, serif;
+  --text: "Special Elite", "Courier Prime", ui-monospace, "Courier New", monospace;
+  --data: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --w: 400; --s: 0;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+  --ground: oklch(0.955 0.007 55); --panel: oklch(0.925 0.009 55); --rule: oklch(0.83 0.012 45);
+  --ink: oklch(0.21 0.012 25); --dim: oklch(0.44 0.016 30); --red: oklch(0.52 0.2 26); color-scheme: light } }
+:root[data-theme="light"] {
+  --ground: oklch(0.955 0.007 55); --panel: oklch(0.925 0.009 55); --rule: oklch(0.83 0.012 45);
+  --ink: oklch(0.21 0.012 25); --dim: oklch(0.44 0.016 30); --red: oklch(0.52 0.2 26); color-scheme: light }
+
+body { background: var(--ground); color: var(--ink); font: 15px/1.62 var(--text); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--plate); }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.live { font-family: var(--display); font-variation-settings: "wght" var(--w), "slnt" var(--s); font-kerning: normal; line-height: 1.12;
+  font-feature-settings: "calt" var(--calt, 1), "ss01" var(--ss01, 0); }
+body.nocalt { --calt: 0; }
+body.icon { --ss01: 1; }
+a { color: var(--red); }
+:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+
+/* the plate */
+.plate { background: var(--plate); color: var(--plate-ink); position: relative; overflow: hidden; }
+.plate canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .5; pointer-events: none; }
+.plate .wrap { position: relative; padding-block: clamp(28px, 6vw, 72px) clamp(20px, 3vw, 36px); }
+.wordmark { color: oklch(0.57 0.2 26); font-size: clamp(88px, 25vw, 330px); line-height: .95; margin: 0; letter-spacing: 0; white-space: nowrap; }
+.plate p { margin: clamp(12px, 2vw, 22px) 0 0; max-width: 62ch; color: var(--plate-dim); }
+.plate p b { color: var(--plate-ink); font-weight: 400; }
+
+/* the controls: always in reach */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--plate); color: var(--plate-ink); border-block: 1px solid var(--plate-rule); }
+.bar .wrap { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; padding-block: 9px; }
+.bar label { display: flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--plate-dim); }
+.bar output { font-family: var(--data); font-variant-numeric: tabular-nums; color: var(--plate-ink); min-width: 3.2ch; text-align: right; text-transform: none; letter-spacing: 0; }
+input[type=range] { accent-color: oklch(0.57 0.2 26); width: clamp(110px, 20vw, 220px); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+@media (max-width: 760px) { .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; flex: 1 1 100%; } .chips button { flex: none; } }
+.chips button, .btn { font: 13px/1 var(--text); padding: 7px 10px 6px; background: transparent; color: inherit; border: 1px solid var(--plate-rule); border-radius: 2px; cursor: pointer; }
+.chips button[aria-pressed="true"] { border-color: oklch(0.57 0.2 26); color: oklch(0.57 0.2 26); }
+.chips button:hover, .btn:hover { border-color: currentColor; }
+.check { cursor: pointer; }
+
+/* sections */
+section { padding-block: clamp(36px, 6vw, 76px) 0; }
+section > .wrap > h2 { font: 400 clamp(40px, 7vw, 68px)/1 var(--display); font-variation-settings: "wght" 400, "slnt" 0; color: var(--red); margin: 0 0 6px; text-wrap: balance; }
+.lede { max-width: 66ch; color: var(--dim); margin: 0 0 22px; }
+.prose { max-width: 68ch; }
+.prose h3 { font: 400 15px/1.4 var(--text); letter-spacing: .1em; text-transform: uppercase; color: var(--red); margin: 30px 0 6px; }
+.prose p { margin: 0 0 12px; }
+.prose ul { margin: 0 0 12px; padding-left: 1.2em; }
+.prose li { margin-bottom: 5px; }
+code, .mono { font-family: var(--data); font-size: .88em; }
+hr { border: 0; border-top: 1px solid var(--rule); margin: clamp(36px, 6vw, 76px) 0 0; }
+
+.tester { border: 1px solid var(--rule); background: var(--panel); padding: clamp(14px, 3vw, 30px); font-size: min(var(--size, 84px), 22vw); min-height: 1.3em; overflow-wrap: anywhere; outline-offset: 4px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; margin: 0 0 12px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+.row output { font-family: var(--data); color: var(--ink); text-transform: none; letter-spacing: 0; }
+
+.strings { display: grid; gap: 4px; }
+.strings .live { font-size: clamp(34px, 6.4vw, 74px); white-space: nowrap; overflow-x: auto; overflow-y: hidden; padding-block: .08em .3em; scrollbar-width: thin; }
+.strings small, .ba small { display: block; font: 12px/1.3 var(--data); color: var(--dim); margin-top: 14px; }
+
+.alts { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); border-top: 1px solid var(--rule); border-left: 1px solid var(--rule); }
+.alts div { border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); font-size: 54px; text-align: center; padding: 10px 2px 14px; letter-spacing: .06em; }
+.pairrow { display: grid; gap: 6px; margin-bottom: 26px; }
+.pairrow .live { font-size: clamp(40px, 8.4vw, 104px); white-space: nowrap; overflow-x: auto; overflow-y: hidden; padding-bottom: .25em; scrollbar-width: thin; }
+.pairrow .row { margin: 0 0 10px; }
+.pairrow .off { --calt: 0; }
+.icons { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 0 28px; align-items: end; }
+.icons .live { font-size: clamp(120px, 22vw, 230px); line-height: 1.05; white-space: nowrap; }
+.ic-on { --ss01: 1; }
+.ic-off { --ss01: 0; }
+.fam { display: grid; gap: 0; border-top: 1px solid var(--rule); }
+.fam div { display: grid; grid-template-columns: minmax(0, 1fr); border-bottom: 1px solid var(--rule); padding: 6px 0 2px; }
+.fam span { font-family: var(--display); font-size: clamp(30px, 5.2vw, 58px); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+.fam i { font: normal 11px/1.2 var(--data); color: var(--dim); letter-spacing: .04em; }
+.stat { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px 28px; margin: 0 0 22px; }
+.stat div { border-top: 1px solid var(--rule); padding-top: 8px; }
+.stat b { display: block; font: 400 clamp(30px, 5vw, 46px)/1 var(--data); font-variant-numeric: tabular-nums; color: var(--ink); }
+.stat b.r { color: var(--red); }
+.stat span { font-size: 12px; color: var(--dim); }
+pre.src { font: 11.5px/1.5 var(--data); background: var(--panel); border: 1px solid var(--rule); padding: 12px 14px; overflow: auto; max-height: 60vh; white-space: pre; tab-size: 4; margin: 0 0 10px; }
+.srcs summary { font-family: var(--data); font-size: 13px; margin: 6px 0; }
+
+.glyphs { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); border-top: 1px solid var(--rule); border-left: 1px solid var(--rule); }
+.glyphs div { border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); text-align: center; padding: 8px 0 4px; }
+.glyphs b { display: block; font-weight: 400; font-size: 40px; line-height: 1.5; height: 1.5em; }
+.glyphs i { display: block; font: normal 9.5px/1.5 var(--data); color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 3px; }
+.gl-h { font: 12px/1 var(--text); letter-spacing: .1em; text-transform: uppercase; color: var(--dim); margin: 26px 0 8px; }
+
+figure { margin: 0 0 26px; }
+figure svg { display: block; width: 100%; height: auto; max-width: 880px; }
+figcaption { font-size: 13px; color: var(--dim); max-width: 70ch; margin-top: 8px; }
+.scroll { overflow-x: auto; margin: 0 0 18px; }
+table { border-collapse: collapse; font: 12.5px/1.4 var(--data); font-variant-numeric: tabular-nums; min-width: 520px; }
+th, td { text-align: right; padding: 5px 12px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+thead th { color: var(--dim); font-weight: 400; border-bottom-color: var(--dim); }
+td.g { font: 26px/1 var(--display); padding-block: 2px; }
+
+.ba { display: grid; gap: 2px; }
+.ba .live, .ba .before { font-size: clamp(30px, 5.6vw, 66px); white-space: nowrap; overflow-x: auto; overflow-y: hidden; padding-block: .08em .3em; scrollbar-width: thin; }
+.ba .before { font-family: "Aphesis Before", var(--text); font-variation-settings: "wght" var(--w), "slnt" var(--s); line-height: 1.12; color: var(--dim); }
+.proofs { display: grid; gap: 14px; margin-top: 18px; }
+.proofs img { display: block; width: 100%; height: auto; border: 1px solid var(--rule); background: #fff; }
+details summary { cursor: pointer; color: var(--red); margin: 12px 0; }
+
+.dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 12px; margin-bottom: 14px; }
+.dl button { text-align: left; font: 15px/1.35 var(--text); padding: 14px 16px; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 2px; cursor: pointer; }
+.dl button:hover { border-color: var(--red); }
+.dl button span { display: block; font: 12px/1.4 var(--data); color: var(--dim); margin-top: 4px; }
+.dl button[disabled] { opacity: .5; cursor: default; }
+#dlmsg { min-height: 1.6em; color: var(--dim); font-size: 13px; }
+footer { padding-block: 40px 56px; color: var(--dim); font-size: 13px; }
+@media (max-width: 520px) { .bar label span.t { display: none; } }
+@media (prefers-reduced-motion: no-preference) { .chips button, .btn, .dl button { transition: border-color .15s, color .15s; } }
+</style>
+
+<header class="plate">
+  <canvas id="fog" aria-hidden="true"></canvas>
+  <div class="wrap">
+    <h1 class="wordmark live" id="mark">aφesis</h1>
+    <p><b>Aphesis Script</b> is the display hand of aphes.is: a lowercase-only humanist cursive written with the brush of the hand-drawn φ. {{GLYPH_COUNT}} glyphs, two axes, ten named instances. Every letter, figure, dot and dash is a brush stroke; nothing in it is a solid.</p>
+  </div>
+</header>
+
+<div class="bar" role="group" aria-label="Weight and slant of every specimen on this page">
+  <div class="wrap">
+    <label for="wght"><span class="t">weight</span> <input id="wght" type="range" min="300" max="800" step="1" value="400"> <output id="wghtv">400</output></label>
+    <label for="slnt"><span class="t">slant</span> <input id="slnt" type="range" min="-16" max="0" step="0.5" value="0"> <output id="slntv">0</output></label>
+    <div class="chips" id="inst"></div>
+    <label class="check" for="calt"><input id="calt" type="checkbox" checked> alternates</label>
+    <label class="check" for="icon"><input id="icon" type="checkbox"> icon style</label>
+  </div>
+</div>
+
+<section id="tester-s"><div class="wrap">
+  <h2>write</h2>
+  <p class="lede">Type here. Capitals are accepted and set as lowercase: the face has none.</p>
+  <div class="row"><label for="size">size</label> <input id="size" type="range" min="28" max="220" value="84"> <output id="sizev">84 px</output></div>
+  <div class="tester live" id="tester" contenteditable="true" spellcheck="false" role="textbox" aria-multiline="true" aria-label="Type tester">quod est inferius est sicut quod est superius · as above, so below · 1463</div>
+</div></section>
+
+<section id="alternates-s"><div class="wrap">
+  <h2>written, not stamped</h2>
+  <p class="lede">Every letter exists in three drawings: the same skeleton written again by the same hand. A contextual rule cycles them 1 · 2 · 3 from the first letter of each word, so two neighbours are never the same drawing and a word always sets the same way.</p>
+  <div class="pairrow">
+    <div><div class="live">possess illuminatio</div><div class="row">alternates on</div></div>
+    <div><div class="live off">possess illuminatio</div><div class="row">alternates off</div></div>
+  </div>
+  <div class="alts live" id="alts"></div>
+</div></section>
+
+<section id="icon-s"><div class="wrap">
+  <h2>the icon style</h2>
+  <p class="lede">The site's icons are brush outlines filled with a scatter of small squares. Stylistic set 1 gives four symbols that treatment: the middle dot becomes a ring with grains inside, the asterisk gets dust between its rays, the number sign and the ampersand a dusted field. The same squares exist at every weight; they move and swell with the brush. It is an opt-in set (<span class="mono">font-feature-settings: "ss01"</span>), because at text sizes the grains turn to grey.</p>
+  <div class="icons">
+    <div><div class="live ic-off">· * # &amp;</div><div class="row">default</div></div>
+    <div><div class="live ic-on">· * # &amp;</div><div class="row">ss01</div></div>
+  </div>
+  <div class="strings"><div class="live ic-on" tabindex="0">aφesis · liber · codex · opera &amp; officina *</div></div>
+</div></section>
+
+<section id="family-s"><div class="wrap">
+  <h2>the family</h2>
+  <p class="lede">One variable font, two axes. Ten named instances, each also cut as a static TTF and WOFF2. The φ follows the weight and never leans.</p>
+  <div class="fam" id="fam"></div>
+</div></section>
+
+<section id="glyphs-s"><div class="wrap">
+  <h2>the signs</h2>
+  <p class="lede">Oldstyle figures, because a face without capitals has nothing for lining figures to stand beside. Typed capitals map to the lowercase letters.</p>
+  <div id="glyphs"></div>
+</div></section>
+
+<section id="spacing-s"><div class="wrap">
+  <h2>rhythm</h2>
+  <p class="lede">The space beside a letter is measured on its ink, scanline by scanline, and every pair is set to enclose the same white. The control strings below are the ones the spacing was judged on; move the sliders and they stay even.</p>
+  <figure>{{DIAGRAM}}<figcaption>{{DIAGRAM_CAPTION}}</figcaption></figure>
+  <div class="strings" id="strings"></div>
+</div></section>
+
+<section id="before-s"><div class="wrap">
+  <h2>before, after</h2>
+  <p class="lede">The original six-glyph font (grey) against the new one, on the strings from the first brief. Both follow the sliders. In the original the letters stood a stroke taller than the φ's loop and every advance width was a number typed in by hand, the same in every master.</p>
+  <div class="stat" id="stat"></div>
+  <div class="ba" id="ba"></div>
+  <details><summary>Rendered proof sheets (Chromium), as inspected</summary><div class="proofs">{{PROOF_IMAGES}}</div></details>
+</div></section>
+
+<section id="rationale-s"><div class="wrap">
+  <h2>rationale</h2>
+  <div class="prose">{{RATIONALE}}</div>
+</div></section>
+
+<section id="files-s"><div class="wrap">
+  <h2>files</h2>
+  <p class="lede">The fonts and the complete build source are carried inside this page. Your browser will ask before saving.</p>
+  <div class="dl" id="dl"></div>
+  <p id="dlmsg" role="status"></p>
+  <details class="srcs"><summary>Read the build source here ({{SOURCE_SIZE}}, {{SOURCE_COUNT}} files)</summary>{{SOURCE_BLOCKS}}</details>
+</div></section>
+
+<footer><div class="wrap">Aphesis Script {{VERSION}} · built {{DATE}} · aphes.is</div></footer>
+
+<script>
+const DATA = {{DATA_JSON}};
+const root = document.documentElement, $ = id => document.getElementById(id);
+// one pair of sliders drives every specimen
+function setAxes(w, s) {
+  root.style.setProperty('--w', w); root.style.setProperty('--s', s);
+  $('wght').value = w; $('slnt').value = s; $('wghtv').textContent = Math.round(w); $('slntv').textContent = (+s).toFixed(s % 1 ? 1 : 0);
+  for (const b of $('inst').children) b.setAttribute('aria-pressed', (+b.dataset.w === +w && +b.dataset.s === +s) ? 'true' : 'false');
+}
+for (const [name, w, s] of DATA.instances) {
+  const b = document.createElement('button'); b.type = 'button'; b.textContent = name; b.dataset.w = w; b.dataset.s = s;
+  b.addEventListener('click', () => setAxes(w, s)); $('inst').append(b);
+}
+$('wght').addEventListener('input', e => setAxes(+e.target.value, +$('slnt').value));
+$('slnt').addEventListener('input', e => setAxes(+$('wght').value, +e.target.value));
+$('calt').addEventListener('change', e => document.body.classList.toggle('nocalt', !e.target.checked));
+$('icon').addEventListener('change', e => document.body.classList.toggle('icon', e.target.checked));
+$('size').addEventListener('input', e => { $('tester').style.setProperty('--size', e.target.value + 'px'); $('sizev').textContent = e.target.value + ' px'; });
+setAxes(400, 0);
+
+// alternates: three letters in a row are the three drawings
+for (const ch of DATA.letters) { const d = document.createElement('div'); d.textContent = ch + ch + ch; $('alts').append(d); }
+// glyph table
+for (const [title, items, cls] of DATA.glyphs) {
+  const h = document.createElement('div'); h.className = 'gl-h'; h.textContent = title; $('glyphs').append(h);
+  const g = document.createElement('div'); g.className = 'glyphs';
+  for (const [ch, name] of items) { const c = document.createElement('div'); const b = document.createElement('b'); b.className = 'live ' + cls; b.textContent = ch;
+    const i = document.createElement('i'); i.textContent = name; c.title = name + ' · U+' + ch.codePointAt(0).toString(16).toUpperCase().padStart(4, '0'); c.append(b, i); g.append(c); }
+  $('glyphs').append(g);
+}
+// the family: every named instance at its own place in the design space
+for (const [name, w, s] of DATA.instances) {
+  const d = document.createElement('div'), t = document.createElement('span'), i = document.createElement('i');
+  t.textContent = 'aφesis · ' + DATA.sample; t.style.fontVariationSettings = `"wght" ${w}, "slnt" ${s}`; i.textContent = `${name} · wght ${w} · slnt ${s}`;
+  d.append(i, t); $('fam').append(d);
+}
+// before / after in numbers
+for (const [v, label, red] of DATA.stats) {
+  const d = document.createElement('div'), b = document.createElement('b'), sp = document.createElement('span');
+  b.textContent = v; if (red) b.className = 'r'; sp.textContent = label; d.append(b, sp); $('stat').append(d);
+}
+// spacing strings
+for (const [label, lines] of DATA.strings) {
+  const s = document.createElement('small'); s.textContent = label; $('strings').append(s);
+  for (const t of lines) { const d = document.createElement('div'); d.className = 'live'; d.tabIndex = 0; d.textContent = t; $('strings').append(d); }
+}
+// before / after
+for (const t of DATA.original) {
+  const s = document.createElement('small'); s.textContent = t; const a = document.createElement('div'); a.className = 'before'; a.textContent = t; a.tabIndex = 0;
+  const b = document.createElement('div'); b.className = 'live'; b.textContent = t; b.tabIndex = 0; $('ba').append(s, a, b);
+}
+// the plate's fog: the site's stipple, still
+(function fog() {
+  const c = $('fog'), r = c.getBoundingClientRect(), k = Math.min(devicePixelRatio || 1, 2);
+  c.width = Math.max(1, r.width * k); c.height = Math.max(1, r.height * k);
+  const g = c.getContext('2d'); let s = 0x9e3779b9;
+  const rnd = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
+  const n = Math.round(r.width * r.height / 420);
+  for (let i = 0; i < n; i++) {
+    const x = rnd() * c.width, y = rnd() * c.height, f = Math.sin(x / c.width * 5.1 + 1.3) * Math.cos(y / c.height * 3.3 + x / c.width * 2.2);
+    if (rnd() > 0.28 + 0.5 * f) continue;
+    const z = k * (1 + rnd() * 1.8); g.fillStyle = `rgba(226,214,203,${0.10 + rnd() * 0.30})`; g.fillRect(x, y, z, z);
+  }
+})();
+// files: carried in the page as base64, handed over through the viewer's save prompt
+const b64 = t => { const bin = atob(t), a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return a; };
+for (const f of DATA.files) {
+  const b = document.createElement('button'); b.type = 'button'; b.disabled = true; b.id = 'dl-' + f.id;
+  b.append(f.title); const sp = document.createElement('span'); sp.textContent = f.name + ' · ' + f.size; b.append(sp); $('dl').append(b);
+}
+(async () => {
+  const downloads = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+  if (!downloads) { $('dlmsg').textContent = 'Saving files is not available in this view. Open the page in claude.ai to save them; the build source can be read in full just below.'; return; }
+  for (const f of DATA.files) {
+    const b = $('dl-' + f.id); b.disabled = false;
+    b.addEventListener('click', async () => {
+      try { await downloads.save({ filename: f.name, data: new Blob([b64(document.getElementById('f-' + f.id).textContent.trim().split(',').pop())]) }); $('dlmsg').textContent = 'Saved ' + f.name + '.'; }
+      catch (e) { $('dlmsg').textContent = e && e.code === 'declined' ? 'Not saved.' : 'Could not save ' + f.name + (e && e.code ? ' (' + e.code + ').' : '.'); }
+    });
+  }
+})();
+</script>
+{{FILE_BLOCKS}}

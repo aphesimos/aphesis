@@ -14,9 +14,11 @@
   function MJ(t) { t = clamp(t); return t * t * t * (10 - 15 * t + 6 * t * t); }
   function rng(seed) { var s = (seed >>> 0) || 1; return function () { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; }
   function gauss() { var u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+  /* tween(dur, fn(k 0..1), done): time advances at most 100 ms a frame, so a stalled frame pauses a tween instead of
+     making it jump; at 10 frames a second or more it runs in real time */
   function tween(dur, fn, done) {
-    var t0 = null, id = 0;
-    function q(now) { if (t0 === null) t0 = now; var k = clamp((now - t0) / Math.max(1, dur)); fn(k); if (k < 1) id = requestAnimationFrame(q); else if (done) done(); }
+    var last = null, t = 0, id = 0;
+    function q(now) { if (last !== null) t += Math.min(100, Math.max(0, now - last)); last = now; var k = clamp(t / Math.max(1, dur)); fn(k); if (k < 1) id = requestAnimationFrame(q); else if (done) done(); }
     id = requestAnimationFrame(q); return function () { cancelAnimationFrame(id); };
   }
 
@@ -121,75 +123,135 @@
     /* the fog: three layers of fractal noise rotated by the golden angle, drifting at speeds in the ratio φ */
     'float fog(vec2 uv,float T){float d=0.;for(int i=0;i<3;i++){float fi=float(i);vec2 q=rot(fi*2.39996)*uv*(1.6*pow(1.618,fi))+vec2(T*.013*pow(1.618,fi),-T*.008*pow(1.618,fi));' +
     'vec2 w=vec2(fb(q+vec2(0.,T*.01)),fb(q+vec2(5.2,1.3)));d+=fb(q+1.7*w)/(1.+fi*.6);}return d/1.9;}';
-  function glProgram(cv, fs) {
+  /* a WebGL field on a canvas: compiles the shader, keeps its uniform locations and survives losing its context.
+     When the browser takes the context away (too many contexts, a GPU reset, a phone sent to the background) the
+     field stops drawing; when it gives it back, the program and textures are rebuilt (init) and drawing resumes. */
+  function glField(cv, fs, names, init) {
     var gl = cv.getContext('webgl', { premultipliedAlpha: false, antialias: false, preserveDrawingBuffer: true });
     if (!gl) return null;
-    function sh(t, s) { var o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(o)); return o; }
-    var pr = gl.createProgram(); gl.attachShader(pr, sh(gl.VERTEX_SHADER, 'attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}')); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(pr); gl.useProgram(pr);
-    var b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-    var lp = gl.getAttribLocation(pr, 'p'); gl.enableVertexAttribArray(lp); gl.vertexAttribPointer(lp, 2, gl.FLOAT, false, 0, 0);
-    return { gl: gl, u: function (k) { return gl.getUniformLocation(pr, k); } };
+    var P = { gl: gl, U: {}, lost: false, restored: null };
+    function sh(t, s) { var o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS) && !gl.isContextLost()) console.error(gl.getShaderInfoLog(o)); return o; }
+    function build() {
+      var pr = gl.createProgram(); gl.attachShader(pr, sh(gl.VERTEX_SHADER, 'attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}')); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(pr); gl.useProgram(pr);
+      var b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+      var lp = gl.getAttribLocation(pr, 'p'); gl.enableVertexAttribArray(lp); gl.vertexAttribPointer(lp, 2, gl.FLOAT, false, 0, 0);
+      names.forEach(function (k) { P.U[k] = gl.getUniformLocation(pr, k); });
+      gl.viewport(0, 0, cv.width, cv.height);
+      if (init) init(gl);
+    }
+    cv.addEventListener('webglcontextlost', function (e) { e.preventDefault(); P.lost = true; });
+    cv.addEventListener('webglcontextrestored', function () { build(); P.lost = false; if (P.restored) P.restored(); });
+    build();
+    return P;
   }
+  /* CSS pixels per stipple cell on this screen: `cell` CSS pixels rounded to whole device pixels, so every cell covers
+     the same whole number of device pixels at any devicePixelRatio and stays a crisp square. Size a stipple canvas,
+     and move it, in multiples of this. */
+  function cellPx(cell) { var d = window.devicePixelRatio || 1; return Math.max(1, Math.round((cell || 2) * d)) / d; }
   /* one canvas pixel per stipple cell: the canvas is sized to the cell grid and the browser scales it up with hard
      edges, so a cell stays a crisp square and the shader runs once per cell instead of once per screen pixel.
      Returns k, canvas pixels per CSS pixel, to convert pointer and zone positions. */
   function fit(cv, gl, cell) {
-    var r = cv.getBoundingClientRect(), w = Math.max(1, Math.round(r.width / cell)), h = Math.max(1, Math.round(r.height / cell));
+    var r = cv.getBoundingClientRect(), c = cellPx(cell), w = Math.max(1, Math.round(r.width / c)), h = Math.max(1, Math.round(r.height / c));
     if (cv.style.imageRendering !== 'pixelated') cv.style.imageRendering = 'pixelated';
     if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; gl.viewport(0, 0, w, h); }
     return w / Math.max(1, r.width);
   }
+  /* the theme's colours for a canvas, read the moment the theme changes. The change is a stipple dissolve over
+     duration-theme, eased with minimum jerk: the new colours spread through the old in soft patches of the fog's own
+     noise, cell by cell at their grainy edges, so no frame passes through a flat middle grey where cells and ground
+     are the same colour, none turns to static, and every canvas on the page changes in step. Returns now -> {a: old colours, b: new colours, x: share of cells switched}. */
+  function palette(el, names) {
+    function read() { return names.map(function (n) { return cssColor(n, el); }); }
+    function ms() { var v = getComputedStyle(document.documentElement).getPropertyValue('--duration-theme').trim(); var n = parseFloat(v); return isNaN(n) ? 800 : (/ms$/.test(v) ? n : n * 1000); }
+    var to = read(), from = to, t0 = -1, dur = 800, x = 1;
+    function same(a, b) { return a.every(function (c, i) { return c.every(function (v, j) { return Math.abs(v - b[i][j]) < 1e-3; }); }); }
+    function retarget() { var next = read(); if (same(next, to)) return; from = x < 0.5 ? from : to; to = next; t0 = performance.now(); dur = ms(); x = 0; }
+    onTheme(function () { retarget(); setTimeout(retarget, 120); });
+    return function (now) {
+      if (t0 >= 0) { var k = REDUCED ? 1 : clamp((now - t0) / Math.max(1, dur)); x = MJ(k); if (k >= 1) { t0 = -1; from = to; x = 1; } }
+      return { a: from, b: to, x: x };
+    };
+  }
+  /* the frame loop of a field: stop() halts it, start() resumes it, drawn(cb) calls back once the next frame is on
+     the canvas (a canvas should stay invisible until then) */
+  function loop(draw) {
+    var raf = 0, waiting = [];
+    function frame(now) { raf = requestAnimationFrame(frame); if (draw(now) !== false && waiting.length) { var w = waiting; waiting = []; w.forEach(function (f) { f(); }); } }
+    return {
+      start: function () { if (!raf) raf = requestAnimationFrame(frame); },
+      stop: function () { cancelAnimationFrame(raf); raf = 0; },
+      drawn: function (cb) { waiting.push(cb); },
+      get running() { return !!raf; }
+    };
+  }
 
   /* ---------- Fog ----------
-     Fog(canvas, {density, light, cell}) -> {zones(rects), stop()}
+     Fog(canvas, {density, light, cell}) -> {zones(rects), set({density, light}), stop(), start()}
      the stippled ground of every screen. density 0..1 (home 1, inside a section .62); light: the soft rise of dots
      around the pointer (home 1, section .4). zones: up to 12 calm rectangles behind text (elements or DOMRects). */
   function Fog(cv, o) {
-    o = o || {}; var P = glProgram(cv, 'precision highp float;uniform vec2 R;uniform float T,D,C,S;uniform vec3 F,N;uniform vec2 P;uniform vec4 Z[12];' + NOISE +
+    o = o || {}; var P = glField(cv, 'precision highp float;uniform vec2 R;uniform float T,D,C,S,X;uniform vec3 F,N,F2,N2;uniform vec2 P;uniform vec4 Z[12];' + NOISE +
       'void main(){vec2 cel=floor(gl_FragCoord.xy/S);vec2 uv=(cel*S-R*.5)/min(R.x,R.y);float d=fog(uv,T);' +
       'float vin=smoothstep(1.45,.35,length(uv*vec2(.9,1.)))*.85+.15;vec2 pp=(P-R*.5)/min(R.x,R.y);float luz=exp(-dot(uv-pp,uv-pp)*7.)*.35;' +
       'float m=smoothstep(.44,.74,d);float dens=(m*.8+.012)*vin*D+luz*vin*C*m;' +
       'for(int i=0;i<12;i++){vec4 z=Z[i];if(z.z>0.){vec2 q=abs(gl_FragCoord.xy-z.xy)/z.zw;dens*=1.-.8*(1.-smoothstep(.45,1.05,length(q)));}}' +
-      'gl_FragColor=vec4(mix(F,N,step(h(cel),dens)*.55),1.);}');
-    if (!P) return { zones: function () {}, stop: function () {} };
-    var gl = P.gl, U = {}; ['R', 'T', 'D', 'C', 'S', 'F', 'N', 'P', 'Z'].forEach(function (k) { U[k] = P.u(k); });
-    var F = [0, 0, 0], Nc = [1, 1, 1], ptr = null, sm = null, t = 0, last = performance.now(), raf = 0, zEls = [], ZB = new Float32Array(48);
+      /* a theme change spreads through the fog in soft patches with grainy edges */
+      'float sw=step(smoothstep(.32,.68,fb(uv*1.7+vec2(3.7,9.1)))*.86+h(cel+vec2(17.3,5.1))*.14,X);vec3 Fc=mix(F,F2,sw),Nc=mix(N,N2,sw);' +
+      'gl_FragColor=vec4(mix(Fc,Nc,step(h(cel),dens)*.55),1.);}', ['R', 'T', 'D', 'C', 'S', 'X', 'F', 'N', 'F2', 'N2', 'P', 'Z']);
+    if (!P) return { zones: function () {}, set: function () {}, stop: function () {}, start: function () {} };
+    var gl = P.gl, U = P.U, colors = palette(cv, ['--bg', '--fog']);
+    var ptr = null, sm = null, t = 0, last = performance.now(), zEls = [], ZB = new Float32Array(48);
     var dens = o.density === undefined ? 1 : o.density, light = o.light === undefined ? 1 : o.light, dpr = 1;
-    function colors() { F = cssColor('--bg', cv); Nc = cssColor('--fog', cv); }
-    colors(); onTheme(function () { setTimeout(colors, 30); [200, 500, 850].forEach(function (ms) { setTimeout(colors, ms); }); });
-    cv.addEventListener('pointermove', function (e) { var r = cv.getBoundingClientRect(); ptr = [e.clientX - r.left, e.clientY - r.top]; });
     window.addEventListener('pointermove', function (e) { var r = cv.getBoundingClientRect(); ptr = [e.clientX - r.left, e.clientY - r.top]; });
-    function frame(now) {
-      var dt = Math.min(0.05, (now - last) / 1000); last = now; if (!REDUCED) t += dt; dpr = fit(cv, gl, o.cell || 2);
+    var L = loop(function (now) {
+      var dt = Math.min(0.05, Math.max(0, now - last) / 1000); last = now; if (!REDUCED) t += dt;
+      if (P.lost) return false;
+      dpr = fit(cv, gl, o.cell || 2);
       var R = cv.getBoundingClientRect(); if (!ptr) ptr = [R.width / 2, R.height / 2]; if (!sm) sm = ptr.slice();
       sm[0] += (ptr[0] - sm[0]) * Math.min(1, dt * 3); sm[1] += (ptr[1] - sm[1]) * Math.min(1, dt * 3);
       ZB.fill(0); var i = 0;
       zEls.forEach(function (z) { if (i >= 12) return; var r = z.el ? z.el.getBoundingClientRect() : z; if (!r.width) return; var pad = z.pad || 12;
         ZB.set([(r.left - R.left + r.width / 2) * dpr, cv.height - (r.top - R.top + r.height / 2) * dpr, (r.width / 2 + pad) * dpr, (r.height / 2 + pad) * dpr], i * 4); i++; });
+      var c = colors(now);
       gl.uniform4fv(U.Z, ZB); gl.uniform2f(U.R, cv.width, cv.height); gl.uniform1f(U.T, t); gl.uniform1f(U.S, 1);
-      gl.uniform3fv(U.F, F); gl.uniform3fv(U.N, Nc); gl.uniform2f(U.P, sm[0] * dpr, cv.height - sm[1] * dpr); gl.uniform1f(U.D, dens); gl.uniform1f(U.C, light);
-      gl.drawArrays(gl.TRIANGLES, 0, 3); raf = requestAnimationFrame(frame);
-    }
-    raf = requestAnimationFrame(frame);
+      gl.uniform3fv(U.F, c.a[0]); gl.uniform3fv(U.N, c.a[1]); gl.uniform3fv(U.F2, c.b[0]); gl.uniform3fv(U.N2, c.b[1]); gl.uniform1f(U.X, c.x); gl.uniform2f(U.P, sm[0] * dpr, cv.height - sm[1] * dpr); gl.uniform1f(U.D, dens); gl.uniform1f(U.C, light);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    });
+    L.start();
     return {
       zones: function (list) { zEls = (list || []).map(function (z) { return z instanceof Element ? { el: z } : z; }); },
       set: function (k) { if (k.density !== undefined) dens = k.density; if (k.light !== undefined) light = k.light; },
-      stop: function () { cancelAnimationFrame(raf); }
+      stop: L.stop, start: function () { last = performance.now(); L.start(); }
     };
   }
 
   /* ---------- Simulacrum ----------
      a picture that exists only as fog: an image becomes a density field, and the same square cells as the fog
      light up where it is dense. It coalesces out of the fog and dissolves back into it.
-     Simulacrum(canvas, {source, fit:'contain'|'cover', gain, scatter, erosion, ceiling, cell, accent, margin}) -> {show(src?), hide(), set(src), stop()}
+     Simulacrum(canvas, {source, fit:'contain'|'cover', gain, scatter, erosion, ceiling, cell, accent, margin, ground})
+       -> {show(src?, done), hide(done), set(src, done), stop(), start(), drawn(cb)}
      scatter (default .5): lost points drifting loose around the figure. erosion (.45): fog-shaped holes inside it.
      ceiling (.8): the most any area can fill. A picture with none of these looks printed, not conjured.
-     A source can carry its own settings: {src, gain, scatter, erosion, ceiling}.
+     ground (true): the canvas paints the page's ground under its cells. ground: false leaves everything but the cells
+     transparent, so the picture lies over the fog with no blend mode, and an undrawn canvas shows nothing.
+     A source can carry its own settings: {src, gain, scatter, erosion, ceiling}. The options object stays live:
+     gain, scatter, erosion, ceiling, accent, margin and fit are read from it on every frame.
+     One canvas can show one picture after another: hide(), then show(next). stop() rests it while it is hidden,
+     start() wakes it, drawn(cb) says when its next frame is on screen.
      source: an image URL, an <img>/<canvas>, or Simulacrum.fromBrush(draw, w, h).
      The density map is grayscale: white = full, black = empty. Prepare engravings inverted, so their lines become light. */
   function Simulacrum(cv, o) {
     o = o || {};
-    var P = glProgram(cv, 'precision highp float;uniform vec2 R,P;uniform float T,S,K,G,M,A,FIT,SC,ER,CE;uniform vec3 F,N,AC;uniform vec2 IA;uniform sampler2D I,I2;' + NOISE +
+    var tex = null, tex2 = null, last = performance.now(), ptr = [-1e4, -1e4], cancel = null, lastImg = null, IA = [1, 1], k = 0, t = Math.random() * 50;
+    function texture(x, unit) {
+      var q = x.createTexture(); x.activeTexture(unit); x.bindTexture(x.TEXTURE_2D, q);
+      x.texParameteri(x.TEXTURE_2D, x.TEXTURE_MIN_FILTER, x.LINEAR); x.texParameteri(x.TEXTURE_2D, x.TEXTURE_MAG_FILTER, x.LINEAR);
+      x.texParameteri(x.TEXTURE_2D, x.TEXTURE_WRAP_S, x.CLAMP_TO_EDGE); x.texParameteri(x.TEXTURE_2D, x.TEXTURE_WRAP_T, x.CLAMP_TO_EDGE);
+      x.texImage2D(x.TEXTURE_2D, 0, x.LUMINANCE, 1, 1, 0, x.LUMINANCE, x.UNSIGNED_BYTE, new Uint8Array([0]));
+      return q;
+    }
+    var P = glField(cv, 'precision highp float;uniform vec2 R,P;uniform float T,S,K,G,M,A,FIT,SC,ER,CE,GR,X;uniform vec3 F,N,AC,F2,N2,AC2;uniform vec2 IA;uniform sampler2D I,I2;' + NOISE +
       'void main(){vec2 cel=floor(gl_FragCoord.xy/S);vec2 c=cel*S+S*.5;vec2 uv=(c-R*.5)/min(R.x,R.y);' +
       'float d=fog(uv*.8,T);' +
       /* fit the image in the canvas */
@@ -214,24 +276,17 @@
       /* threshold: interleaved gradient noise (even, blue-ish) mixed with a hash (organic), so tones read as tones */
       'float ign=fract(52.9829189*fract(dot(cel,vec2(.06711056,.00583715))));float lit=step(mix(ign,h(cel),.35),dens);' +
       'float red=step(h(cel+31.7),A*img*kk);' +
-      'vec3 col=mix(N,AC,red);gl_FragColor=vec4(mix(F,col,lit*.72),1.);}');
-    if (!P) return { show: function () {}, hide: function () {}, set: function () {}, stop: function () {} };
-    var gl = P.gl, U = {}; ['R', 'P', 'T', 'S', 'K', 'G', 'M', 'A', 'FIT', 'SC', 'ER', 'CE', 'F', 'N', 'AC', 'IA', 'I', 'I2'].forEach(function (k) { U[k] = P.u(k); });
-    var tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, 1, 1, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, new Uint8Array([0]));
-    var tex2 = gl.createTexture(); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, tex2);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, 1, 1, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, new Uint8Array([0]));
-    gl.activeTexture(gl.TEXTURE0);
-    var IA = [1, 1], k = 0, t = Math.random() * 50, last = performance.now(), raf = 0, ptr = [-1e4, -1e4], cancel = null;
-    var F = [0, 0, 0], Nc = [1, 1, 1], AC = [1, 0, 0];
-    function colors() { F = cssColor('--bg', cv); Nc = cssColor('--fog', cv); AC = cssColor('--accent', cv); }
-    colors(); onTheme(function () { setTimeout(colors, 30); [200, 500, 850].forEach(function (ms) { setTimeout(colors, ms); }); });
+      /* a theme change spreads in the same patches as the fog's */
+      'float sw=step(smoothstep(.32,.68,fb(uv*1.7+vec2(3.7,9.1)))*.86+h(cel+vec2(17.3,5.1))*.14,X);vec3 Fc=mix(F,F2,sw),Nc=mix(N,N2,sw),Ac=mix(AC,AC2,sw);' +
+      'vec3 col=mix(Nc,Ac,red);gl_FragColor=GR>.5?vec4(mix(Fc,col,lit*.72),1.):vec4(col,lit*.72);}',
+      ['R', 'P', 'T', 'S', 'K', 'G', 'M', 'A', 'FIT', 'SC', 'ER', 'CE', 'GR', 'X', 'F', 'N', 'AC', 'F2', 'N2', 'AC2', 'IA', 'I', 'I2'],
+      function (x) { tex = texture(x, x.TEXTURE0); tex2 = texture(x, x.TEXTURE1); x.activeTexture(x.TEXTURE0); if (lastImg) upload(lastImg); });
+    var noop = function () {};
+    if (!P) return { show: function (s, d) { d && d(); }, hide: function (d) { d && d(); }, set: function (s, d) { d && d(); }, stop: noop, start: noop, drawn: function (cb) { cb(); } };
+    var gl = P.gl, U = P.U, colors = palette(cv, ['--bg', '--fog', '--accent']);
     window.addEventListener('pointermove', function (e) { var r = cv.getBoundingClientRect(); ptr = [e.clientX - r.left, e.clientY - r.top]; });
     function upload(img) {
+      lastImg = img;
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, img); IA = [img.naturalWidth || img.width, img.naturalHeight || img.height];
       /* glow texture: the picture at half size in the middle of a canvas twice as large, blurred wide */
       var g = document.createElement('canvas'), W = 192, H = Math.max(8, Math.round(192 * IA[1] / IA[0])); g.width = W; g.height = H; var x = g.getContext('2d');
@@ -242,17 +297,21 @@
     function opt(k, d) { return cur[k] !== undefined ? cur[k] : (o[k] !== undefined ? o[k] : d); }
     function load(src, cb) {
       if (src && src.src) { cur = src; src = src.src; } else cur = {};
-      if (typeof src !== 'string') { upload(src); cb && cb(); return; }
-      var im = new Image(); if (/^https?:/.test(src) && src.indexOf(location.origin) !== 0) im.crossOrigin = 'anonymous'; im.onload = function () { upload(im); cb && cb(); }; im.src = src;
+      if (typeof src !== 'string') { if (!P.lost) upload(src); else lastImg = src; cb && cb(); return; }
+      var im = new Image(); if (/^https?:/.test(src) && src.indexOf(location.origin) !== 0) im.crossOrigin = 'anonymous'; im.onload = function () { if (!P.lost) upload(im); else lastImg = im; cb && cb(); }; im.src = src;
     }
-    function frame(now) {
-      var dt = Math.min(0.05, (now - last) / 1000); last = now; if (!REDUCED) t += dt; var dpr = fit(cv, gl, o.cell || 2);
+    var L = loop(function (now) {
+      var dt = Math.min(0.05, Math.max(0, now - last) / 1000); last = now; if (!REDUCED) t += dt;
+      if (P.lost) return false;
+      var dpr = fit(cv, gl, o.cell || 2), c = colors(now);
       gl.uniform2f(U.R, cv.width, cv.height); gl.uniform2f(U.P, ptr[0] * dpr, cv.height - ptr[1] * dpr); gl.uniform1f(U.T, t);
       gl.uniform1f(U.S, 1); gl.uniform1f(U.K, MJ(k)); gl.uniform1f(U.G, opt('gain', 1)); gl.uniform1f(U.SC, opt('scatter', 0.5)); gl.uniform1f(U.ER, opt('erosion', 0.45)); gl.uniform1f(U.CE, opt('ceiling', 0.8)); gl.uniform1f(U.M, o.margin === undefined ? 0.08 : o.margin);
-      gl.uniform1f(U.A, o.accent || 0); gl.uniform1f(U.FIT, o.fit === 'cover' ? 1 : 0); gl.uniform3fv(U.F, F); gl.uniform3fv(U.N, Nc); gl.uniform3fv(U.AC, AC);
-      gl.uniform2f(U.IA, IA[0], IA[1]); gl.uniform1i(U.I, 0); gl.uniform1i(U.I2, 1); gl.drawArrays(gl.TRIANGLES, 0, 3); raf = requestAnimationFrame(frame);
-    }
-    raf = requestAnimationFrame(frame);
+      gl.uniform1f(U.A, o.accent || 0); gl.uniform1f(U.FIT, o.fit === 'cover' ? 1 : 0); gl.uniform1f(U.GR, o.ground === false ? 0 : 1); gl.uniform3fv(U.F, c.a[0]); gl.uniform3fv(U.N, c.a[1]); gl.uniform3fv(U.AC, c.a[2]); gl.uniform3fv(U.F2, c.b[0]); gl.uniform3fv(U.N2, c.b[1]); gl.uniform3fv(U.AC2, c.b[2]); gl.uniform1f(U.X, c.x);
+      gl.uniform2f(U.IA, IA[0], IA[1]); gl.uniform1i(U.I, 0); gl.uniform1i(U.I2, 1);
+      if (o.ground === false) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); }
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    });
+    L.start();
     function to(target, dur, done) { if (cancel) cancel(); var k0 = k; if (REDUCED) { k = target; done && done(); return; } cancel = tween(dur, function (e) { k = lerp(k0, target, e); }, done); }
     var api = {
       /* coalesce out of the fog (2.6 s); with a source, swap it in first */
@@ -261,7 +320,9 @@
       hide: function (done) { to(0, 1800, done); },
       /* dissolve, swap, coalesce */
       set: function (src, done) { to(0, 1500, function () { load(src, function () { to(1, 2600, done); }); }); },
-      stop: function () { cancelAnimationFrame(raf); if (cancel) cancel(); }
+      stop: function () { L.stop(); if (cancel) cancel(); cancel = null; },
+      start: function () { last = performance.now(); L.start(); },
+      drawn: L.drawn
     };
     if (o.source) api.show(o.source);
     return api;
@@ -381,7 +442,7 @@
   }
 
   window.Aphesis = {
-    reducedMotion: REDUCED, MJ: MJ, lerp: lerp, clamp: clamp, tween: tween, rng: rng, cssColor: cssColor,
+    reducedMotion: REDUCED, MJ: MJ, cellPx: cellPx, lerp: lerp, clamp: clamp, tween: tween, rng: rng, cssColor: cssColor,
     brush: brush, arc: arc, line: line, stipple: stipple, inC: inC,
     icon: icon, ICONS: ICONS, PHI: PHI, seal: seal,
     Fog: Fog, Simulacrum: Simulacrum, Typist: Typist, tooltip: tooltip, cursor: cursor, letters: letters

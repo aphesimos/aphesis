@@ -1,15 +1,7 @@
-# aphesis
+# design-system
 
-The monorepo for **aphes.is**, an experimental, hermetic personal site: a hand-drawn φ, stippled fog,
-typewriter text and an authorial brush script. One document, continuous navigation, no reloads.
+The source of truth for every screen of aphes.is. Being written now; this branch starts with the brush and
+icon generator and will receive the tokens, rules and component references.
 
-`main` is the hub: it holds only this overview, the agent rules and the map of branches. The work itself
-lives on one branch per part, listed in [`docs/branches.md`](docs/branches.md). The plan and its order are in
-[`docs/plan.md`](docs/plan.md).
-
-## Stack
-
-- **Site:** Astro, deployed on Cloudflare Pages.
-- **Dynamic parts:** Cloudflare Workers and Durable Objects for the wall and the forum, with Turnstile against spam.
-- **Type:** Aphesis Script (authorial variable font, built with fontTools) and Special Elite (text face, OFL).
-- **Graphics:** WebGL for the fog and the stipple images; the φ brush engine draws the seal and the icons.
+- `src/brush-icons.js`: `brush()` turns a centerline into a tapered, hand-wobbled outline; `stipple()` fills a
+  region with small deterministic squares. The icons (eye, sol · luna, terminator, threshold) are built from both.

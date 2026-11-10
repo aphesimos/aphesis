@@ -9,6 +9,8 @@
 import { MAPS } from '../assets.js';
 import { image, picture, chaser, dragging, smooth } from '../stage.js';
 
+const A = window.Aphesis;
+
 export const veil = {
   id: 'veil',
   caption: 'the veiled virgin · Giovanni Strazza, c. 1850s',
@@ -20,18 +22,29 @@ export const veil = {
     /* the shroud: the bust blurred into a soft mass, dimmer than the marble */
     const shroud = mk(), sx = shroud.getContext('2d');
     sx.fillStyle = '#000'; sx.fillRect(0, 0, W, H);
-    sx.filter = 'blur(8px) brightness(0.62)'; sx.drawImage(img, 0, 0); sx.filter = 'none';
+    /* Safari's 2D canvas has no filter: there the runtime's box blur, and a black wash for the brightness */
+    const viaFilter = typeof sx.filter === 'string' || !A.blur2d;
+    if (viaFilter) { sx.filter = 'blur(8px) brightness(0.62)'; sx.drawImage(img, 0, 0); sx.filter = 'none'; }
+    else { sx.drawImage(img, 0, 0); A.blur2d(sx, 8); sx.fillStyle = 'rgba(0,0,0,0.38)'; sx.fillRect(0, 0, W, H); }
     const mask = mk(), kx = mask.getContext('2d');
+    /* without a filter the hem is drawn and blurred at a quarter of the size, then scaled up: the same soft edge for a
+       sixteenth of the work, on every step of the lift */
+    const Q = 4, small = viaFilter ? null : document.createElement('canvas'), qx = small && small.getContext('2d');
+    if (small) { small.width = Math.ceil(W / Q); small.height = Math.ceil(H / Q); }
     const part = mk(), px = part.getContext('2d');
     const map = mk(), mx = map.getContext('2d');
     /* the map: marble below the hem, shroud above it; the hem a soft, slightly wavy line at height y */
     function draw(y, phase) {
       kx.clearRect(0, 0, W, H);
-      kx.filter = 'blur(' + Math.round(H * 0.05) + 'px)';
-      kx.fillStyle = '#fff';
-      kx.beginPath(); kx.moveTo(-60, -60); kx.lineTo(W + 60, -60);
-      for (let x = W + 60; x >= -60; x -= 12) kx.lineTo(x, y + H * 0.018 * Math.sin(x / 47 + phase) + H * 0.01 * Math.sin(x / 19 - phase * 1.7));
-      kx.closePath(); kx.fill(); kx.filter = 'none';
+      const hx = small ? qx : kx;
+      if (small) { qx.setTransform(1, 0, 0, 1, 0, 0); qx.clearRect(0, 0, small.width, small.height); qx.setTransform(1 / Q, 0, 0, 1 / Q, 0, 0); }
+      else kx.filter = 'blur(' + Math.round(H * 0.05) + 'px)';
+      hx.fillStyle = '#fff';
+      hx.beginPath(); hx.moveTo(-60, -60); hx.lineTo(W + 60, -60);
+      for (let x = W + 60; x >= -60; x -= 12) hx.lineTo(x, y + H * 0.018 * Math.sin(x / 47 + phase) + H * 0.01 * Math.sin(x / 19 - phase * 1.7));
+      hx.closePath(); hx.fill();
+      if (small) { A.blur2d(qx, H * 0.05 / Q); kx.drawImage(small, 0, 0, W, H); }
+      else kx.filter = 'none';
       px.globalCompositeOperation = 'copy'; px.drawImage(shroud, 0, 0);
       px.globalCompositeOperation = 'destination-in'; px.drawImage(mask, 0, 0);
       px.globalCompositeOperation = 'source-over';

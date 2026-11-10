@@ -43,8 +43,11 @@ export function levels(src, { blur = 0, lo = 0, hi = 1, gamma = 1 } = {}) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const x = c.getContext('2d', { willReadFrequently: true });
   x.fillStyle = '#000'; x.fillRect(0, 0, w, h);
-  if (blur) x.filter = 'blur(' + blur + 'px)';
+  /* Safari's 2D canvas has no filter: there the runtime's box blur of the same radius */
+  const viaFilter = typeof x.filter === 'string' || !A.blur2d;
+  if (blur && viaFilter) x.filter = 'blur(' + blur + 'px)';
   x.drawImage(src, 0, 0);
+  if (blur && !viaFilter) A.blur2d(x, blur);
   x.filter = 'none';
   const d = x.getImageData(0, 0, w, h), px = d.data, lut = new Uint8ClampedArray(256);
   for (let i = 0; i < 256; i++) lut[i] = Math.round(255 * Math.pow(Math.max(0, Math.min(1, (i / 255 - lo) / Math.max(1e-3, hi - lo))), gamma));

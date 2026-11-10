@@ -26,9 +26,13 @@ export const sky = {
     const mk = () => { const c = document.createElement('canvas'); c.width = W; c.height = H; return c; };
     /* the beyond: a soft mask left of the edge */
     const mask = mk(), kx = mask.getContext('2d');
-    kx.filter = 'blur(6px)'; kx.fillStyle = '#fff'; kx.beginPath(); kx.moveTo(-20, -20);
+    /* Safari's 2D canvas has no filter: there the runtime's box blur of the same radius */
+    const viaFilter = typeof kx.filter === 'string' || !A.blur2d;
+    if (viaFilter) kx.filter = 'blur(6px)';
+    kx.fillStyle = '#fff'; kx.beginPath(); kx.moveTo(-20, -20);
     EDGE.forEach(([x, y]) => kx.lineTo(x - CROP[0], y - CROP[1]));
     kx.lineTo(-20, H + 20); kx.closePath(); kx.fill();
+    if (!viaFilter) A.blur2d(kx, 6);
     const beyond = mk(), bx = beyond.getContext('2d');
     bx.drawImage(base, 0, 0); bx.globalCompositeOperation = 'destination-in'; bx.drawImage(mask, 0, 0);
     const world = mk(), wx = world.getContext('2d');

@@ -18,8 +18,6 @@ The φ of aphes.is: the hand-drawn original and the brush engine that redraws it
 
 The Φ is derived from the φ by the engine; the old separate Φ drawing is superseded.
 
-The image above draws the φ in the engine's order (the stem, then the ring swept around its centre to the free tip) and lets its ink boil: a turbulence reseeded
-eight times a second, as on the site. It is an approximation for the README; the real gesture, with the measured tip
-travelling and diving into the ring, is the engine's.
+The image above is the engine itself: its outlines recorded frame by frame on the home and played back in the SVG, with the same boil. The stem rises from its tapered tip, then the ring is swept around to the free end.
 
 **Pending:** the engine's identifiers and comments are still in Portuguese; rename them to English.

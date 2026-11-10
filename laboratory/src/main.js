@@ -57,7 +57,7 @@ function show(slug, first) {
   busy = true;
   if (live) { live.stop(); live = null; }
   view.classList.add('out');
-  once(first ? 0 : 520, (go) => { if (first) go(); else view.addEventListener('transitionend', function f(ev) { if (ev.target === view) { view.removeEventListener('transitionend', f); go(); } }); }, () => {
+  once(first ? 0 : 520, (go) => { if (first) go(); }, () => {
     current = slug;
     const e = EXPERIMENTS.find((x) => x.slug === slug);
     view.innerHTML = e ? experimentView(e, EXPERIMENTS) : indexView(EXPERIMENTS);

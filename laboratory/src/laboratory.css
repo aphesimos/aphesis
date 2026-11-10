@@ -28,14 +28,19 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 
 /* ---------- the column ---------- */
-#laboratory { position: relative; z-index: var(--z-main); display: block; }
+/* positioned without a z-index: above the fog, and no stacking context of its own, so .aph-ink blends with the fog */
+#laboratory { position: relative; display: block; }
 .view {
   width: min(100% - 2 * max(16px, var(--space-4)), 760px); margin: 0 auto;
   padding: calc(var(--space-7) + var(--space-5) + env(safe-area-inset-top, 0px)) 0 calc(var(--space-8) + env(safe-area-inset-bottom, 0px));
+}
+/* the entrance (blur and rise) runs on each block, never on .view or the article: a filter or transform on an
+   ancestor would cut the .aph-ink blocks off from the fog they blend with during the theme wave */
+.view > :not(.exp), .exp > * {
   transition: opacity var(--duration-scene) var(--easing-settle), filter var(--duration-scene) var(--easing-settle), transform var(--duration-scene) var(--easing-settle);
 }
 /* leaving is quicker than arriving */
-.view.out { opacity: 0; filter: blur(10px); transform: translateY(14px); transition-duration: .5s; }
+.view.out > :not(.exp), .view.out .exp > * { opacity: 0; filter: blur(10px); transform: translateY(14px); transition-duration: .5s; }
 .view p, .view h1, .view h2 { margin: 0; }
 .aph-on-fog, .view p, .view .aph-label, .view .aph-meta, .view .aph-gloss, .view h1, .view h2 { text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg); }
 

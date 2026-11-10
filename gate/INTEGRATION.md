@@ -99,7 +99,7 @@ as the shell has them.
 - **The ritual.** Clicks, taps or Enter/Space on the passage (it gives the passage `tabindex="0"` when it has none:
   the passage has a tooltip, so a keyboard user can now read it too). Its text stutters by a pixel or two on the
   8 fps tick (`left`/`top` on `#aph-ptext`, no transform). After three, for 12 s, `body.aph-ritual` lets the seal's
-  strokes take the pointer at home (the shell sets `pointer-events: none` on the centred seal), and holding the φ for
+  box take the pointer at home (the shell sets `pointer-events: none` on the centred seal), and holding the φ for
   7 s fills it with stipple on a canvas (`#aph-fill`, fixed, `z-index: var(--z-seal)`), then lets go. The click
   that ends the hold is swallowed, so it does not also lead home. Holding Enter on the focused seal works the same.
   The script adds a small stylesheet: `-webkit-touch-callout: none` and `user-select: none` on the seal (so a long

@@ -43,9 +43,9 @@
     if (on) disarm = setTimeout(() => { if (!holding) arm(false); }, armedUntil - performance.now());
   }
   const style = D.createElement('style');
-  /* at home the seal takes no pointer; while the ritual is armed its strokes do, and only then */
+  /* at home the seal takes no pointer; while the ritual is armed its whole box does, and only then */
   style.textContent = '#aph-seal{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}' +
-    '.aph-ritual #aph-seal path{pointer-events:visiblePainted}' +
+    '.aph-ritual #aph-seal{pointer-events:auto}' +
     '#aph-ptext{position:relative}' +
     '#aph-fill{position:fixed;left:0;top:0;pointer-events:none;z-index:var(--z-seal);image-rendering:pixelated}';
   D.head.appendChild(style);

@@ -25,6 +25,8 @@ like a file explorer and listen with the player built in. The gloss is *phonothe
 
 Everything is lowercase in the chrome; track, artist and album names stay as tagged.
 
+Published with the example library at https://claude.ai/artifact/KkkqUmsu2JtYC6u8aUhKJN (private until shared).
+
 ## Keys
 
 While the section is open, and never while typing in the search field:

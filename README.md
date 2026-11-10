@@ -1,15 +1,12 @@
-# aphesis
+# mark
 
-The monorepo for **aphes.is**, an experimental, hermetic personal site: a hand-drawn φ, stippled fog,
-typewriter text and an authorial brush script. One document, continuous navigation, no reloads.
+The φ of aphes.is: the hand-drawn original and the brush engine that redraws it live.
 
-`main` is the hub: it holds only this overview, the agent rules and the map of branches. The work itself
-lives on one branch per part, listed in [`docs/branches.md`](docs/branches.md). The plan and its order are in
-[`docs/plan.md`](docs/plan.md).
+- `art/phi.svg`: the original hand-drawn φ (viewBox `69 -6 385 533`, fill `#FD1148`, even-odd). The source of truth for the mark, the brush and the font's φ.
+- `engine/model.js`: the measured model (`const M`): ring edges by angle, stem, tip profile, timing.
+- `engine/core.js`: the stroke engine. A centerline plus a width profile becomes a filled outline; the tip profile measured from the φ's free end travels with the pen; minimum-jerk easing and the 2/3 power law set the pen speed. It draws the φ, closes it into Φ for the corner seal, and reopens it.
+- `demo/animations.html`: the standalone animation studies (drawing, φ → Φ, both anchors).
 
-## Stack
+The Φ is derived from the φ by the engine; the old separate Φ drawing is superseded.
 
-- **Site:** Astro, deployed on Cloudflare Pages.
-- **Dynamic parts:** Cloudflare Workers and Durable Objects for the wall and the forum, with Turnstile against spam.
-- **Type:** Aphesis Script (authorial variable font, built with fontTools) and Special Elite (text face, OFL).
-- **Graphics:** WebGL for the fog and the stipple images; the φ brush engine draws the seal and the icons.
+**Pending:** the engine's identifiers and comments are still in Portuguese; rename them to English.

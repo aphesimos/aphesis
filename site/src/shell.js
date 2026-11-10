@@ -195,6 +195,24 @@ function themeIcon() {
   $('aph-eye').setAttribute('aria-pressed', String(dark));
 }
 themeIcon(); sysDark.addEventListener('change', themeIcon);
+/* the tab's icon: the eye, open while the page is seen, closed while it is not (hidden, or the window left).
+   The same brush and stipple as the eye in the corner, with a heavier hand for 16 and 32 px: thicker strokes and an
+   iris of a few large cells. Rubedo, the dark theme's where the browser is dark, on a transparent ground. */
+const FAVICON = (() => {
+  const red = /*__ICONRED__*/;
+  const open = A.brush(A.arc(12, 15.6, 10, -158, -22, 40, 7.6), 2.1, 31) + A.brush(A.arc(12, 8.4, 10, 22, 158, 40, 7.6), 2.1, 33) +
+    A.stipple(A.inC(12, 12, 2.9), 17, 150, 1.45);
+  let closed = A.brush(A.arc(12, 8, 10, 25, 155, 40, 6.4), 2.3, 37);
+  [-0.55, 0, 0.55].forEach((k, i) => { const x = 12 + k * 10.4; closed += A.brush(A.line(x, 14.4 - Math.abs(k) * 1.2, x + k * 2.2, 18.8 - Math.abs(k), 10), 1.7, 41 + i, 0.4, 0.05); });
+  const svg = (d) => 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="1 1 22 22"><style>path{fill:' + red.light +
+    '}@media (prefers-color-scheme:dark){path{fill:' + red.dark + '}}</style><path d="' + d + '"/></svg>');
+  return { open: svg(open), closed: svg(closed) };
+})();
+function favicon(seen) { const l = $('aph-favicon'), h = seen ? FAVICON.open : FAVICON.closed; if (l.getAttribute('href') !== h) l.setAttribute('href', h); }
+favicon(!document.hidden);
+document.addEventListener('visibilitychange', () => favicon(!document.hidden));
+addEventListener('blur', () => favicon(false));
+addEventListener('focus', () => favicon(!document.hidden));
 $('aph-eye').addEventListener('click', () => {
   const e = $('aph-eye').getBoundingClientRect(), dark = isDark();
   A.themeShift(() => { ROOT.dataset.theme = dark ? 'light' : 'dark'; themeIcon(); }, { origin: [e.left + e.width / 2, e.top + e.height / 2] });

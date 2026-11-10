@@ -34,6 +34,9 @@ The build copies nothing from other branches; it reads them with git:
 - `site/src/shell.html`: the page: the fog canvas, the seal, the inscription, the host for a section, the passage, the eye.
 - `site/src/shell.css`: the shell's marks, all under `aph-*` ids, so no section stylesheet touches them and they touch no section.
 - `site/src/shell.js`: the home (seal, inscription, passage, eye), the routes, and the mount and unmount of sections.
+- `site/tools/make_icons.py`: the static icons in `site/public/` (apple-touch-icon, icon-512, favicon.ico, site.webmanifest),
+  made from the closed Φ as the seal engine draws it. The tab icon is the eye, drawn live by the shell: open while the
+  page is seen, closed while it is hidden or the window is left.
 - `prototype/`: the home as it was built before the merge, kept for reference.
 
 ## How the sections mount

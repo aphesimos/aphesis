@@ -25,6 +25,9 @@ The section ref defaults to the local branch section/<name>; pass NAME=REF to bu
 """
 import base64, html, json, os, re, subprocess, sys, tarfile, tempfile, io
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tools'))
+import tokens as T   # colour tokens as sRGB, for the tab icon
+
 D = os.path.dirname(os.path.abspath(__file__))
 WT = os.path.dirname(D)
 
@@ -172,8 +175,13 @@ def build(fragment, refs):
     shell = open(os.path.join(D, 'src', 'shell.js'), encoding='utf-8').read()
     shell = (shell.replace('/*__ENGINE__*/', show('mark', 'engine/model.js') + '\n' + show('mark', 'engine/core.js'))
              .replace('/*__SECTIONSJS__*/', json.dumps([dict(id=s['id'], name=s['name']) for s in SECTIONS], ensure_ascii=False))
-             .replace('/*__PASSAGES__*/', json.dumps(PASSAGES, ensure_ascii=False)))
+             .replace('/*__PASSAGES__*/', json.dumps(PASSAGES, ensure_ascii=False))
+             .replace('/*__ICONRED__*/', json.dumps({'light': T.color('rubedo', 'light', tok), 'dark': T.color('rubedo', 'dark', tok)})))
     page = open(os.path.join(D, 'src', 'shell.html'), encoding='utf-8').read()
+    # the static icons and the manifest are files in site/public (tools/make_icons.py); the artifact page has none
+    links = '' if fragment else ('<link rel="icon" href="/favicon.ico" sizes="any">\n<link rel="apple-touch-icon" href="/apple-touch-icon.png">\n'
+                                 '<link rel="manifest" href="/site.webmanifest">\n<meta name="theme-color" content="' + T.color('n-975', 'dark', tok) + '">')
+    page = page.replace('<!--__HEADLINKS__-->', links)
     page = (page.replace('/*__CSS__*/', css).replace('<!--__NAV__-->', nav).replace('<!--__STYLES__-->', styles)
             .replace('<!--__TEMPLATES__-->', tpl).replace('/*__BUNDLE__*/', show('design-system', 'system/components/bundle.js'))
             .replace('/*__SECTIONS__*/', secjs).replace('/*__SHELL__*/', shell)

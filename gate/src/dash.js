@@ -31,6 +31,8 @@ export function createDash({ api, root, onLeave }) {
     nav, body);
 
   function show(id) {
+    /* a place opens at the top of the desk, its title and the places in view, clear of the seal's corner */
+    const scroller = root.closest('#desk'); if (scroller) scroller.scrollTop = 0;
     tabs.forEach((t) => t.setAttribute('aria-selected', String(t.dataset.place === id)));
     Object.entries(panes).forEach(([k, el]) => { el.hidden = k !== id; });
     if (!made[id]) {

@@ -50,16 +50,16 @@ const announceEl = $('announce');
 const announce = (t) => { announceEl.textContent = ''; setTimeout(() => { announceEl.textContent = t; }, 60); };
 
 /* ---------- the gate ---------- */
-let eye = createEye($('eye'));
 const one = createLine($('one'), { secret: true });
 const two = createLine($('two'), { secret: false });
+const caretOfOne = () => (step === 1 ? one.caretPoint() : null);
+let eye = createEye($('eye'), { follow: caretOfOne });
 let step = 0, busy = false, ticker = 0;
 
 function tick() { one.tick(); two.tick(); }
-function lookAtLine(line) { eye.typed(); const [x, y] = line.caretPoint(); eye.caret(x, y); }
-one.input.addEventListener('input', () => lookAtLine(one));
-one.input.addEventListener('focus', () => lookAtLine(one));
-addEventListener('pointermove', (e) => { if (step === 1) eye.pointer(e.clientX, e.clientY); }, { passive: true });
+function lookAtLine() { eye.typed(); }
+one.input.addEventListener('input', lookAtLine);
+one.input.addEventListener('focus', lookAtLine);
 
 function openGate() {
   step = 1; busy = false;
@@ -135,8 +135,8 @@ function leave() {
   dash = null; $('deskIn').replaceChildren();
   $('eye').hidden = false;
   /* the eye draws itself again */
-  eye.stop();
-  eye = createEye($('eye'));
+  eye.destroy();
+  eye = createEye($('eye'), { follow: caretOfOne });
   openGate();
 }
 

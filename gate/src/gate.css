@@ -42,9 +42,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 /* ---------- the gate ---------- */
 #gate {
   position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: var(--space-6); padding: var(--space-8) var(--space-4); pointer-events: none;
+  gap: var(--space-4); padding: var(--space-7) var(--space-4); pointer-events: none;
 }
-.gate-eye { width: clamp(150px, 34vmin, 250px); aspect-ratio: 1; color: var(--accent); pointer-events: none; }
+.gate-eye { width: clamp(200px, 62vmin, 860px); max-width: 100%; aspect-ratio: 24 / 14; color: var(--accent); pointer-events: none; }
 .gate-eye svg { width: 100%; height: 100%; display: block; }
 .gate-eye .iris { opacity: .72; }
 .gate-line {

@@ -8,7 +8,7 @@ dashboard and its gate").
 
 ## The gate
 
-**Step 1.** The eye, the theme switch's eye (the shell's `EYE` and `Aphesis.ICONS.eye`: two brushed lids and a
+**Step 1.** The eye, the design system's `Aphesis.Eye` (components/Eye on `design-system`): the theme switch's eye (the shell's `EYE` and `Aphesis.ICONS.eye`: two brushed lids and a
 stippled iris; closed, one lid and three lashes), stands above a single brushed baseline. No label, no word. The
 typewriter's underscore blinks on the line as the caret; each character of the password lands on it as a grain of
 stipple; Enter sends it.
@@ -17,10 +17,13 @@ stipple; Enter sends it.
   lid, then the iris cell by cell (continuous, 2.1 s).
 - **Then it never stops trembling**: on a tick of 125 ms (8 fps) its strokes are redrawn from one of three drawings
   of the same state, each with its own brush seeds, and the feTurbulence seed is swapped, as the seal's boil does.
-- **Blinks are frame by frame**: open, half (the lid lowered, its fold still showing), closed (lid and lashes),
+- **It dominates the gate**: about 44% of the screen's smaller side, on a phone too, drawn at the size it is shown
+  (brush widths, boil and stipple cells of about 3 CSS px follow the size; it is drawn again when the size changes).
+- **Blinks are frame by frame**: open, half (the upper lid lowered), closed (lid and lashes),
   squint, and wide. Each is its own drawing, cut to on a tick and held for whole ticks; a blink is
   half · closed · closed · half, sometimes doubled, sometimes slow, now and then a held squint, at irregular
-  intervals (a log-normal spread around 4 s).
+  intervals (a log-normal spread around 4 s). Every drawing has one upper lid and nothing beneath it: the three
+  paths (lids, iris, pupil) are replaced whole on each cut.
 - **The gaze is its own track**: centre, left, right, up, down, the four diagonals, a narrowed pupil and a dilated
   one, each a stipple drawing cut to each blink's opening. It moves in saccades (a cut, then a hold of irregular
   length), sometimes follows the pointer or the caret, glances at the line while the owner types, and once in a
@@ -95,7 +98,7 @@ content. Each ref falls back to `origin/<ref>`. Special Elite is vendored in `ve
 | `config.js` | what the build decided: the API's address, mock or not |
 | `api.js` | the content service with credentials; the CSRF token lives only in its closure |
 | `mock.js` | the same answers from memory, for `--mock` only |
-| `eye.js` | the eye: its drawings, the draw-in, the two tracks on the 8 fps tick |
+| `eye.js` | the gate's use of `Aphesis.Eye`: a refusal is a held cut to closed, the key a held cut to wide |
 | `line.js` | the baseline, the caret, the grains or words, the tremble, and the stipple dissolve and condense |
 | `ui.js` | the desk's small parts: fields, buttons, choices |
 | `ed-archive.js` | posts, with the archive's own preview |

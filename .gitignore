@@ -5,3 +5,5 @@ dist/
 .DS_Store
 __pycache__/
 *.pyc
+# the page is built by the deploy, from secrets (the gate), and never committed
+site/index.html

@@ -17,14 +17,14 @@ Published at https://claude.ai/artifact/XdYZE8XBH9vX6psPWHbc2y (private until sh
 ## Build
 
 ```
-python3 site/build.py                    # site/index.html, a self-contained page
+python3 site/build.py                    # site/index.html, a self-contained page (not committed: the deploy builds it)
 python3 site/build.py --fragment OUT     # the same page without <!doctype>/<html>/<head>/<body>, for an artifact
 python3 site/build.py experimental=REF   # build one section from another ref (a commit, origin/section/...)
 python3 site/build.py --local           # the sections from the local branches (by default: what origin has)
-python3 site/build.py --out FILE         # write the page elsewhere
+python3 site/build.py --out FILE         # write the page elsewhere (the deploy writes dist/index.html)
 python3 site/build.py --content-api URL  # the content service for archive, book, works and the gate (or APHESIS_CONTENT_API)
 python3 site/build.py --turnstile-sitekey KEY   # the wall and the forum go live (or TURNSTILE_SITEKEY)
-python3 site/build.py --require-gate     # stop if APHESIS_GATE_PHRASE or APHESIS_GATE_ROUTE is missing
+python3 site/build.py --require-gate     # stop if APHESIS_GATE_PHRASE or APHESIS_GATE_ROUTE is missing (the deploy sets it)
 ```
 
 The build copies nothing from other branches; it reads them with git:
@@ -185,18 +185,41 @@ the runtime script and the section script. Its routes are `#<name>` and `#<name>
 
 ## Deploy
 
-`aphes.ist` is served by Cloudflare Pages, project `aphesist`, from this branch.
-`.github/workflows/deploy.yml` publishes `site/index.html`, together with everything in `site/public/` (`_headers`, `robots.txt`), whenever a push to `site` changes them.
-It can also be run by hand from the Actions tab (workflow_dispatch).
-The workflow creates the Pages project on its first run.
-Rebuild and commit `site/index.html` to put a change online.
+`aphes.ist` is served by Cloudflare Pages, project `aphesist`, from this branch. The page is **built in the deploy,
+not committed**: `.github/workflows/deploy.yml` checks the branch out with its full history, runs `site/build.py`
+(which reads every section, design-system and mark from origin), adds `site/public/` (`_headers`, `robots.txt`, the
+icons and the manifest) and publishes `dist/`. It runs on every push to `site` and by hand (workflow_dispatch). The
+gate's phrase and route therefore exist only as GitHub secrets and as hashes in the published page, never in the
+repository. Refreshing a section is pushing it and re-running the workflow.
+
+Repository settings (Settings, Secrets and variables, Actions):
+
+| name | kind | what |
+| --- | --- | --- |
+| `CLOUDFLARE_API_TOKEN` | secret | Account · Cloudflare Pages · Edit |
+| `CLOUDFLARE_ACCOUNT_ID` | secret | the account's id |
+| `GATE_PHRASE` | secret, required | the phrase (8 characters at least; a few words) |
+| `GATE_ROUTE` | secret, required | the secret route, as typed after `#` (8 characters at least) |
+| `GATE_SALT` | secret, optional | 32 hex characters, so rebuilds give the same page; random per build without it |
+| `CONTENT_API` | variable | the content service; `https://content-api.aphes.ist` when unset |
+| `TURNSTILE_SITEKEY` | variable, optional | the wall and the forum go live with it; preview mode until then |
+
+The build stops, and nothing is published, when `GATE_PHRASE` or `GATE_ROUTE` is missing, rather than shipping a gate
+without its entrances.
 
 One-time setup:
 
 1. **API token.** In Cloudflare, go to My Profile, API Tokens and Create Token. Use the *Edit Cloudflare Workers* template, or a custom token with **Account · Cloudflare Pages · Edit**.
-2. **Repository secrets.** In this repository's Settings, open Secrets and variables, then Actions. Add `CLOUDFLARE_API_TOKEN` (the token) and `CLOUDFLARE_ACCOUNT_ID` (shown on the Cloudflare dashboard's overview, right column).
-3. **First deploy.** Run the deploy workflow once from the Actions tab, or push to `site`.
+2. **Secrets and variables**, as in the table.
+3. **First deploy.** Run the deploy workflow once from the Actions tab, or push to `site`. The workflow creates the Pages project on its first run.
 4. **Domain.** The domain is registered at Hostinger and its DNS runs on Cloudflare:
    - In Cloudflare, use Add a domain, enter `aphes.ist` and choose the Free plan.
    - At Hostinger, replace the domain's nameservers with the two that Cloudflare shows. If Hostinger has DNSSEC on, turn it off first; you can turn it back on later through Cloudflare.
    - Once Cloudflare says the domain is active, open Workers & Pages, then `aphesist`, then Custom domains. Add `aphes.ist`, and `www.aphes.ist` if wanted. Cloudflare creates the DNS records and the certificate itself.
+
+Locally, the same build with the inputs exported (placeholders, never the real ones):
+
+```sh
+APHESIS_GATE_PHRASE='<the phrase>' APHESIS_GATE_ROUTE='<the route>' \
+  python3 site/build.py --content-api https://content-api.aphes.ist --out /tmp/aphes.ist.html
+```

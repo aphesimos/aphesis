@@ -63,7 +63,6 @@ a{color:inherit}
 #controls button:hover .ltr{transform:translateY(-1.5px)}
 main h1 .ltr{transition-duration:1.2s;transition-delay:calc(var(--i)*30ms)}
 main h1:hover .ltr{transform:translateY(-3px)}
-@media (prefers-reduced-motion: reduce){.ltr{transition:none!important;transform:none!important}}
 /* cursor: a disc drawn in difference mode, so it is always the negative of what it covers.
    small at rest, it opens over anything you can act on (the word under it reads inverted), and tightens on press. */
 @media (hover:hover) and (pointer:fine){
@@ -112,9 +111,6 @@ main h1 .gloss{display:block;font:400 17px/1 var(--f-display);font-variation-set
 main p{max-width:52ch;color:var(--ink-soft);margin:28px 0 0;font-size:14px}
 main p.nota{font:400 19px/1.6 var(--f-mono);color:var(--ink)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-@media (prefers-reduced-motion: reduce){
-  *{transition-duration:.01ms!important;animation-duration:.01ms!important}
-}
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
  <filter id="boil" x="-5%" y="-5%" width="110%" height="110%">
@@ -134,7 +130,7 @@ main p.nota{font:400 19px/1.6 var(--f-mono);color:var(--ink)}
 <div id="tip" aria-hidden="true"></div>
 <script>
 __M__
-const reduz=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const reduz=false;   /* the site always animates, whatever the system setting (owner's decision) */
 __CORE__
 /* ================= page ================= */
 const $=id=>document.getElementById(id);

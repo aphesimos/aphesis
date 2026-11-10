@@ -28,9 +28,11 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 
 /* ---------- views ---------- */
-/* both views stand in the same place. Their parts (.scene) enter with a blur and a rise while the other view's
-   leave; the view itself only turns visible, and stays visible after leaving long enough for its parts to go
-   (--leave; the work also waits for its simulacrum to dissolve). */
+/* both views stand in the same place. Each piece of text and each mark (.enter) runs its own blur and rise, so no
+   parent is ever filtered or faded: a filter or opacity on a parent would isolate the .aph-ink text in it from the
+   fog, and it would vanish into the old ground while the theme shifts. The view itself only turns visible, and
+   stays visible after leaving long enough for its pieces to go (--leave; the work also waits for its simulacrum
+   to dissolve). */
 .view {
   /* absolute with no z-index, not fixed: the view must not be a stacking context of its own, so the .aph-ink text in
      it can blend with the fog beneath while the theme shifts. It paints over the fog by document order. */
@@ -47,14 +49,14 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
    which a difference blend leaves unseen) instead of inheriting the view's */
 .view .aph-ink { text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg); }
 #work { --leave: 2s; }
-.scene {
+.enter {
   opacity: 0; filter: blur(10px); transform: translateY(14px);
   transition: opacity var(--duration-scene) var(--easing-settle), filter var(--duration-scene) var(--easing-settle),
-              transform var(--duration-scene) var(--easing-settle);
+              transform var(--duration-scene) var(--easing-settle), color var(--duration-slow) var(--easing-settle);
 }
-.view.on .scene { opacity: 1; filter: none; transform: none; }
+.view.on .enter { opacity: 1; filter: none; transform: none; }
 /* the leaving view goes a little faster, so the two never read as one */
-.view:not(.on) .scene { transition-duration: calc(var(--duration-scene) * .6); }
+.view:not(.on) .enter { transition-duration: calc(var(--duration-scene) * .6); }
 
 /* the title: its gloss above it */
 .head { margin: 0; font-weight: 400; }
@@ -89,16 +91,15 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   grid-area: name; white-space: nowrap;
   font-size: var(--type-label-size); line-height: var(--type-label-line); letter-spacing: var(--type-label-tracking); text-transform: lowercase;
 }
-.work .node { grid-area: node; width: 24px; height: 24px; display: block; color: var(--ink-soft); transition: color var(--duration-slow) var(--easing-settle); }
+.work .node { grid-area: node; width: 24px; height: 24px; display: block; color: var(--ink-soft); }
 .work .node svg { width: 100%; height: 100%; display: block; overflow: visible; }
 .work .node path { fill: currentColor; }
 .work .gl {
   grid-area: gl; white-space: nowrap; padding-right: .2em;
   font: var(--type-gloss-weight) var(--type-gloss-size)/var(--type-gloss-line) var(--font-display);
   font-variation-settings: "wght" 400, "slnt" -12; letter-spacing: .02em; color: var(--ink-soft); text-transform: lowercase;
-  transition: transform var(--duration-slow) var(--easing-settle), color var(--duration-slow) var(--easing-settle);
 }
-.work:hover .gl, .work:focus-visible .gl { color: var(--accent-text); transform: translateY(-1px); }
+.work:hover .gl, .work:focus-visible .gl { color: var(--accent-text); }
 .work:hover .node, .work:focus-visible .node { color: var(--accent); }
 
 /* when the works no longer fit across, the line runs down the screen and the names stand to its right */
@@ -134,7 +135,6 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .ul, .way {
   position: relative; display: inline-block; padding: var(--space-2) 0 var(--space-3); text-decoration: none;
   font-size: var(--type-label-size); line-height: var(--type-label-line); letter-spacing: var(--type-label-tracking); text-transform: lowercase;
-  transition: color var(--duration-slow) var(--easing-settle);
 }
 .ul { color: var(--ink); }
 .ul svg, .way svg { position: absolute; left: 0; bottom: 2px; height: 8px; overflow: visible; pointer-events: none; color: var(--ink-soft); transition: color var(--duration-slow) var(--easing-settle); }

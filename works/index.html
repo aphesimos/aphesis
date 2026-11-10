@@ -69,7 +69,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
    old theme or new. Greys and hairlines get the one grey that reads right on both grounds. */
 .aph-shifting .aph-ink {
   mix-blend-mode: difference; color: #fff;
-  --ink: #fff; --ink-soft: var(--shift-soft); --line: var(--shift-line); --bg: #000;
+  --ink: #fff; --fog: #fff; --ink-soft: var(--shift-soft); --line: var(--shift-line); --bg: #000;
   --accent: var(--shift-soft); --accent-text: var(--shift-soft);
 }
 /* the two frames around each switch: colours change without a transition (movement keeps its own) */
@@ -104,9 +104,11 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 
 /* ---------- views ---------- */
-/* both views stand in the same place. Their parts (.scene) enter with a blur and a rise while the other view's
-   leave; the view itself only turns visible, and stays visible after leaving long enough for its parts to go
-   (--leave; the work also waits for its simulacrum to dissolve). */
+/* both views stand in the same place. Each piece of text and each mark (.enter) runs its own blur and rise, so no
+   parent is ever filtered or faded: a filter or opacity on a parent would isolate the .aph-ink text in it from the
+   fog, and it would vanish into the old ground while the theme shifts. The view itself only turns visible, and
+   stays visible after leaving long enough for its pieces to go (--leave; the work also waits for its simulacrum
+   to dissolve). */
 .view {
   /* absolute with no z-index, not fixed: the view must not be a stacking context of its own, so the .aph-ink text in
      it can blend with the fog beneath while the theme shifts. It paints over the fog by document order. */
@@ -123,14 +125,14 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
    which a difference blend leaves unseen) instead of inheriting the view's */
 .view .aph-ink { text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg); }
 #work { --leave: 2s; }
-.scene {
+.enter {
   opacity: 0; filter: blur(10px); transform: translateY(14px);
   transition: opacity var(--duration-scene) var(--easing-settle), filter var(--duration-scene) var(--easing-settle),
-              transform var(--duration-scene) var(--easing-settle);
+              transform var(--duration-scene) var(--easing-settle), color var(--duration-slow) var(--easing-settle);
 }
-.view.on .scene { opacity: 1; filter: none; transform: none; }
+.view.on .enter { opacity: 1; filter: none; transform: none; }
 /* the leaving view goes a little faster, so the two never read as one */
-.view:not(.on) .scene { transition-duration: calc(var(--duration-scene) * .6); }
+.view:not(.on) .enter { transition-duration: calc(var(--duration-scene) * .6); }
 
 /* the title: its gloss above it */
 .head { margin: 0; font-weight: 400; }
@@ -165,16 +167,15 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   grid-area: name; white-space: nowrap;
   font-size: var(--type-label-size); line-height: var(--type-label-line); letter-spacing: var(--type-label-tracking); text-transform: lowercase;
 }
-.work .node { grid-area: node; width: 24px; height: 24px; display: block; color: var(--ink-soft); transition: color var(--duration-slow) var(--easing-settle); }
+.work .node { grid-area: node; width: 24px; height: 24px; display: block; color: var(--ink-soft); }
 .work .node svg { width: 100%; height: 100%; display: block; overflow: visible; }
 .work .node path { fill: currentColor; }
 .work .gl {
   grid-area: gl; white-space: nowrap; padding-right: .2em;
   font: var(--type-gloss-weight) var(--type-gloss-size)/var(--type-gloss-line) var(--font-display);
   font-variation-settings: "wght" 400, "slnt" -12; letter-spacing: .02em; color: var(--ink-soft); text-transform: lowercase;
-  transition: transform var(--duration-slow) var(--easing-settle), color var(--duration-slow) var(--easing-settle);
 }
-.work:hover .gl, .work:focus-visible .gl { color: var(--accent-text); transform: translateY(-1px); }
+.work:hover .gl, .work:focus-visible .gl { color: var(--accent-text); }
 .work:hover .node, .work:focus-visible .node { color: var(--accent); }
 
 /* when the works no longer fit across, the line runs down the screen and the names stand to its right */
@@ -210,7 +211,6 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .ul, .way {
   position: relative; display: inline-block; padding: var(--space-2) 0 var(--space-3); text-decoration: none;
   font-size: var(--type-label-size); line-height: var(--type-label-line); letter-spacing: var(--type-label-tracking); text-transform: lowercase;
-  transition: color var(--duration-slow) var(--easing-settle);
 }
 .ul { color: var(--ink); }
 .ul svg, .way svg { position: absolute; left: 0; bottom: 2px; height: 8px; overflow: visible; pointer-events: none; color: var(--ink-soft); transition: color var(--duration-slow) var(--easing-settle); }
@@ -251,9 +251,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 <main id="works">
   <!-- the list: one inscription line, a grain for each work -->
   <section id="list" class="view" aria-labelledby="title" inert>
-    <h1 id="title" class="head scene aph-ink"><span class="gloss-title" data-tip="opera · works" aria-hidden="true">opera</span><span class="title">works</span></h1>
-    <nav id="inscription" class="scene" aria-label="works">
-      <svg class="line" aria-hidden="true" focusable="false"><path></path></svg>
+    <h1 id="title" class="head enter aph-ink"><span class="gloss-title" data-tip="opera · works" aria-hidden="true">opera</span><span class="title">works</span></h1>
+    <nav id="inscription" aria-label="works">
+      <svg class="line enter" aria-hidden="true" focusable="false"><path></path></svg>
       <ol id="names"></ol>
     </nav>
   </section>
@@ -264,14 +264,14 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       <canvas id="picture" aria-hidden="true"></canvas>
       <figcaption id="caption" class="aph-meta aph-on-fog aph-ink"></figcaption>
     </figure>
-    <div id="text" class="scene">
-      <h2 id="wName" class="head aph-ink" tabindex="-1"><span class="gloss-title" id="wGloss"></span><span class="title" id="wTitle"></span></h2>
-      <p id="wDesc" class="desc aph-ink"></p>
-      <p id="wMeta" class="aph-meta meta aph-ink"></p>
+    <div id="text">
+      <h2 id="wName" class="head enter aph-ink" tabindex="-1"><span class="gloss-title" id="wGloss"></span><span class="title" id="wTitle"></span></h2>
+      <p id="wDesc" class="desc enter aph-ink"></p>
+      <p id="wMeta" class="aph-meta meta enter aph-ink"></p>
       <ul id="wLinks" class="links"></ul>
       <div class="ways">
-        <a id="back" class="way" href="#works" data-cursor=".55"><span class="txt">all works</span></a>
-        <a id="next" class="way" href="#works" data-cursor=".55"><span class="txt"></span></a>
+        <a id="back" class="way enter" href="#works" data-cursor=".55"><span class="txt">all works</span></a>
+        <a id="next" class="way enter" href="#works" data-cursor=".55"><span class="txt"></span></a>
       </div>
     </div>
   </article>
@@ -952,7 +952,7 @@ function createInscription(nav, works) {
     const li = document.createElement('li');
     const a = document.createElement('a');
     a.className = 'work aph-wave'; a.href = '#works-' + w.id; a.dataset.id = w.id;
-    a.innerHTML = '<span class="name aph-ink"></span><span class="node"></span><span class="gl" lang=""></span>';
+    a.innerHTML = '<span class="name enter aph-ink"></span><span class="node enter"></span><span class="gl enter" lang=""></span>';
     a.querySelector('.name').textContent = w.name;
     a.querySelector('.node').innerHTML = grain(seedOf(w.id));
     const gl = a.querySelector('.gl');
@@ -1014,7 +1014,7 @@ function createWork(els, works) {
     els.links.innerHTML = '';
     (w.links || []).forEach((l) => {
       const li = document.createElement('li'), a = document.createElement('a');
-      a.className = 'ul'; a.href = l.href; a.target = '_blank'; a.rel = 'noopener';
+      a.className = 'ul enter'; a.href = l.href; a.target = '_blank'; a.rel = 'noopener';
       a.innerHTML = '<span class="txt"></span>';
       a.querySelector('.txt').textContent = l.label;
       a.setAttribute('aria-label', l.label + ' (opens elsewhere)');

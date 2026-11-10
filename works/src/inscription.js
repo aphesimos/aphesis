@@ -13,7 +13,7 @@ export function createInscription(nav, works) {
     const li = document.createElement('li');
     const a = document.createElement('a');
     a.className = 'work aph-wave'; a.href = '#works-' + w.id; a.dataset.id = w.id;
-    a.innerHTML = '<span class="name aph-ink"></span><span class="node"></span><span class="gl" lang=""></span>';
+    a.innerHTML = '<span class="name enter aph-ink"></span><span class="node enter"></span><span class="gl enter" lang=""></span>';
     a.querySelector('.name').textContent = w.name;
     a.querySelector('.node').innerHTML = grain(seedOf(w.id));
     const gl = a.querySelector('.gl');

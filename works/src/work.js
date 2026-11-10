@@ -19,7 +19,7 @@ export function createWork(els, works) {
     els.links.innerHTML = '';
     (w.links || []).forEach((l) => {
       const li = document.createElement('li'), a = document.createElement('a');
-      a.className = 'ul'; a.href = l.href; a.target = '_blank'; a.rel = 'noopener';
+      a.className = 'ul enter'; a.href = l.href; a.target = '_blank'; a.rel = 'noopener';
       a.innerHTML = '<span class="txt"></span>';
       a.querySelector('.txt').textContent = l.label;
       a.setAttribute('aria-label', l.label + ' (opens elsewhere)');

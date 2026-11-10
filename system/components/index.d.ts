@@ -2,7 +2,8 @@
 type Pt = [number, number];
 interface FogZone { el?: Element; pad?: number; left?: number; top?: number; width?: number; height?: number }
 interface FogProps { density?: number; light?: number }
-interface SimulacrumProps { source?: string | HTMLImageElement | HTMLCanvasElement; fit?: 'contain' | 'cover'; gain?: number; cell?: number; accent?: number; margin?: number }
+interface SimulacrumSource { src: string | HTMLImageElement | HTMLCanvasElement; gain?: number; scatter?: number; erosion?: number; ceiling?: number }
+interface SimulacrumProps { source?: string | HTMLImageElement | HTMLCanvasElement | SimulacrumSource; scatter?: number; erosion?: number; ceiling?: number; fit?: 'contain' | 'cover'; gain?: number; cell?: number; accent?: number; margin?: number }
 interface IconsProps { name: 'eye' | 'sol' | 'luna' | 'terminator' | 'threshold'; state?: 0 | 1 }
 interface BrushProps { points: Pt[]; width: number; seed: number; taper?: number; wobble?: number }
 interface SealProps { boil?: boolean }

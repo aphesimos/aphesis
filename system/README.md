@@ -34,10 +34,13 @@ One neutral scale (`n-50` to `n-975`) with a slight red bias (hue 25), so the gr
 
 ## Type
 
-- **`display` (Aphesis Script)** for the wordmark, section titles and headings. Lowercase only. Variable: weight 300 to 800, where 400 matches the φ's stroke; slant −16 to 0, and the φ never leans. Use weight 400 for titles, 500 for headings, up to 700 for one word of impact. Styles: `wordmark` (110px, seal red, home only), `title` (68px; `clamp(44px, 8vw, 96px)` on the site), `heading` (42px).
-- **`text` (Special Elite)** for everything people read and operate: `lede` 19px, `body` 16px at 1.75 and 52 to 65 characters a line, `label` 13px with 0.22em tracking (navigation, buttons), `meta` 11px with 0.14em tracking (passage, tooltips, dates).
-- **`gloss` (EB Garamond italic)** for the dead languages only: Latin and Greek glosses, in `ink-soft`, turning `accent-text` on hover. Living English is typewritten; dead languages are set like a book.
-- The Aphesis Script file in this system is the first sample (a p h e s i φ). The full family is being drawn on the `font` branch; until it lands, set display text that contains other letters in `text` at the same size.
+Two faces, no others.
+
+- **`display` (Aphesis Script)**: the wordmark, section titles, headings and every gloss. Lowercase only. Variable: weight 300 to 800, where 400 matches the φ's stroke; slant −16 to 0 (the φ never leans). Use weight 400 for titles, 500 for headings, up to 700 for one word of impact. Three drawings per letter rotate on their own (`calt`); leave it on. Styles: `wordmark` (110px, seal red, home only), `title` (68px; `clamp(44px, 8vw, 96px)` on the site), `heading` (42px).
+- **Glosses** are Aphesis Script too: `gloss` (19px, slant −10, `ink-soft`, turning `accent-text` on hover) under each English name at home, `gloss-title` above a section title. The font carries the Latin and the polytonic Greek (*ἄδυτον*, *ἀγορά*).
+- **`text` (Special Elite)**: everything people read and operate: `lede` 19px, `body` 16px at 1.75 and 52 to 65 characters a line, `label` 13px with 0.22em tracking (navigation, buttons), `meta` 11px with 0.14em tracking (passage, tooltips, dates). Its stack falls back to Aphesis Script, so Greek and CJK inside running text or a passage are drawn with the brush instead of a system font.
+- `ss01` in Aphesis Script draws `· * # &` in the icon style (grains). Use it at 40px and up only.
+- Slanted Aphesis Script leans out of its box: give any clipping container 0.2em of padding.
 
 ## The brush
 
@@ -58,11 +61,14 @@ Stipple is how areas exist. A density field (0 to 1) is compared, cell by cell, 
 
 `Aphesis.Simulacrum` turns an image into stipple that coalesces out of the fog and dissolves back into it. Use it for the experimental chambers, section openings, and anywhere a picture would otherwise appear. Never show a photograph or a raster image as itself.
 
-- **Subjects.** Hermetic and cult material: Hermes and Hermes Trismegistus, the ouroboros, the Emerald Tablet, alchemical emblems, Khunrath, Fludd, Dee's monad, the Flammarion engraving, the Creation of Adam. Prefer the obscure to the famous once the famous have been used once.
-- **Sources.** Public domain only (pre-1900 works, or photographs of them released as such). Record the work, artist and date in the caption: `the creation of adam · Michelangelo, Sistine Chapel ceiling, c. 1512`.
-- **Density maps.** Grayscale PNG, at most 480 to 640px on the long side, white = dense. Engravings and woodcuts are inverted so their lines become light. Paintings are isolated first (the Creation of Adam keeps only the warm skin and drapery, so the plaster stays empty). Statues are leveled so the museum background falls to black. Leave a dark margin; the renderer feathers the last 7% anyway.
-- **Drawn sources.** Symbols are drawn with the brush and passed as a density map (`Simulacrum.fromBrush`). Dee's monad in the Simulacrum preview is the pattern.
-- **Motion.** Coalesce over 2.6s, dissolve over 1.8s, swap with a dissolve first. While it forms, its cells are pushed by the fog; the pointer brings nearby cells forward. Keep `accent` at .05 or less: a few red cells, never a red picture.
+- **Never picture-perfect.** A simulacrum always keeps lost points: some of the picture drifts loose around the figure (`scatter`, default .5), fog-shaped holes open inside it (`erosion`, .45), and no area ever fills completely (`ceiling`, .8). A crisp silhouette with an empty ground around it reads as a print, not as something conjured; if a render looks finished, raise scatter and erosion.
+- **Choose by the ground, not the subject.** What works is a large, modelled, lit mass on a ground that is already dark: chiaroscuro painting (Caravaggio, Rembrandt, La Tour, Wright of Derby), inlaid pavements (Siena), engravings with big light (Flammarion, Doré). What fails: thin line art, even hatching (Khunrath), flat manuscript colour (most ouroboroi), and figures on mid-grey or busy grounds.
+- **Sculpture** on a plain ground arrives already isolated: give it `erosion` .5, `scatter` .85, `ceiling` .76, or it looks cut out.
+- **Ouroboros.** The serpent works as a detail inside a dark painting (Cagnacci's *Allegory of Human Life*), not as a flat manuscript ring.
+- **Any source** is fine: the simulacrum is a recreation. Caption every one with work, artist and date: `saint jerome writing · Caravaggio, 1605–06`.
+- **Density maps.** Grayscale, 480 to 640px on the long side, white = dense; JPEG is fine. Crop to the figure and lose frames and borders. Levels: black point at the 30th percentile, white at the 97.5th, gamma 0.8 for dark paintings (lifts the half-tones), 1.1 for pavements, about 2 for white marble. Engravings: blur 1 to 2px first so hatching becomes tone. Paintings on light plaster (the Creation of Adam) keep only the warm skin and drapery.
+- **Drawn sources.** `Simulacrum.fromBrush` makes a density map from brush strokes, for symbols no picture holds.
+- **Motion.** Coalesce over 2.6s, dissolve over 1.8s, swap with a dissolve first. The lost points drift with the fog; the pointer brings nearby cells forward. Keep `accent` at .05 or less: a few red cells, never a red picture.
 - **Captions** sit in a corner in `meta`, with the halo, never over the picture's center.
 
 ## Icons

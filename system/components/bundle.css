@@ -1,7 +1,8 @@
 /* aphes.is components. Every value comes from tokens.css (generated from tokens.json). */
-/* Special Elite is the text face, EB Garamond italic sets the dead languages (Latin and Greek glosses);
-   Aphesis Script ships from fonts/ as a file. */
-@import url("https://fonts.googleapis.com/css2?family=Special+Elite&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap");
+/* two faces only. Aphesis Script (fonts/, a file): the wordmark, titles and glosses, and every Greek or CJK
+   character. Special Elite (Google Fonts): everything people read and operate; it falls back to Aphesis Script
+   for the scripts it lacks. */
+@import url("https://fonts.googleapis.com/css2?family=Special+Elite&display=swap");
 
 body { background: var(--bg); color: var(--ink); font-family: var(--font-text); }
 :focus-visible { outline: 1px solid var(--accent); outline-offset: 4px; }
@@ -40,7 +41,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
 
 /* type roles as classes (the same roles tokens.json lists) */
 .aph-display { font-family: var(--font-display); font-weight: 400; font-variation-settings: "wght" 400, "slnt" 0; text-transform: lowercase; line-height: .95; }
-.aph-gloss { font-family: var(--font-gloss); font-style: italic; letter-spacing: .04em; color: var(--ink-soft); }
+.aph-gloss { font-family: var(--font-display); font-variation-settings: "wght" 400, "slnt" -10; letter-spacing: .02em; color: var(--ink-soft); text-transform: lowercase; }
 .aph-label { font-family: var(--font-text); font-size: 13px; letter-spacing: .22em; text-transform: lowercase; }
 .aph-meta { font-family: var(--font-text); font-size: 11px; letter-spacing: .14em; color: var(--ink-soft); }
 

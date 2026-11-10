@@ -174,12 +174,15 @@
   /* ---------- Simulacrum ----------
      a picture that exists only as fog: an image becomes a density field, and the same square cells as the fog
      light up where it is dense. It coalesces out of the fog and dissolves back into it.
-     Simulacrum(canvas, {source, fit:'contain'|'cover', gain, cell, accent, margin}) -> {show(src?), hide(), set(src), stop()}
+     Simulacrum(canvas, {source, fit:'contain'|'cover', gain, scatter, erosion, ceiling, cell, accent, margin}) -> {show(src?), hide(), set(src), stop()}
+     scatter (default .5): lost points drifting loose around the figure. erosion (.45): fog-shaped holes inside it.
+     ceiling (.8): the most any area can fill. A picture with none of these looks printed, not conjured.
+     A source can carry its own settings: {src, gain, scatter, erosion, ceiling}.
      source: an image URL, an <img>/<canvas>, or Simulacrum.fromBrush(draw, w, h).
      The density map is grayscale: white = full, black = empty. Prepare engravings inverted, so their lines become light. */
   function Simulacrum(cv, o) {
     o = o || {};
-    var P = glProgram(cv, 'precision highp float;uniform vec2 R,P;uniform float T,S,K,G,M,A,FIT;uniform vec3 F,N,AC;uniform vec2 IA;uniform sampler2D I;' + NOISE +
+    var P = glProgram(cv, 'precision highp float;uniform vec2 R,P;uniform float T,S,K,G,M,A,FIT,SC,ER,CE;uniform vec3 F,N,AC;uniform vec2 IA;uniform sampler2D I,I2;' + NOISE +
       'void main(){vec2 cel=floor(gl_FragCoord.xy/S);vec2 c=cel*S+S*.5;vec2 uv=(c-R*.5)/min(R.x,R.y);' +
       'float d=fog(uv*.8,T);' +
       /* fit the image in the canvas */
@@ -192,34 +195,55 @@
       'vec2 pp=(P-R*.5)/min(R.x,R.y);float luz=exp(-dot(uv-pp,uv-pp)*9.);' +
       'float kk=clamp(K+luz*.35*K,0.,1.);' +
       'float mist=smoothstep(.44,.78,d)*.5;' +
-      'float pic=img*G*(.82+.36*d);' +
-      'float dens=mix(mist,pic+mist*.12,kk);' +
+      /* never picture-perfect: erosion opens fog-shaped holes in the figure, the ceiling keeps even the lightest
+         areas from going solid, and scatter lets some of the picture drift loose as lost points around it */
+      'float er=smoothstep(.28,.78,fb(uv*4.2+vec2(T*.012,-T*.009)+3.1));' +
+      'float pic=img*G*(.82+.36*d)*mix(1.,.3+.7*er,ER)*CE;' +
+      /* the glow: a heavily blurred copy of the picture, padded by half its size on every side, so lost points
+         thin out from the figure into the fog instead of stopping at its edge */
+      'vec2 gu=(iu-.5)/2.+.5;gu.y=gu.y;float glow=texture2D(I2,clamp(gu,0.,1.)).r;' +
+      'float stray=SC*(pow(glow,.8)*(.45+.8*d)*.75+.02*smoothstep(.36,.8,d))*clamp(1.-img*1.6,0.,1.);' +
+      'float dens=mix(mist,pic+stray+mist*.12,kk);' +
       /* threshold: interleaved gradient noise (even, blue-ish) mixed with a hash (organic), so tones read as tones */
       'float ign=fract(52.9829189*fract(dot(cel,vec2(.06711056,.00583715))));float lit=step(mix(ign,h(cel),.35),dens);' +
       'float red=step(h(cel+31.7),A*img*kk);' +
       'vec3 col=mix(N,AC,red);gl_FragColor=vec4(mix(F,col,lit*.72),1.);}');
     if (!P) return { show: function () {}, hide: function () {}, set: function () {}, stop: function () {} };
-    var gl = P.gl, U = {}; ['R', 'P', 'T', 'S', 'K', 'G', 'M', 'A', 'FIT', 'F', 'N', 'AC', 'IA', 'I'].forEach(function (k) { U[k] = P.u(k); });
+    var gl = P.gl, U = {}; ['R', 'P', 'T', 'S', 'K', 'G', 'M', 'A', 'FIT', 'SC', 'ER', 'CE', 'F', 'N', 'AC', 'IA', 'I', 'I2'].forEach(function (k) { U[k] = P.u(k); });
     var tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, 1, 1, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, new Uint8Array([0]));
+    var tex2 = gl.createTexture(); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, tex2);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, 1, 1, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, new Uint8Array([0]));
+    gl.activeTexture(gl.TEXTURE0);
     var IA = [1, 1], k = 0, t = Math.random() * 50, last = performance.now(), raf = 0, ptr = [-1e4, -1e4], cancel = null;
     var F = [0, 0, 0], Nc = [1, 1, 1], AC = [1, 0, 0];
     function colors() { F = cssColor('--bg', cv); Nc = cssColor('--fog', cv); AC = cssColor('--accent', cv); }
     colors(); onTheme(function () { setTimeout(colors, 30); [200, 500, 850].forEach(function (ms) { setTimeout(colors, ms); }); });
     window.addEventListener('pointermove', function (e) { var r = cv.getBoundingClientRect(); ptr = [e.clientX - r.left, e.clientY - r.top]; });
-    function upload(img) { gl.bindTexture(gl.TEXTURE_2D, tex); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, img); IA = [img.naturalWidth || img.width, img.naturalHeight || img.height]; }
+    function upload(img) {
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, img); IA = [img.naturalWidth || img.width, img.naturalHeight || img.height];
+      /* glow texture: the picture at half size in the middle of a canvas twice as large, blurred wide */
+      var g = document.createElement('canvas'), W = 192, H = Math.max(8, Math.round(192 * IA[1] / IA[0])); g.width = W; g.height = H; var x = g.getContext('2d');
+      x.fillStyle = '#000'; x.fillRect(0, 0, W, H); x.filter = 'blur(' + Math.round(W * 0.045) + 'px)'; x.drawImage(img, W / 4, H / 4, W / 2, H / 2); x.drawImage(g, 0, 0);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, tex2); gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, g); gl.activeTexture(gl.TEXTURE0);
+    }
+    var cur = {};   /* per-source overrides: {src, gain, scatter, erosion, ceiling} */
+    function opt(k, d) { return cur[k] !== undefined ? cur[k] : (o[k] !== undefined ? o[k] : d); }
     function load(src, cb) {
+      if (src && src.src) { cur = src; src = src.src; } else cur = {};
       if (typeof src !== 'string') { upload(src); cb && cb(); return; }
       var im = new Image(); if (/^https?:/.test(src) && src.indexOf(location.origin) !== 0) im.crossOrigin = 'anonymous'; im.onload = function () { upload(im); cb && cb(); }; im.src = src;
     }
     function frame(now) {
       var dt = Math.min(0.05, (now - last) / 1000); last = now; if (!REDUCED) t += dt; var dpr = fit(cv, gl);
       gl.uniform2f(U.R, cv.width, cv.height); gl.uniform2f(U.P, ptr[0] * dpr, cv.height - ptr[1] * dpr); gl.uniform1f(U.T, t);
-      gl.uniform1f(U.S, (o.cell || 2) * dpr); gl.uniform1f(U.K, MJ(k)); gl.uniform1f(U.G, o.gain === undefined ? 1 : o.gain); gl.uniform1f(U.M, o.margin === undefined ? 0.08 : o.margin);
+      gl.uniform1f(U.S, (o.cell || 2) * dpr); gl.uniform1f(U.K, MJ(k)); gl.uniform1f(U.G, opt('gain', 1)); gl.uniform1f(U.SC, opt('scatter', 0.5)); gl.uniform1f(U.ER, opt('erosion', 0.45)); gl.uniform1f(U.CE, opt('ceiling', 0.8)); gl.uniform1f(U.M, o.margin === undefined ? 0.08 : o.margin);
       gl.uniform1f(U.A, o.accent || 0); gl.uniform1f(U.FIT, o.fit === 'cover' ? 1 : 0); gl.uniform3fv(U.F, F); gl.uniform3fv(U.N, Nc); gl.uniform3fv(U.AC, AC);
-      gl.uniform2f(U.IA, IA[0], IA[1]); gl.uniform1i(U.I, 0); gl.drawArrays(gl.TRIANGLES, 0, 3); raf = requestAnimationFrame(frame);
+      gl.uniform2f(U.IA, IA[0], IA[1]); gl.uniform1i(U.I, 0); gl.uniform1i(U.I2, 1); gl.drawArrays(gl.TRIANGLES, 0, 3); raf = requestAnimationFrame(frame);
     }
     raf = requestAnimationFrame(frame);
     function to(target, dur, done) { if (cancel) cancel(); var k0 = k; if (REDUCED) { k = target; done && done(); return; } cancel = tween(dur, function (e) { k = lerp(k0, target, e); }, done); }

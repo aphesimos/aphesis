@@ -189,7 +189,8 @@ The gate, as in the backlog (`docs/backlog.md` on `main`):
 2. `POST /v1/auth/code {code}`: the words in any case with any separators, within 10 minutes, five tries, single
    use. On success: `aph_session` (HttpOnly, Secure, SameSite=Strict, `Path=/`, `SESSION_SECONDS`, two hours) and
    `{csrf, expires}`.
-3. `GET /v1/auth/session` answers `{csrf, expires}` while the session lasts; `POST /v1/auth/logout` ends it.
+3. `GET /v1/auth/session` answers `{open: true, csrf, expires}` while the session lasts and `{open: false}` otherwise;
+   `POST /v1/auth/logout` ends it.
 
 Every wrong answer on either step, and every answer while locked, is the same `401 {"error": "no"}`. Failures are
 counted per visitor (`SHA-256(AUTH_SALT|visitor|address)`) and for everyone: a visitor has 4 free failures, then

@@ -10,7 +10,7 @@
 //! the gate (both steps answer a wrong attempt with the same 401 {"error": "no"})
 //!   POST /v1/auth/password    {password}    -> the email with three words, and the pending cookie
 //!   POST /v1/auth/code        {code}        -> the session cookie and {csrf, expires}
-//!   GET  /v1/auth/session                   -> {csrf, expires} while the session lasts
+//!   GET  /v1/auth/session                   -> {open: true, csrf, expires} while the session lasts, else {open: false}
 //!   POST /v1/auth/logout
 //!
 //! the dashboard (session cookie; writes also need the site's Origin and X-CSRF-Token)
@@ -308,9 +308,12 @@ async fn route(c: &Ctx, mut req: Request) -> Result<Response> {
         }
         (Method::Post, ["v1", "auth", "password"]) => password(c, &mut req).await,
         (Method::Post, ["v1", "auth", "code"]) => code_step(c, &mut req).await,
+        // whether a session is open; asked by the gate as it opens, so no answer here is a failure
         (Method::Get, ["v1", "auth", "session"]) => match c.session().await? {
-            Some((_, csrf, exp)) => c.json(200, &json!({ "csrf": csrf, "expires": exp })),
-            None => c.fail(401, NO),
+            Some((_, csrf, exp)) => {
+                c.json(200, &json!({ "open": true, "csrf": csrf, "expires": exp }))
+            }
+            None => c.json(200, &json!({ "open": false })),
         },
         (Method::Post, ["v1", "auth", "logout"]) => logout(c, &req).await,
         (_, ["v1", "admin", rest @ ..]) => {

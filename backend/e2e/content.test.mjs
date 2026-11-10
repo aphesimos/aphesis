@@ -182,6 +182,8 @@ test('the gate: password, the mail, three words, a session; wrong answers all lo
   assert.equal(j.get('aph_pending'), undefined, 'the pending cookie is cleared');
 
   r = await send('/v1/auth/session', { j });
+  assert.deepEqual([(await r.json()).open, csrf.length], [true, 48]);
+  r = await send('/v1/auth/session', { j });
   assert.equal((await r.json()).csrf, csrf);
   /* single use: the same words again, with the old pending cookie, are refused */
   r = await send('/v1/auth/code', { method: 'POST', body: { code: words }, ip: '10.1.0.1', headers: { Cookie: `aph_pending=${pending.v}` } });
@@ -189,7 +191,9 @@ test('the gate: password, the mail, three words, a session; wrong answers all lo
   r = await send('/v1/auth/logout', { method: 'POST', j, headers: { 'X-CSRF-Token': csrf } });
   assert.equal(r.status, 200);
   j.take(r);
-  assert.equal((await send('/v1/auth/session', { j })).status, 401);
+  r = await send('/v1/auth/session', { j });
+  assert.equal(r.status, 200);
+  assert.deepEqual(await r.json(), { open: false });
 });
 
 test('a code is good for ten minutes, and a new password step replaces it', async () => {

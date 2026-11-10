@@ -25,7 +25,7 @@ See src/shell.js for the mount, the unmount and the route scheme.
 The section ref defaults to the local branch section/<name>; pass NAME=REF to build another commit, e.g.
   python3 site/build.py experimental=origin/section/experimental
 """
-import base64, html, json, os, re, subprocess, sys, tarfile, tempfile, io
+import base64, hashlib, html, json, os, re, subprocess, sys, tarfile, tempfile, io
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tools'))
 import tokens as T   # colour tokens as sRGB, for the tab icon
@@ -66,7 +66,7 @@ def snapshot(local):
     else:
         refs = dict((r[len('refs/heads/'):], sha) for sha, r in (l.split('\t') for l in git('ls-remote', 'origin').splitlines()) if r.startswith('refs/heads/'))
         want = [b for b in refs if b in ('design-system', 'mark') or b.startswith('section/')]
-        git('fetch', '-q', 'origin', *want)   # their objects only: no local branch moves
+        git('fetch', '-q', 'origin', *want)   # their objects only: no local branch moves (and none needed, as in CI)
         for b in ('design-system', 'mark'):
             if local_refs.get(b) and local_refs[b] != refs.get(b):
                 print(f'  {b}: origin {refs[b][:7]} (the local branch, {local_refs[b][:7]}, is not used)', file=sys.stderr)
@@ -95,11 +95,18 @@ SECTIONS = [
     dict(id='wall', name='wall', gl='paries', desc='anonymous messages that drift in the fog and fade with time.'),
     dict(id='forum', name='forum', gl='ἀγορά', desc='a plain anonymous forum, in threads.'),
     dict(id='music', name='music', gl='phonotheca', desc='what i listen to, as it sits on my disk, with a player that keeps playing.'),
+    # the owner's gate and desk: no name in the inscription, no route; the shell opens it on an `aph:entrance` event
+    dict(id='gate', name='', gl='', desc='', hidden=True),
 ]
 # the music library on R2; --music-index URL builds against another copy (a local one, for checks)
 MUSIC_INDEX = 'https://music.aphes.ist/index.json'
 LOCAL = False   # --local: build the sections from the local branches instead of what origin has
-SECTION_ARGS = {'music': lambda: ['--index', MUSIC_INDEX]}
+# the wall's and the forum's backends; they go live only with a Turnstile site key (--turnstile-sitekey, or the
+# environment's TURNSTILE_SITEKEY), and stay in preview mode, with their example lines, until then
+WALL_API, FORUM_API = 'https://wall-api.aphes.ist', 'https://forum-api.aphes.ist'
+SITEKEY = os.environ.get('TURNSTILE_SITEKEY', '').strip()
+SECTION_ARGS = {'music': lambda: ['--index', MUSIC_INDEX], 'wall': lambda: ['--api', WALL_API, '--sitekey', SITEKEY] if SITEKEY else []}
+REQUIRE_GATE = False   # --require-gate: stop when the gate's phrase or route is missing (the deploy sets it)
 PASSAGES = [
     dict(o='ἓν τὸ πᾶν', l='grc', t='the one is the all', a='Chrysopoeia of Cleopatra'),
     dict(o='Solve et coagula', l='la', t='dissolve and coagulate', a='alchemical maxim'),
@@ -218,6 +225,27 @@ def check(name, js):
         os.unlink(path)
 
 
+def entrances(ref):
+    """the gate's entrances (the ritual on the passage and the seal, the phrase, the secret route), made by
+    section/gate's own build from APHESIS_GATE_PHRASE and APHESIS_GATE_ROUTE: only salted hashes reach the page"""
+    have = all(os.environ.get(k, '').strip() for k in ('APHESIS_GATE_PHRASE', 'APHESIS_GATE_ROUTE'))
+    if not have:
+        msg = 'APHESIS_GATE_PHRASE and APHESIS_GATE_ROUTE are not set: the phrase and the route do not exist in this page'
+        if REQUIRE_GATE:
+            sys.exit('gate: ' + msg + ' (the deploy needs the GATE_PHRASE and GATE_ROUTE secrets)')
+        print('  gate: ' + msg + '; the ritual and the door still open it', file=sys.stderr)
+    with tempfile.TemporaryDirectory() as tmp:
+        tarfile.open(fileobj=io.BytesIO(vgit('archive', ref, 'gate', binary=True))).extractall(tmp, filter='data')
+        out = os.path.join(tmp, 'entrances.js')
+        r = subprocess.run([sys.executable, os.path.join(tmp, 'gate', 'build.py'), '--entrances', out],
+                           env=dict(os.environ, GIT_DIR=VIEW), cwd=tmp, capture_output=True, text=True)
+        if r.returncode:
+            sys.exit('gate: the entrances did not build:\n' + (r.stderr or r.stdout).strip()[:800])
+        js = open(out, encoding='utf-8').read()
+    check('gate entrances', js)
+    return js
+
+
 def section_modules(refs):
     tpl, styles, js, info = [], [], [], {}
 
@@ -232,7 +260,20 @@ def section_modules(refs):
                   f'run: function ({SANDBOX}) {{\n{script}\n}} }};')
         info[n] = commit
         print(f'  {n:13} {commit}', file=sys.stderr)
-    return '\n'.join(tpl), '\n'.join(styles), 'const APH_SECTIONS = {};\n' + '\n'.join(js), info
+    return '\n'.join(tpl), '\n'.join(styles), shared_maps('const APH_SECTIONS = {};\n' + '\n'.join(js)), info
+
+
+def shared_maps(js):
+    """Several sections carry the same density map (trismegistus in four, jerome in three). Each data: URI string is
+    kept once, in a table at the head of the sections' script, and every place that had it reads the same string from
+    there, so the sections see exactly the values they had."""
+    table = {}
+    def one(m):
+        key = hashlib.sha1(m.group(0).encode()).hexdigest()[:12]
+        table.setdefault(key, m.group(0))
+        return f'APH_MAPS["{key}"]'
+    js = re.sub(r'"data:image/[a-z+]+;base64,[A-Za-z0-9+/=]+"', one, js)
+    return 'const APH_MAPS = {' + ','.join(f'"{k}":{v}' for k, v in table.items()) + '};\n' + js
 
 
 def favicon_open(red):
@@ -251,13 +292,13 @@ def build(fragment, refs):
     bcss = re.sub(r'@import url\([^)]*\);\s*', '', show('design-system', 'system/components/bundle.css'))
     css = faces() + tokens_css(tok) + bcss + open(os.path.join(D, 'src', 'shell.css'), encoding='utf-8').read()
     nav = ''.join(f'<a href="#{s.get("route", s["id"])}">{html.escape(s["name"])}<span class="gl" lang="{lang(s["gl"])}">{html.escape(s["gl"])}</span></a>'
-                  for s in SECTIONS)
+                  for s in SECTIONS if not s.get('hidden'))
     tpl, styles, secjs, info = section_modules(refs)
     red = {'light': T.color('rubedo', 'light', tok), 'dark': T.color('rubedo', 'dark', tok)}
     fav_open = favicon_open(red)
     shell = open(os.path.join(D, 'src', 'shell.js'), encoding='utf-8').read()
     shell = (shell.replace('/*__ENGINE__*/', show('mark', 'engine/model.js') + '\n' + show('mark', 'engine/core.js'))
-             .replace('/*__SECTIONSJS__*/', json.dumps([dict(id=s['id'], route=s.get('route', s['id']), name=s['name']) for s in SECTIONS], ensure_ascii=False))
+             .replace('/*__SECTIONSJS__*/', json.dumps([dict(id=s['id'], route=s.get('route', s['id']), name=s['name'], hidden=bool(s.get('hidden'))) for s in SECTIONS], ensure_ascii=False))
              .replace('/*__PASSAGES__*/', json.dumps(PASSAGES, ensure_ascii=False))
              .replace('/*__FAVICON__*/', open(os.path.join(D, 'src', 'favicon.js'), encoding='utf-8').read())
              .replace('/*__ICONRED__*/', json.dumps(red)))
@@ -265,10 +306,14 @@ def build(fragment, refs):
     # the static icons and the manifest are files in site/public (tools/make_icons.py); the artifact page has none
     links = '' if fragment else ('<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">\n<link rel="apple-touch-icon" href="/apple-touch-icon.png">\n'
                                  '<link rel="manifest" href="/site.webmanifest">')   # theme-color: Aphesis.themeColor keeps it with the ground
+    # the forum reads its backend from the page's head; without a Turnstile site key it stays in preview mode
+    if SITEKEY:
+        links += f'\n<meta name="forum-api" content="{FORUM_API}">\n<meta name="forum-turnstile" content="{html.escape(SITEKEY, quote=True)}">'
     page = page.replace('<!--__HEADLINKS__-->', links).replace('__FAVICON_OPEN__', html.escape(fav_open, quote=True))
     page = (page.replace('/*__CSS__*/', css).replace('<!--__NAV__-->', nav).replace('<!--__STYLES__-->', styles)
             .replace('<!--__TEMPLATES__-->', tpl).replace('/*__BUNDLE__*/', show('design-system', 'system/components/bundle.js'))
             .replace('/*__SECTIONS__*/', secjs).replace('/*__SHELL__*/', shell)
+            .replace('/*__ENTRANCES__*/', entrances(refs.get('gate') or 'section/gate'))
             .replace('<!--__BUILT__-->', '<!-- sections: ' + ', '.join(f'{k} {v}' for k, v in info.items()) + ' -->'))
     if fragment:
         return '<meta charset="utf-8">\n' + page.replace('<!--__BODY__-->', '', 1)
@@ -290,8 +335,20 @@ if __name__ == '__main__':
             out = args.pop(0)
         elif a == '--music-index':
             MUSIC_INDEX = args.pop(0)
+        elif a == '--content-api':
+            os.environ['APHESIS_CONTENT_API'] = args.pop(0)
+        elif a == '--turnstile-sitekey':
+            SITEKEY = args.pop(0).strip()
+        elif a == '--require-gate':
+            REQUIRE_GATE = True
         else:
             k, v = a.split('=', 1); refs[k] = v
+    api = os.environ.get('APHESIS_CONTENT_API', '')
+    if api and not re.match(r'^https?://[^\s"\'<>]+$', api):
+        sys.exit('--content-api is an http(s) URL')
+    print('  content api: ' + (api or 'none: archive, book and works use what they carry, and the gate cannot sign in'), file=sys.stderr)
+    print('  wall and forum: ' + ('live, at ' + WALL_API + ' and ' + FORUM_API if SITEKEY else
+          'preview mode (no TURNSTILE_SITEKEY): their example lines, nothing is sent'), file=sys.stderr)
     page = build(frag, refs)
     open(out, 'w', encoding='utf-8').write(page)
     print(out, len(page))

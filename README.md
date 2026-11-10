@@ -21,6 +21,10 @@ python3 site/build.py                    # site/index.html, a self-contained pag
 python3 site/build.py --fragment OUT     # the same page without <!doctype>/<html>/<head>/<body>, for an artifact
 python3 site/build.py experimental=REF   # build one section from another ref (a commit, origin/section/...)
 python3 site/build.py --local           # the sections from the local branches (by default: what origin has)
+python3 site/build.py --out FILE         # write the page elsewhere
+python3 site/build.py --content-api URL  # the content service for archive, book, works and the gate (or APHESIS_CONTENT_API)
+python3 site/build.py --turnstile-sitekey KEY   # the wall and the forum go live (or TURNSTILE_SITEKEY)
+python3 site/build.py --require-gate     # stop if APHESIS_GATE_PHRASE or APHESIS_GATE_ROUTE is missing
 ```
 
 The build copies nothing from other branches; it reads them with git:
@@ -98,6 +102,41 @@ and the section fills in the moment the index is there, with no rebuild (`WAITS`
 the browser waits for one. The ear beside the eye mutes it, and the choice is remembered. Every route change crossfades
 to that screen's voice (`Sound.scene`); the descent (`experimental` voice) changes it per chamber and plays `door` when the door opens.
 
+## The inscription and its icons
+
+Each name carries its section's icon (`Aphesis.icon`, drawn with the brush). On a wide screen the icon stands to the
+left of the name, about twice its cap height, and moves with it as one unit; it stirs with the letter wave on hover
+and focus (`.aph-icon`) and gathers (`.aph-gather`) as the press begins, before the section comes in. On a phone
+(600 px wide or less, or a small touch screen on its side) the icons alone stand around the φ, 40 px with 44 px
+targets: the first tap gathers an icon and condenses its name and gloss beside it, the second enters, a tap elsewhere
+dismisses the name. A key enters at once, and keyboard focus shows the name. The icons are decorative: each link is
+named by its words. The names sit on an ellipse, spaced along its length, each pushed out until it clears the φ;
+their sizes are measured once (again on resize, when the fonts arrive or the ring turns from names to icons), and
+nothing is written when nothing moved.
+
+## The gate
+
+The owner's gate and desk (`section/gate`) is a hidden section: no name in the inscription, no route. The shell opens
+it over wherever the visitor is when an entrance dispatches `aph:entrance`, with one history entry, so Back closes it;
+the seal, the gate's own Escape and any new address close it too. The entrances:
+
+- **the ritual**: three taps on the passage, then the φ held for seven seconds;
+- **the phrase**, typed anywhere outside a field;
+- **the secret route**, `#<route>`, taken out of the address bar;
+- **the tenth door** in the descent (a circle drawn around the door).
+
+The phrase and the route come from `APHESIS_GATE_PHRASE` and `APHESIS_GATE_ROUTE` and reach the page only as salted
+PBKDF2 hashes (section/gate's own build, `--entrances`). Without them those two entrances do not exist; the ritual and
+the door still open the gate. The desk talks to the content service (`--content-api`), whose session cookie needs the
+real domain (`aphes.ist`), not `aphesist.pages.dev`.
+
+## Backends
+
+- **Content** (`https://content-api.aphes.ist`): archive, book and works read their entries from it and fall back
+  to what they carry when it does not answer; the gate signs in through it.
+- **Wall and forum** (`https://wall-api.aphes.ist`, `https://forum-api.aphes.ist`): they go live only with a
+  Turnstile site key. Without one they stay in preview mode, with their example lines, and the build log says so.
+
 ## Routes
 
 | route | screen |
@@ -122,7 +161,7 @@ For the descent (section/experimental):
 
 ```
 git fetch origin section/experimental:section/experimental
-python3 site/build.py && python3 site/build.py --fragment /tmp/aphesis-fragment.html
+python3 site/build.py --out /tmp/aphes.ist.html && python3 site/build.py --fragment /tmp/aphesis-fragment.html
 ```
 
 (or `python3 site/build.py experimental=<commit>` without moving the branch). The built page lists the commit of

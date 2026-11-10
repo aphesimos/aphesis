@@ -41,7 +41,7 @@ HTMLCanvasElement.prototype.getContext = function (type, o) {
 const glAlive = () => GL.filter((g) => !g.c.isContextLost()).length;
 
 /* ---------- stroke boil ---------- */
-setInterval(() => $('aph-turb').setAttribute('seed', 1 + Math.floor(Math.random() * 997)), 125);
+setInterval(() => { if (!document.hidden) $('aph-turb').setAttribute('seed', 1 + Math.floor(Math.random() * 997)); }, 125);
 
 /* ---------- the fog: the runtime's, one for the whole page. density 1 and light 1 at home; a section sets its own ---------- */
 const fog = A.Fog($('aph-fog'), { density: 0, light: 1 });
@@ -69,7 +69,9 @@ function drawState(k) {
   return { ...BASE, ...pos, te: TH(0) + kk * ST, hs: NS_ - 1, penHaste: arc };
 }
 function centerBox() { const m = Math.min(innerWidth, innerHeight); const s = Math.min(m * (innerWidth < 640 ? 0.5 : 0.62), 620); return { x: innerWidth / 2 - s / 2, y: innerHeight / 2 - s / 2, s }; }
-function cornerBox() { return { x: 18, y: 16, s: 64 }; }
+/* the corner keeps clear of a notch and the rounded corners: the safe-area insets, read from a probe that carries them */
+function safeArea() { const cs = getComputedStyle($('aph-safe')); return { t: parseFloat(cs.paddingTop) || 0, l: parseFloat(cs.paddingLeft) || 0 }; }
+function cornerBox() { const sa = safeArea(); return { x: 18 + sa.l, y: 16 + sa.t, s: 64 }; }
 let sealBox = { ...centerBox() }, u = 0;
 function placeSeal(c) { sealBox = c; const e = $('aph-seal'); e.style.width = e.style.height = c.s.toFixed(2) + 'px'; e.style.transform = `translate(${c.x.toFixed(2)}px,${c.y.toFixed(2)}px)`; }
 
@@ -78,31 +80,75 @@ const links = [...document.querySelectorAll('#aph-ring a')];
 let spin = 0;
 /* the names sit on an ellipse around the center, spaced evenly along its length rather than by angle: on a wide
    screen the ellipse is nearly a circle and the two are alike; on a tall, narrow one the names keep their distance
-   where the ellipse turns tightly at the top and bottom, so eight names never crowd as the ring turns */
-const ARC = new Float64Array(257);
+   where the ellipse turns tightly at the top and bottom. Each is pushed out along its own direction until it clears
+   the φ, then held inside the screen. Sizes are measured once (again on resize, when the fonts arrive or the ring
+   changes between names and icons), and nothing is written when nothing moved: inside a section the ring rests. */
+const ARC = new Float64Array(257), GAP = 12;
+let sizes = null, placed = '', measured = false;
+addEventListener('resize', () => { measured = false; });
+if (document.fonts) document.fonts.ready.then(() => { measured = false; });
+function glyphBox(c) { return { l: c.x + 0.20 * c.s - GAP, r: c.x + 0.80 * c.s + GAP, t: c.y + 0.124 * c.s - GAP, b: c.y + 0.959 * c.s + GAP }; }
+const hit = (g, x, y, w, h) => x + w / 2 > g.l && x - w / 2 < g.r && y + h / 2 > g.t && y - h / 2 < g.b;
 function placeInscription() {
-  const c = centerBox(), cxp = c.x + c.s / 2, cyp = c.y + c.s / 2, R = c.s * 0.62;
-  const n = links.length, wid = links.map((a) => a.offsetWidth || 120), wMin = Math.min(...wid);
+  if (!measured) { sizes = links.map((a) => ({ w: a.offsetWidth || 120, h: a.offsetHeight || 40, pw: (a.querySelector('.tx').offsetWidth || 0) })); measured = true; placed = ''; }
+  const at = spin + ' ' + innerWidth + ' ' + innerHeight; if (at === placed) return; placed = at;
+  const c = centerBox(), cxp = c.x + c.s / 2, cyp = c.y + c.s / 2, R = c.s * 0.62, g = glyphBox(c);
+  const n = links.length, wMin = Math.min(...sizes.map((z) => z.w));
   const emPe = innerHeight > innerWidth * 1.15;
   /* the ellipse is as wide as the narrowest name allows; a wider name is held inside the screen on its own */
   const Rx = Math.min(R * 1.18, innerWidth / 2 - 16 - wMin / 2), Ry = Math.min(R * 0.98 * (emPe ? 1.9 : 1), innerHeight / 2 - 70);
   const pt = (t) => [Rx * Math.cos(t), Ry * Math.sin(t)];
   ARC[0] = 0; for (let k = 1; k <= 256; k++) { const p0 = pt((k - 1) / 256 * 2 * Math.PI), p1 = pt(k / 256 * 2 * Math.PI); ARC[k] = ARC[k - 1] + Math.hypot(p1[0] - p0[0], p1[1] - p0[1]); }
-  const L = ARC[256], at = (s) => { s = ((s % L) + L) % L; let lo = 0, hi = 256; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (ARC[m] <= s) lo = m; else hi = m; } return (lo + (s - ARC[lo]) / (ARC[hi] - ARC[lo])) / 256 * 2 * Math.PI; };
+  const L = ARC[256], ang = (s) => { s = ((s % L) + L) % L; let lo = 0, hi = 256; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (ARC[m] <= s) lo = m; else hi = m; } return (lo + (s - ARC[lo]) / (ARC[hi] - ARC[lo])) / 256 * 2 * Math.PI; };
   const s0 = L * 0.75;   /* the top of the ellipse (angle -90°) */
   links.forEach((a, i) => {
-    const ang = at(s0 + L * ((spin / (2 * Math.PI)) + (0.5 + i) / n));
-    const half = wid[i] / 2, x = Math.max(16 + half, Math.min(innerWidth - 16 - half, cxp + Rx * Math.cos(ang))), y = cyp + Ry * Math.sin(ang);
-    a.style.transform = `translate(${x}px,${y}px) translate(-50%,-50%)`; a._x = x; a._y = y;
+    const t = ang(s0 + L * ((spin / (2 * Math.PI)) + (0.5 + i) / n)), z = sizes[i];
+    let ox = Rx * Math.cos(t), oy = Ry * Math.sin(t);
+    for (let k = 0; k < 40 && hit(g, cxp + ox, cyp + oy, z.w, z.h); k++) { ox *= 1.04; oy *= 1.04; }
+    const x = Math.max(16 + z.w / 2, Math.min(innerWidth - 16 - z.w / 2, cxp + ox)), y = Math.max(16 + z.h / 2, Math.min(innerHeight - 56, cyp + oy));
+    const tr = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) translate(-50%,-50%)`;
+    if (a._tr !== tr) { a.style.transform = tr; a._tr = tr; }
+    a._x = x; a._y = y;
+    /* on a phone the name shows beside its icon, on the side away from the screen's edge */
+    const left = x > innerWidth / 2; if (a._left !== left) { a.classList.toggle('left', left); a._left = left; }
   });
 }
-links.forEach((a) => { const name = a.firstChild; const w = document.createElement('span'); w.textContent = name.textContent; a.replaceChild(w, name); A.letters(w); });
+/* each name carries its section's icon (the design system's, drawn with the brush): beside the name on a wide
+   screen, in place of it on a phone. The icon is decorative (the link is named by its words); it stirs with the
+   letter wave on hover and focus (.aph-icon) and gathers (.aph-gather) as the section is chosen. */
 links.forEach((a) => {
-  const on = () => { if (a._x === undefined) return; $('aph-ring').classList.add('focus'); a.classList.add('on'); const l = $('aph-ray').querySelector('line'); const c = sealBox;
-    l.setAttribute('x1', c.x + c.s / 2); l.setAttribute('y1', c.y + c.s / 2); l.setAttribute('x2', a._x); l.setAttribute('y2', a._y); l.style.opacity = 0.6; };
-  const off = () => { $('aph-ring').classList.remove('focus'); a.classList.remove('on'); $('aph-ray').querySelector('line').style.opacity = 0; };
-  a.addEventListener('pointerenter', on); a.addEventListener('focus', on); a.addEventListener('pointerleave', off); a.addEventListener('blur', off);
+  const name = a.firstChild, w = document.createElement('span'); w.className = 'nm'; w.textContent = name.textContent;
+  const tx = document.createElement('span'); tx.className = 'tx'; a.replaceChild(tx, name); tx.appendChild(w); tx.appendChild(a.querySelector('.gl')); A.letters(w);
+  const ic = document.createElement('span'); ic.className = 'ico'; ic.setAttribute('aria-hidden', 'true'); ic.innerHTML = A.icon(a.getAttribute('href').slice(1));
+  a.insertBefore(ic, tx); a.classList.add('aph-icon');
 });
+const ring = $('aph-ring');
+/* a phone: narrow, or a small touch screen in landscape; there the ring is icons, and a name shows on the first tap */
+const phoneQ = matchMedia('(max-width: 600px), (pointer: coarse) and (max-height: 600px)');
+function phoneMode() { ring.classList.toggle('phone', phoneQ.matches); if (!phoneQ.matches) unname(); measured = false; }
+let named = null;
+function ray(a, show) {
+  const l = $('aph-ray').querySelector('line');
+  if (!show) { l.style.opacity = 0; return; }
+  const c = sealBox; l.setAttribute('x1', c.x + c.s / 2); l.setAttribute('y1', c.y + c.s / 2); l.setAttribute('x2', a._x); l.setAttribute('y2', a._y); l.style.opacity = 0.6;
+}
+function nameIt(a) { if (named && named !== a) named.classList.remove('named', 'on', 'aph-gather'); named = a; a.classList.add('named', 'on', 'aph-gather'); ring.classList.add('focus'); ray(a, true); }
+function unname() { if (!named) return; named.classList.remove('named', 'on', 'aph-gather'); named = null; ring.classList.remove('focus'); ray(null, false); }
+links.forEach((a) => {
+  const on = () => { if (a._x === undefined || named) return; ring.classList.add('focus'); a.classList.add('on'); ray(a, true); };
+  const off = () => { if (named) return; ring.classList.remove('focus'); a.classList.remove('on'); ray(null, false); };
+  a.addEventListener('pointerenter', on); a.addEventListener('focus', on); a.addEventListener('pointerleave', off); a.addEventListener('blur', off);
+  /* a wide screen: the icon gathers as the press begins, so it is seen before the section comes in */
+  a.addEventListener('pointerdown', () => { if (!ring.classList.contains('phone')) a.classList.add('aph-gather'); });
+  /* a phone: the first tap gathers the icon and shows its name and gloss; the second enters. A key enters at once. */
+  a.addEventListener('click', (e) => {
+    if (!ring.classList.contains('phone') || e.detail === 0 || named === a) return;
+    e.preventDefault(); nameIt(a);
+  });
+});
+document.addEventListener('pointerdown', (e) => { if (named && !(e.target.closest && e.target.closest('#aph-ring a'))) unname(); }, true);
+phoneQ.addEventListener('change', phoneMode);
+phoneMode();
 
 /* ---------- the passage: typed like a person would (the only typing on the site that is not a tooltip) ---------- */
 const Typist = (function () {
@@ -233,7 +279,10 @@ A.tooltip();
 if (A.Sound) A.Sound.ear($('aph-ear')); else $('aph-ear').remove();
 
 /* ================= routes ================= */
-const NAMES = SECTIONS.map((s) => s.id);
+/* a hidden section (the gate) has no name in the inscription and no route: the shell opens it on `aph:entrance` */
+const NAMES = SECTIONS.filter((s) => !s.hidden).map((s) => s.id);
+const HIDDEN = new Set(SECTIONS.filter((s) => s.hidden).map((s) => s.id));
+let gateOpen = false;
 /* a section's name in the address, where it differs from its branch (experimental is the descent, at #descent) */
 const ROUTE = Object.fromEntries(SECTIONS.map((s) => [s.id, s.route || s.id]));
 const routeOf = (id) => '#' + ROUTE[id];
@@ -571,6 +620,8 @@ function wake(ctx) {
     setTimeout(() => { if (cur !== ctx) return; ctx.pieces.forEach(({ el, was }) => { const [v, pr] = was[0]; if (v) el.style.setProperty('transition', v, pr); else el.style.removeProperty('transition'); }); }, 900);
   });
   /* a different sub-route in the address than the one left: the section follows it */
+  /* a hidden section follows no address */
+  if (HIDDEN.has(ctx.name)) { dispatchEvent(new Event('resize')); focusIn(ctx); return; }
   /* coming back by the section's own name lands where it was left; a sub-route in the address is followed */
   if (location.hash === routeOf(ctx.name) && ctx.leftAt !== location.hash) { try { history.replaceState(null, '', ctx.leftAt); } catch (_) { /* fine */ } }
   const here = location.hash;
@@ -649,12 +700,13 @@ function goTo(next, first) {
     const de = { ...sealBox }, para = centerBox(), u0 = u;
     tween(first ? 1 : 1600, (k) => { const e = MJ(k); placeSeal({ x: lerp(de.x, para.x, e), y: lerp(de.y, para.y, e), s: lerp(de.s, para.s, e) }); u = lerp(u0, 0, k); paint(estadoT(u)); },
       () => {
+        unname(); links.forEach((l) => l.classList.remove('aph-gather'));
         ring.classList.add('visible');
         const a = document.activeElement;
         if (prev && (!a || a === document.body)) { const l = links.find((x) => x.getAttribute('href') === routeOf(prev)); if (l) l.focus({ preventScroll: true }); }
       });
   } else {
-    const sec = SECTIONS.find((s) => s.id === next); document.title = sec.name + ' · aphes.ist'; $('aph-announce').textContent = sec.name;
+    const sec = SECTIONS.find((s) => s.id === next); document.title = sec.name ? sec.name + ' · aphes.ist' : 'aphes.ist'; $('aph-announce').textContent = sec.name;
     ring.classList.remove('visible', 'focus'); $('aph-ray').querySelector('line').style.opacity = 0;
     if (prev === '' || prev === null) {
       const de = { ...sealBox }, para = cornerBox(), u0 = u;
@@ -664,6 +716,7 @@ function goTo(next, first) {
   }
 }
 function readRoute() {
+  if (gateOpen) return 'gate';
   const s = sectionOf(location.hash);
   const h = decodeURIComponent(location.hash.replace(/^#/, ''));
   if (s === 'archive' && ARCHIVE_SLUGS.includes(h)) { try { history.replaceState(null, '', '#archive/' + h); } catch (_) { /* a sandbox may refuse */ } }
@@ -672,9 +725,19 @@ function readRoute() {
   return s;
 }
 let prevHash = location.hash;   /* the address just before a route change: where a leaving section was */
-addEventListener('hashchange', (e) => { try { prevHash = new URL(e.oldURL).hash; } catch (_) { prevHash = ''; } goTo(readRoute()); });
+addEventListener('hashchange', (e) => { if (!e.isTrusted && gateOpen) return; gateOpen = false; try { prevHash = new URL(e.oldURL).hash; } catch (_) { prevHash = ''; } goTo(readRoute()); });
+/* the gate: any entrance opens it over wherever the visitor is (the ritual, the phrase, the secret route, the descent's
+   tenth door), with one history entry, so Back closes it; the seal, its own Escape and a new address close it too */
+addEventListener('aph:entrance', () => {
+  if (!APH_SECTIONS.gate || gateOpen) return;
+  gateOpen = true; prevHash = location.hash;
+  try { history.pushState({ aphGate: 1 }, '', location.href); } catch (_) { /* a sandbox may refuse */ }
+  goTo('gate');
+});
+addEventListener('popstate', () => { if (gateOpen && !(history.state && history.state.aphGate)) { gateOpen = false; goTo(readRoute()); } });
+addEventListener('aph:gate-close', () => { if (!gateOpen) return; gateOpen = false; goTo(readRoute()); });
 /* the seal always leads home, without relying on the hash */
-$('aph-seal').addEventListener('click', (e) => { e.preventDefault(); if (route === '') return; prevHash = location.hash; try { history.pushState(null, '', '#home'); } catch (_) { /* fine */ } goTo(''); });
+$('aph-seal').addEventListener('click', (e) => { e.preventDefault(); gateOpen = false; if (route === '') return; prevHash = location.hash; try { history.pushState(null, '', '#home'); } catch (_) { /* fine */ } goTo(''); });
 /* a section link written as a local hash (made after the mount) is sent to the section's global hash */
 document.addEventListener('click', (e) => {
   if (e.defaultPrevented || !cur || e.button) return;

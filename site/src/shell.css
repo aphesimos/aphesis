@@ -10,6 +10,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--font-tex
 /* the home never scrolls; a section's own stylesheet decides for itself (the laboratory scrolls the page) */
 :root:not([data-sec]) body{overflow:hidden}
 .aph-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* carries the safe-area insets, so the script can keep the seal clear of a notch */
+#aph-safe{position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
 #aph-fog{position:fixed;inset:0;width:100%;height:100%;display:block;pointer-events:none;z-index:var(--z-fog)}
 /* a section's own fog, seal and eye are the shell's: its copies stay in its markup (its script finds them) but never show */
 #aph-host #fog,#aph-host #seal,#aph-host #controls{display:none!important}
@@ -34,6 +36,19 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--font-tex
 #aph-ring a .gl{display:block;margin-top:8px;font:400 20px/1 var(--font-display);font-variation-settings:"wght" 400,"slnt" -12;letter-spacing:.02em;color:var(--ink-soft);text-transform:lowercase;transition:transform .6s var(--easing-settle),color .6s ease}
 #aph-ring.visible a{opacity:1;filter:none;visibility:visible;transition-delay:0s}
 #aph-ring.focus a:not(.on){opacity:.28}
+/* each name with its section's icon to its left, as one unit: the icon about twice the name's cap height, centred on
+   the name and its gloss. On a phone the icon alone stands for the section (40 px, a 44 px target); its name and
+   gloss condense beside it on the first tap, or on keyboard focus, and dissolve on a tap elsewhere. */
+#aph-ring a{display:flex;align-items:center;gap:10px}
+#aph-ring a .ico{flex:none;width:22px;height:22px;color:var(--accent)}
+#aph-ring a .ico svg{width:100%;height:100%;display:block}
+#aph-ring a .tx,#aph-ring a .nm{display:block}
+#aph-ring.phone a{padding:2px;gap:0}
+#aph-ring.phone a .ico{width:40px;height:40px}
+#aph-ring.phone a .tx{position:absolute;top:50%;left:calc(100% + 6px);transform:translateY(-50%);text-align:left;pointer-events:none;
+  opacity:0;filter:blur(6px);transition:opacity .9s ease,filter .9s ease}
+#aph-ring.phone a.left .tx{left:auto;right:calc(100% + 6px);text-align:right}
+#aph-ring.phone a.named .tx,#aph-ring.phone a:focus-visible .tx{opacity:1;filter:none}
 #aph-ray{position:fixed;inset:0;z-index:var(--z-ray);pointer-events:none;width:100%;height:100%}
 #aph-ray line{stroke:var(--ink-soft);stroke-width:1;stroke-dasharray:2 6;opacity:0;transition:opacity .4s ease}
 /* text hovers: each letter lifts a hair, in a slow wave from the first; nothing around it moves */
@@ -60,3 +75,4 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--font-tex
 #aph-controls svg path{fill:currentColor;transition:opacity .5s ease,transform .7s var(--easing-settle);transform-origin:12px 12px}
 #aph-eye{font:inherit;letter-spacing:inherit;color:inherit;background:none;border:1px solid transparent;padding:6px;margin:0;border-radius:var(--radius-none);cursor:pointer}
 #aph-eye:focus-visible{outline:1px solid var(--accent);outline-offset:2px}
+#aph-ear{padding:7px}   /* a 44 px target */

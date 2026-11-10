@@ -56,7 +56,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
    old theme or new. Greys and hairlines get the one grey that reads right on both grounds. */
 .aph-shifting .aph-ink {
   mix-blend-mode: difference; color: #fff;
-  --ink: #fff; --ink-soft: var(--shift-soft); --line: var(--shift-line); --bg: #000;
+  --ink: #fff; --fog: #fff; --ink-soft: var(--shift-soft); --line: var(--shift-line); --bg: #000;
   --accent: var(--shift-soft); --accent-text: var(--shift-soft);
 }
 /* the two frames around each switch: colours change without a transition (movement keeps its own) */

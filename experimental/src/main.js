@@ -1,20 +1,20 @@
-/* experimental · ἄδυτον, as it will stand inside the site: fog at .62, the seal in the corner, the eye and the
-   the eye in the bottom-left corner, the passage corner kept free, the runtime's cursor and tooltip. */
+/* experimental · ἄδυτον, as it will stand inside the site: dark fog, the seal in the corner, the eye in the
+   bottom-left, the passage corner kept free, the runtime's cursor and tooltip. Nothing else but a door. */
 
-import { setPaused, isPaused, pulse, onPause, REDUCED } from './motion.js';
-import { found } from './memory.js';
+import { REDUCED } from './motion.js';
 import { createGround } from './stage.js';
-import { createGestures } from './gestures.js';
-import { createThreshold } from './threshold.js';
-import { createManager } from './manager.js';
+import { createDoor } from './door.js';
+import { createJourney } from './journey.js';
 import { ouroboros } from './chambers/ouroboros.js';
 import { hands } from './chambers/hands.js';
 import { scholar } from './chambers/scholar.js';
 import { tablet } from './chambers/tablet.js';
+import { ending } from './chambers/ending.js';
 
 const A = window.Aphesis;
 const $ = (id) => document.getElementById(id);
 const root = document.documentElement;
+if (REDUCED) root.classList.add('reduced');
 
 /* ---------- theme: the system's setting until the eye says otherwise ---------- */
 const sysDark = matchMedia('(prefers-color-scheme: dark)');
@@ -26,47 +26,29 @@ function themeState() {
 document.querySelector('#bTheme .eye.open').innerHTML = A.icon('eye', 0);
 document.querySelector('#bTheme .eye.closed').innerHTML = A.icon('eye', 1);
 themeState();
-sysDark.addEventListener('change', () => { themeState(); pulse(1200); });
-$('bTheme').addEventListener('click', () => {
-  root.dataset.theme = isDark() ? 'light' : 'dark';
-  themeState();
-  pulse(1200);   /* a paused fog still takes the new ground */
-});
+sysDark.addEventListener('change', themeState);
+$('bTheme').addEventListener('click', () => { root.dataset.theme = isDark() ? 'light' : 'dark'; themeState(); });
 
 /* ---------- ground, seal, cursor, tooltip ---------- */
-const ground = createGround($('fog'));
-let seal = A.seal($('seal'));
+const ground = createGround($('fog'), 0.74);
+A.seal($('seal'));
 A.cursor();
 A.tooltip();
 
-/* ---------- the threshold and its chambers ---------- */
-const threshold = createThreshold();
-threshold.marks(found());
-const caption = $('caption'), announceEl = $('announce');
+/* ---------- the door and the journey behind it ---------- */
+const door = createDoor($('door'));
+const announceEl = $('announce');
 const announce = (t) => { announceEl.textContent = ''; setTimeout(() => { announceEl.textContent = t; }, 60); };
-
-let manager = null;
-const gestures = createGestures({
-  center: threshold.center,
-  isFound: (id) => found().includes(id),
-  onEnter: (id) => manager.enter(id),
-  onEcho: threshold.echo,
+const corners = [{ el: $('controls'), pad: 8 }, { el: $('seal'), pad: 10 }];
+const ZONES = {
+  door: corners.concat([{ el: $('door'), pad: 28 }]),
+  chamber: corners.concat([{ el: $('caption'), pad: 12 }]),
+  none: [],
+};
+createJourney({
+  chambers: [ouroboros, hands, scholar, tablet, ending],
+  ground, door, caption: $('caption'), announce, root: $('experimental'),
+  zones: (mode) => ground.zones(ZONES[mode] || []),
 });
-threshold.limen.addEventListener('click', () => { if (!manager.active) threshold.knock(); });
-
-const baseZones = [{ el: $('h-experimental'), pad: 20 }, { el: $('limen'), pad: 16 }, { el: $('echo'), pad: 10 }, { el: $('controls'), pad: 8 }, { el: $('seal'), pad: 10 }];
-manager = createManager({
-  chambers: { ouroboros, hands, scholar, tablet },
-  ground, threshold, gestures, caption, announce,
-  zones: (extra) => ground.zones(baseZones.concat(extra.map((el) => ({ el, pad: 14 })))),
-});
-ground.zones(baseZones);
-
-/* the seal leaves a chamber; at the threshold it leads home, as it does everywhere in the site */
-$('seal').addEventListener('click', (e) => {
-  if (manager.active) { e.preventDefault(); manager.leave(); }
-});
-
-threshold.show();
-gestures.enable();
-if (REDUCED) root.classList.add('reduced');
+ground.zones(ZONES.door);
+door.show();

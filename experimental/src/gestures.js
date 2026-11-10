@@ -1,169 +1,43 @@
-/* gestures at the threshold. None is announced; each has a pointer, a touch and a keyboard path.
-
-   circle   the pointer (or a finger) winds once around the threshold      arrow keys turned round in order
-   hold     a press held still, or the pointer resting on the threshold    Enter or Space held on the threshold
-   write    a quick scribble back and forth, like a line being written     a word typed, then Enter
-   wait     nothing at all, for half a minute                              the same
-   Typing a chamber's own word opens it too. */
-
-
-export const WORDS = {
-  ouroboros: ['ouroboros', 'serpent'],
-  hands: ['adam', 'manus', 'hands'],
-  scholar: ['lege', 'jerome', 'verbum'],
-  tablet: ['hermes', 'tabula', 'smaragdina', 'emerald'],
-};
+/* circling: how many turns the hand has made, in either direction.
+   Each pointer position is measured as an angle around the centre of the recent movement (the mean of the last
+   points, up to 6 s old). The change of that angle from one position to the next is added as an absolute value,
+   so clockwise and counter-clockwise both count and a change of direction loses nothing. Steps that pass close to
+   the centre or swing more than 170° at once (a line crossing the centre, a jump) are ignored, so wandering across
+   the page adds little, and eight points a circle are already enough. Coalesced events are read where the browser
+   offers them. Nothing is ever taken away: a pause keeps what was turned. */
 
 const TAU = Math.PI * 2;
-const HOLD_MS = 1600, REST_MS = 3200, REST_START = 700, WAIT_MS = 30000, WAIT_SHOW = 14000;
-const ARROWS = { ArrowUp: 0, ArrowRight: 1, ArrowDown: 2, ArrowLeft: 3 };
 
-export function createGestures({ center, isFound, onEnter, onKnock, onEcho }) {
-  let on = false;
-  const st = {
-    wind: 0, lastA: null, lastWind: 0, pts: [], turns: [],  // circle
-    holdT: 0, holdX: 0, holdY: 0, holdKey: false,          // hold
-    restX: -1e4, restY: -1e4, restT: 0,                    // hover still on the threshold
-    buf: '', bufT: 0,                                      // typing
-    revs: [], dirX: 0, travel: 0, sumX: 0, sumY: 0,        // scribble
-    lastInput: performance.now(), arrow: -1, arrowDir: 0,  // waiting, arrows
+export function circling(onTurn) {
+  const pts = [];
+  let last = null;
+  function add(x, y, t) {
+    if (last && Math.hypot(x - last[0], y - last[1]) < 3) return;   /* a tremor is not a turn */
+    pts.push([x, y, t]);
+    while (pts.length > 256 || (pts.length > 4 && t - pts[0][2] > 6000)) pts.shift();
+    if (pts.length < 4) { last = [x, y]; return; }
+    let cx = 0, cy = 0;
+    pts.forEach((p) => { cx += p[0]; cy += p[1]; });
+    cx /= pts.length; cy /= pts.length;
+    /* how far the recent points spread: a step must stand clear of the centre by a share of it */
+    let spread = 0;
+    pts.forEach((p) => { spread += Math.hypot(p[0] - cx, p[1] - cy); });
+    spread /= pts.length;
+    const [lx, ly] = last; last = [x, y];
+    const r0 = Math.hypot(lx - cx, ly - cy), r1 = Math.hypot(x - cx, y - cy);
+    if (spread < 12 || r0 < spread * 0.35 || r1 < spread * 0.35) return;
+    let d = Math.atan2(y - cy, x - cx) - Math.atan2(ly - cy, lx - cx);
+    d = ((d + Math.PI) % TAU + TAU) % TAU - Math.PI;
+    if (Math.abs(d) > Math.PI * 170 / 180) return;
+    onTurn(Math.abs(d) / TAU);
+  }
+  const move = (e) => {
+    if (e.pointerType !== 'mouse' && e.buttons === 0 && e.pressure === 0) return;   /* a pen or finger hovering */
+    const list = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+    (list.length ? list : [e]).forEach((c) => add(c.clientX, c.clientY, c.timeStamp || performance.now()));
   };
-
-  const input = () => { st.lastInput = performance.now(); };
-  const enter = (id) => { if (!on) return; reset(); onEnter(id); };
-  function reset() {
-    st.wind = 0; st.lastA = null; st.pts = []; st.turns = []; st.holdT = 0; st.holdKey = false; st.restT = 0;
-    st.buf = ''; st.revs = []; st.arrow = -1; onEcho('');
-  }
-  const goal = () => (isFound('ouroboros') ? 0.85 : 1) * TAU;
-
-  /* ---- circle ----
-     the stroke's own turning, added up: one loop of any size, anywhere on the screen, turns through a full circle.
-     Small backward wobbles of the hand subtract a little and do not reset it; a scribble's zigzags cancel out. */
-  function wind(x, y) {
-    const now = performance.now(), last = st.pts[st.pts.length - 1];
-    if (last && Math.hypot(x - last[0], y - last[1]) < 7) return;
-    st.pts.push([x, y, now]); st.pts = st.pts.filter((p) => now - p[2] < 6000);
-    const n = st.pts.length; if (n < 3) return;
-    const [a, b, c] = [st.pts[n - 3], st.pts[n - 2], st.pts[n - 1]];
-    let dh = Math.atan2(c[1] - b[1], c[0] - b[0]) - Math.atan2(b[1] - a[1], b[0] - a[0]);
-    if (dh > Math.PI) dh -= TAU; if (dh < -Math.PI) dh += TAU;
-    if (Math.abs(dh) > 2.2) return;                       /* a sharp reversal belongs to a scribble, not a loop */
-    st.turns.push([dh, now]); st.turns = st.turns.filter((t) => now - t[1] < 6000);
-    st.wind = st.turns.reduce((s, t) => s + t[0], 0); st.lastWind = now;
-    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
-    for (const p of st.pts) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
-    if (Math.abs(st.wind) >= goal() * 0.92 && x1 - x0 > 50 && y1 - y0 > 50) enter('ouroboros');
-  }
-
-  /* ---- scribble ---- */
-  function scribble(dx, dy, now) {
-    st.sumX += Math.abs(dx); st.sumY += Math.abs(dy);
-    const d = Math.sign(dx);
-    if (d && d !== st.dirX) {
-      if (st.travel > 14) st.revs.push(now);
-      st.dirX = d; st.travel = 0;
-    }
-    st.travel += Math.abs(dx);
-    st.revs = st.revs.filter((t) => now - t < 2400);
-    if (st.revs.length >= 5 && st.sumX > 2.5 * st.sumY) enter('scholar');
-    st.sumX *= 0.96; st.sumY *= 0.96;
-  }
-
-  let px = null, py = null, pt = 0;
-  addEventListener('pointermove', (e) => {
-    input(); if (!on) return;
-    const now = performance.now();
-    if (now - pt > 250) px = py = null;   /* a hand that paused starts a new stroke */
-    pt = now;
-    if (e.pointerType === 'mouse' || st.holdT || e.buttons) {
-      /* a busy page merges pointer moves into one event per frame: read every point it kept */
-      const list = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
-      (list.length ? list : [e]).forEach((c) => wind(c.clientX, c.clientY));
-      if (px !== null) scribble(e.clientX - px, e.clientY - py, now);
-    }
-    px = e.clientX; py = e.clientY;
-    if (st.holdT && Math.hypot(e.clientX - st.holdX, e.clientY - st.holdY) > 12) st.holdT = 0;
-    if (Math.hypot(e.clientX - st.restX, e.clientY - st.restY) > 4) { st.restX = e.clientX; st.restY = e.clientY; st.restT = now; }
-  }, { passive: true });
-
-  addEventListener('pointerdown', (e) => {
-    input(); if (!on) return;
-    px = e.clientX; py = e.clientY; st.lastA = null;
-    const t = e.target.closest && e.target.closest('a, button');
-    if (t && t.id !== 'limen') return;
-    st.holdT = performance.now(); st.holdX = e.clientX; st.holdY = e.clientY;
-  });
-  const release = () => { st.holdT = 0; px = py = null; };
-  addEventListener('pointerup', release);
-  addEventListener('pointercancel', release);
-  addEventListener('contextmenu', (e) => { if (on) e.preventDefault(); });
-
-  /* ---- keys ---- */
-  addEventListener('keydown', (e) => {
-    input(); if (!on || e.ctrlKey || e.metaKey || e.altKey) return;
-    const onLimen = document.activeElement && document.activeElement.id === 'limen';
-    if (onLimen && (e.key === 'Enter' || e.key === ' ')) {
-      e.preventDefault();
-      if (!e.repeat && !st.holdKey) { st.holdKey = true; st.holdT = performance.now(); }
-      return;
-    }
-    if (e.key in ARROWS) {
-      e.preventDefault();
-      const k = ARROWS[e.key], dir = st.arrow < 0 ? 0 : ((k - st.arrow + 4) % 4 === 1 ? 1 : (k - st.arrow + 4) % 4 === 3 ? -1 : 2);
-      if (dir === 1 || dir === -1) {
-        if (st.arrowDir && dir !== st.arrowDir) st.wind = 0;
-        st.arrowDir = dir; st.wind += dir * TAU / 4; st.lastWind = performance.now();
-      } else if (dir === 2) { st.wind = 0; st.arrowDir = 0; }
-      st.arrow = k;
-      if (Math.abs(st.wind) >= goal() - 1e-6) enter('ouroboros');
-      return;
-    }
-    if (e.key === 'Backspace') { st.buf = st.buf.slice(0, -1); st.bufT = performance.now(); onEcho(st.buf); return; }
-    if (e.key === 'Enter') {
-      if (st.buf.length >= 3) enter(match(st.buf) || 'scholar');
-      return;
-    }
-    if (e.key.length === 1 && /\p{L}/u.test(e.key)) {
-      st.buf = (st.buf + e.key.toLowerCase()).slice(-24); st.bufT = performance.now(); onEcho(st.buf);
-      const id = match(st.buf, true);
-      if (id) setTimeout(() => enter(id), 380);
-    }
-  });
-  addEventListener('keyup', (e) => {
-    if ((e.key === 'Enter' || e.key === ' ') && st.holdKey) { st.holdKey = false; st.holdT = 0; }
-  });
-  function match(buf, suffix) {
-    for (const id in WORDS) for (const w of WORDS[id]) if (suffix ? buf.endsWith(w) : buf === w) return id;
-    return null;
-  }
-
-  /* ---- progress, read every frame by the threshold ---- */
-  function progress(now) {
-    if (!on) return { wind: 0, fill: 0 };
-    if (st.wind && now - st.lastWind > 900) st.wind *= Math.exp(-(now - st.lastWind - 900) / 900 * 0.12);
-    if (Math.abs(st.wind) < 0.02) st.wind = 0;
-    if (st.buf && now - st.bufT > 3200) { st.buf = ''; onEcho(''); }
-    let hold = 0;
-    if (st.holdT) { hold = (now - st.holdT) / HOLD_MS; if (hold >= 1) { enter('hands'); return { wind: 0, fill: 0 }; } }
-    let rest = 0;
-    const [cx, cy] = center();
-    if (Math.hypot(st.restX - cx, st.restY - cy) < 64 && st.restT && !st.holdT) {
-      rest = (now - st.restT - REST_START) / REST_MS;
-      if (rest >= 1) { enter('hands'); return { wind: 0, fill: 0 }; }
-    }
-    /* waiting counts even while motion is paused: stillness is the gesture */
-    const idle = now - st.lastInput, wait = (idle - WAIT_SHOW) / (WAIT_MS - WAIT_SHOW);
-    if (idle >= WAIT_MS && document.visibilityState === 'visible') { enter('tablet'); return { wind: 0, fill: 0 }; }
-    return { wind: st.wind / goal(), fill: Math.max(0, Math.min(1, Math.max(hold, rest, wait))) };
-  }
-
-  document.addEventListener('visibilitychange', input);
-
-  return {
-    enable() { reset(); on = true; input(); },
-    disable() { on = false; reset(); },
-    knock() { onKnock && onKnock(); },
-    progress,
-  };
+  const reset = () => { pts.length = 0; last = null; };
+  addEventListener('pointermove', move, { passive: true });
+  addEventListener('pointerup', reset);
+  return { off() { removeEventListener('pointermove', move); removeEventListener('pointerup', reset); } };
 }

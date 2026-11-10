@@ -1,12 +1,13 @@
-/* the two hands.
-   The Creation of Adam gathers out of the fog, then gives way to its detail: two hands, pulled apart.
-   As the pointer (a finger, or the arrow keys) nears the space between them, the fingers close in, and they
-   hesitate the nearer they come. Rest the pointer in the gap for two and a half seconds and they touch: a few red
-   cells spark, and the chamber returns to the threshold. */
+/* 2 · the two hands.
+   The detail of the Creation of Adam, pulled apart: the two hands are two simulacra on canvases wider than the
+   screen, slid sideways in whole cells. The motion: press and hold where the fingers meet (a generous zone, at
+   least 160 px around the gap), with the mouse or a finger, or hold Enter or Space. While held the fingers drift
+   together; let go and they slowly part again. About two and a half seconds of holding makes them touch: a few
+   red cells spark, and after a breath the chamber ends. At rest the gap breathes a little: the only hint. */
 
 import { MAPS } from '../assets.js';
-import { image, cut, layer, simulacrum, pointer, follower, smooth } from '../stage.js';
-import { REDUCED, wait } from '../motion.js';
+import { image, cut, picture, hold, presses, smooth } from '../stage.js';
+import { REDUCED } from '../motion.js';
 
 const A = window.Aphesis;
 /* hands.png is 480 × 190; the fingertips leave a gap of 4 px around x 130, y 79. Padding the left side
@@ -15,24 +16,17 @@ const W = 480, H = 190, GAP_X = 130, GAP_Y = 79, GAP = 4, PAD = W - 2 * GAP_X, P
 
 export const hands = {
   id: 'hands',
-  caption: 'the creation of adam · Michelangelo, Sistine Chapel, c. 1512',
-  detail: 'the creation of adam, detail · Michelangelo, c. 1512',
-  label: 'two hands reach for each other out of the fog; the fingers never touch.',
+  caption: 'the creation of adam, detail · Michelangelo, c. 1512',
+  label: 'two hands reach for each other out of the fog, the fingers apart.',
   async create(ctx) {
-    const [imgC, imgH] = await Promise.all([image(MAPS.creation), image(MAPS.hands)]);
+    const imgH = await image(MAPS.hands);
     const pad = [0, 0, 0, PAD];
     const left = cut(imgH, { pad, masks: [[GAP_X, 0, W - GAP_X, H]] });
     const right = cut(imgH, { pad, masks: [[0, 0, GAP_X, H]] });
+    const adam = picture(ctx.root, { margin: 0 }), god = picture(ctx.root, { margin: 0 });
+    const lA = adam.canvas, lB = god.canvas;
 
-    const lC = layer(ctx.root), lA = layer(ctx.root), lB = layer(ctx.root);
-    const portrait = innerHeight > innerWidth * 1.1;
-    const creation = simulacrum(lC, { margin: portrait ? 0.04 : 0.1, accent: 0.02 });
-    const adam = simulacrum(lA, { margin: 0 }), god = simulacrum(lB, { margin: 0 });
-
-    let geo = null, live = false, keyX = null, keyY = null, tremor = 0, cancelWait = null, nearness = 0, ended = false;
-    const off = follower(0, 2.6);
-
-    /* the hands' layers are wider than the screen, so their edges never show as they slide */
+    let geo = null;
     function layout() {
       const vw = innerWidth, vh = innerHeight, a = vw / vh;
       const f = Math.max(0, Math.min(1, (a - 0.5) / 0.8));
@@ -43,81 +37,42 @@ export const hands = {
       adam.o.margin = m; god.o.margin = m;
       const Hd = Wd * H / PW;
       geo = { vw, vh, maxOff, gx: vw / 2, gy: vh / 2 + (GAP_Y / H - 0.5) * Hd, gap: GAP / PW * Wd };
+      geo.zone = Math.max(160, Math.min(vw, vh) * 0.28);
+      ctx.root.dataset.gap = Math.round(geo.gx) + ',' + Math.round(geo.gy) + ',' + Math.round(geo.zone);
     }
     layout();
-    off.set(geo.maxOff);
-    const onResize = () => layout();
-    addEventListener('resize', onResize);
-    const onMove = (e) => { if (e.pointerType === 'mouse') keyX = keyY = null; };
-    addEventListener('pointermove', onMove, { passive: true });
+    addEventListener('resize', layout);
 
     function place(x) {
       const s = (v) => Math.round(v / 2) * 2;   /* whole cells only, so the stipple stays square and crisp */
-      lA.style.transform = 'translateX(' + s(-x + tremor) + 'px)';
+      lA.style.transform = 'translateX(' + s(-x) + 'px)';
       lB.style.transform = 'translateX(' + s(x) + 'px)';
     }
     place(geo.maxOff);
 
+    let playing = false, touched = false, end = null, spark = 0;
+    const press = presses((e) => playing && Math.hypot(e.clientX - geo.gx, e.clientY - geo.gy) < geo.zone);
+    const h = hold(2.5, 7);
+
     return {
-      layers: [lC, lA, lB],
-      enter(done) {
-        lC.classList.add('on');
-        creation.show(imgC, () => {
-          cancelWait = wait(REDUCED ? 3000 : 2200, () => {
-            creation.hide(() => lC.classList.remove('on'));
-            ctx.setCaption(hands.detail);
-            lA.classList.add('on'); lB.classList.add('on');
-            adam.show(left); god.show(right, () => { live = true; done && done(); });
-          });
-        });
-      },
-      leave(done) {
-        if (cancelWait) cancelWait();
-        let n = 0; const one = () => { if (++n === 3) done && done(); };
-        creation.hide(one); adam.hide(one); god.hide(one);
-      },
-      key(e) {
-        const step = 0.06 * Math.min(innerWidth, innerHeight);
-        const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
-        if (!d) return false;
-        if (keyX === null) { keyX = geo.gx + 0.38 * geo.vw; keyY = geo.gy + 0.3 * geo.vh; }
-        keyX += d[0] * step; keyY += d[1] * step;
-        return true;
-      },
-      loop(dt, now, paused) {
-        if (paused || !geo) return;
-        let x = geo.maxOff, e = 0;
-        const has = keyX !== null || pointer.present;
-        if (ended) {   /* after the spark the hands part again, slowly */
-          place(off.step(-geo.gap / 2, dt)); adam.o.accent = god.o.accent = 0.05; return;   /* the fingers close the gap */
-        }
-        if (live && has) {
-          const px = keyX !== null ? keyX : pointer.x, py = keyX !== null ? keyY : pointer.y;
-          const d = Math.hypot(px - geo.gx, py - geo.gy);
-          e = A.MJ(1 - Math.max(0, Math.min(1, (d - 20) / (0.5 * Math.max(geo.vw, geo.vh)))));
-          /* fully near, the gap narrows to a third of what Michelangelo left, and no further */
-          x = geo.maxOff + (-geo.gap / 3 - geo.maxOff) * e;
-        }
-        /* the nearer, the more the human hand hesitates */
-        if (!REDUCED && e > 0.82 && Math.random() < dt * 3) tremor = (Math.random() < 0.5 ? -2 : 2) * smooth(0.82, 1, e);
-        else if (e <= 0.82) tremor = 0;
-        place(off.step(x, dt));
-        const near = smooth(0.92, 1, e);
-        adam.o.accent = 0.04 * near; god.o.accent = 0.04 * near;
-        /* time spent with the pointer in the gap (within 140 px of it) */
-        const inGap = has && Math.hypot((keyX !== null ? keyX : pointer.x) - geo.gx, (keyX !== null ? keyY : pointer.y) - geo.gy) < 140;
-        nearness = Math.max(0, nearness + (inGap ? dt : -dt * 0.5));
-        if (live && nearness > 2.5) {
-          ended = true; tremor = 0;
+      pictures: [[adam, left], [god, right]],
+      play(done) { end = done; playing = true; },
+      loop(dt, now) {
+        const p = touched ? 1 : h.step(dt, press.held);
+        ctx.root.dataset.progress = p.toFixed(3);
+        if (p >= 1 && !touched) {
+          touched = true;
           ctx.setCaption('the touch · Michelangelo, c. 1512');
-          setTimeout(() => ctx.exit(), REDUCED ? 1500 : 3600);
+          setTimeout(() => end && end(), REDUCED ? 2500 : 3600);
         }
+        /* apart: each hand is maxOff away; touching: each crosses half the painted gap */
+        const breathe = REDUCED || touched ? 0 : 5 * (0.5 - 0.5 * Math.cos(now / 1400)) * (1 - p);
+        const x = geo.maxOff + (-geo.gap / 2 - geo.maxOff) * A.MJ(p) - breathe;
+        place(x);
+        if (touched) spark = Math.min(1, spark + dt * (REDUCED ? 99 : 1.5));
+        adam.o.accent = god.o.accent = 0.05 * smooth(0, 1, spark);
       },
-      destroy() {
-        removeEventListener('resize', onResize); removeEventListener('pointermove', onMove);
-        if (cancelWait) cancelWait();
-        creation.stop(); adam.stop(); god.stop();
-      },
+      destroy() { removeEventListener('resize', layout); press.off(); },
     };
   },
 };

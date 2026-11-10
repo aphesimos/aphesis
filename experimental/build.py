@@ -60,12 +60,12 @@ def tokens_css(tok):
 
 
 # ---------- modules ----------
-ORDER = ['assets.js', 'motion.js', 'memory.js', 'stage.js', 'inscribe.js', 'gestures.js', 'threshold.js',
-         'chambers/ouroboros.js', 'chambers/hands.js', 'chambers/scholar.js', 'chambers/tablet.js',
-         'manager.js', 'main.js']
+ORDER = ['assets.js', 'motion.js', 'memory.js', 'stage.js', 'gestures.js', 'door.js',
+         'chambers/ouroboros.js', 'chambers/hands.js', 'chambers/scholar.js', 'chambers/tablet.js', 'chambers/ending.js',
+         'journey.js', 'main.js']
 
 MAPS = {  # density maps from system/assets/Simulacra
-    'cagnacci': 'cagnacci.jpg', 'creation': 'creation.png', 'hands': 'hands.png',
+    'cagnacci': 'cagnacci.jpg', 'hands': 'hands.png',
     'jerome': 'jerome.jpg', 'trismegistus': 'trismegistus.png',
 }
 

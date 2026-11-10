@@ -1,53 +1,39 @@
-/* the scholar.
-   Caravaggio's Saint Jerome writing. As his sentences are typed into the fog, the picture gathers with them:
-   each letter brings more of him out of the stipple, and when a line is erased he thins again. After the third line
-   he stays whole for a moment and the chamber returns to the threshold. A click, a tap, Enter or Space moves the writing on. */
+/* 3 · the scholar.
+   Caravaggio's Saint Jerome writing, first barely there, a dim shape in the dark. The motion: press and hold,
+   anywhere, with the mouse or a finger, or hold Enter or Space: light gathers on him. Let go and it slowly
+   ebbs. About four seconds of holding reveals him whole; he stays a breath, and the chamber ends.
+   At rest the light flickers faintly, as a candle would: the only hint. */
 
 import { MAPS } from '../assets.js';
-import { image, layer, simulacrum, follower } from '../stage.js';
-import { inscribe } from '../inscribe.js';
+import { image, picture, hold, presses } from '../stage.js';
+import { REDUCED } from '../motion.js';
 
-const LINES = [
-  { text: 'facito aliquid operis, ut te semper diabolus inveniat occupatum', en: 'always be doing some work, so that the devil may find you busy', src: 'Jerome, letter 125' },
-  { text: 'ama scientiam scripturarum, et carnis vitia non amabis', en: 'love the knowledge of the scriptures, and you will not love the vices of the flesh', src: 'Jerome, letter 125' },
-  { text: 'facile contemnit omnia, qui se semper cogitat moriturum', en: 'he easily scorns all things who always remembers that he will die', src: 'Jerome, letter 53' },
-];
+const A = window.Aphesis;
 
 export const scholar = {
   id: 'scholar',
   caption: 'saint jerome writing · Caravaggio, 1605–06',
-  label: 'an old man writes by a skull; he grows clearer as his words are typed.',
+  label: 'an old man writes by a skull, almost lost in the dark.',
   async create(ctx) {
     const img = await image(MAPS.jerome);
     const portrait = innerHeight > innerWidth * 1.1;
-    const l = layer(ctx.root);
-    const sim = simulacrum(l, { margin: portrait ? -0.45 : 0.06, gain: 0.42, accent: 0.02 });
-    let ended = false;
-    const text = inscribe(ctx.root, { cls: 'scholar-text', lang: 'la', lines: LINES, hold: 4200, once: true,
-      onDone: () => { ended = true; floor = 1; sim.o.accent = 0.04; setTimeout(() => ctx.exit(), 2600); } });
-    const onDown = (e) => { if (started && !e.target.closest('a, button')) text.advance(); };
-    addEventListener('pointerdown', onDown);
-    const gain = follower(0.42, 2.2);
-    let floor = 0.42, started = false;
-
+    const sim = picture(ctx.root, { margin: portrait ? -0.45 : 0.06, gain: 0.45, erosion: 0.7, scatter: 0.75 });
+    let playing = false, whole = false, end = null;
+    const press = presses(() => playing);
+    const h = hold(4, 10);
     return {
-      layers: [l],
-      texts: [text.el],
-      enter(done) {
-        l.classList.add('on');
-        sim.show(img, done);
-        setTimeout(() => { text.start(); started = true; }, 900);
+      pictures: [[sim, img]],
+      play(done) { end = done; playing = true; },
+      loop(dt, now) {
+        const p = whole ? 1 : h.step(dt, press.held);
+        ctx.root.dataset.progress = p.toFixed(3);
+        if (p >= 1 && !whole) { whole = true; setTimeout(() => end && end(), REDUCED ? 2500 : 3200); }
+        const e = A.MJ(p), flicker = REDUCED || whole ? 0 : 0.035 * Math.sin(now / 700) * Math.sin(now / 1900);
+        sim.o.gain = 0.45 + (1.05 - 0.45) * e + flicker;
+        sim.o.erosion = 0.7 - 0.5 * e;
+        sim.o.scatter = 0.75 - 0.35 * e;
       },
-      leave(done) { text.stop(); sim.hide(done); },
-      key(e) { if (e.key === 'Enter' || e.key === ' ') { text.advance(); return true; } return false; },
-      loop(dt, now, paused) {
-        if (paused || !started) return;
-        const k = ended ? 1 : text.progress();
-        if (k > 0.98) floor = 0.55;   /* once he has been written whole, he never quite leaves */
-        sim.o.gain = gain.step(floor + (1.02 - floor) * k, dt);
-        sim.o.scatter = 0.5 + 0.25 * (1 - k);
-      },
-      destroy() { removeEventListener('pointerdown', onDown); text.destroy(); sim.stop(); },
+      destroy() { press.off(); },
     };
   },
 };

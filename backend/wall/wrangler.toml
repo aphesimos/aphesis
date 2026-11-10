@@ -1,0 +1,28 @@
+# wall · paries: the Rust Worker and its Durable Object. See ../README.md.
+# Secrets are never kept here: TURNSTILE_SECRET, HASH_SALT, ADMIN_TOKEN (the deploy workflow pushes them).
+name = "aphesis-wall"
+main = "build/index.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[build]
+# worker-build is installed once, pinned: cargo install worker-build@0.8.7 --locked
+command = "worker-build --release"
+
+[vars]
+ALLOWED_ORIGINS = "https://aphes.ist,https://www.aphes.ist,https://aphesist.pages.dev"
+TTL_DAYS = "30"
+BLOCKLIST = ""
+# ALLOW_NO_TURNSTILE = "1"   # local development only, never in production
+# TTL_SECONDS = "3"          # tests only: overrides TTL_DAYS
+
+[[durable_objects.bindings]]
+name = "WALL"
+class_name = "Wall"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Wall"]
+
+# The custom domain is added by the deploy workflow when BACKEND_CUSTOM_DOMAINS = 1:
+# routes = [{ pattern = "wall-api.aphes.ist", custom_domain = true }]

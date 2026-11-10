@@ -1,0 +1,14 @@
+[package]
+name = "aphesis-common"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+description = "What the aphes.ist Workers share: CORS, JSON errors, hashing, constant-time compare, Turnstile, rate limits."
+
+[dependencies]
+worker.workspace = true
+wasm-bindgen.workspace = true
+js-sys.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true

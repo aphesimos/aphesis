@@ -1,0 +1,17 @@
+{
+  "about": "The Workers the deploy workflow ships, one entry each. secrets maps each Worker secret to the GitHub repository secret that holds it; r2 lists buckets created when missing; domain is the custom domain used when the repository variable BACKEND_CUSTOM_DOMAINS is 1.",
+  "services": [
+    {
+      "name": "wall",
+      "domain": "wall-api.aphes.ist",
+      "r2": [],
+      "secrets": { "TURNSTILE_SECRET": "TURNSTILE_SECRET", "HASH_SALT": "WALL_HASH_SALT", "ADMIN_TOKEN": "WALL_ADMIN_TOKEN" }
+    },
+    {
+      "name": "forum",
+      "domain": "forum-api.aphes.ist",
+      "r2": ["aphesis-forum-images"],
+      "secrets": { "TURNSTILE_SECRET": "TURNSTILE_SECRET", "IP_SALT": "FORUM_IP_SALT", "POSTER_SALT": "FORUM_POSTER_SALT", "ADMIN_SECRET": "FORUM_ADMIN_SECRET" }
+    }
+  ]
+}

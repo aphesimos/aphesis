@@ -1,0 +1,40 @@
+# forum · ἀγορά: the Rust Worker behind the board. See ../README.md.
+# Secrets are never kept here: TURNSTILE_SECRET, IP_SALT, POSTER_SALT, ADMIN_SECRET (the deploy workflow pushes them).
+name = "aphesis-forum"
+main = "build/index.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[build]
+# worker-build is installed once, pinned: cargo install worker-build@0.8.7 --locked
+command = "worker-build --release"
+
+[vars]
+# the site's origins, comma-separated; CORS answers only these, and a POST from any other origin is refused
+ALLOWED_ORIGINS = "https://aphes.ist,https://www.aphes.ist,https://aphesist.pages.dev"
+# requests per window for each IP hash
+RATE_POSTS = "4"
+RATE_THREADS = "1"
+RATE_WINDOW_SECONDS = "120"
+# threads kept on the board; older ones fall off and are deleted with their pictures
+BOARD_LIMIT = "120"
+# ALLOW_NO_TURNSTILE = "1"   # local development only, never in production
+
+[[durable_objects.bindings]]
+name = "THREADS"
+class_name = "Thread"
+
+[[durable_objects.bindings]]
+name = "BOARD"
+class_name = "Board"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Thread", "Board"]
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "aphesis-forum-images"
+
+# The custom domain is added by the deploy workflow when BACKEND_CUSTOM_DOMAINS = 1:
+# routes = [{ pattern = "forum-api.aphes.ist", custom_domain = true }]

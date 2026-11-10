@@ -1,0 +1,29 @@
+# The Rust Workers behind aphes.ist: the wall, the forum, and the code they share.
+[workspace]
+resolver = "2"
+members = ["common", "wall", "forum"]
+
+[workspace.package]
+edition = "2021"
+publish = false
+license = "UNLICENSED"
+
+# Exact versions, so a build next year compiles the same code as today.
+[workspace.dependencies]
+worker = "=0.8.7"
+wasm-bindgen = "=0.2.129"
+js-sys = "=0.3.106"
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = { version = "=1.0.151", features = ["preserve_order"] }
+sha2 = "=0.10.9"
+regex-lite = "=0.1.9"
+unicode-normalization = "=0.1.25"
+aphesis-common = { path = "common" }
+
+[profile.release]
+# small Wasm: the free plan takes Workers up to 3 MB compressed
+opt-level = "s"
+lto = true
+codegen-units = 1
+# no `strip = true`: it drops the target_features section wasm-bindgen reads to find reference types
+strip = "debuginfo"

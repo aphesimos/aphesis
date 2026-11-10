@@ -1,0 +1,17 @@
+[package]
+name = "aphesis-forum"
+version = "0.1.0"
+description = "forum · ἀγορά: the Worker, a Durable Object per thread, one for the board, and R2 for pictures."
+edition.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+aphesis-common.workspace = true
+worker.workspace = true
+wasm-bindgen.workspace = true
+js-sys.workspace = true
+serde.workspace = true
+serde_json.workspace = true

@@ -1,0 +1,1077 @@
+{
+ "about": "Shared vectors for the wall filter. The page runs filter.js (section/wall: wall/worker/src/filter.js); the Rust Worker runs backend/wall/src/filter.rs. Both must give exactly these results: tests/filter_vectors.rs checks Rust with cargo test, tests/filter-parity.mjs checks the JavaScript with node. \"from\" names the JavaScript test a case was taken from, or \"added\" for cases that probe the edges of the port.",
+ "check": [
+  {
+   "from": "filter.test.js: keeps quiet lines",
+   "text": "festina lente",
+   "expect": {
+    "ok": true,
+    "text": "festina lente"
+   }
+  },
+  {
+   "from": "filter.test.js: keeps quiet lines",
+   "text": "i left a door open in a dream and the fog came in",
+   "expect": {
+    "ok": true,
+    "text": "i left a door open in a dream and the fog came in"
+   }
+  },
+  {
+   "from": "filter.test.js: keeps quiet lines",
+   "text": "the class met in scunthorpe",
+   "expect": {
+    "ok": true,
+    "text": "the class met in scunthorpe"
+   }
+  },
+  {
+   "from": "filter.test.js: keeps quiet lines",
+   "text": "a cocktail, a dickens novel, a pass",
+   "expect": {
+    "ok": true,
+    "text": "a cocktail, a dickens novel, a pass"
+   }
+  },
+  {
+   "from": "filter.test.js: keeps quiet lines",
+   "text": "shiitake soup, a cockatoo",
+   "expect": {
+    "ok": true,
+    "text": "shiitake soup, a cockatoo"
+   }
+  },
+  {
+   "from": "filter.test.js: keeps quiet lines",
+   "text": "Ἄφεσις · 色即是空",
+   "expect": {
+    "ok": true,
+    "text": "Ἄφεσις · 色即是空"
+   }
+  },
+  {
+   "from": "filter.test.js: cleans to one line",
+   "text": "a\nb",
+   "expect": {
+    "ok": true,
+    "text": "a b"
+   }
+  },
+  {
+   "from": "filter.test.js: refuses empty and long lines",
+   "text": "   ",
+   "expect": {
+    "ok": false,
+    "reason": "empty"
+   }
+  },
+  {
+   "from": "filter.test.js: refuses empty and long lines",
+   "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "expect": {
+    "ok": true,
+    "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   }
+  },
+  {
+   "from": "filter.test.js: refuses empty and long lines",
+   "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "expect": {
+    "ok": false,
+    "reason": "long"
+   }
+  },
+  {
+   "from": "filter.test.js: refuses empty and long lines",
+   "text": "色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色",
+   "expect": {
+    "ok": true,
+    "text": "色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色色"
+   }
+  },
+  {
+   "from": "filter.test.js: refuses words, in disguise too",
+   "text": "shit",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "filter.test.js: refuses words, in disguise too",
+   "text": "what the FUCK",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "filter.test.js: refuses words, in disguise too",
+   "text": "sh1t happens",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "filter.test.js: refuses words, in disguise too",
+   "text": "s.h.i.t",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "filter.test.js: refuses words, in disguise too",
+   "text": "f u c k this",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "filter.test.js: refuses words, in disguise too",
+   "text": "fuuuuck",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "filter.test.js: refuses words, in disguise too",
+   "text": "shit",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "filter.test.js: refuses words, in disguise too",
+   "text": "you b!tch",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "filter.test.js: refuses words, in disguise too",
+   "text": "a big d1ck",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "filter.test.js: refuses words, in disguise too",
+   "text": "kys",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "filter.test.js: refuses words, in disguise too",
+   "text": "kill yourself",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "filter.test.js: refuses words, in disguise too",
+   "text": "shït",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "filter.test.js: refuses links and handles",
+   "text": "see https://x.example",
+   "expect": {
+    "ok": false,
+    "reason": "link"
+   }
+  },
+  {
+   "from": "filter.test.js: refuses links and handles",
+   "text": "www.spam",
+   "expect": {
+    "ok": false,
+    "reason": "link"
+   }
+  },
+  {
+   "from": "filter.test.js: refuses links and handles",
+   "text": "buy at cheap-pills.com",
+   "expect": {
+    "ok": false,
+    "reason": "link"
+   }
+  },
+  {
+   "from": "filter.test.js: refuses links and handles",
+   "text": "follow @someone_here",
+   "expect": {
+    "ok": false,
+    "reason": "link"
+   }
+  },
+  {
+   "from": "filter.test.js: refuses links and handles",
+   "text": "join discord.gg/abc",
+   "expect": {
+    "ok": false,
+    "reason": "link"
+   }
+  },
+  {
+   "from": "filter.test.js: takes extra words",
+   "text": "the word is marmalade",
+   "expect": {
+    "ok": true,
+    "text": "the word is marmalade"
+   }
+  },
+  {
+   "from": "filter.test.js: takes extra words",
+   "text": "the word is marmalade",
+   "extra": [
+    "marmalade"
+   ],
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: unicode folding",
+   "text": "ﬁsh and chips",
+   "expect": {
+    "ok": true,
+    "text": "ﬁsh and chips"
+   }
+  },
+  {
+   "from": "added: unicode folding",
+   "text": "ＦＵＣＫ",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: unicode folding",
+   "text": "ΣΊΣΥΦΟΣ rolls",
+   "expect": {
+    "ok": true,
+    "text": "ΣΊΣΥΦΟΣ rolls"
+   }
+  },
+  {
+   "from": "added: unicode folding",
+   "text": "İstanbul at dawn",
+   "expect": {
+    "ok": true,
+    "text": "İstanbul at dawn"
+   }
+  },
+  {
+   "from": "added: unicode folding",
+   "text": "ⓕⓤⓒⓚ",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: unicode folding",
+   "text": "ſhit",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: unicode folding",
+   "text": "Straße",
+   "expect": {
+    "ok": true,
+    "text": "Straße"
+   }
+  },
+  {
+   "from": "added: unicode folding",
+   "text": "ǅungla",
+   "expect": {
+    "ok": true,
+    "text": "ǅungla"
+   }
+  },
+  {
+   "from": "added: unicode folding",
+   "text": "١٢٣",
+   "expect": {
+    "ok": true,
+    "text": "١٢٣"
+   }
+  },
+  {
+   "from": "added: unicode folding",
+   "text": "cafe\u0301 noir",
+   "expect": {
+    "ok": true,
+    "text": "café noir"
+   }
+  },
+  {
+   "from": "added: unicode folding",
+   "text": "🌫 fog over the lake",
+   "expect": {
+    "ok": true,
+    "text": "🌫 fog over the lake"
+   }
+  },
+  {
+   "from": "added: whole tokens and allowed words",
+   "text": "dick",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: whole tokens and allowed words",
+   "text": "dickens",
+   "expect": {
+    "ok": true,
+    "text": "dickens"
+   }
+  },
+  {
+   "from": "added: whole tokens and allowed words",
+   "text": "cock",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: whole tokens and allowed words",
+   "text": "cocks",
+   "expect": {
+    "ok": true,
+    "text": "cocks"
+   }
+  },
+  {
+   "from": "added: whole tokens and allowed words",
+   "text": "cockpit",
+   "expect": {
+    "ok": true,
+    "text": "cockpit"
+   }
+  },
+  {
+   "from": "added: whole tokens and allowed words",
+   "text": "paki",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: whole tokens and allowed words",
+   "text": "pakistan",
+   "expect": {
+    "ok": true,
+    "text": "pakistan"
+   }
+  },
+  {
+   "from": "added: whole tokens and allowed words",
+   "text": "rapeseed oil",
+   "expect": {
+    "ok": true,
+    "text": "rapeseed oil"
+   }
+  },
+  {
+   "from": "added: whole tokens and allowed words",
+   "text": "rape",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: whole tokens and allowed words",
+   "text": "spice",
+   "expect": {
+    "ok": true,
+    "text": "spice"
+   }
+  },
+  {
+   "from": "added: whole tokens and allowed words",
+   "text": "spic",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: whole tokens and allowed words",
+   "text": "nazis",
+   "expect": {
+    "ok": true,
+    "text": "nazis"
+   }
+  },
+  {
+   "from": "added: whole tokens and allowed words",
+   "text": "nazi",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: whole tokens and allowed words",
+   "text": "porn",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: whole tokens and allowed words",
+   "text": "pornography",
+   "expect": {
+    "ok": true,
+    "text": "pornography"
+   }
+  },
+  {
+   "from": "added: whole tokens and allowed words",
+   "text": "twat",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: whole tokens and allowed words",
+   "text": "twats",
+   "expect": {
+    "ok": true,
+    "text": "twats"
+   }
+  },
+  {
+   "from": "added: whole tokens and allowed words",
+   "text": "fag",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: whole tokens and allowed words",
+   "text": "faggot",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: whole tokens and allowed words",
+   "text": "retardant",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: whole tokens and allowed words",
+   "text": "scrapes",
+   "expect": {
+    "ok": true,
+    "text": "scrapes"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "f.u.c.k",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "f-u-c-k",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "f_u_c_k",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "f*u*c*k",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "f'u'c'k",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "f/u/c/k",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "k.y.s",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "a b c",
+   "expect": {
+    "ok": true,
+    "text": "a b c"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "a b",
+   "expect": {
+    "ok": true,
+    "text": "a b"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "n1gg3r",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "sh!t",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "b1tch3s",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "$h1t",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "p0rn",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "w4nk3r",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "sh||t",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "5hit",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "b8stard",
+   "expect": {
+    "ok": true,
+    "text": "b8stard"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "kill your self",
+   "expect": {
+    "ok": true,
+    "text": "kill your self"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "killyourself",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "s\u200bhit",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "s h i t t y",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "ffuucckk",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: spelled apart and look-alikes",
+   "text": "f u u c k",
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "HTTP://X",
+   "expect": {
+    "ok": false,
+    "reason": "link"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "example.COM",
+   "expect": {
+    "ok": false,
+    "reason": "link"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "node.js is fine",
+   "expect": {
+    "ok": true,
+    "text": "node.js is fine"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "t.me/x",
+   "expect": {
+    "ok": false,
+    "reason": "link"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "at.me",
+   "expect": {
+    "ok": false,
+    "reason": "link"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "@ab",
+   "expect": {
+    "ok": true,
+    "text": "@ab"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "@abc",
+   "expect": {
+    "ok": false,
+    "reason": "link"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "a@bcd",
+   "expect": {
+    "ok": false,
+    "reason": "link"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "mail@example",
+   "expect": {
+    "ok": false,
+    "reason": "link"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "x.co",
+   "expect": {
+    "ok": true,
+    "text": "x.co"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "a.co",
+   "expect": {
+    "ok": true,
+    "text": "a.co"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "-a.com",
+   "expect": {
+    "ok": true,
+    "text": "-a.com"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "go to my.site.io now",
+   "expect": {
+    "ok": false,
+    "reason": "link"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "www",
+   "expect": {
+    "ok": true,
+    "text": "www"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "wwwx",
+   "expect": {
+    "ok": true,
+    "text": "wwwx"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "discord.gg",
+   "expect": {
+    "ok": false,
+    "reason": "link"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "see.mexico",
+   "expect": {
+    "ok": true,
+    "text": "see.mexico"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "a_b.com",
+   "expect": {
+    "ok": true,
+    "text": "a_b.com"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "é.com",
+   "expect": {
+    "ok": true,
+    "text": "é.com"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "ab.comx",
+   "expect": {
+    "ok": true,
+    "text": "ab.comx"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "ab.com.",
+   "expect": {
+    "ok": false,
+    "reason": "link"
+   }
+  },
+  {
+   "from": "added: links",
+   "text": "Discord.GG/x",
+   "expect": {
+    "ok": false,
+    "reason": "link"
+   }
+  },
+  {
+   "from": "added: shape",
+   "text": "  lead and trail  ",
+   "expect": {
+    "ok": true,
+    "text": "lead and trail"
+   }
+  },
+  {
+   "from": "added: shape",
+   "text": "a\u0007b",
+   "expect": {
+    "ok": true,
+    "text": "a b"
+   }
+  },
+  {
+   "from": "added: shape",
+   "text": "a\u00a0\u00a0b",
+   "expect": {
+    "ok": true,
+    "text": "a b"
+   }
+  },
+  {
+   "from": "added: shape",
+   "text": "a\u0085b",
+   "expect": {
+    "ok": true,
+    "text": "a b"
+   }
+  },
+  {
+   "from": "added: shape",
+   "text": "tab\there",
+   "expect": {
+    "ok": true,
+    "text": "tab here"
+   }
+  },
+  {
+   "from": "added: shape",
+   "text": "x\u2028y",
+   "expect": {
+    "ok": true,
+    "text": "x y"
+   }
+  },
+  {
+   "from": "added: shape",
+   "text": "\ufeffbom",
+   "expect": {
+    "ok": true,
+    "text": "bom"
+   }
+  },
+  {
+   "from": "added: shape",
+   "text": "a\u202eb",
+   "expect": {
+    "ok": true,
+    "text": "a b"
+   }
+  },
+  {
+   "from": "added: shape",
+   "text": "🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫",
+   "expect": {
+    "ok": true,
+    "text": "🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫"
+   }
+  },
+  {
+   "from": "added: shape",
+   "text": "🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫🌫",
+   "expect": {
+    "ok": false,
+    "reason": "long"
+   }
+  },
+  {
+   "from": "added: shape",
+   "text": "e\u0301\u0301\u0301",
+   "expect": {
+    "ok": true,
+    "text": "é\u0301\u0301"
+   }
+  },
+  {
+   "from": "added: shape",
+   "text": " ",
+   "expect": {
+    "ok": false,
+    "reason": "empty"
+   }
+  },
+  {
+   "from": "added: shape",
+   "text": "\u200b",
+   "expect": {
+    "ok": false,
+    "reason": "empty"
+   }
+  },
+  {
+   "from": "added: shape",
+   "text": "\r\n\r\n",
+   "expect": {
+    "ok": false,
+    "reason": "empty"
+   }
+  },
+  {
+   "from": "added: shape",
+   "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx   ",
+   "expect": {
+    "ok": true,
+    "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   }
+  },
+  {
+   "from": "added: extra words",
+   "text": "marmalade sandwiches",
+   "extra": [
+    "Marmalade!"
+   ],
+   "expect": {
+    "ok": true,
+    "text": "marmalade sandwiches"
+   }
+  },
+  {
+   "from": "added: extra words",
+   "text": "a word",
+   "extra": [
+    "a",
+    "",
+    " "
+   ],
+   "expect": {
+    "ok": true,
+    "text": "a word"
+   }
+  },
+  {
+   "from": "added: extra words",
+   "text": "creme brulee",
+   "extra": [
+    "Crème"
+   ],
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: extra words",
+   "text": "xii",
+   "extra": [
+    " x1 "
+   ],
+   "expect": {
+    "ok": false,
+    "reason": "word"
+   }
+  },
+  {
+   "from": "added: extra words",
+   "text": "nothing to see",
+   "extra": [
+    "zz",
+    "qq"
+   ],
+   "expect": {
+    "ok": true,
+    "text": "nothing to see"
+   }
+  }
+ ],
+ "clean": [
+  {
+   "from": "filter.test.js: cleans to one line",
+   "text": "  two\n lines\t here \u200b ",
+   "expect": "two lines here"
+  },
+  {
+   "from": "added",
+   "text": "\u00a0a\u3000b\u1680",
+   "expect": "a b"
+  },
+  {
+   "from": "added",
+   "text": "e\u0301",
+   "expect": "é"
+  },
+  {
+   "from": "added",
+   "text": "\u0000nul\u009f",
+   "expect": "nul"
+  },
+  {
+   "from": "added",
+   "text": "",
+   "expect": ""
+  }
+ ]
+}

@@ -8,4 +8,5 @@ The eye's change of theme: the ground changes cell by cell, as a wave from the e
   4. When the wave has covered the screen the blend is lifted; nothing visibly changes. Colour transitions are held off for the two frames around each switch (`.aph-still`).
 - **Mark** with `.aph-ink` the containers of black-and-white text only: never one that holds the seal, the door or other red accents, or an element with its own ground.
 - **Use** for the eye only, everywhere on the site. A change of the system setting is not a shift: there the stipple's colours dissolve in soft patches over `duration-theme`.
+- **The browser's bars** (`<meta name="theme-color">`) follow the ground on their own (`Aphesis.themeColor`): at load, on every theme change, and, during a shift, only when the wave has finished.
 - It always animates (the site does not follow reduce-motion).

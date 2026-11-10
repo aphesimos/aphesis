@@ -59,6 +59,8 @@ interface Aphesis {
   MJ(t: number): number;
   cellPx(cell?: number): number;
   themeShift(apply: () => void, opts?: { origin?: [number, number]; duration?: number; done?: () => void }): boolean;
+  /** sets <meta name="theme-color"> to the current theme's bg; runs by itself at load, on every theme change and when a themeShift wave ends */
+  themeColor(): void;
   reducedMotion: boolean;
   Sound: Sound;
 }

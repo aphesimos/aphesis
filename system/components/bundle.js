@@ -498,10 +498,24 @@
       if (last !== null) t += Math.min(100, Math.max(0, now - last)); last = now;
       var k = clamp(t / dur); SHIFT.p = MJ(k);
       if (k < 1) { requestAnimationFrame(tick); return; }
-      still(); root.classList.remove('aph-shifting'); SHIFT = null; if (o.done) o.done();
+      still(); root.classList.remove('aph-shifting'); SHIFT = null; themeColor(); if (o.done) o.done();
     }
     requestAnimationFrame(tick);
     return true;
+  }
+  /* <meta name="theme-color"> follows the current theme's ground, so the browser's own bars (Safari's, Android's
+     address bar) are the colour of the page: at load and on every theme change. During the eye's wave it waits for
+     the wave to finish, and changes when the ground under the bars has. Creates the meta when the page has none. */
+  function themeColor() {
+    if (SHIFT || typeof document === 'undefined' || !document.head) return;
+    var c = cssColor('--bg'), hex = '#' + c.map(function (v) { return ('0' + Math.round(v * 255).toString(16)).slice(-2); }).join('');
+    var ms = document.querySelectorAll('meta[name="theme-color"]');
+    if (!ms.length) { var m = document.createElement('meta'); m.name = 'theme-color'; document.head.appendChild(m); ms = [m]; }
+    Array.prototype.forEach.call(ms, function (m) { if (m.getAttribute('content') !== hex) m.setAttribute('content', hex); });
+  }
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', themeColor); else themeColor();
+    onTheme(themeColor);
   }
   function cssMs(name, d) { var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim(), n = parseFloat(v); return isNaN(n) ? d : (/ms$/.test(v) ? n : n * 1000); }
 
@@ -958,6 +972,6 @@
     reducedMotion: REDUCED, MJ: MJ, cellPx: cellPx, lerp: lerp, clamp: clamp, tween: tween, rng: rng, cssColor: cssColor,
     brush: brush, arc: arc, line: line, stipple: stipple, inC: inC,
     icon: icon, ICONS: ICONS, PHI: PHI, seal: seal,
-    Fog: Fog, Simulacrum: Simulacrum, Typist: Typist, tooltip: tooltip, cursor: cursor, letters: letters, themeShift: themeShift, Sound: Sound
+    Fog: Fog, Simulacrum: Simulacrum, Typist: Typist, tooltip: tooltip, cursor: cursor, letters: letters, themeShift: themeShift, themeColor: themeColor, Sound: Sound
   };
 })();

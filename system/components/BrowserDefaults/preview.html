@@ -1,0 +1,65 @@
+<!-- @dsCard group="Voice" height=640 subtitle="what the browser would draw in its own colours: selection, scrollbars, fields, autofill, a range, a file, a checkbox, details. click the eye for the other theme" -->
+<div class="bd">
+  <section class="col aph-ink">
+    <p class="aph-gloss">electio</p>
+    <p class="txt" id="sel">select this line: the ink turns <span class="red">red</span> on a faint veil of red, never the system blue. what is loosed below is loosed above.</p>
+    <p class="aph-meta">scroll the list: its thumb is stipple, denser under the pointer</p>
+    <ol class="list" id="list" tabindex="0" aria-label="a scrolling list"></ol>
+    <details>
+      <summary class="aph-label">details</summary>
+      <p class="aph-meta">a native marker in soft ink; the text inside is ordinary text.</p>
+    </details>
+  </section>
+  <section class="col aph-ink">
+    <label class="f"><span class="aph-meta">name</span><input id="nm" name="name" autocomplete="name" placeholder="your name"><svg class="base" aria-hidden="true"></svg></label>
+    <label class="f"><span class="aph-meta">email, autofilled</span><input id="em" name="email" type="email" autocomplete="email" value="hermes@example.com"><svg class="base" aria-hidden="true"></svg></label>
+    <label class="f"><span class="aph-meta">search</span><input type="search" value="solve et coagula" placeholder="search"><svg class="base" aria-hidden="true"></svg></label>
+    <label class="f"><span class="aph-meta">density</span><input type="range" min="0" max="1" step=".01" value=".62"></label>
+    <label class="f"><span class="aph-meta">a picture</span><input type="file" accept="image/*"></label>
+    <div class="row">
+      <label class="aph-label"><input type="checkbox" checked> keep</label>
+      <label class="aph-label"><input type="radio" name="r" checked> sol</label>
+      <label class="aph-label"><input type="radio" name="r"> luna</label>
+      <progress value=".38" aria-label="progress"></progress>
+    </div>
+  </section>
+  <button id="eye" type="button" class="aph-mark" aria-label="switch between light and dark" data-tip="open · close the eye" data-cursor=".55"></button>
+</div>
+<style>
+.bd{position:relative;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:var(--space-5);padding:var(--space-5) var(--space-5) var(--space-7)}
+.col p{margin:0 0 var(--space-3)}
+.txt{font-size:16px;line-height:1.75;max-width:34em}
+.red{color:var(--accent-text)}
+.list{height:132px;overflow-y:auto;margin:0 0 var(--space-4);padding:0 var(--space-3) 0 var(--space-5);font-size:13px;line-height:1.9;letter-spacing:.06em;color:var(--ink)}
+.list li::marker{font-size:11px}
+details p{margin-top:var(--space-2)}
+.f{display:block;margin:0 0 var(--space-4)}
+.f .aph-meta{display:block}
+.f input:not([type=range]):not([type=file]){display:block;width:100%;margin:0;padding:var(--space-1) 0;background:transparent;border:0;border-radius:var(--radius-none);color:var(--ink);font:400 16px/1.6 var(--font-text);outline:none}
+.f input[type=range]{display:block;width:100%}
+.f:focus-within{outline:1px solid var(--accent);outline-offset:4px}
+.base{display:block;width:100%;height:6px;color:var(--ink-soft);overflow:visible}
+.f:focus-within .base{color:var(--accent)}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3) var(--space-4)}
+.row label{display:inline-flex;align-items:center;gap:var(--space-2)}
+progress{width:120px}
+#eye{position:absolute;left:var(--space-3);bottom:var(--space-3);background:none;border:0;padding:var(--space-1);color:var(--accent);cursor:pointer;width:44px;height:44px}
+#eye svg{width:100%;height:100%}
+</style>
+<script>
+(function(){
+var A=Aphesis,r=document.documentElement,e=document.getElementById('eye');
+var words=['solve','coagula','nigredo','albedo','citrinitas','rubedo','mercurius','sulphur','sal','azoth','ouroboros','tabula','smaragdina','hermes','trismegistus','φ','lapis','opus','magnum','athanor'];
+document.getElementById('list').innerHTML=words.map(function(w){return '<li>'+w+'</li>';}).join('');
+/* brushed baselines under the fields, drawn when the field has a width */
+var seed=31;
+Array.prototype.forEach.call(document.querySelectorAll('.base'),function(s){
+  var w=Math.max(40,s.getBoundingClientRect().width||240);s.setAttribute('viewBox','0 0 '+w+' 6');
+  s.innerHTML='<path fill="currentColor" d="'+A.brush(A.line(1,3,w-1,3,48),1.6,seed++)+'"/>';
+});
+function dark(){return r.getAttribute('data-theme')?r.getAttribute('data-theme')==='dark':matchMedia('(prefers-color-scheme: dark)').matches;}
+function icon(){e.innerHTML=A.icon('eye',dark()?1:0);}
+icon();
+e.onclick=function(){var b=e.getBoundingClientRect();A.themeShift(function(){r.setAttribute('data-theme',dark()?'light':'dark');icon();},{origin:[b.left+b.width/2,b.top+b.height/2]});};
+})();
+</script>

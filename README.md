@@ -9,7 +9,7 @@
 
 # aphesis
 
-**aphes.is** is an experimental, hermetic personal site. *Aphesis* is the Greek ἄφεσις, a letting go: release,
+**aphes.ist** is an experimental, hermetic personal site. *Aphesis* is the Greek ἄφεσις, a letting go: release,
 remission, the loosing of what was bound. The site is one document that never reloads: a stippled fog, a φ drawn by
 hand that travels between the center and the corner, typewriter text, and a brush script for names.
 

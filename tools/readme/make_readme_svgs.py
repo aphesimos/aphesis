@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Animated SVGs for the aphes.is READMEs, in both themes (assets/readme/<name>-{light,dark}.svg).
+Animated SVGs for the aphes.ist READMEs, in both themes (assets/readme/<name>-{light,dark}.svg).
 
 Everything follows the design system: the stippled fog, the φ drawn by hand, the brush icons, Aphesis Script for the
 wordmark, titles and glosses (slant -12), Special Elite for text, rubedo red only for the seal and moments of impact.
@@ -257,7 +257,7 @@ def hero():
                 '<text x="566" y="318" class="elite halo" font-size="19" letter-spacing="1.5" fill="%s">%s</text>' % (T['ink-soft'], tag.replace('φ', '<tspan class="aphu">φ</tspan>')) +
                 typed('>> ' + passage, 1176, 476, 13, T['accent-text'], 14, 3.2, 5.5, anchor='end', spacing=1.6) +
                 icon('eye0' if tid == 'light' else 'eye1', 22, 452, 28, T['accent']))
-    svg('hero', W, H, body, 'aφesis', tag + '>> ' + passage, 'aphes.is')
+    svg('hero', W, H, body, 'aφesis', tag + '>> ' + passage, 'aphes.ist')
 
 # ------------------------------------------------------------------ 2. branches (main): the inscription around the seal, one name per branch
 BRANCHES = [('main', 'atrium'), ('design-system', 'canon'), ('font', 'littera'), ('mark', 'sigillum'), ('site', 'domus'), ('section/*', 'cellae')]
@@ -395,7 +395,7 @@ def site():
         out.append(typed('>> ' + passage, 1176, 582, 12, T['accent-text'], 18, 1.5, 7, anchor='end', spacing=1.5))
         out.append(icon('eye0' if tid == 'light' else 'eye1', 22, 556, 26, T['accent']))
         return ''.join(out)
-    svg('site', W, H, body, ''.join(g for _, g in SECTIONS if g not in missing), ''.join(n for n, _ in SECTIONS) + '>> ' + passage, 'the aphes.is home')
+    svg('site', W, H, body, ''.join(g for _, g in SECTIONS if g not in missing), ''.join(n for n, _ in SECTIONS) + '>> ' + passage, 'the aphes.ist home')
 
 if __name__ == '__main__':
     hero(); branches(); palette(); typefaces(); icons(); simulacrum(); specimen(); mark(); site()

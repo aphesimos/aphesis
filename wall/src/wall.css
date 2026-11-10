@@ -82,7 +82,6 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   text-transform: lowercase; outline: none;
 }
 #line::placeholder { color: var(--ink-soft); opacity: 1; }
-#line::selection { background: var(--accent); color: var(--bg); }
 .mirror {
   position: absolute; left: 0; top: 0; visibility: hidden; white-space: pre; pointer-events: none;
   font: 400 var(--type-lede-size)/1.4 var(--font-text); letter-spacing: .02em; text-transform: lowercase;
@@ -135,6 +134,11 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .is-dark #bTheme .eye.open { opacity: 0; transform: scaleY(.08); }
 .is-dark #bTheme .eye.closed { opacity: 1; transform: none; }
 
+/* a short landscape screen (a phone on its side): the title's ascenders reach up into the gloss, so the gloss stands
+   a step higher */
+@media (min-aspect-ratio: 1/1) and (max-height: 520px) {
+  .gloss-title { margin-bottom: var(--space-3); }
+}
 @media (max-width: 560px) {
   #line, .mirror, .caret, .ghost { font-size: 17px; }
   #composer { bottom: calc(var(--space-7) + env(safe-area-inset-bottom, 0px)); }

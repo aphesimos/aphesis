@@ -59,7 +59,7 @@ export function drawMarks(root) {
    paragraph go grey for the length of the wave, as the design system's .aph-ink rules set them. */
 const INK = [
   '.head .gloss-title', '.head .title', '.head .lede', '.stages .aph-gloss',
-  '.entry-name', '.entry-summary', '.entry-meta .aph-meta', '.foot .aph-meta',
+  '.entry-name', '.entry-summary', '.entry-meta .aph-meta', '.blank .aph-gloss', '.blank .aph-meta', '.foot .aph-meta',
   '.back .aph-label', '.post-stage .aph-meta', '.post-title', '.post-head .lede',
   '.prose > p', '.prose > h2', '.prose > h3', '.prose > ul', '.prose > ol',
   '.prose blockquote > p', '.prose .code pre', '.sim figcaption', '.notes li',

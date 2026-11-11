@@ -101,7 +101,6 @@ def front_matter(text, name):
     if meta['stage'] not in STAGES:
         sys.exit(f'{name}: stage must be one of {", ".join(STAGES)}')
     datetime.date.fromisoformat(meta['date'])
-    meta['example'] = meta.get('example', 'false').lower() == 'true'
     return meta, text[m.end():]
 
 
@@ -236,15 +235,16 @@ def date_text(d):
     return f'{d.day} {MONTHS[d.month - 1]} {d.year}'
 
 
-def load_posts():
+def load_posts(folder=None):
     posts = []
-    for f in sorted(os.listdir(os.path.join(D, 'content'))):
+    folder = folder or os.path.join(D, 'content')
+    for f in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
         if not f.endswith('.md'):
             continue
         slug = f[:-3]
         if not SLUG.match(slug) or slug in ('archive', 'home'):
             sys.exit(f'{f}: the file name is the route; use ascii letters, digits and hyphens (not "archive" or "home")')
-        meta, body = front_matter(open(os.path.join(D, 'content', f), encoding='utf-8').read(), f)
+        meta, body = front_matter(open(os.path.join(folder, f), encoding='utf-8').read(), f)
         content, notes, maps = convert(slug, body)
         posts.append(dict(meta, slug=slug, html=content, notes=notes, maps=maps,
                           words=len(re.sub(r'<[^>]+>', ' ', content).split())))
@@ -259,8 +259,7 @@ def stage_icon(stage, cls=''):
 
 
 def meta_line(p):
-    ex = ' · example' if p['example'] else ''
-    return f'<time datetime="{p["date"]}">{date_text(p["date"])}</time>{ex}'
+    return f'<time datetime="{p["date"]}">{date_text(p["date"])}</time>'
 
 
 def list_html(posts):
@@ -277,6 +276,11 @@ def list_html(posts):
             f'</a></li>')
     legend = ''.join(
         f'<li>{stage_icon(s, "small")}<span class="aph-gloss" lang="la">{s}</span></li>' for s in STAGES)
+    # with no posts the codex is a scraped tablet: the nigredo's sediment and one gloss, no legend, no empty list
+    stages = f'<ol class="stages" aria-label="from draft to finished: nigredo, albedo, citrinitas, rubedo">{legend}</ol>' if items else ''
+    entries = (f'<ol class="entries">{"".join(items)}</ol>' if items else
+               f'<p class="blank">{stage_icon("nigredo")}<span class="aph-gloss" lang="la">tabula rasa</span>'
+               '<span class="aph-meta">the scraped tablet: nothing on it, everything possible.</span></p>')
     return (
         '<section class="view list" data-view="list" aria-labelledby="codex-title">'
         '<div class="col">'
@@ -284,9 +288,9 @@ def list_html(posts):
         '<p class="gloss-title aph-gloss" lang="la">codex</p>'
         '<h1 id="codex-title" class="title aph-display" tabindex="-1">archive</h1>'
         '<p class="lede">writing about anything, from draft to finished.</p>'
-        f'<ol class="stages" aria-label="from draft to finished: nigredo, albedo, citrinitas, rubedo">{legend}</ol>'
+        f'{stages}'
         '</header>'
-        f'<ol class="entries">{"".join(items)}</ol>'
+        f'{entries}'
         '<footer class="foot"><span class="rule" aria-hidden="true"></span>'
         '<a class="feed aph-label" href="feed.xml" type="application/atom+xml">feed</a>'
         '<span class="aph-meta">atom · every post, from nigredo to rubedo</span></footer>'
@@ -319,7 +323,8 @@ def post_html(p):
 # ---------- feed ----------
 def feed_xml(posts):
     x = lambda s: html.escape(s, quote=False)
-    updated = max(p['date'] for p in posts) + 'T00:00:00Z'
+    # an empty feed is still a feed: it says when it was written
+    updated = (max(p['date'] for p in posts) if posts else datetime.date.today().isoformat()) + 'T00:00:00Z'
     entries = []
     for p in posts:
         url = f'{SECTION_URL}#{p["slug"]}'
@@ -336,7 +341,7 @@ def feed_xml(posts):
             f'    <published>{p["date"]}T00:00:00Z</published>\n'
             f'    <updated>{p["date"]}T00:00:00Z</updated>\n'
             f'    <category term="{p["stage"]}" label="{p["stage"]}"/>\n'
-            + ('    <category term="example" label="example"/>\n' if p['example'] else '') +
+            +
             f'    <summary>{x(p["summary"])}</summary>\n'
             f'    <content type="html">{x(body)}</content>\n'
             '  </entry>')
@@ -350,7 +355,7 @@ def feed_xml(posts):
         f'  <id>{SECTION_URL}</id>\n'
         f'  <updated>{updated}</updated>\n'
         '  <author><name>aphesis</name></author>\n'
-        + '\n'.join(entries) + '\n</feed>\n')
+        + ''.join(e + '\n' for e in entries) + '</feed>\n')
 
 
 # ---------- modules ----------

@@ -3,33 +3,34 @@
 // with the notes written in the body (as content/*.md has them) and with the notes kept apart (as the content
 // service keeps them). build.py runs with its own small converter (python-markdown hidden), the one render.js ports.
 //
-//   node archive/tools/render-parity.mjs
+//   node archive/tools/render-parity.mjs          the posts in content/
+//   node archive/tools/render-parity.mjs DIR      the posts in another folder (posts kept outside the branch)
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { convert, listHtml, postHtml, sortPosts } from '../src/render.js';
 
 const D = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const C = process.argv[2] ? path.resolve(process.argv[2]) : path.join(D, 'content');
 const py = `
 import sys, json, importlib.util
 sys.modules['markdown'] = None
 spec = importlib.util.spec_from_file_location('build', ${JSON.stringify(path.join(D, 'build.py'))})
 b = importlib.util.module_from_spec(spec); spec.loader.exec_module(b)
-posts = b.load_posts()
+posts = b.load_posts(${JSON.stringify(C)})
 print(json.dumps({'list': b.list_html(posts), 'posts': {p['slug']: b.post_html(p) for p in posts}}))
 `;
 const want = JSON.parse(execFileSync('python3', ['-c', py], { encoding: 'utf8', maxBuffer: 64 << 20 }));
 
 function read(f) {
-  const text = readFileSync(path.join(D, 'content', f), 'utf8');
+  const text = readFileSync(path.join(C, f), 'utf8');
   const m = text.match(/^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/);
   const meta = {};
   m[1].split('\n').forEach((l) => { const i = l.indexOf(':'); if (i > 0) meta[l.slice(0, i).trim()] = l.slice(i + 1).trim().replace(/^["']|["']$/g, ''); });
-  return { slug: f.slice(0, -3), title: meta.title, summary: meta.summary, stage: meta.stage, date: meta.date,
-    example: (meta.example || '').toLowerCase() === 'true', body: m[2] };
+  return { slug: f.slice(0, -3), title: meta.title, summary: meta.summary, stage: meta.stage, date: meta.date, body: m[2] };
 }
-const posts = sortPosts(readdirSync(path.join(D, 'content')).filter((f) => f.endsWith('.md')).map(read));
+const posts = sortPosts((existsSync(C) ? readdirSync(C) : []).filter((f) => f.endsWith('.md')).map(read));
 let bad = 0;
 const check = (name, got, exp) => { if (got !== exp) { bad++; let i = 0; while (got[i] === exp[i]) i++; console.error(`${name} differs at ${i}:\n  js: ${got.slice(i - 60, i + 80)}\n  py: ${exp.slice(i - 60, i + 80)}`); } };
 check('list', listHtml(posts), want.list);

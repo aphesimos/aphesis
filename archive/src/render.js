@@ -3,7 +3,7 @@
    or the dashboard's live preview, is the same markup the build writes. tools/render-parity.mjs proves it on every
    post in content/.
 
-   A post is {slug, title, summary, stage, date, example, body, notes: [{id, text}], figures: [{name, url}]}:
+   A post is {slug, title, summary, stage, date, body, notes: [{id, text}], figures: [{name, url}]}:
    the body without its notes, the notes apart (as the content service keeps them), and the URL of each figure's
    density map. A figure the post does not list falls back to the build's own maps (data-map only). */
 
@@ -133,7 +133,7 @@ function stageIconSpan(stage, cls = '') {
   return `<span class="stage-icon ${cls}" data-stage="${stage}" data-tip="${esc(STAGE_TIPS[stage])}" aria-hidden="true"></span>`;
 }
 function metaLine(p) {
-  return `<time datetime="${p.date}">${dateText(p.date)}</time>${p.example ? ' · example' : ''}`;
+  return `<time datetime="${p.date}">${dateText(p.date)}</time>`;
 }
 
 export function listHtml(posts) {
@@ -147,15 +147,20 @@ export function listHtml(posts) {
     `<span class="aph-meta">${metaLine(p)}</span></span>` +
     '</a></li>');
   const legend = STAGES.map((s) => `<li>${stageIconSpan(s, 'small')}<span class="aph-gloss" lang="la">${s}</span></li>`).join('');
+  /* with no posts the codex is a scraped tablet: the nigredo's sediment and one gloss, no legend, no empty list */
+  const stages = items.length ? `<ol class="stages" aria-label="from draft to finished: nigredo, albedo, citrinitas, rubedo">${legend}</ol>` : '';
+  const entries = items.length ? `<ol class="entries">${items.join('')}</ol>` :
+    `<p class="blank">${stageIconSpan('nigredo')}<span class="aph-gloss" lang="la">tabula rasa</span>` +
+    '<span class="aph-meta">the scraped tablet: nothing on it, everything possible.</span></p>';
   return '<section class="view list" data-view="list" aria-labelledby="codex-title">' +
     '<div class="col">' +
     '<header class="head">' +
     '<p class="gloss-title aph-gloss" lang="la">codex</p>' +
     '<h1 id="codex-title" class="title aph-display" tabindex="-1">archive</h1>' +
     '<p class="lede">writing about anything, from draft to finished.</p>' +
-    `<ol class="stages" aria-label="from draft to finished: nigredo, albedo, citrinitas, rubedo">${legend}</ol>` +
+    stages +
     '</header>' +
-    `<ol class="entries">${items.join('')}</ol>` +
+    entries +
     '<footer class="foot"><span class="rule" aria-hidden="true"></span>' +
     '<a class="feed aph-label" href="feed.xml" type="application/atom+xml">feed</a>' +
     '<span class="aph-meta">atom · every post, from nigredo to rubedo</span></footer>' +

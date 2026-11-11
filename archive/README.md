@@ -4,6 +4,9 @@ The blog of aphes.ist: writing about anything, from draft (*nigredo*) to finishe
 
 - **The list.** Titles in the text face, each with its date and its stage: a brushed ring whose stipple rises from a sediment (*nigredo*) to full and red (*rubedo*). The stage icon is `src/stage-icon.js`, documented in `src/stage-icon.md` so it can move into the design system.
 - **A post.** Long-form reading at the `body` style, about 60 characters a line, on a calm zone of the fog. Headings in Aphesis Script, slanted. Footnotes show as the site's tooltip on hover, focus or a tap, and are listed again at the end. Pictures exist only as simulacra, inline in the column with a caption. Quotes carry a brushed rule, code a stippled rule above and below.
+- **No posts.** With nothing in `content/` (and nothing from the content service) the list is a scraped tablet: the
+  nigredo's sediment, the gloss *tabula rasa* and one line under it, with no legend and no empty list. The feed is
+  still written, with no entries.
 - **Routes.** `#<slug>` opens a post, `#archive` (or no hash) is the list. The brushed back mark or Escape returns to the list, at the place it was left.
 - **Feed.** `feed.xml` (Atom), written by the build from the same posts.
 
@@ -34,7 +37,7 @@ a sentence with a note.[^salt] *a latin or greek word* is set in the script face
 [^salt]: the note's text: one or two sentences.
 ```
 
-- **Front matter.** `title`, `date` (YYYY-MM-DD), `stage` (`nigredo`, `albedo`, `citrinitas` or `rubedo`) and `summary` are required. `example: true` marks a post written to show the section; it reads "example" beside its date. Move the stage up as the text matures; nothing else needs to change.
+- **Front matter.** `title`, `date` (YYYY-MM-DD), `stage` (`nigredo`, `albedo`, `citrinitas` or `rubedo`) and `summary` are required. Move the stage up as the text matures; nothing else needs to change.
 - **Markdown.** Paragraphs, `##` and `###` headings, `>` quotes (a last paragraph starting with `—` is set as the source), fenced code, `-` and `1.` lists, `*em*`, `**strong**`, `` `code` ``, `[links](url)` and `[^notes]`. The build uses python-markdown when it is installed and a small converter of the same subset when it is not; notes and pictures are handled by the build in both cases.
 - **Pictures.** Only as simulacra: a line of its own, `![caption](simulacrum:<map>)`, where `<map>` is one of the density maps in the design system's `assets/Simulacra` that `build.py` lists in `MAP_FILES`. Caption it with work, artist and date (`saint jerome writing · Caravaggio, 1605–06`). One canvas serves every picture of the section, so any number of figures costs one WebGL context.
 - **Notes.** `[^id]` in the text, `[^id]: text` anywhere in the file. They are numbered in the order they appear. Keep them short: they are read in a tooltip.
@@ -59,7 +62,8 @@ python3 archive/build.py --content-api https://content-api.aphes.ist     # or AP
 
 - `src/render.js` is build.py's converter and markup, ported line for line to the browser (it is also what the
   desk's live preview draws with). `node archive/tools/render-parity.mjs` proves it writes the same markup as
-  build.py for the list and every post in `content/`, with the notes in the body and with the notes apart.
+  build.py for the list and every post in `content/` (or in a folder given as its argument), with the notes in the
+  body and with the notes apart.
 - A post from the service names its figures' density maps by URL (`data-src`); they come with CORS, so
   `figure.js` loads them as `crossOrigin` images.
 

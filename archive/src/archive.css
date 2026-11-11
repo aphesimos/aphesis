@@ -82,6 +82,11 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .entry[data-stage="rubedo"] .entry-stage { color: var(--accent-text); }
 .entry-link:hover .entry-stage, .entry-link:focus-visible .entry-stage { color: var(--accent-text); }
 
+/* no posts: the scraped tablet, one sediment and one gloss where the list would stand */
+.blank { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin: var(--space-5) 0 0; padding: var(--space-4) 0; }
+.blank .aph-gloss { font-size: var(--type-gloss-size); }
+.blank .aph-meta { flex: 0 0 100%; padding-left: calc(28px + var(--space-3)); color: var(--ink-soft); }
+
 .foot { margin-top: var(--space-6); display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-3); }
 .foot .rule { display: block; flex: 0 0 100%; height: 6px; color: var(--line); margin-bottom: var(--space-4); }
 .foot .rule svg { width: 100%; height: 100%; display: block; }

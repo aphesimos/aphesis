@@ -205,3 +205,16 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .mod-text { overflow-wrap: anywhere; }
 .mod-thread h3, .mod h3 { margin: var(--space-4) 0 var(--space-1); color: var(--ink-soft); font-weight: 400; }
 @media (max-width: 560px) { .mod-list li { grid-template-columns: minmax(0, 1fr) auto; } .mod-list li .act { grid-column: 1 / -1; justify-self: start; } }
+
+/* the site's texts: each key a field, its preview line in the face it is read in, save and reset */
+.tx-list { max-width: 46em; }
+.tx-screen { margin-bottom: var(--space-6); }
+.tx-row { margin-bottom: var(--space-5); }
+.tx-row .field { margin-bottom: var(--space-1); }
+.tx-row .field textarea { min-height: 0; resize: none; field-sizing: content; }
+.tx-row .hint { overflow-wrap: anywhere; }
+.tx-preview { margin: var(--space-2) 0 0; font-size: var(--type-lede-size); line-height: var(--type-lede-line); overflow-wrap: anywhere; }
+.tx-row.dirty .tx-preview { color: var(--accent-text); }
+.tx-acts { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--space-5); }
+.act:disabled { color: var(--ink-soft); cursor: default; }
+.act:disabled .uline { display: none; }

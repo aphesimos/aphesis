@@ -12,7 +12,7 @@ export function createApi(base) {
     else if (body !== undefined) { init.body = JSON.stringify(body); init.headers['Content-Type'] = 'application/json'; }
     if (method !== 'GET' && csrf) init.headers['X-CSRF-Token'] = csrf;
     let r;
-    try { r = await fetch(root + path, init); } catch (_) { return { status: 0, data: { error: 'the service did not answer' } }; }
+    try { r = await fetch(root + path, init); } catch (_) { return { status: 0, data: { error: "the service didn't answer" } }; }
     let data = null;
     try { data = await r.json(); } catch (_) { data = {}; }
     return { status: r.status, data };
@@ -34,6 +34,9 @@ export function createApi(base) {
     board: (cursor) => call('GET', '/v1/admin/forum/board' + (cursor ? '?cursor=' + encodeURIComponent(cursor) : '')),
     thread: (id) => call('GET', `/v1/admin/forum/threads/${encodeURIComponent(id)}`),
     reports: () => call('GET', '/v1/admin/forum/reports'),
+    texts: () => call('GET', '/v1/admin/texts'),
+    textSave: (key, value, version) => call('PUT', `/v1/admin/texts/${encodeURIComponent(key)}`, { value, version }),
+    textReset: (key) => call('POST', `/v1/admin/texts/${encodeURIComponent(key)}/reset`),
     forumRemove: (t, n) => call('DELETE', `/v1/admin/forum/threads/${encodeURIComponent(t)}/posts/${n}`),
     one: (kind) => kinds[kind],
   };

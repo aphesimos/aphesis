@@ -30,6 +30,13 @@ export function createMockApi() {
       { n: 1, poster: '1234abcd5678ef90', text: 'the fog at night looks like weather', created: Date.now() - 9e6 },
     ] },
   };
+  /* a few of the site's texts (the real list is the content service's, backend/content/src/texts.rs) */
+  const texts = [
+    ['home.sections.music.description', 'home', 'music: its line on the home', 'my music folder. mostly lossless.'],
+    ['music.lede', 'music', 'lede', 'my music folder. mostly lossless.'],
+    ['wall.placeholder', 'wall', 'the empty line', 'write a line'],
+    ['forum.empty', 'forum', 'the board with no threads', 'no threads yet.'],
+  ].map(([key, screen, label, d]) => ({ key, screen, label, default: d, value: d, overridden: false, version: 0, updated: null }));
   let reports = [{ thread: 'k3m9p2x7aa', n: 3, count: 2, at: Date.now() - 2e6 }];
   let session = false, pending = false, tries = 0, fails = 0, lockedUntil = 0;
   const wait = (v) => new Promise((r) => setTimeout(() => r(v), 180 + Math.random() * 220));
@@ -85,6 +92,20 @@ export function createMockApi() {
     },
     thread(id) { if (!session) return no(); return threads[id] ? ok(structuredClone(threads[id])) : no(404); },
     reports() { if (!session) return no(); return ok({ reports: reports.slice() }); },
+    texts() { if (!session) return no(); return ok({ screens: ['home', 'archive', 'laboratory', 'wall', 'forum', 'music'], texts: structuredClone(texts) }); },
+    textSave(k, value, version) {
+      if (!session) return no();
+      const t = texts.find((x) => x.key === k); if (!t) return no(404);
+      if (version !== undefined && version !== t.version) return ok({ error: 'changed meanwhile', text: structuredClone(t) }, 409);
+      Object.assign(t, { value: String(value).trim(), overridden: true, version: t.version + 1, updated: Date.now() });
+      return ok({ text: structuredClone(t) });
+    },
+    textReset(k) {
+      if (!session) return no();
+      const t = texts.find((x) => x.key === k); if (!t) return no(404);
+      Object.assign(t, { value: t.default, overridden: false, version: t.version + 1, updated: Date.now() });
+      return ok({ text: structuredClone(t) });
+    },
     forumRemove(t, n) {
       if (!session) return no();
       const th = threads[t]; if (!th) return no(404);

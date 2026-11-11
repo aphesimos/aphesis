@@ -211,7 +211,7 @@ def size(b):
 # ---------- modules ----------
 ORDER = ['config.js', 'archive/assets.js', 'archive/render.js', 'archive/stage-icon.js', 'archive/marks.js', 'archive/figure.js',
          'archive/css.js', 'forum/density.js', 'mockdata.js', 'mock.js', 'ui.js', 'api.js', 'eye.js', 'line.js',
-         'ed-archive.js', 'ed-entries.js', 'moderation.js', 'dash.js', 'main.js']
+         'ed-archive.js', 'ed-entries.js', 'moderation.js', 'ed-texts.js', 'dash.js', 'main.js']
 
 
 def scope_module(name, src):

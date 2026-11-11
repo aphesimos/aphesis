@@ -9,7 +9,7 @@ dashboard and its gate").
 ## The gate
 
 **Step 1.** The eye, the design system's `Aphesis.Eye` (components/Eye on `design-system`): the theme switch's eye (the shell's `EYE` and `Aphesis.ICONS.eye`: two brushed lids and a
-stippled iris; closed, one lid and three lashes), stands above a single brushed baseline. No label, no word. The
+stippled iris; closed, one lid and three lashes), stands above a single brushed baseline. No label, no word (a screen reader hears `password`, and on the second line `the code from the email`). The
 typewriter's underscore blinks on the line as the caret; each character of the password lands on it as a grain of
 stipple (three or four 2 px cells on 7 px, 9 px apart), the group centred on the line and growing outward from
 the middle, the caret at its right end; Enter sends it. Nothing can leave the line: each line holds
@@ -46,7 +46,7 @@ all of them alike. A session still open (two hours) goes straight to the desk. E
 ## The desk
 
 `desk`, with its gloss *scriptorium*, and one line of places: archive · *codex*, book · *liber*, works · *opera*,
-moderation · *custodia*, and `leave` (which ends the session; the eye draws itself again).
+moderation · *custodia*, texts · *verba*, and `leave` (which ends the session; the eye draws itself again).
 
 - **archive**: every post, drafts too, with its stage icon, date and state. The editor: title, slug (the address,
   `#archive/<slug>`), summary, stage (the four stage icons), date, example, the markdown body, its notes (`[^id]`
@@ -61,6 +61,11 @@ moderation · *custodia*, and `leave` (which ends the session; the eye draws its
 - **moderation**: the wall's lines, the forum's reports and threads; a thread opens to its posts; each can be removed
   (the first post removes the thread). The content service calls the wall and the forum server to server; no
   admin secret is in the page.
+- **texts**: the site's texts, the short lines the owner changes without a rebuild (the home's line for each
+  section, the ledes, the helper lines, the empty states), grouped by screen. Each key shows its value now, a field
+  to change it (one line; Enter saves), a preview line in the face it is read in, and `reset to default`. Saved
+  through the content service (`/v1/admin/texts`); the page reads them on its next load, and keeps its own strings
+  whenever the service does not answer.
 - **On a phone**, one column, with a choice between `write` and `read` for the editor and its preview.
 
 Nothing is solid: fields are words on a brushed baseline, buttons are labels whose brushed underline draws in,
@@ -107,6 +112,7 @@ content. Each ref falls back to `origin/<ref>`. Special Elite is vendored in `ve
 | `ed-archive.js` | posts, with the archive's own preview |
 | `ed-entries.js` | book entries and works, with the simulacrum preview |
 | `moderation.js` | the wall and the forum |
+| `ed-texts.js` | the site's texts: every key by screen, edit, preview, reset |
 | `dash.js` | the desk and its places |
 | `main.js` | theme, fog, seal, the gate's steps, the desk |
 | `entrances.js` | for the shell: the ritual, the phrase, the route |

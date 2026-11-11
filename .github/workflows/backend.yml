@@ -3,8 +3,9 @@
 #
 # Repository secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, TURNSTILE_SECRET, WALL_HASH_SALT,
 # WALL_ADMIN_TOKEN, FORUM_IP_SALT, FORUM_POSTER_SALT, FORUM_ADMIN_SECRET, CONTENT_OWNER_PASSWORD_HASH,
-# CONTENT_OWNER_EMAIL, CONTENT_AUTH_SALT. Empty ones are skipped, a Worker without its Turnstile secret or salts
-# refuses posts until they are set, and the content service's gate stays shut without its own (see backend/README.md).
+# CONTENT_OWNER_EMAIL, CONTENT_AUTH_SALT, RESEND_API_KEY (the gate's mail, through Resend). Empty ones are skipped, a
+# Worker without its Turnstile secret or salts refuses posts until they are set, and the content service's gate stays
+# shut without its own (see backend/README.md).
 # Run by hand with seed = true, it also imports the section branches' content into the deployed content service
 # (content/tools/seed.mjs): once, after the first deploy; running it again adds nothing twice, and it never imports
 # an entry marked example. Run by hand with prune = true, it removes from the deployed D1 and R2 the example posts

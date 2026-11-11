@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>lab kit · aφesis</title>
+<meta name="description" content="the aphes.ist lab kit: one stylesheet and one optional script for research viewers. every component, with sample data, in both themes.">
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="lab.css">
+<script src="lab.js" defer></script>
+<style>
+  /* the demo's own layout, tokens only */
+  .demo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: var(--space-6) var(--space-5); align-items: start; }
+  .demo-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: var(--space-4) var(--space-3); margin: 0; padding: 0; list-style: none; }
+  .demo-swatch { display: grid; gap: var(--space-1); }
+  .demo-chip { height: 28px; background: var(--lab-k); }
+  .demo-chip + .demo-chip { height: 18px; -webkit-mask: var(--lab-stipple-2) 0 0 / 48px 48px; mask: var(--lab-stipple-2) 0 0 / 48px 48px; }
+  .demo-ramp { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin: 0; padding: 0; list-style: none; }
+  .demo-ramp li { height: 28px; background: var(--lab-k); }
+  .demo-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 0; }
+  .demo-chart { width: 100%; }
+  .demo-note { max-width: 65ch; }
+</style>
+</head>
+<body class="lab">
+<div class="lab-page">
+
+<header class="lab-header">
+  <a class="lab-mark" href="https://aphes.ist/" aria-label="aphes.ist, home"></a>
+  <span class="lab-project">lab kit <span class="lab-gloss" lang="la">instrumenta</span></span>
+  <nav class="lab-nav" aria-label="on this page">
+    <a href="#use">use</a><a href="#colour">colour</a><a href="#figures">figures</a><a href="#charts">charts</a><a href="#tables">tables</a><a href="#notes">notes</a><a href="#cloud">cloud</a>
+  </nav>
+  <div class="lab-controls">
+    <button class="lab-button" type="button" data-lab-toggle="theme">close the eye</button>
+    <button class="lab-button" type="button" data-lab-toggle="fog" aria-pressed="false">fog · off</button>
+  </div>
+</header>
+
+<main>
+<div class="lab-titles">
+  <span class="lab-gloss-title" lang="la">officina</span>
+  <h1 class="lab-title">the lab kit</h1>
+  <p class="lab-lede">one stylesheet and one optional script, so that every viewer of the laboratory reads as one body of work: the two faces, the palette, the stipple where it helps, and charts that stay readable.</p>
+</div>
+
+<section class="lab-section" id="use" aria-labelledby="use-h">
+  <h2 id="use-h">use it</h2>
+  <p class="lab-prose">link the stylesheet, put <code>class="lab"</code> on the body, and add the script if you want the theme switch, the stipple ground, stippled bands and tooltips. the version is in the path: <code>v1</code> only ever changes in ways that keep a page working.</p>
+  <pre data-label="html"><code>&lt;link rel="stylesheet" href="https://aphes.ist/lab-kit/v1/lab.css"&gt;
+&lt;script src="https://aphes.ist/lab-kit/v1/lab.js" defer&gt;&lt;/script&gt;   <span class="c">&lt;!-- optional --&gt;</span>
+
+&lt;body class="lab"&gt;
+  &lt;div class="lab-page"&gt;
+    &lt;header class="lab-header"&gt;
+      &lt;a class="lab-mark" href="https://aphes.ist/" aria-label="aphes.ist"&gt;&lt;/a&gt;
+      &lt;span class="lab-project"&gt;contraprova&lt;/span&gt;
+      &lt;div class="lab-controls"&gt;
+        &lt;button class="lab-button" data-lab-toggle="theme"&gt;close the eye&lt;/button&gt;
+        &lt;button class="lab-button" data-lab-toggle="fog"&gt;fog · off&lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/header&gt;</code></pre>
+  <div class="lab-callout">
+    <span class="lab-callout-label">readability first</span>
+    <p>nothing here moves unless asked. the stipple ground is off until a reader turns it on, and still when it is on; charts draw once. the system's request for reduced motion is followed.</p>
+  </div>
+</section>
+
+<section class="lab-section" id="colour" aria-labelledby="colour-h">
+  <h2 id="colour-h">colour</h2>
+  <p class="lab-prose">the categorical hues are pigments held to rubedo's discipline: the same lightness band and a moderate chroma, ordered so that neighbours stay apart for every kind of colour vision. they start at two series; one series is ink. magnitude is the density of ink; polarity runs from lapis to rubedo through the grey of the ground. the numbers are the contrast on this ground, measured in the page.</p>
+  <h3>categorical · eight slots, in this order</h3>
+  <ul class="demo-swatches" id="sw-cat"></ul>
+  <div class="demo-grid">
+    <div>
+      <h3>sequential · lab-seq-1 to 7</h3>
+      <ul class="demo-ramp" aria-label="sequential ramp, low to high"><li class="lab-s1"></li><li class="lab-s2"></li><li class="lab-s3"></li><li class="lab-s4"></li><li class="lab-s5"></li><li class="lab-s6"></li><li class="lab-s7"></li></ul>
+    </div>
+    <div>
+      <h3>diverging · lab-div-1 to 7</h3>
+      <ul class="demo-ramp" aria-label="diverging ramp, lapis to rubedo"><li class="lab-d1"></li><li class="lab-d2"></li><li class="lab-d3"></li><li class="lab-d4"></li><li class="lab-d5"></li><li class="lab-d6"></li><li class="lab-d7"></li></ul>
+    </div>
+  </div>
+  <h3>both themes, side by side</h3>
+  <div class="demo-pair">
+    <div class="lab-specimen" data-theme="light"><ul class="lab-legend" data-legend="all"></ul></div>
+    <div class="lab-specimen" data-theme="dark"><ul class="lab-legend" data-legend="all"></ul></div>
+  </div>
+</section>
+
+<section class="lab-section" id="figures" aria-labelledby="figures-h">
+  <h2 id="figures-h">figures</h2>
+  <dl class="lab-stats">
+    <div class="lab-stat"><dt class="lab-stat-label">runs</dt><dd class="lab-stat-value num">1,284</dd><dd class="lab-stat-note">over 41 days</dd></div>
+    <div class="lab-stat"><dt class="lab-stat-label">median cost</dt><dd class="lab-stat-value num">$0.42<small>/ run</small></dd><dd class="lab-stat-note">−18% on last month</dd></div>
+    <div class="lab-stat"><dt class="lab-stat-label">on the frontier</dt><dd class="lab-stat-value num">7</dd><dd class="lab-stat-note">of 54 configurations</dd></div>
+    <div class="lab-stat lab-stat--ref"><dt class="lab-stat-label">quality, picked</dt><dd class="lab-stat-value num">0.84</dd><dd class="lab-stat-note">target 0.80 · held</dd></div>
+  </dl>
+</section>
+
+<section class="lab-section" id="charts" aria-labelledby="charts-h">
+  <h2 id="charts-h">charts</h2>
+  <p class="lab-prose">the axes and grids recede; the words are in the text colours; data marks are solid where that is what makes them readable, and stippled where they are a range rather than a value. point at a mark for its numbers.</p>
+  <div class="demo-grid">
+    <figure class="lab-chart" id="ch-line">
+      <div class="lab-chart-head">
+        <h3>score by generation</h3>
+        <ul class="lab-legend">
+          <li class="lab-key lab-c1">kept</li>
+          <li class="lab-key lab-key--band lab-c1">90% band</li>
+          <li class="lab-key lab-key--dot lab-c2">proposed</li>
+          <li class="lab-key lab-key--dotted lab-c3">modelled</li>
+          <li class="lab-key lab-key--rule">target</li>
+        </ul>
+      </div>
+      <div class="demo-chart"></div>
+      <figcaption>an autopoiesis-like run: the kept rule only rises; the band is the spread of its score over 64 trials.</figcaption>
+    </figure>
+    <figure class="lab-chart" id="ch-pareto">
+      <div class="lab-chart-head">
+        <h3>cost against quality</h3>
+        <ul class="lab-legend">
+          <li class="lab-key lab-key--dot lab-c1">single</li>
+          <li class="lab-key lab-key--dot lab-c2">cascade</li>
+          <li class="lab-key lab-key--dot lab-c3">debate</li>
+          <li class="lab-key lab-ink">frontier</li>
+        </ul>
+      </div>
+      <div class="demo-chart"></div>
+      <figcaption>a contraprova-like log: the frontier is every run that no cheaper run beats. the ring is the one picked.</figcaption>
+    </figure>
+    <figure class="lab-chart" id="ch-bars">
+      <div class="lab-chart-head"><h3>accuracy by task</h3><ul class="lab-legend"><li class="lab-key lab-key--rule">target 0.70</li></ul></div>
+      <div class="demo-chart"></div>
+      <figcaption>one series, so ink and no colour key; the one below its target takes the red.</figcaption>
+    </figure>
+    <figure class="lab-chart" id="ch-heat">
+      <div class="lab-chart-head"><h3>recall by week</h3><ul class="lab-legend"><li class="lab-key lab-key--ramp">fewer · more</li></ul></div>
+      <div class="demo-chart"></div>
+      <figcaption>an anamnesis-like journal: notes recalled per day, twelve weeks.</figcaption>
+    </figure>
+    <figure class="lab-chart" id="ch-div">
+      <div class="lab-chart-head"><h3>change against the baseline</h3><ul class="lab-legend"><li class="lab-key lab-key--ramp lab-key--div">better · worse</li></ul></div>
+      <div class="demo-chart"></div>
+      <figcaption>a benchmark grid: each engine's accuracy minus the baseline's, per task. grey is no change.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="lab-section" id="tables" aria-labelledby="tables-h">
+  <h2 id="tables-h">tables</h2>
+  <div class="demo-grid">
+    <div class="lab-table-wrap">
+      <table class="lab-table">
+        <caption>reasoning benchmark, 400 items per task. the baseline is in red.</caption>
+        <thead><tr><th scope="col">engine</th><th scope="col" class="num">accuracy</th><th scope="col" class="num">cost</th><th scope="col">gate</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">depth-first</th><td class="num">0.812</td><td class="num">$3.10</td><td class="lab-pass">pass</td></tr>
+          <tr><th scope="row">beam · 4</th><td class="num">0.794</td><td class="num">$5.82</td><td class="lab-pass">pass</td></tr>
+          <tr><th scope="row">self-check</th><td class="num">0.688</td><td class="num">$2.04</td><td class="lab-fail">fail</td></tr>
+          <tr class="lab-ref-row"><th scope="row">baseline</th><td class="num">0.731</td><td class="num">$1.12</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="lab-table-wrap">
+      <table class="lab-table lab-honesty">
+        <caption>the honesty table: what each claim on this page rests on.</caption>
+        <thead><tr><th scope="col">claim</th><th scope="col">rests on</th></tr></thead>
+        <tbody>
+          <tr><td>the median run costs $0.42</td><td><span class="lab-ev" data-ev="measured">measured</span></td></tr>
+          <tr><td>a month at this rate costs about $540</td><td><span class="lab-ev" data-ev="modelled">modelled</span></td></tr>
+          <tr><td>the frontier code drops no run that beats it</td><td><span class="lab-ev" data-ev="tested">tested</span></td></tr>
+          <tr><td>the cascade will stay cheapest on harder sets</td><td><span class="lab-ev" data-ev="hypothesis">hypothesis</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="lab-ev-key lab-legend" aria-label="key">
+    <span class="lab-ev" data-ev="measured">measured · observed directly</span>
+    <span class="lab-ev" data-ev="modelled">modelled · computed from what was measured</span>
+    <span class="lab-ev" data-ev="tested">tested · checked, and it held</span>
+    <span class="lab-ev" data-ev="hypothesis">hypothesis · not checked yet</span>
+  </div>
+</section>
+
+<section class="lab-section" id="notes" aria-labelledby="notes-h">
+  <h2 id="notes-h">notes and code</h2>
+  <div class="demo-grid">
+    <div class="lab-callout">
+      <span class="lab-callout-label">note</span>
+      <p>a run that ends badly is a result too. say so in the text, with the number that shows it.</p>
+    </div>
+    <div class="lab-callout lab-callout--alert">
+      <span class="lab-callout-label">this number is modelled</span>
+      <p>the monthly cost is the median run times the runs of the last week, not a bill. it will move.</p>
+    </div>
+  </div>
+  <pre data-label="js"><code><span class="c">// a d3 chart, styled by the kit: classes only, no colours in the code</span>
+const g = svg.append('g').attr('class', 'lab-grid')
+  .call(d3.axisLeft(y).tickSize(-width));
+svg.append('path').attr('class', 'lab-band lab-c1').attr('d', band(rows));
+svg.append('path').attr('class', 'lab-line lab-c1').attr('d', line(rows));
+
+<span class="c">// observable plot and vega-lite take presets</span>
+Plot.plot({ ...Lab.plot(), marks: [Plot.dot(rows, { x: 'cost', y: 'quality', fill: 'mode' })] });
+vegaEmbed(el, spec, { config: Lab.vega(), renderer: 'svg', actions: false });</code></pre>
+</section>
+
+<section class="lab-section" id="cloud" aria-labelledby="cloud-h">
+  <h2 id="cloud-h">point clouds</h2>
+  <p class="lab-prose">points are single square cells, like the fog: they do not grow with nearness, and the far ones sink into the ground instead. a cluster in focus is drawn at two cells and the rest recede; the one picked point is red. drag, or focus the picture and use the arrow keys, to turn it.</p>
+  <div class="demo-grid">
+    <figure class="lab-cloud" id="cloud-fig">
+      <canvas tabindex="0" role="img" aria-label="a point cloud of 600 notes in five clusters; the clusters in focus are drawn larger"></canvas>
+      <figcaption class="lab-meta">600 notes, embedded in three dimensions · <span id="cloud-focus">all clusters</span></figcaption>
+    </figure>
+    <div>
+      <ul class="lab-legend" id="cloud-legend" style="margin-bottom: var(--space-4)"></ul>
+      <div class="lab-table-wrap">
+        <table class="lab-table lab-table--dense">
+          <caption>the point-cloud guide (Lab.points())</caption>
+          <thead><tr><th scope="col">point</th><th scope="col">size</th><th scope="col">colour</th></tr></thead>
+          <tbody>
+            <tr><td>at rest</td><td class="num">1 cell · 2px</td><td>fog, or its cluster's slot</td></tr>
+            <tr><td>in focus</td><td class="num">2 cells · 4px</td><td>its cluster's slot</td></tr>
+            <tr><td>out of focus</td><td class="num">1 cell · 2px</td><td>lab-dim at 32%</td></tr>
+            <tr><td>picked</td><td class="num">4 cells · 8px</td><td>lab-ref, one at a time</td></tr>
+            <tr><td>far</td><td class="num">unchanged</td><td>mixed into bg</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="lab-footer lab-meta">
+  <span>aphes.ist lab kit <span id="kit-version">v1</span></span>
+  <span>source: the design-system branch, system/lab-kit</span>
+</footer>
+</div>
+
+<script>
+/* the demo's sample data and charts. Every chart below is plain SVG drawn the way d3-axis draws (g.tick, line,
+   text, path.domain), so the kit's chart layer styles it exactly as it would a D3 chart. */
+(function () {
+  'use strict';
+  var NS = 'http://www.w3.org/2000/svg';
+  function rng(seed) { var s = seed >>> 0 || 1; return function () { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; }
+  function el(name, attrs, parent, text) { var n = document.createElementNS(NS, name); for (var k in attrs) n.setAttribute(k, attrs[k]); if (text != null) n.textContent = text; if (parent) parent.appendChild(n); return n; }
+  function lin(d0, d1, r0, r1) { return function (v) { return r0 + (v - d0) / (d1 - d0) * (r1 - r0); }; }
+  function logs(d0, d1, r0, r1) { var a = Math.log(d0), b = Math.log(d1); return function (v) { return r0 + (Math.log(v) - a) / (b - a) * (r1 - r0); }; }
+  var f2 = function (v) { return v.toFixed(2); };
+  function frame(host, h, m) {
+    host.textContent = '';
+    var w = Math.max(280, Math.round(host.getBoundingClientRect().width));
+    var svg = el('svg', { class: 'lab-svg', width: w, height: h, viewBox: '0 0 ' + w + ' ' + h, role: 'img' }, host);
+    return { svg: svg, w: w, h: h, iw: w - m.l - m.r, ih: h - m.t - m.b, g: el('g', { transform: 'translate(' + m.l + ',' + m.t + ')' }, svg) };
+  }
+  /* axes as d3 draws them */
+  function axisX(f, x, ticks, fmt, title) {
+    var grid = el('g', { class: 'lab-grid' }, f.g);
+    ticks.forEach(function (t) { el('line', { x1: Math.round(x(t)) + .5, x2: Math.round(x(t)) + .5, y1: 0, y2: f.ih }, grid); });
+    var g = el('g', { class: 'axis', transform: 'translate(0,' + f.ih + ')' }, f.g);
+    el('path', { class: 'domain', d: 'M0,4.5V.5H' + f.iw + 'V4.5' }, g);
+    ticks.forEach(function (t) { var tk = el('g', { class: 'tick', transform: 'translate(' + (Math.round(x(t)) + .5) + ',0)' }, g); el('line', { y2: 4 }, tk); el('text', { y: 16, 'text-anchor': 'middle' }, tk, fmt(t)); });
+    if (title) el('text', { class: 'lab-axis-title', x: f.iw, y: 32, 'text-anchor': 'end' }, g, title);
+  }
+  function axisY(f, y, ticks, fmt, title) {
+    var grid = el('g', { class: 'lab-grid' }, f.g);
+    ticks.forEach(function (t) { el('line', { y1: Math.round(y(t)) + .5, y2: Math.round(y(t)) + .5, x1: 0, x2: f.iw }, grid); });
+    var g = el('g', { class: 'axis' }, f.g);
+    el('path', { class: 'domain', d: 'M-4,' + f.ih + '.5H.5V.5H-4' }, g);
+    ticks.forEach(function (t) { var tk = el('g', { class: 'tick', transform: 'translate(0,' + (Math.round(y(t)) + .5) + ')' }, g); el('line', { x2: -4 }, tk); el('text', { x: -8, dy: '.32em', 'text-anchor': 'end' }, tk, fmt(t)); });
+    if (title) el('text', { class: 'lab-axis-title', x: 0, y: -10, 'text-anchor': 'start' }, g, title);
+  }
+  function path(pts) { return pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(''); }
+
+  /* ---------- data ---------- */
+  var r = rng(7), GEN = 60, kept = [], proposed = [], s = .52;
+  for (var i = 0; i <= GEN; i++) {
+    var p = Math.min(.95, s + (r() - .66) * .08);
+    proposed.push([i, p]);
+    if (p > s) s = p;
+    kept.push([i, s, .05 * (1 - i / (GEN * 1.4)) + .012]);
+  }
+  var modelled = kept.map(function (d) { return [d[0], .52 + .3 * (1 - Math.exp(-d[0] / 22))]; });
+
+  var r2 = rng(11), runs = [], modes = ['single', 'cascade', 'debate'];
+  modes.forEach(function (m, k) {
+    for (var j = 0; j < 18; j++) {
+      var cost = Math.exp(Math.log(.02) + r2() * (Math.log(1.4) - Math.log(.02)) * (k === 2 ? .9 : 1) + (k === 2 ? .8 : 0));
+      cost = Math.min(1.9, cost);
+      var q = Math.min(.93, .48 + .11 * Math.log(cost / .015) * (k === 1 ? 1.06 : k === 2 ? .92 : .98) + (r2() - .5) * .1);
+      runs.push({ mode: m, k: k, cost: cost, q: q });
+    }
+  });
+  var sorted = runs.slice().sort(function (a, b) { return a.cost - b.cost; }), front = [], best = -1;
+  sorted.forEach(function (d) { if (d.q > best) { best = d.q; front.push(d); d.front = true; } });
+  var picked = front.reduce(function (a, d) { return Math.abs(d.q - .84) < Math.abs(a.q - .84) ? d : a; }, front[0]);
+
+  var tasks = [['arithmetic', .91], ['logic grid', .83], ['planning', .78], ['code trace', .74], ['analogy', .72], ['spatial', .71], ['causal', .66], ['counterfactual', .73]];
+
+  var r3 = rng(5), heat = [];
+  for (var w = 0; w < 12; w++) for (var d = 0; d < 7; d++) heat.push([w, d, Math.max(0, Math.round((d < 5 ? 9 : 4) + w * .6 + (r3() - .45) * 10))]);
+
+  var engines = ['depth-first', 'beam · 4', 'self-check', 'debate'], r4 = rng(9), delta = [];
+  engines.forEach(function (e, a) { tasks.forEach(function (t, b) { delta.push([a, b, Math.round(((r4() - .42) * .22 + (a === 2 ? -.06 : 0)) * 1000) / 1000]); }); });
+
+  /* ---------- charts ---------- */
+  function lineChart() {
+    var host = document.querySelector('#ch-line .demo-chart');
+    var f = frame(host, 280, { l: 40, r: 12, t: 22, b: 40 });
+    f.svg.setAttribute('aria-label', 'score by generation: the kept score rises from 0.52 to ' + f2(kept[GEN][1]) + '; the target is 0.80');
+    var x = lin(0, GEN, 0, f.iw), y = lin(.4, 1, f.ih, 0);
+    axisY(f, y, [.4, .5, .6, .7, .8, .9, 1], f2, 'score');
+    axisX(f, x, [0, 10, 20, 30, 40, 50, 60], String, 'generation');
+    var up = kept.map(function (d) { return [x(d[0]), y(Math.min(1, d[1] + d[2]))]; }), lo = kept.map(function (d) { return [x(d[0]), y(Math.max(.4, d[1] - d[2]))]; }).reverse();
+    el('path', { class: 'lab-band lab-c1', d: path(up.concat(lo)) + 'Z' }, f.g);
+    el('path', { class: 'lab-line lab-dotted lab-c3', d: path(modelled.map(function (d) { return [x(d[0]), y(d[1])]; })) }, f.g);
+    el('line', { class: 'lab-rule-ref', x1: 0, x2: f.iw, y1: Math.round(y(.8)) + .5, y2: Math.round(y(.8)) + .5 }, f.g);
+    el('text', { class: 'lab-label-soft', x: 4, y: Math.round(y(.8)) - 6 }, f.g, 'target 0.80');
+    proposed.forEach(function (d) { if (d[1] < kept[d[0]][1] - 1e-9 || d[0] === 0) el('rect', { class: 'lab-dot lab-c2', x: Math.round(x(d[0])) - 3, y: Math.round(y(d[1])) - 3, width: 6, height: 6, 'data-tip': 'generation ' + d[0] + '\nproposed ' + f2(d[1]) + ' · not kept' }, f.g); });
+    var st = []; kept.forEach(function (d, i) { if (i) st.push([x(d[0]), y(kept[i - 1][1])]); st.push([x(d[0]), y(d[1])]); });
+    el('path', { class: 'lab-halo', d: path(st) }, f.g);
+    el('path', { class: 'lab-line lab-c1', d: path(st) }, f.g);
+    var last = kept[GEN];
+    el('text', { class: 'lab-label', x: x(last[0]), y: y(last[1]) - 10, 'text-anchor': 'end' }, f.g, 'kept ' + f2(last[1]));
+  }
+  function paretoChart() {
+    var host = document.querySelector('#ch-pareto .demo-chart');
+    var f = frame(host, 280, { l: 40, r: 12, t: 22, b: 40 });
+    f.svg.setAttribute('aria-label', 'cost against quality for 54 runs in three modes; ' + front.length + ' runs are on the frontier; the picked run costs $' + f2(picked.cost) + ' for quality ' + f2(picked.q));
+    var x = logs(.01, 2.5, 0, f.iw), y = lin(.4, 1, f.ih, 0);
+    axisY(f, y, [.4, .5, .6, .7, .8, .9, 1], f2, 'quality');
+    axisX(f, x, [.01, .03, .1, .3, 1], function (v) { return '$' + v; }, 'cost per run, log');
+    runs.forEach(function (d) { if (!d.front) el('rect', { class: 'lab-dot lab-c' + (d.k + 1), x: Math.round(x(d.cost)) - 3, y: Math.round(y(d.q)) - 3, width: 6, height: 6, 'data-tip': d.mode + '\n$' + f2(d.cost) + ' · quality ' + f2(d.q) }, f.g); });
+    var st = []; front.forEach(function (d, i) { if (i) st.push([x(d.cost), y(front[i - 1].q)]); st.push([x(d.cost), y(d.q)]); });
+    st.push([f.iw, y(front[front.length - 1].q)]);
+    el('path', { class: 'lab-step lab-ink', d: path(st) }, f.g);
+    front.forEach(function (d) { el('rect', { class: 'lab-dot lab-c' + (d.k + 1), x: Math.round(x(d.cost)) - 3, y: Math.round(y(d.q)) - 3, width: 6, height: 6, tabindex: 0, 'data-tip': d.mode + ' · on the frontier\n$' + f2(d.cost) + ' · quality ' + f2(d.q) }, f.g); });
+    el('rect', { class: 'lab-ring', x: Math.round(x(picked.cost)) - 8.5, y: Math.round(y(picked.q)) - 8.5, width: 17, height: 17 }, f.g);
+    var right = x(picked.cost) > f.iw - 150;
+    el('text', { class: 'lab-label', x: x(picked.cost) + (right ? -14 : 14), y: y(picked.q) + 22, 'text-anchor': right ? 'end' : 'start' }, f.g, 'picked · $' + f2(picked.cost) + ', ' + f2(picked.q));
+  }
+  function barChart() {
+    var host = document.querySelector('#ch-bars .demo-chart');
+    var rowH = 26, f = frame(host, tasks.length * rowH + 44, { l: 112, r: 44, t: 4, b: 40 });
+    f.svg.setAttribute('aria-label', 'accuracy by task, from ' + tasks[6][1] + ' to ' + tasks[0][1] + '; causal is below the target of 0.70');
+    var x = lin(0, 1, 0, f.iw);
+    axisX(f, x, [0, .25, .5, .75, 1], function (v) { return v ? f2(v) : '0'; }, 'accuracy');
+    tasks.forEach(function (t, i) {
+      var yy = i * rowH + 6, low = t[1] < .7;
+      el('text', { class: 'lab-label', x: -10, y: yy + 7, dy: '.32em', 'text-anchor': 'end' }, f.g, t[0]);
+      el('rect', { class: 'lab-bar ' + (low ? 'lab-accent' : 'lab-ink'), x: 0, y: yy, width: Math.round(x(t[1])), height: 14, tabindex: 0, 'data-tip': t[0] + '\naccuracy ' + f2(t[1]) + (low ? ' · below target' : '') }, f.g);
+      el('text', { class: low ? 'lab-label' : 'lab-label-soft', x: Math.round(x(t[1])) + 6, y: yy + 7, dy: '.32em' }, f.g, f2(t[1]));
+    });
+    el('line', { class: 'lab-rule-ref', x1: Math.round(x(.7)) + .5, x2: Math.round(x(.7)) + .5, y1: 0, y2: f.ih }, f.g);
+  }
+  function heatChart() {
+    var host = document.querySelector('#ch-heat .demo-chart');
+    var days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    var f = frame(host, 7 * 24 + 40, { l: 40, r: 4, t: 4, b: 36 });
+    f.svg.setAttribute('aria-label', 'notes recalled per day over twelve weeks; weekdays recall more than weekends, and recall grows over the weeks');
+    var max = Math.max.apply(null, heat.map(function (d) { return d[2]; })), cw = f.iw / 12, ch = 24;
+    days.forEach(function (d, i) { el('text', { x: -8, y: i * ch + ch / 2, dy: '.32em', 'text-anchor': 'end' }, f.g, d); });
+    var g = el('g', { class: 'axis', transform: 'translate(0,' + (7 * ch) + ')' }, f.g);
+    [0, 3, 6, 9, 11].forEach(function (w) { var tk = el('g', { class: 'tick', transform: 'translate(' + (w * cw + cw / 2) + ',0)' }, g); el('text', { y: 16, 'text-anchor': 'middle' }, tk, 'w' + (w + 1)); });
+    heat.forEach(function (d) {
+      var step = Math.min(7, 1 + Math.floor(d[2] / (max + 1) * 7));
+      el('rect', { class: 'lab-cell lab-s' + step, x: d[0] * cw, y: d[1] * ch, width: cw, height: ch, 'data-tip': 'week ' + (d[0] + 1) + ', ' + days[d[1]] + '\n' + d[2] + ' notes recalled' }, f.g);
+    });
+  }
+  function divChart() {
+    var host = document.querySelector('#ch-div .demo-chart');
+    var f = frame(host, engines.length * 30 + 92, { l: 84, r: 4, t: 4, b: 88 });
+    f.svg.setAttribute('aria-label', 'accuracy minus the baseline for four engines on eight tasks; self-check is worse on most tasks');
+    var cw = f.iw / tasks.length, ch = 30;
+    engines.forEach(function (e, i) { el('text', { class: 'lab-label', x: -8, y: i * ch + ch / 2, dy: '.32em', 'text-anchor': 'end' }, f.g, e); });
+    tasks.forEach(function (t, j) { el('text', { x: j * cw + cw / 2, y: engines.length * ch + 10, transform: 'rotate(-40 ' + (j * cw + cw / 2) + ' ' + (engines.length * ch + 10) + ')', 'text-anchor': 'end', dy: '.32em' }, f.g, t[0]); });
+    delta.forEach(function (d) {
+      var v = d[2], step = v >= .08 ? 1 : v >= .04 ? 2 : v >= .01 ? 3 : v > -.01 ? 4 : v > -.04 ? 5 : v > -.08 ? 6 : 7;   /* better is lapis, worse is rubedo: red asks for attention */
+      el('rect', { class: 'lab-cell lab-d' + step, x: d[1] * cw, y: d[0] * ch, width: cw, height: ch, 'data-tip': engines[d[0]] + ' · ' + tasks[d[1]][0] + '\n' + (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(3) + ' against the baseline' }, f.g);
+    });
+  }
+
+  /* ---------- point cloud: a 2D canvas, orthographic, turned by hand ---------- */
+  var cloud = (function () {
+    var cv = document.querySelector('#cloud-fig canvas'), ctx = cv.getContext('2d'), rr = rng(21), pts = [], K = 5, focus = -1, yaw = .6, pitch = .35;
+    var names = ['reading', 'people', 'work', 'dreams', 'music'];
+    var centres = [[-.5, .2, .1], [.45, .35, -.2], [.1, -.45, .35], [-.2, -.1, -.55], [.55, -.25, .4]];
+    function g() { var u = 0, v = 0; while (!u) u = rr(); while (!v) v = rr(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+    for (var i = 0; i < 600; i++) { var k = i % K, c = centres[k]; pts.push({ k: k, p: [c[0] + g() * .16, c[1] + g() * .16, c[2] + g() * .16] }); }
+    var pick = pts[37];
+    function draw() {
+      var P = Lab.points(), dpr = window.devicePixelRatio || 1, w = Math.round(cv.getBoundingClientRect().width * dpr), h = Math.round(w * 10 / 16);
+      if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+      ctx.fillStyle = P.background; ctx.fillRect(0, 0, w, h);
+      var cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch), sc = Math.min(w, h) * .62;
+      var proj = pts.map(function (o) {
+        var x = o.p[0] * cy - o.p[2] * sy, z = o.p[0] * sy + o.p[2] * cy, y = o.p[1] * cp - z * sp; z = o.p[1] * sp + z * cp;
+        return { o: o, x: w / 2 + x * sc, y: h / 2 - y * sc, z: z };
+      }).sort(function (a, b) { return b.z - a.z; });
+      proj.forEach(function (q) {
+        var on = focus < 0 || q.o.k === focus, depth = Math.min(1, Math.max(0, (q.z + 1) / 2)), far = depth * .45;   /* far points sink into the ground */
+        var s = Math.round((focus >= 0 && on ? P.emph : P.size)), col = focus < 0 ? P.colors[q.o.k] : on ? P.colors[q.o.k] : P.dim;
+        ctx.globalAlpha = (on ? P.alpha : P.dimAlpha) * (1 - far);
+        ctx.fillStyle = col; ctx.fillRect(Math.round(q.x - s / 2), Math.round(q.y - s / 2), s, s);
+        if (q.o === pick) { ctx.globalAlpha = 1; var ps = Math.round(P.pickSize); ctx.fillStyle = P.pick; ctx.fillRect(Math.round(q.x - ps / 2), Math.round(q.y - ps / 2), ps, ps); }
+      });
+      ctx.globalAlpha = 1;
+    }
+    var drag = null;
+    cv.addEventListener('pointerdown', function (e) { drag = [e.clientX, e.clientY]; cv.setPointerCapture(e.pointerId); });
+    cv.addEventListener('pointermove', function (e) { if (!drag) return; yaw += (e.clientX - drag[0]) * .01; pitch = Math.max(-1.4, Math.min(1.4, pitch + (e.clientY - drag[1]) * .01)); drag = [e.clientX, e.clientY]; draw(); });
+    cv.addEventListener('pointerup', function () { drag = null; });
+    cv.addEventListener('keydown', function (e) {
+      var k = { ArrowLeft: [-.1, 0], ArrowRight: [.1, 0], ArrowUp: [0, -.1], ArrowDown: [0, .1] }[e.key]; if (!k) return;
+      e.preventDefault(); yaw += k[0]; pitch = Math.max(-1.4, Math.min(1.4, pitch + k[1])); draw();
+    });
+    var legend = document.getElementById('cloud-legend');
+    names.forEach(function (n, k) {
+      var li = document.createElement('li'); var b = document.createElement('button');
+      b.className = 'lab-button lab-key lab-key--dot lab-c' + (k + 1); b.type = 'button'; b.textContent = n; b.setAttribute('aria-pressed', 'false');
+      b.addEventListener('click', function () {
+        focus = focus === k ? -1 : k;
+        legend.querySelectorAll('button').forEach(function (x, j) { x.setAttribute('aria-pressed', j === focus ? 'true' : 'false'); });
+        document.getElementById('cloud-focus').textContent = focus < 0 ? 'all clusters' : 'in focus: ' + n;
+        draw();
+      });
+      li.appendChild(b); legend.appendChild(li);
+    });
+    return draw;
+  })();
+
+  /* ---------- swatches with their contrast, measured here ---------- */
+  function lum(hex) { var c = [1, 3, 5].map(function (i) { var v = parseInt(hex.substr(i, 2), 16) / 255; return v <= .04045 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; }
+  function ratio(a, b) { var x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); }
+  var NAMES = ['lapis', 'ochre', 'verdigris', 'rosa', 'umber', 'caeruleum', 'iosis', 'olive'];
+  function swatches() {
+    var ul = document.getElementById('sw-cat'), bg = Lab.color('bg'), pal = Lab.palette();
+    ul.textContent = '';
+    pal.forEach(function (hex, i) {
+      var li = document.createElement('li'); li.className = 'demo-swatch lab-c' + (i + 1);
+      li.innerHTML = '<span class="demo-chip"></span><span class="demo-chip"></span><span class="lab-label">' + (i + 1) + ' · ' + NAMES[i] + '</span><span class="lab-meta num">' + hex + ' · ' + ratio(hex, bg).toFixed(1) + ':1</span>';
+      ul.appendChild(li);
+    });
+    document.querySelectorAll('[data-legend="all"]').forEach(function (ul) {
+      if (ul.children.length) return;
+      NAMES.forEach(function (n, i) { var li = document.createElement('li'); li.className = 'lab-key lab-key--bar lab-c' + (i + 1); li.textContent = n; ul.appendChild(li); });
+      ['ink', 'accent'].forEach(function (n) { var li = document.createElement('li'); li.className = 'lab-key lab-' + n; li.textContent = n === 'ink' ? 'one series' : 'the one that matters'; ul.appendChild(li); });
+    });
+  }
+
+  function all() { lineChart(); paretoChart(); barChart(); heatChart(); divChart(); cloud(); swatches(); }
+  function start() {
+    document.getElementById('kit-version').textContent = Lab.version;
+    all();
+    Lab.onTheme(function () { cloud(); swatches(); });
+    var t = 0; addEventListener('resize', function () { clearTimeout(t); t = setTimeout(all, 150); });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(all);
+  }
+  if (window.Lab) start(); else addEventListener('DOMContentLoaded', start);
+})();
+</script>
+</body>
+</html>

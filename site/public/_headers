@@ -6,3 +6,9 @@
 
 /
   Cache-Control: public, max-age=0, must-revalidate
+
+# the lab kit: research viewers on other origins link it, and its fonts load only with CORS
+/lab-kit/*
+  Access-Control-Allow-Origin: *
+  Cross-Origin-Resource-Policy: cross-origin
+  Cache-Control: public, max-age=3600

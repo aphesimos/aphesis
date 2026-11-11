@@ -5,9 +5,11 @@
   python3 site/build.py --out OUT --music-index URL   # the music library from another copy (checks)
   python3 site/build.py --local          # the sections from the local branches (default: what origin has)
   python3 site/build.py --worker FILE    # also write the Pages worker (src/worker.js, the link preview) with the content api
+  python3 site/build.py --lab-kit DIR    # also write the lab kit (design-system: system/lab-kit/v*/) to DIR/lab-kit/
 
 Nothing here is a copy of another branch. The build reads, with git, from the branches that own each part:
-  design-system  tokens.json, components/bundle.css, components/bundle.js, fonts/AphesisScript-VF.woff2
+  design-system  tokens.json, components/bundle.css, components/bundle.js, fonts/AphesisScript-VF.woff2;
+                 with --lab-kit, the lab kit (system/lab-kit/v*/), published as static files at /lab-kit/v*/
   mark           engine/model.js and engine/core.js: the live drawing of the φ (the seal)
   section/<name> each section, built by its own build.py
 Special Elite is vendored once, in site/vendor (Apache License 2.0).
@@ -330,9 +332,26 @@ def build(fragment, refs):
             + page.replace('<!--__BODY__-->', '</head>\n<body>', 1) + '\n</body>\n</html>\n')
 
 
+def lab_kit(dest):
+    """The lab kit, the design system for the laboratory's research viewers, as static files: every file under
+    system/lab-kit/ on design-system (pinned like the rest of the build) is written to DEST/lab-kit/, so v1/lab.css is
+    served at https://aphes.ist/lab-kit/v1/lab.css. Only versioned directories (v1, v2...) are published."""
+    if VIEW is None:
+        snapshot(LOCAL)
+    names = vgit('ls-tree', '-r', '--name-only', 'design-system', 'system/lab-kit/').splitlines()
+    names = [n for n in names if re.match(r'^system/lab-kit/v\d+/', n)]
+    if not any(n.endswith('/lab.css') for n in names):
+        sys.exit('lab kit: design-system has no system/lab-kit/v*/lab.css')
+    for n in names:
+        out = os.path.join(dest, 'lab-kit', n[len('system/lab-kit/'):])
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        open(out, 'wb').write(show('design-system', n, True))
+    print(os.path.join(dest, 'lab-kit'), len(names), 'files')
+
+
 if __name__ == '__main__':
     args = sys.argv[1:]
-    out, frag, refs, worker = os.path.join(D, 'index.html'), False, {}, None
+    out, frag, refs, worker, labkit = os.path.join(D, 'index.html'), False, {}, None, None
     LOCAL = '--local' in args
     args = [a for a in args if a != '--local']
     while args:
@@ -343,6 +362,8 @@ if __name__ == '__main__':
             out = args.pop(0)
         elif a == '--worker':
             worker = args.pop(0)
+        elif a == '--lab-kit':
+            labkit = args.pop(0)
         elif a == '--music-index':
             MUSIC_INDEX = args.pop(0)
         elif a == '--content-api':
@@ -369,3 +390,5 @@ if __name__ == '__main__':
         open(worker, 'w', encoding='utf-8').write(js)
         subprocess.run(['node', '--check', '--input-type=module'], input=js, text=True, check=True)
         print(worker, len(js))
+    if labkit:
+        lab_kit(labkit)

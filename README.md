@@ -26,11 +26,14 @@ python3 site/build.py --content-api URL  # the content service for archive, book
 python3 site/build.py --turnstile-sitekey KEY   # the wall and the forum go live (or TURNSTILE_SITEKEY)
 python3 site/build.py --require-gate     # stop if APHESIS_GATE_PHRASE or APHESIS_GATE_ROUTE is missing (the deploy sets it)
 python3 site/build.py --worker FILE      # also write the Pages worker (src/worker.js, the link preview) with the content api
+python3 site/build.py --lab-kit DIR      # also write the lab kit to DIR/lab-kit/ (the deploy: dist/lab-kit/)
 ```
 
 The build copies nothing from other branches; it reads them with git:
 
-- `design-system`: `tokens.json` (made into tokens.css), `components/bundle.css`, `components/bundle.js`, the Aphesis Script font
+- `design-system`: `tokens.json` (made into tokens.css), `components/bundle.css`, `components/bundle.js`, the Aphesis Script font;
+  and the lab kit (`system/lab-kit/v*/`), published as static files at https://aphes.ist/lab-kit/v1/ for the research viewers
+  in other repositories (`_headers` lets other origins load it, fonts included)
 - `mark`: `engine/model.js` and `engine/core.js`, the live drawing of the φ
 - `section/<name>`: each section, built by its own `build.py`
 - Special Elite is vendored once, in `site/vendor/` (Apache License 2.0).

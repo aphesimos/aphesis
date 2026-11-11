@@ -1268,6 +1268,9 @@
      and reads the pointer from one listener; the tick stops while no shared eye is on screen).
      drawAt (CSS px: the eye is drawn as it is at that size and scaled to its box, lids, boil and stipple cells together,
      so a small eye is a miniature of a large one, not a drawing of its own; else it is drawn at the size it is shown).
+     weight (1: the lids' brush weight), grain (1: the size of each iris cell, the pupil's growing about half as much;
+     their number and places stay), and mark (true: the owner's mark, the preset EYE_MARK: drawn at 240px, a brush
+     1.4 times as bold and cells 2.2 times as large, shared), for an eye of about 56px that should read as a mark.
      The box's height is 14/24 of its width: the eye's own band of the icon grid. The drawings for a size are made once
      and kept for every eye of that size. */
   var EYE_BLINKS = ['open', 'half', 'closed', 'squint', 'wide'];
@@ -1291,33 +1294,38 @@
       return { strokes: s, top: function () { return 99; }, bottom: function () { return -99; } };
     }
   };
-  function eyeIris(blink, gaze, v, u) {
+  function eyeIris(blink, gaze, v, u, gk) {
     var L = EYE_LIDS[blink](), d0 = EYE_DIR[gaze], pr = EYE_PUPIL[gaze] || EYE_PUPIL_R, cx = 12 + d0[0], cy = 12 + d0[1];
     var r = rng(1000 + EYE_BLINKS.indexOf(blink) * 97 + EYE_GAZES.indexOf(gaze) * 13 + v * 7919);
     var cell = Math.max(2, Math.round(u * 24 / 150)), step = cell * 1.5 / u, c = cell / u, iris = '', pupil = '';
-    function sq(x, y, k) { var S = c * k * u, X = x * u - S / 2, Y = y * u - S / 2; return 'M' + X.toFixed(1) + ' ' + Y.toFixed(1) + 'h' + S.toFixed(1) + 'v' + S.toFixed(1) + 'h' + (-S).toFixed(1) + 'z'; }
+    /* larger cells (a mark's): the pupil's grow less than the iris's, so its dense cells stay cells, not a blot */
+    gk = gk || 1; var pg = 1 + (gk - 1) * 0.55;
+    function sq(x, y, k, g) { var S = c * k * u * (g || 1), X = x * u - S / 2, Y = y * u - S / 2; return 'M' + X.toFixed(1) + ' ' + Y.toFixed(1) + 'h' + S.toFixed(1) + 'v' + S.toFixed(1) + 'h' + (-S).toFixed(1) + 'z'; }
     for (var gy = -EYE_IRIS; gy <= EYE_IRIS; gy += step) for (var gx = -EYE_IRIS; gx <= EYE_IRIS; gx += step) {
       var x = cx + gx + (r() - 0.5) * step * 0.3, y = cy + gy + (r() - 0.5) * step * 0.3, d = Math.hypot(gx, gy);
       if (d > EYE_IRIS || !(y > L.top(x) + 0.45 && y < L.bottom(x) - 0.45)) continue;
-      if (d < pr) { if (r() < 0.86) pupil += sq(x, y, 0.9 + r() * 0.25); } else if (r() < 0.5 - 0.22 * (d / EYE_IRIS)) iris += sq(x, y, 0.75 + r() * 0.3);
+      if (d < pr) { if (r() < 0.86) pupil += sq(x, y, 0.9 + r() * 0.25, pg); } else if (r() < 0.5 - 0.22 * (d / EYE_IRIS)) iris += sq(x, y, 0.75 + r() * 0.3, gk);
     }
     return { iris: iris, pupil: pupil };
   }
   function eyeScaled(pts, u) { return pts.map(function (p) { return [p[0] * u, p[1] * u]; }); }
-  function eyeDrawings(u) {
-    var lids = {}, irises = {};
+  /* wk: the lids' brush weight, gk: the size of each iris and pupil cell (their number and places stay), both 1 but
+     for a mark */
+  function eyeDrawings(u, wk, gk) {
+    var lids = {}, irises = {}; wk = wk || 1; gk = gk || 1;
     EYE_BLINKS.forEach(function (b) {
       var L = EYE_LIDS[b](); lids[b] = []; irises[b] = {};
-      for (var v = 0; v < EYE_VARIANTS; v++) lids[b].push(L.strokes.map(function (s) { return brush(eyeScaled(s[0], u), s[1] * u, s[2] + v * 211, s[3], s[4]); }).join(''));
-      EYE_GAZES.forEach(function (g) { irises[b][g] = []; for (var v = 0; v < EYE_VARIANTS; v++) irises[b][g].push(eyeIris(b, g, v, u)); });
+      for (var v = 0; v < EYE_VARIANTS; v++) lids[b].push(L.strokes.map(function (s) { return brush(eyeScaled(s[0], u), s[1] * u * wk, s[2] + v * 211, s[3], s[4]); }).join(''));
+      EYE_GAZES.forEach(function (g) { irises[b][g] = []; for (var v = 0; v < EYE_VARIANTS; v++) irises[b][g].push(eyeIris(b, g, v, u, gk)); });
     });
-    return { lids: lids, irises: irises, u: u };
+    return { lids: lids, irises: irises, u: u, wk: wk, gk: gk };
   }
   /* the drawings depend only on the size (every seed is fixed), so eyes of one size share them; a few sizes are kept */
   var EYE_MADE = [];
-  function eyeDrawingsAt(u) {
-    for (var i = 0; i < EYE_MADE.length; i++) if (EYE_MADE[i].u === u) return EYE_MADE[i];
-    var d = eyeDrawings(u); EYE_MADE.unshift(d); if (EYE_MADE.length > 6) EYE_MADE.pop();
+  function eyeDrawingsAt(u, wk, gk) {
+    wk = wk || 1; gk = gk || 1;
+    for (var i = 0; i < EYE_MADE.length; i++) if (EYE_MADE[i].u === u && EYE_MADE[i].wk === wk && EYE_MADE[i].gk === gk) return EYE_MADE[i];
+    var d = eyeDrawings(u, wk, gk); EYE_MADE.unshift(d); if (EYE_MADE.length > 6) EYE_MADE.pop();
     return d;
   }
   /* shared eyes: one tick for all of them, run only while one is on screen; one observer says which are */
@@ -1355,8 +1363,12 @@
     if (EYE_SH.io) EYE_SH.io.unobserve(e.el);
     if (!EYE_SH.eyes.length) { clearInterval(EYE_SH.timer); EYE_SH.timer = 0; }
   }
+  /* the owner's mark: the gate's eye at 56px or so, with its construction and its cells counted as the gate draws its
+     eye at 240px, but a bolder brush and larger cells, so it reads as a mark and not as a far-away eye */
+  var EYE_MARK = { drawAt: 240, weight: 1.4, grain: 2.2, shared: true };
   function Eye(el, o) {
     o = o || {};
+    if (o.mark) { var m = {}; for (var k in EYE_MARK) m[k] = EYE_MARK[k]; for (var k2 in o) m[k2] = o[k2]; o = m; }
     var id = 'aph-eye-boil-' + (++eyeCount);
     if (o.size) el.style.width = o.size + 'px';
     if (!el.style.aspectRatio) el.style.aspectRatio = '24 / 14';
@@ -1378,7 +1390,7 @@
       if (D && Math.abs(D.u - u) / D.u < 0.1) return;
       svg.setAttribute('viewBox', '0 ' + (5 * u).toFixed(1) + ' ' + w.toFixed(1) + ' ' + (14 * u).toFixed(1));
       disp.setAttribute('scale', (w * 0.0095).toFixed(2));
-      D = eyeDrawingsAt(u); api.drawings = D;
+      D = eyeDrawingsAt(u, o.weight, o.grain); api.drawings = D;
       if (drawn) render();
     }
     function render() {
@@ -1439,8 +1451,8 @@
       (function f(now) {
         if (dead) return;
         var t = Math.min(1, (now - t0) / DUR), a = MJ(t / 0.42), b = MJ((t - 0.34) / 0.4), c = clamp((t - 0.7) / 0.3);
-        var d = a > 0 ? brush(eyeScaled(part(open.strokes[0][0], a), u), EYE_W * u, 31) : '';
-        if (b > 0) d += brush(eyeScaled(part(open.strokes[1][0], b), u), EYE_W * u, 33);
+        var d = a > 0 ? brush(eyeScaled(part(open.strokes[0][0], a), u), EYE_W * u * (o.weight || 1), 31) : '';
+        if (b > 0) d += brush(eyeScaled(part(open.strokes[1][0], b), u), EYE_W * u * (o.weight || 1), 33);
         P.lids.setAttribute('d', d);
         P.iris.setAttribute('d', iris.slice(0, Math.round(iris.length * c)).join(''));
         P.pupil.setAttribute('d', pupil.slice(0, Math.round(pupil.length * Math.min(1, c * 1.6))).join(''));

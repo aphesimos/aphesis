@@ -27,5 +27,5 @@ document.getElementById('bClose').onclick = () => eye.close();
 document.getElementById('bOpen').onclick = () => eye.open();
 document.getElementById('bWide').onclick = () => eye.wide();
 /* the owner's mark: small eyes on one shared tick, still while off screen */
-document.querySelectorAll('.small .s').forEach((el) => Aphesis.Eye(el, { size: 56, drawAt: 240, shared: true, drawIn: false }));
+document.querySelectorAll('.small .s').forEach((el) => Aphesis.Eye(el, { size: 56, mark: true, drawIn: false }));
 </script>

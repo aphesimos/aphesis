@@ -2,8 +2,9 @@
    layout, the gate: one screen, the fog thinned for a section. The eye stands above the axis, the line under it; no
    word anywhere. The desk: one scrolling column wide enough for an editor beside its preview, a single column on a
    phone with a choice between writing and reading. The seal holds the top-left corner, the eye the bottom-left,
-   the passage corner (bottom-right) stays free. No container makes a stacking context around the ink: #gate, #desk
-   and their columns have no z-index, transform, filter or opacity of their own once they have entered. */
+   the passage corner (bottom-right) stays free. No container makes a stacking context around the ink but the desk's
+   bands (its mask): #gate, #desk and their columns have no z-index, transform, filter or opacity of their own once
+   they have entered. */
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -76,6 +77,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 /* ---------- the desk ---------- */
 #desk {
   position: absolute; inset: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  /* what scrolls recedes under the seal and the bottom corners instead of running into them (the design system's
+     bands: a mask; for the eye's wave the runtime puts a mirror of the fog at its back, so the ink still blends) */
+  -webkit-mask-image: var(--aph-bands); mask-image: var(--aph-bands);
 }
 .desk {
   width: 100%; max-width: 1240px; margin: 0 auto;

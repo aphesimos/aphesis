@@ -76,7 +76,9 @@ moderation · *custodia*, texts · *verba*, and `leave` (which ends the session;
 - **On a phone**, one column, with a choice between `write` and `read` for the editor and its preview.
 
 Nothing is solid: fields are words on a brushed baseline, buttons are labels whose brushed underline draws in,
-choices put the chosen one in accent. The desk is a scrolling column with no stacking context around its ink.
+choices put the chosen one in accent. The desk is a scrolling column with no stacking context around its ink but
+its bands: what scrolls recedes under the seal and the bottom corners (the design system's `--aph-bands`, a mask;
+through the eye's wave the runtime keeps the ink painted cell by cell with a mirror of the fog).
 
 ## Entrances
 

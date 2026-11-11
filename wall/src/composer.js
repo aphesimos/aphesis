@@ -11,10 +11,12 @@ import { travel } from './motion.js';
 import { check, MAX_LENGTH } from './filter.js';
 
 const A = window.Aphesis;
+/* the site's texts: the owner's version of a line where the site has one (the shell's Aphesis.text), else this one */
+const T = (key, own) => (A.text ? A.text(key, own) : own);
 
 const WORDS = {
-  word: 'the fog will not carry that word.',
-  link: 'no links on the wall.',
+  word: "that word isn't allowed.",
+  link: 'no links.',
   long: 'one line, ' + MAX_LENGTH + ' characters at most.',
   empty: 'write a line first.',
   turnstile: 'the check did not pass. try once more.',
@@ -148,7 +150,7 @@ export function createComposer(form, { api, onSent, say }) {
     }
     busy = true;
     form.classList.add('busy');
-    say('condensing…');
+    say('sending…');
     const res = await api.post(v.text, await token());
     if (useTurnstile && widget !== null) try { window.turnstile.reset(widget); } catch (_) { /* nothing to reset */ }
     busy = false;
@@ -158,7 +160,7 @@ export function createComposer(form, { api, onSent, say }) {
       return;
     }
     release(v.text);
-    say(api.live ? 'it is in the fog now.' : 'it is in the fog now, on this device.');
+    say(api.live ? T('wall.sent', 'posted.') : 'saved on this device.');
     setTimeout(() => onSent(res.message), 520);
   });
 

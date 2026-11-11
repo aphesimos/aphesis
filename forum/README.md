@@ -52,7 +52,9 @@ click away.
   passage corner free, the runtime's cursor and tooltip. On narrow screens the column scrolls between the corners and
   dissolves at its edges, so text never passes under the seal or the eye.
 - **Motion**: sections and posts enter with a blur and a rise, nothing is typed; scrolling to a post travels with
-  minimum jerk. The site always animates (the owner's rule), so there are no reduced-motion branches.
+  minimum jerk. A reply just posted rises into the thread where the reader is (the thread is redrawn in place, with
+  its scroll, and only the new post enters), then the page travels the short way to it; a new thread is a new page
+  and enters whole. The site always animates (the owner's rule), so there are no reduced-motion branches.
 
 ## Modules (`src/`)
 

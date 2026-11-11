@@ -83,10 +83,12 @@ const ctx = {
   images: () => imagesOn,
   onPosted: (r) => {
     const h = '#forum/' + r.thread + '/' + r.n;
-    if (location.hash === h) show(route(), { force: true }); else { forceNext = true; location.hash = h; }
+    postedNext = r;
+    if (location.hash === h) show(route(), { force: true, posted: takePosted() }); else { forceNext = true; location.hash = h; }
   },
 };
-let forceNext = false;
+let forceNext = false, postedNext = null;
+const takePosted = () => { const r = postedNext; postedNext = null; return r; };
 
 function highlight(n, focus) {
   const post = $('p-' + n);
@@ -109,6 +111,12 @@ async function show(r, opts = {}) {
     if (r.n) highlight(r.n, true);
     return;
   }
+  /* a reply just posted to the thread on screen: the thread stays as it is, where it is, and only the new post rises
+     into it (no leaving, no jump to the top and back down to it) */
+  const inPlace = !!(opts.posted && r.thread && r.thread === current.thread && current.data);
+  /* the posts already on screen (read from the page: the thread's data may already hold the new one) */
+  const had = inPlace ? Math.max(0, ...Array.from(view.querySelectorAll('article[id^="p-"]'), (el) => +el.id.slice(2))) : 0;
+  if (inPlace) opts = Object.assign({}, opts, { keepScroll: true, quiet: true });
   const keep = opts.keepScroll ? scroller.scrollTop : 0;
   if (!first && !opts.quiet) view.classList.add('leaving');
   /* between the board and a thread the head changes shape (the lede goes, the title gets smaller): it leaves with
@@ -148,18 +156,22 @@ async function show(r, opts = {}) {
   view.classList.remove('leaving');
   forum.classList.remove('turning');
   if (!opts.quiet) enter(v.items);
+  else if (inPlace && !err) enter(v.items.filter((el) => { const a = el.querySelector && el.querySelector('article[id^="p-"]'); return a && +a.id.slice(2) > had; }));
   scroller.scrollTop = keep;
   document.title = (r.thread ? 'a thread · ' : '') + 'forum · aphes.ist';
   if (!opts.quiet) {
     announce(err ? 'not found' : r.thread ? 'thread, ' + data.posts.length + ' posts' : 'board, ' + data.threads.length + ' threads');
     if (r.thread && r.n) setTimeout(() => highlight(r.n, !first), 450);
     else if (!first) document.querySelector('h1').focus({ preventScroll: true });
+  } else if (inPlace && !err) {
+    announce('posted, post ' + r.n);
+    setTimeout(() => { if (my === seq) highlight(r.n, true); }, 120);
   }
   ground.refresh();
   first = false;
 }
 
-addEventListener('hashchange', () => { const f = forceNext; forceNext = false; show(route(), { force: f }); });
+addEventListener('hashchange', () => { const f = forceNext; forceNext = false; show(route(), { force: f, posted: f ? takePosted() : null }); });
 
 /* ---------- inside a thread: reply, report, open a picture ---------- */
 view.addEventListener('click', (e) => {

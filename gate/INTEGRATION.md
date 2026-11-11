@@ -71,6 +71,10 @@ A third script after the shell's, so the entrances find the passage and the seal
    addEventListener('aph:gate-close', () => { if (!gateOpen) return; gateOpen = false; goTo(readRoute()); });
    ```
 
+   (The shell on `site` has since moved on: the gate's entry keeps `{ aphGate: 1 }` in its state and the screen is
+   read from the address and that state; its README, `The gate`, says how Back, Forward, Escape, the seal and a
+   reload behave.)
+
    Any `via` opens it: `ritual`, `phrase` and `route` (from the entrance script), `door` (experimental's tenth door,
    on section/experimental). The gate opens over wherever the visitor is and adds one history entry, so Back closes
    it; the seal, Escape (at the gate, which dispatches `aph:gate-close`) and any new address close it too. The
@@ -105,8 +109,11 @@ as the shell has them.
   The script adds a small stylesheet: `-webkit-touch-callout: none` and `user-select: none` on the seal (so a long
   press on a phone raises no menu), and the `.aph-ritual` rule.
 - **The phrase** listens to `keydown` on the window, outside fields.
-- **The route** checks `location.hash` on load and on `hashchange`, and replaces a match with `#home` before it
-  dispatches.
+- **The route** is a question the shell asks: `__aphEntrances.isRoute(hash)` answers whether a hash is the secret
+  route. The site's shell puts any hash that names no screen back to the screen on show at once, asks, and opens the
+  gate over that screen on a yes (see the site's README, `The gate`, for the address and history). A page without
+  the shell's routes (no `window.aphesis`) checks `location.hash` itself on load and on `hashchange`, puts the
+  address back to where it was (`#home` at load) and dispatches `aph:entrance` with `via: 'route'`.
 
 ## 5. Build inputs and the deploy
 

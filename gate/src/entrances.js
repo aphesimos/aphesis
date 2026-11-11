@@ -13,8 +13,9 @@
      rose, quicker and eased with minimum jerk, to nothing; holding again on the way down fills on from there.
    - A phrase typed anywhere (via 'phrase'): on a page with a keyboard, outside any field, the last characters typed
      are compared with the phrase's hash.
-   - A secret route (via 'route'): the address's hash, compared with its hash on load and on every change; it is
-     taken out of the address bar before the gate opens.
+   - A secret route (via 'route'): the address's hash, compared with its hash on load and on every change. In the site
+     the shell asks (isRoute below) and opens the gate itself; the route never stays in the address bar, which keeps
+     the address of the screen the gate opens over.
 
    The phrase and the route are never in the page: the build hashes them (PBKDF2-SHA256, a salt of its own, 60,000
    iterations) from APHESIS_GATE_PHRASE and APHESIS_GATE_ROUTE. Both are compared lowercased, spaces collapsed. The
@@ -222,19 +223,30 @@
   }
 
   /* ---------- the route ---------- */
+  /* isRoute(hash): whether an address's hash is the secret route. In the site the shell asks it: the shell puts a hash
+     that names no screen back to the screen on show at once, so the route never stays in the address, then opens the
+     gate over that screen if the answer is yes. A page without the shell's routes looks by itself, and puts the
+     address back to where it was (#home at load) before the gate opens. */
+  let isRoute = null;
   if (H && H.route) {
-    const look = async () => {
+    isRoute = async (raw) => {
       let h = '';
-      try { h = norm(decodeURIComponent(location.hash.replace(/^#/, ''))); } catch (_) { return; }
-      if (h.length < 4 || h.length > 200) return;
-      if (!same(await hash(h), H.route)) return;
-      try { history.replaceState(null, '', location.pathname + location.search + '#home'); } catch (_) { /* fine */ }
-      open('route');
+      try { h = norm(decodeURIComponent(String(raw || '').replace(/^#/, ''))); } catch (_) { return false; }
+      if (h.length < 4 || h.length > 200) return false;
+      return same(await hash(h), H.route);
     };
-    W.addEventListener('hashchange', look);
-    setTimeout(look, 0);
+    if (!W.aphesis) {
+      const look = async (e) => {
+        const was = e && e.oldURL ? new URL(e.oldURL).hash || '#home' : '#home';
+        if (!(await isRoute(location.hash))) return;
+        try { history.replaceState(null, '', location.pathname + location.search + was); } catch (_) { /* fine */ }
+        open('route');
+      };
+      W.addEventListener('hashchange', look);
+      setTimeout(look, 0);
+    }
   }
 
   /* for checks: whether the ritual is armed, and which entrances this page has */
-  Object.defineProperty(W, '__aphEntrances', { value: Object.freeze({ get armed() { return armed(); }, phrase: !!(H && H.phrase), route: !!(H && H.route) }) });
+  Object.defineProperty(W, '__aphEntrances', { value: Object.freeze({ get armed() { return armed(); }, phrase: !!(H && H.phrase), route: !!(H && H.route), isRoute }) });
 })();

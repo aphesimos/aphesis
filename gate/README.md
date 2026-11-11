@@ -86,7 +86,8 @@ choices put the chosen one in accent. The desk is a scrolling column with no sta
   stutters slightly at each), then, within 12 s, hold the φ for 7 s: it fills with stipple, then lets go. Pointer,
   touch, or Enter held on the focused seal. Without the three clicks the seal is only the seal.
 - **A phrase typed anywhere** (desktop), outside fields.
-- **A secret route**: `#<route>`, a bookmark; it is taken out of the address bar.
+- **A secret route**: `#<route>`, a bookmark or typed. The shell puts the address back to the screen on show before
+  it is even checked and opens the gate over that screen, so the route never stays in the address or the history.
 - **The tenth door**: experimental dispatches the same event (`via: 'door'`), on section/experimental.
 
 A wrong or partial attempt does nothing visible. The phrase and the route are never in the page: the build hashes them

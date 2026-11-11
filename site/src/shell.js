@@ -495,7 +495,7 @@ function makeSandbox(name) {
       function attempt() {
         W.fetch(input, init).then((res) => (res.ok ? res.clone().json().then((doc) => {
           if (!WT.ready(doc)) return again();
-          ctx.waiting = false; if (cur === ctx) delete host.dataset.wait;
+          ctx.waiting = false; if (cur === ctx) lift(ctx);
           resolve(res);
         }) : again())).catch(again);
       }
@@ -579,6 +579,18 @@ function wait(ctx) {
   keep.forEach((el) => el.setAttribute('data-aph-keep', ''));
   ctx.zones = keep.map((el) => ({ el, pad: 16 }));
   condense(keep);
+}
+/* the answer is there, but the section still has to read it and write it in: the wait stays until its first writes
+   land (or 1.5 s at most), and goes in the frame that shows them, so no count or list is ever seen filling in */
+function lift(ctx) {
+  let done = false;
+  const go = () => {
+    if (done) return; done = true; mo.disconnect(); clearTimeout(cap);
+    requestAnimationFrame(() => { if (cur === ctx && !ctx.waiting) delete host.dataset.wait; });
+  };
+  const mo = new MutationObserver(go);
+  mo.observe(host, { subtree: true, childList: true, characterData: true });
+  const cap = setTimeout(go, 1500);
 }
 function condense(els) {
   els.forEach((el) => { el.style.setProperty('opacity', '0'); el.style.setProperty('filter', 'blur(10px)'); el.style.setProperty('translate', '0 14px'); });

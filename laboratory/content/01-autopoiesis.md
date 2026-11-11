@@ -5,7 +5,7 @@ gloss: αὐτοποίησις
 order: 1
 example: true
 module: autopoiesis
-summary: a rule that rewrites itself, and keeps a change only if it scores no worse.
+summary: a rule that rewrites itself and keeps a rewrite only when it measures at least as well.
 ---
 
 ## hypothesis

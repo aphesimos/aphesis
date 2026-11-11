@@ -28,7 +28,7 @@ export function indexView(list) {
   <header class="head aph-ink" data-zone="20">
     <p class="gloss-title aph-gloss" lang="la">officina</p>
     <h1 class="title aph-display">laboratory</h1>
-    <p class="lede">${esc(T('laboratory.lede', 'experiments that run in your browser. each one says what i expected and what came out.'))}</p>
+    <p class="lede">${esc(T('laboratory.lede', 'measured experiments. each one states what i expect, says how i measure it, runs here in your browser, and reports what it found, whatever it finds.'))}</p>
   </header>
   <nav class="aph-ink" aria-label="experiments"><ol class="inscription">${items}</ol></nav>`;
 }
@@ -56,7 +56,7 @@ export function experimentView(e, list) {
     <header class="head aph-ink" data-zone="20">
       <p class="gloss-title aph-gloss" lang="${lang(e.gloss)}">${esc(e.gloss)}</p>
       <h1 class="title aph-display">${esc(e.title)}</h1>
-      <p class="aph-meta num">no. ${no(e)}${e.example ? ' · example' : ''} · ${esc(T('laboratory.live', 'runs in your browser'))}</p>
+      <p class="aph-meta num">no. ${no(e)}${e.example ? ' · example' : ''} · ${esc(T('laboratory.live', 'measured live in this browser'))}</p>
     </header>
     ${parts}
     <nav class="turn aph-ink" aria-label="other experiments">

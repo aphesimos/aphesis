@@ -4,6 +4,7 @@
 //! GET    /messages        the live lines, newest first: { messages: [{ id, text, at, owner }] }
 //! POST   /messages        { text, token } -> 201 { message } | 400 { error: 'empty'|'long'|'word'|'link'|'bad' }
 //!                         | 403 { error: 'turnstile' } | 429 { error: 'rate', retryAfter } | 503 { error: 'unavailable' }
+//!                         | 500 { error: 'stumbled' } (anything that broke on the way, still with CORS)
 //!                         With `Authorization: Bearer <ADMIN_TOKEN>` the line is the owner's (`owner: true`): the
 //!                         filter still applies, the rate limit and Turnstile do not; any other key is 401. Nothing
 //!                         else in a request (an `owner` in the JSON, say) can mark a line as the owner's.
@@ -78,7 +79,21 @@ fn message_id(path: &str) -> Option<&str> {
 }
 
 #[event(fetch)]
-async fn fetch(mut req: Request, env: Env, _ctx: Context) -> Result<Response> {
+async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
+    let origin = req.headers().get("Origin")?;
+    let h = Cors::new(&env::string(&env, "ALLOWED_ORIGINS").unwrap_or_default())
+        .headers_for(origin.as_deref());
+    match serve(req, env).await {
+        Ok(r) => Ok(r),
+        // anything that breaks on the way is still an answer the page can read, with its CORS headers and a word
+        Err(e) => {
+            worker::console_error!("wall: {e}");
+            refuse(500, "stumbled", &h)
+        }
+    }
+}
+
+async fn serve(mut req: Request, env: Env) -> Result<Response> {
     let origin = req.headers().get("Origin")?;
     let h = Cors::new(&env::string(&env, "ALLOWED_ORIGINS").unwrap_or_default())
         .headers_for(origin.as_deref());

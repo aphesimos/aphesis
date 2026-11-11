@@ -19,6 +19,29 @@ pub const PIXELS: f64 = 40e6;
 
 pub use aphesis_common::image::{image_size, sniff, Kind, Size};
 
+/// Why a post is refused: `code` for the page to act on (one word, stable), `error` in words (as before), and the
+/// limit that was passed when there is one (bytes, characters, lines, pixels or pixels on the long side).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Refusal {
+    pub code: &'static str,
+    pub error: String,
+    pub limit: Option<u64>,
+}
+
+impl Refusal {
+    pub fn new(code: &'static str, error: impl Into<String>) -> Self {
+        Refusal {
+            code,
+            error: error.into(),
+            limit: None,
+        }
+    }
+    pub fn limit(mut self, n: u64) -> Self {
+        self.limit = Some(n);
+        self
+    }
+}
+
 /// What the JavaScript strips: C0 controls except tab and newline, DEL, zero-width and direction marks, embeddings,
 /// overrides and isolates.
 fn dropped(c: char) -> bool {
@@ -26,7 +49,7 @@ fn dropped(c: char) -> bool {
 }
 
 /// The words of a post, cleaned. `required`: a post with no picture needs words.
-pub fn check_text(raw: &str, required: bool) -> Result<String, String> {
+pub fn check_text(raw: &str, required: bool) -> Result<String, Refusal> {
     // \r\n? -> \n, then the invisible and control characters go
     let mut t = String::with_capacity(raw.len());
     let mut chars = raw.chars().peekable();
@@ -63,13 +86,17 @@ pub fn check_text(raw: &str, required: bool) -> Result<String, String> {
         None => s,
     };
     if required && s.trim_matches(is_js_space).is_empty() {
-        return Err("a post needs words".into());
+        return Err(Refusal::new("text_required", "a post needs words"));
     }
     if s.chars().count() > TEXT {
-        return Err(format!("at most {TEXT} characters"));
+        return Err(
+            Refusal::new("text_long", format!("at most {TEXT} characters")).limit(TEXT as u64),
+        );
     }
     if s.split('\n').count() > LINES {
-        return Err(format!("at most {LINES} lines"));
+        return Err(
+            Refusal::new("text_lines", format!("at most {LINES} lines")).limit(LINES as u64)
+        );
     }
     Ok(s.to_string())
 }
@@ -81,19 +108,19 @@ pub struct Picture {
     pub height: u32,
 }
 
-pub fn check_original(b: &[u8]) -> Result<Picture, &'static str> {
+pub fn check_original(b: &[u8]) -> Result<Picture, Refusal> {
     if b.is_empty() {
-        return Err("the picture is empty");
+        return Err(Refusal::new("image_unreadable", "the picture is empty"));
     }
     if b.len() > ORIGINAL {
-        return Err("pictures up to 4 mb");
+        return Err(Refusal::new("image_too_large", "pictures up to 4 mb").limit(ORIGINAL as u64));
     }
-    let kind = sniff(b).ok_or("only jpeg, png, webp or gif")?;
+    let kind = sniff(b).ok_or_else(|| Refusal::new("image_type", "only jpeg, png, webp or gif"))?;
     let size = image_size(b, Some(kind))
         .filter(|s| s.width > 0 && s.height > 0)
-        .ok_or("this picture could not be read")?;
+        .ok_or_else(|| Refusal::new("image_unreadable", "this picture could not be read"))?;
     if size.width as f64 * size.height as f64 > PIXELS {
-        return Err("this picture is too large");
+        return Err(Refusal::new("image_pixels", "this picture is too large").limit(PIXELS as u64));
     }
     Ok(Picture {
         kind,
@@ -102,21 +129,32 @@ pub fn check_original(b: &[u8]) -> Result<Picture, &'static str> {
     })
 }
 
-pub fn check_density(b: Option<&[u8]>) -> Result<Picture, &'static str> {
+pub fn check_density(b: Option<&[u8]>) -> Result<Picture, Refusal> {
     let b = b
         .filter(|b| !b.is_empty())
-        .ok_or("the density map is missing")?;
+        .ok_or_else(|| Refusal::new("map_missing", "the density map is missing"))?;
     if b.len() > DENSITY {
-        return Err("the density map is too heavy");
+        return Err(
+            Refusal::new("map_too_large", "the density map is too heavy").limit(DENSITY as u64),
+        );
     }
     let kind = match sniff(b) {
         Some(k @ (Kind::Jpeg | Kind::Png)) => k,
-        _ => return Err("the density map must be jpeg or png"),
+        _ => {
+            return Err(Refusal::new(
+                "map_type",
+                "the density map must be jpeg or png",
+            ))
+        }
     };
-    let size = image_size(b, Some(kind)).ok_or("the density map could not be read")?;
+    let size = image_size(b, Some(kind))
+        .ok_or_else(|| Refusal::new("map_unreadable", "the density map could not be read"))?;
     let (long, short) = (size.width.max(size.height), size.width.min(size.height));
     if long > DENSITY_LONG || short < DENSITY_SHORT {
-        return Err("the density map has the wrong size");
+        return Err(
+            Refusal::new("map_size", "the density map has the wrong size")
+                .limit(DENSITY_LONG as u64),
+        );
     }
     Ok(Picture {
         kind,
@@ -258,18 +296,28 @@ mod tests {
         assert!(check_original(&[]).is_err());
         let mut heavy = vec![0u8; ORIGINAL + 1];
         heavy[..jpeg(10, 10).len()].copy_from_slice(&jpeg(10, 10));
-        assert_eq!(check_original(&heavy), Err("pictures up to 4 mb"));
+        assert_eq!(
+            check_original(&heavy),
+            Err(Refusal::new("image_too_large", "pictures up to 4 mb").limit(4 * 1024 * 1024))
+        );
         assert_eq!(
             check_original(b"GIF? no, a script pretending to be one...."),
-            Err("only jpeg, png, webp or gif")
+            Err(Refusal::new("image_type", "only jpeg, png, webp or gif"))
         );
         assert_eq!(
             check_original(&png(10000, 10000)),
-            Err("this picture is too large")
+            Err(Refusal::new("image_pixels", "this picture is too large").limit(40_000_000))
         );
         assert_eq!(
             check_original(&png(0, 10)),
-            Err("this picture could not be read")
+            Err(Refusal::new(
+                "image_unreadable",
+                "this picture could not be read"
+            ))
+        );
+        assert_eq!(
+            check_original(&[]).map_err(|r| r.code),
+            Err("image_unreadable")
         );
     }
 
@@ -291,9 +339,20 @@ mod tests {
         heavy[..jpeg(560, 420).len()].copy_from_slice(&jpeg(560, 420));
         assert_eq!(
             check_density(Some(&heavy)),
-            Err("the density map is too heavy")
+            Err(Refusal::new("map_too_large", "the density map is too heavy").limit(900 * 1024))
         );
-        assert_eq!(check_density(None), Err("the density map is missing"));
+        assert_eq!(
+            check_density(None),
+            Err(Refusal::new("map_missing", "the density map is missing"))
+        );
+        assert_eq!(
+            check_density(Some(&jpeg(961, 540))).map_err(|r| (r.code, r.limit)),
+            Err(("map_size", Some(960)))
+        );
+        assert_eq!(
+            check_density(Some(&gif(560, 420))).map_err(|r| r.code),
+            Err("map_type")
+        );
     }
 
     #[test]
@@ -308,11 +367,15 @@ mod tests {
         assert!(check_text(&"x".repeat(TEXT), true).is_ok());
         assert_eq!(
             check_text(&"x".repeat(TEXT + 1), true),
-            Err("at most 2000 characters".into())
+            Err(Refusal::new("text_long", "at most 2000 characters").limit(2000))
         );
         assert_eq!(
             check_text(&"a\n".repeat(LINES + 2), true),
-            Err("at most 60 lines".into())
+            Err(Refusal::new("text_lines", "at most 60 lines").limit(60))
+        );
+        assert_eq!(
+            check_text("   \n ", true),
+            Err(Refusal::new("text_required", "a post needs words"))
         );
         assert_eq!(check_text("a\n\n\n\n\n\nb", true), Ok("a\n\n\nb".into()));
         assert_eq!(

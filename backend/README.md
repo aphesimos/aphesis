@@ -109,7 +109,7 @@ Turnstile. SHA-256 is plain Rust (`sha2`), so hashing is synchronous and testabl
 
 ## The API
 
-Errors are always JSON `{"error": "..."}`. CORS answers only `ALLOWED_ORIGINS`
+Errors are always JSON `{"error": "..."}` (the forum's also carry a `code`, below). CORS answers only `ALLOWED_ORIGINS`
 (`https://aphes.ist,https://www.aphes.ist,https://aphesist.pages.dev`), always with `Vary: Origin`; preflights
 (`OPTIONS`, any path) get `204`.
 
@@ -123,7 +123,9 @@ Errors are always JSON `{"error": "..."}`. CORS answers only `ALLOWED_ORIGINS`
 
 `POST /messages` refusals: `400` with `empty`, `long` (over 140 characters), `word`, `link` or `bad` (not JSON, or
 no string `text`); `429 {error: "rate", retryAfter}` with `Retry-After`; `403 {error: "turnstile"}`;
-`503 {error: "unavailable"}` without `HASH_SALT`. Ids are 16 hex characters. Anything else is `404 {error: "not found"}`.
+`503 {error: "unavailable"}` without `HASH_SALT`; `500 {error: "stumbled"}`, with the CORS headers, when anything
+breaks on the way (before, the runtime's own error page reached the page as a failed request). Ids are 16 hex
+characters. Anything else is `404 {error: "not found"}`.
 
 Vars: `ALLOWED_ORIGINS`, `TTL_DAYS` (30), `BLOCKLIST` (extra words, comma-separated, matched like the built-in ones),
 `ALLOW_NO_TURNSTILE` (local only), `TTL_SECONDS` (tests only). Secrets: `TURNSTILE_SECRET`, `HASH_SALT`,
@@ -133,7 +135,7 @@ Vars: `ALLOWED_ORIGINS`, `TTL_DAYS` (30), `BLOCKLIST` (extra words, comma-separa
 
 | method | path | what |
 | --- | --- | --- |
-| GET | `/api/board` | `{threads: [{id, first, replies, created, bumped, image, owner}], next, density: {long: 960, bytes: 921600}}`, newest activity first, one page, and the density maps this Worker takes; `cache-control: public, max-age=5` |
+| GET | `/api/board` | `{threads: [{id, first, replies, created, bumped, image, owner}], next, density: {long: 960, bytes: 921600}, limits}`, newest activity first, one page, and what a post may carry; `cache-control: public, max-age=5` |
 | GET | `/api/threads/:id` | `{id, created, posts: [{n, poster, text, created, owner, image?} or {n, created, removed: true}]}` |
 | POST | `/api/threads` | a new thread, multipart: `text`, optional `image` + `density`, `turnstile` → `201 {thread, n: 1}` |
 | POST | `/api/threads/:id/posts` | a reply, the same fields; text may be empty with a picture → `201 {thread, n}` |
@@ -151,16 +153,38 @@ strictly below where the previous one ended (a thread answered meanwhile moves t
 malformed cursor is `400 {error: "bad cursor"}`. A client that reads only `threads`
 (the page before pages) gets the first 40, as before.
 
-**The density map's limits.** The board's pages carry `density: {long, bytes}`, what this Worker takes, so the page
-prepares maps to fit (960 px and 900 KB now). A page that finds no `density` there (an older Worker) keeps 640 px,
-the limit before.
+**The limits.** The board's pages carry what a post may carry, so the page prepares pictures to fit and says the
+limits before anyone picks one:
+`limits: {request: 6291456, original: {bytes: 4194304, pixels: 40000000}, density: {long: 960, bytes: 921600},
+text: {chars: 2000, lines: 60}}`, and `density: {long, bytes}` alone as before. A page that finds no `density` there
+(an older Worker) keeps 640 px, the limit before.
 
 `image` is `{density, original, w, h, caption}` with paths relative to the Worker (`image` is `null` on the board when
-the opening post has none). Thread ids are 10 characters of `a-z2-9`. Status codes: `400` bad input (the error says
-what: `a post needs words`, `at most 2000 characters`, `at most 60 lines`, `only jpeg, png, webp or gif`, `the density
-map has the wrong size`, ...), `403` (`not from this site`, `the check did not pass`, `not allowed`), `404`, `409`
-(`this thread is full`, 500 posts), `413 too large` (over 6 MB: the 4 MB original, the 900 KB map and the form), `429` with `Retry-After`, `503` without salts. Admin
-calls carry `Authorization: Bearer <ADMIN_SECRET>`.
+the opening post has none). Thread ids are 10 characters of `a-z2-9`.
+
+**Refusals** are `{error, code, limit?, retryAfter?}`: `error` in words, as before; `code`, one word that does not
+change, for the page to say why in its own voice; `limit`, the limit that was passed; `retryAfter`, the seconds to
+wait (also in `Retry-After`, which a page on another origin cannot read).
+
+| status | code | when (`limit`) |
+| --- | --- | --- |
+| 400 | `text_required` | a new thread, or a reply without a picture, with no words |
+| 400 | `text_long`, `text_lines` | over 2000 characters, over 60 lines (2000, 60) |
+| 400 | `image_too_large` | the original over 4 MB (4194304) |
+| 400 | `image_type` | the original not jpeg, png, webp or gif, read from its bytes |
+| 400 | `image_unreadable` | the original empty, or its size unreadable |
+| 400 | `image_pixels` | the original over 40 megapixels (40000000) |
+| 400 | `map_missing`, `map_too_large`, `map_type`, `map_unreadable`, `map_size`, `map_orphan` | the density map: missing, over 900 KB (921600), not jpeg or png, unreadable, over 960 px or under 32 (960), or sent without its original |
+| 400 | `form`, `cursor` | an unreadable form; a malformed board cursor |
+| 403 | `origin`, `turnstile`, `not_allowed` | not from the site's origins; the check did not pass (failed, expired or used); a wrong admin key |
+| 404 | `thread_gone`, `no_post`, `not_found` | the thread, the post, anything else |
+| 409 | `thread_full` | the thread holds 500 posts (500) |
+| 413 | `too_large` | the request over 6 MB: the 4 MB original, the 900 KB map and the form (6291456) |
+| 429 | `rate` | too fast, with `retryAfter` |
+| 500 | `stumbled` | anything that broke on the way |
+| 503 | `not_open` | the salts are not set |
+
+Admin calls carry `Authorization: Bearer <ADMIN_SECRET>`.
 
 Vars: `ALLOWED_ORIGINS`, `RATE_POSTS` (4), `RATE_THREADS` (1), `RATE_WINDOW_SECONDS` (120),
 `ALLOW_NO_TURNSTILE` (local only). Secrets: `TURNSTILE_SECRET`, `IP_SALT`, `POSTER_SALT`, `ADMIN_SECRET`.

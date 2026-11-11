@@ -102,8 +102,14 @@ fn public(p: &Row) -> PublicPost {
     }
 }
 
+/// a refusal in words, with the code the page acts on (`thread_gone`, `no_post`, `not_found`)
 fn not_found(msg: &str) -> Result<Response> {
-    reply(404, &json!({ "error": msg }))
+    let code = match msg {
+        "this thread is gone" => "thread_gone",
+        "no such post" => "no_post",
+        _ => "not_found",
+    };
+    reply(404, &json!({ "error": msg, "code": code }))
 }
 
 impl Thread {
@@ -222,7 +228,7 @@ impl DurableObject for Thread {
             }
             "/create" => {
                 if meta.is_some() {
-                    return reply(409, &json!({ "error": "exists" }));
+                    return reply(409, &json!({ "error": "exists", "code": "exists" }));
                 }
                 let post: NewPost = serde_json::from_value(b["post"].clone())?;
                 let id = b["id"].as_str().unwrap_or_default();
@@ -240,7 +246,10 @@ impl DurableObject for Thread {
                     return not_found("this thread is gone");
                 };
                 if m.count as i64 >= MAX_POSTS {
-                    return reply(409, &json!({ "error": "this thread is full" }));
+                    return reply(
+                        409,
+                        &json!({ "error": "this thread is full", "code": "thread_full", "limit": MAX_POSTS }),
+                    );
                 }
                 let n = m.count as i64 + 1;
                 let post: NewPost = serde_json::from_value(b["post"].clone())?;

@@ -364,7 +364,7 @@ impl DurableObject for Board {
                 )?;
                 reply(200, &json!({ "ok": true }))
             }
-            _ => reply(404, &json!({ "error": "not found" })),
+            _ => reply(404, &json!({ "error": "not found", "code": "not_found" })),
         }
     }
 

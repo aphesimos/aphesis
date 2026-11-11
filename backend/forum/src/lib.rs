@@ -47,14 +47,25 @@ use worker::{
 
 use model::{Entry, Image, NewPost};
 
-/// The board's page with the density map's limits beside it, so the page prepares maps this Worker accepts (a page
-/// that reads no limits keeps the old 640 px).
+/// What a post may carry, for the page to prepare pictures that fit and to say the limits before anyone picks one:
+/// the whole request, the original (bytes and pixels), the density map (pixels on the long side and bytes) and the
+/// words (characters and lines).
+fn limits() -> Value {
+    json!({
+        "request": MAX_BODY as u64,
+        "original": { "bytes": validate::ORIGINAL, "pixels": validate::PIXELS as u64 },
+        "density": { "long": validate::DENSITY_LONG, "bytes": validate::DENSITY },
+        "text": { "chars": validate::TEXT, "lines": validate::LINES },
+    })
+}
+
+/// The board's page with the limits beside it: `limits` whole, and `density` alone as before, so a page that knows
+/// only that one still prepares maps this Worker accepts (a page that reads no limits keeps the old 640 px).
 fn with_limits(mut body: Value) -> Value {
     if let Some(o) = body.as_object_mut() {
-        o.insert(
-            "density".into(),
-            json!({ "long": validate::DENSITY_LONG, "bytes": validate::DENSITY }),
-        );
+        let l = limits();
+        o.insert("density".into(), l["density"].clone());
+        o.insert("limits".into(), l);
     }
     body
 }
@@ -83,8 +94,36 @@ impl Ctx {
     fn ok(&self, v: &Value) -> Result<Response> {
         self.json(200, v, &http::Headers::new())
     }
-    fn fail(&self, status: u16, error: &str) -> Result<Response> {
-        self.json(status, &json!({ "error": error }), &http::Headers::new())
+    /// a refusal: `{error, code}`, the words as before and a stable code for the page to act on
+    fn fail(&self, status: u16, code: &str, error: &str) -> Result<Response> {
+        self.json(
+            status,
+            &json!({ "error": error, "code": code }),
+            &http::Headers::new(),
+        )
+    }
+    /// a refusal from the upload checks, with the limit that was passed
+    fn refuse(&self, r: &validate::Refusal) -> Result<Response> {
+        let mut v = json!({ "error": r.error, "code": r.code });
+        if let Some(l) = r.limit {
+            v["limit"] = json!(l);
+        }
+        self.json(400, &v, &http::Headers::new())
+    }
+    /// a refusal passed on from a Durable Object, its code with it
+    fn pass_on(&self, status: u16, r: &Value, fallback: &str) -> Result<Response> {
+        let mut v = json!({
+            "error": r["error"].as_str().unwrap_or(fallback),
+            "code": r["code"].as_str().unwrap_or(match status {
+                404 => "not_found",
+                409 => "conflict",
+                _ => "stumbled",
+            }),
+        });
+        if let Some(l) = r["limit"].as_i64() {
+            v["limit"] = json!(l);
+        }
+        self.json(status, &v, &http::Headers::new())
     }
     fn board(&self) -> Result<Stub> {
         self.env.durable_object("BOARD")?.get_by_name("board")
@@ -174,18 +213,22 @@ async fn handle_post(c: &Ctx, mut req: Request, thread_id: Option<&str>) -> Resu
         .and_then(|s| s.trim().parse::<f64>().ok())
         .unwrap_or(0.0);
     if len > MAX_BODY {
-        return c.fail(413, "too large");
+        return c.json(
+            413,
+            &json!({ "error": "too large", "code": "too_large", "limit": MAX_BODY as u64 }),
+            &http::Headers::new(),
+        );
     }
     if let Some(o) = req.headers().get("Origin")? {
         if !c.cors.allows(&o) {
-            return c.fail(403, "not from this site");
+            return c.fail(403, "origin", "not from this site");
         }
     }
     if !c.salted() {
-        return c.fail(503, NOT_SET_UP);
+        return c.fail(503, "not_open", NOT_SET_UP);
     }
     let Ok(owner) = c.poster_is_owner(&req) else {
-        return c.fail(403, "not allowed");
+        return c.fail(403, "not_allowed", "not allowed");
     };
     // the owner's posts come from the content service, one address for every one of them: its poster token is made
     // from a fixed word in place of the IP hash (still one token per thread, never the same across threads)
@@ -211,16 +254,16 @@ async fn handle_post(c: &Ctx, mut req: Request, thread_id: Option<&str>) -> Resu
         let extra = http::Headers::new().with("Retry-After", &wait.to_string());
         return c.json(
             429,
-            &json!({ "error": format!("slowly: try again in {wait} s") }),
+            &json!({ "error": format!("slowly: try again in {wait} s"), "code": "rate", "retryAfter": wait }),
             &extra,
         );
     }
 
     let Ok(form) = req.form_data().await else {
-        return c.fail(400, "unreadable form");
+        return c.fail(400, "form", "unreadable form");
     };
     if !owner && !c.turnstile(field(form.get("turnstile"))).await {
-        return c.fail(403, "the check did not pass");
+        return c.fail(403, "turnstile", "the check did not pass");
     }
 
     let orig = file(form.get("image")).await?;
@@ -228,22 +271,22 @@ async fn handle_post(c: &Ctx, mut req: Request, thread_id: Option<&str>) -> Resu
     let required = thread_id.is_none() || orig.is_none();
     let text = match validate::check_text(&field(form.get("text")).unwrap_or_default(), required) {
         Ok(t) => t,
-        Err(e) => return c.fail(400, &e),
+        Err(e) => return c.refuse(&e),
     };
 
     let mut pictures = None;
     if let Some(o) = orig.as_deref() {
         let a = match validate::check_original(o) {
             Ok(a) => a,
-            Err(e) => return c.fail(400, e),
+            Err(e) => return c.refuse(&e),
         };
         let d = match validate::check_density(dens.as_deref()) {
             Ok(d) => d,
-            Err(e) => return c.fail(400, e),
+            Err(e) => return c.refuse(&e),
         };
         pictures = Some((a, d));
     } else if dens.is_some() {
-        return c.fail(400, "a density map needs its original");
+        return c.fail(400, "map_orphan", "a density map needs its original");
     }
 
     let id = thread_id
@@ -253,7 +296,7 @@ async fn handle_post(c: &Ctx, mut req: Request, thread_id: Option<&str>) -> Resu
     if thread_id.is_some() {
         let (status, _) = call::<Value>(&thread, "/get", None).await?;
         if status != 200 {
-            return c.fail(404, "this thread is gone");
+            return c.fail(404, "thread_gone", "this thread is gone");
         }
     }
 
@@ -302,7 +345,7 @@ async fn handle_post(c: &Ctx, mut req: Request, thread_id: Option<&str>) -> Resu
         if !keys.is_empty() {
             images.delete_multiple(keys).await?;
         }
-        return c.fail(status, r["error"].as_str().unwrap_or("not posted"));
+        return c.pass_on(status, &r, "not posted");
     }
     let entry = match thread_id {
         Some(_) => Entry {
@@ -402,7 +445,7 @@ async fn route(c: &Ctx, req: Request) -> Result<Response> {
     let parts = segments(&path);
     let seg = |i: usize| parts.get(i).copied().flatten();
     if seg(0) != Some("api") {
-        return c.fail(404, "not found");
+        return c.fail(404, "not_found", "not found");
     }
     let (a, b, cc, d, e) = (seg(1), seg(2), seg(3), seg(4), seg(5));
     let method = req.method();
@@ -411,7 +454,7 @@ async fn route(c: &Ctx, req: Request) -> Result<Response> {
         let url = req.url()?;
         let (cursor, limit) = match page_params(url.query()) {
             Ok(p) => p,
-            Err(e) => return c.fail(400, e),
+            Err(e) => return c.fail(400, "cursor", e),
         };
         let (_, body) = call(
             &c.board()?,
@@ -426,7 +469,7 @@ async fn route(c: &Ctx, req: Request) -> Result<Response> {
         );
     }
     if a == Some("threads") && b.is_some_and(|b| !tokens::is_thread_id(b)) {
-        return c.fail(404, "this thread is gone");
+        return c.fail(404, "thread_gone", "this thread is gone");
     }
     if let (Method::Get, Some("threads"), Some(id), None) = (method.clone(), a, b, cc) {
         let (status, body) = call::<Value>(&c.thread(id)?, "/get", None).await?;
@@ -443,19 +486,19 @@ async fn route(c: &Ctx, req: Request) -> Result<Response> {
     {
         let b = b.unwrap_or_default();
         if !c.salted() {
-            return c.fail(503, NOT_SET_UP);
+            return c.fail(503, "not_open", NOT_SET_UP);
         }
         let wait = c.limited("report", &c.ip_hash(&req)).await?;
         if wait > 0 {
             return c.json(
                 429,
-                &json!({ "error": "slowly" }),
+                &json!({ "error": "slowly", "code": "rate", "retryAfter": wait }),
                 &http::Headers::new().with("Retry-After", &wait.to_string()),
             );
         }
         let (status, r) = call(&c.thread(b)?, "/report", Some(&json!({ "n": n }))).await?;
         if status != 200 {
-            return c.fail(status, r["error"].as_str().unwrap_or_default());
+            return c.pass_on(status, &r, "");
         }
         call(
             &c.board()?,
@@ -469,12 +512,12 @@ async fn route(c: &Ctx, req: Request) -> Result<Response> {
         (method.clone(), a, cc, post_number(d))
     {
         if !c.is_admin(&req) {
-            return c.fail(403, "not allowed");
+            return c.fail(403, "not_allowed", "not allowed");
         }
         let b = b.unwrap_or_default();
         let (status, r) = call(&c.thread(b)?, "/remove", Some(&json!({ "n": n }))).await?;
         if status != 200 {
-            return c.fail(status, r["error"].as_str().unwrap_or_default());
+            return c.pass_on(status, &r, "");
         }
         let keys: Vec<String> = r["keys"]
             .as_array()
@@ -499,7 +542,7 @@ async fn route(c: &Ctx, req: Request) -> Result<Response> {
     }
     if method == Method::Get && a == Some("admin") && b == Some("reports") {
         if !c.is_admin(&req) {
-            return c.fail(403, "not allowed");
+            return c.fail(403, "not_allowed", "not allowed");
         }
         let (_, body) = call::<Value>(&c.board()?, "/reports", None).await?;
         return c.ok(&body);
@@ -513,7 +556,7 @@ async fn route(c: &Ctx, req: Request) -> Result<Response> {
     {
         let key = format!("t/{}/{}", cc.unwrap(), d.unwrap());
         let Some(obj) = c.env.bucket("IMAGES")?.get(key).execute().await? else {
-            return c.fail(404, "no such picture");
+            return c.fail(404, "not_found", "no such picture");
         };
         let ctype = obj
             .http_metadata()
@@ -529,11 +572,11 @@ async fn route(c: &Ctx, req: Request) -> Result<Response> {
             .merge(&c.h);
         let body = match obj.body() {
             Some(b) => b.response_body()?,
-            None => return c.fail(404, "no such picture"),
+            None => return c.fail(404, "not_found", "no such picture"),
         };
         return Ok(Response::from_body(body)?.with_headers(h.to_worker()));
     }
-    c.fail(404, "not found")
+    c.fail(404, "not_found", "not found")
 }
 
 #[event(fetch)]
@@ -548,7 +591,7 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         Ok(r) => Ok(r),
         Err(e) => {
             worker::console_error!("forum: {e}");
-            c.fail(500, "the board stumbled")
+            c.fail(500, "stumbled", "the board stumbled")
         }
     }
 }
@@ -578,6 +621,15 @@ mod tests {
     fn board_page_carries_the_density_limits() {
         let b = with_limits(json!({ "threads": [], "next": null }));
         assert_eq!(b["density"], json!({ "long": 960, "bytes": 900 * 1024 }));
+        assert_eq!(
+            b["limits"],
+            json!({
+                "request": 6 * 1024 * 1024,
+                "original": { "bytes": 4 * 1024 * 1024, "pixels": 40_000_000 },
+                "density": { "long": 960, "bytes": 900 * 1024 },
+                "text": { "chars": 2000, "lines": 60 },
+            })
+        );
         assert_eq!(b["threads"], json!([]));
         assert_eq!(with_limits(json!("x")), json!("x"));
     }

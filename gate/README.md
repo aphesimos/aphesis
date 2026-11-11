@@ -61,7 +61,11 @@ moderation · *custodia*, texts · *verba*, and `leave` (which ends the session;
   contrast and brightness, applied as the book applies them), beside its words. Works also take their links.
 - **moderation**: the wall's lines, the forum's reports and threads; a thread opens to its posts; each can be removed
   (the first post removes the thread). The content service calls the wall and the forum server to server; no
-  admin secret is in the page.
+  admin secret is in the page. **The owner writes here too**, as *aphesist*: a line on the wall (Enter), a new
+  thread, and a reply under the open thread (Ctrl or Cmd + Enter). The content service passes them on with the
+  wall's and the forum's admin secrets, which is what marks them as the owner's on the site (the live eye and the
+  name in place of a sigil); nothing the page sends could. In the lists the owner's own lines, threads and posts carry
+  a still eye and the name in rubedo before their words ("aphesist, the owner" for assistive technology).
 - **texts**: the site's texts, the short lines the owner changes without a rebuild (the home's line for each
   section, the ledes, the helper lines, the empty states), grouped by screen. Each key shows its value now, a field
   to change it (one line; Enter saves), a preview line in the face it is read in, and `reset to default`. Saved

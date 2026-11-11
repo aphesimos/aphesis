@@ -31,6 +31,10 @@ export function createApi(base) {
     upload(blob) { const fd = new FormData(); fd.append('file', blob, 'map.jpg'); return call('POST', '/v1/admin/media', fd); },
     wall: () => call('GET', '/v1/admin/wall'),
     wallRemove: (id) => call('DELETE', `/v1/admin/wall/${encodeURIComponent(id)}`),
+    /* the owner writes: the content service passes it on with the wall's or the forum's admin secret, which is what
+       marks it as the owner's (nothing this page sends could) */
+    wallWrite: (text) => call('POST', '/v1/admin/wall', { text }),
+    forumWrite: (thread, text) => call('POST', thread ? `/v1/admin/forum/threads/${encodeURIComponent(thread)}/posts` : '/v1/admin/forum/threads', { text }),
     board: (cursor) => call('GET', '/v1/admin/forum/board' + (cursor ? '?cursor=' + encodeURIComponent(cursor) : '')),
     thread: (id) => call('GET', `/v1/admin/forum/threads/${encodeURIComponent(id)}`),
     reports: () => call('GET', '/v1/admin/forum/reports'),

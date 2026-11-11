@@ -19,12 +19,14 @@ export function createMockApi() {
     { id: 'a1b2c3d4e5f60718', text: 'the fog was kind today', at: Date.now() - 3600e3 },
     { id: 'b1b2c3d4e5f60718', text: 'buy cheap pills here', at: Date.now() - 7200e3 },
     { id: 'c1b2c3d4e5f60718', text: 'solve et coagula, again', at: Date.now() - 86400e3 },
-  ];
+    { id: 'd1b2c3d4e5f60718', text: 'nothing is lost, only loosed.', at: Date.now() - 2 * 86400e3, owner: true },
+  ].map((m) => ({ owner: false, ...m }));
   const threads = {
     k3m9p2x7aa: { id: 'k3m9p2x7aa', created: Date.now() - 5e6, posts: [
       { n: 1, poster: '3f9a2c1d7e6b5a40', text: 'what is the oldest thing you still read?', created: Date.now() - 5e6 },
       { n: 2, poster: '8e1d4c7b2a9f3e60', text: '>>1 the emerald tablet, in a bad translation', created: Date.now() - 4e6 },
       { n: 3, poster: 'aa11bb22cc33dd44', text: 'click here for free gold', created: Date.now() - 3e6 },
+      { n: 4, poster: '0wner0wner0wner0', text: '>>2 a bad translation is still a door.', created: Date.now() - 2e6, owner: true },
     ] },
     q8w2e4r6tt: { id: 'q8w2e4r6tt', created: Date.now() - 9e6, posts: [
       { n: 1, poster: '1234abcd5678ef90', text: 'the fog at night looks like weather', created: Date.now() - 9e6 },
@@ -87,9 +89,32 @@ export function createMockApi() {
     },
     wall() { if (!session) return no(); return ok({ messages: wall.slice() }); },
     wallRemove(id) { if (!session) return no(); wall = wall.filter((m) => m.id !== id); return ok({ ok: true }); },
+    wallWrite(text) {
+      if (!session) return no();
+      const t = String(text || '').replace(/\s+/g, ' ').trim();
+      if (!t) return ok({ error: 'empty' }, 400);
+      if (t.length > 140) return ok({ error: 'long' }, 400);
+      const message = { id: Math.random().toString(16).slice(2, 18).padEnd(16, '0'), text: t, at: Date.now(), owner: true };
+      wall.unshift(message);
+      return ok({ message }, 201);
+    },
+    forumWrite(thread, text) {
+      if (!session) return no();
+      const t = String(text || '').trim();
+      if (!t) return ok({ error: 'a post needs words' }, 400);
+      const post = { poster: '0wner0wner0wner0', text: t, created: Date.now(), owner: true };
+      if (thread) {
+        const th = threads[thread]; if (!th) return ok({ error: 'this thread is gone' }, 404);
+        th.posts.push({ n: th.posts.length + 1, ...post });
+        return ok({ thread, n: th.posts.length }, 201);
+      }
+      const id = Array.from({ length: 10 }, () => 'abcdefghijkmnpqrstuvwxyz23456789'[Math.floor(Math.random() * 32)]).join('');
+      threads[id] = { id, created: post.created, posts: [{ n: 1, ...post }] };
+      return ok({ thread: id, n: 1 }, 201);
+    },
     board() {
       if (!session) return no();
-      return ok({ next: null, threads: Object.values(threads).map((t) => ({ id: t.id, first: t.posts[0].text, replies: t.posts.length - 1, created: t.created, bumped: t.posts[t.posts.length - 1].created, image: null })) });
+      return ok({ next: null, threads: Object.values(threads).sort((a, b) => b.posts[b.posts.length - 1].created - a.posts[a.posts.length - 1].created).map((t) => ({ id: t.id, first: t.posts[0].text, replies: t.posts.length - 1, created: t.created, bumped: t.posts[t.posts.length - 1].created, image: null, owner: !!t.posts[0].owner })) });
     },
     thread(id) { if (!session) return no(); return threads[id] ? ok(structuredClone(threads[id])) : no(404); },
     reports() { if (!session) return no(); return ok({ reports: reports.slice() }); },

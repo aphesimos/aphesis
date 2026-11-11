@@ -548,12 +548,23 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .mod-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--space-1) var(--space-3); align-items: baseline; padding: var(--space-2) 0; }
 .mod-list li.marked .mod-text { color: var(--accent-text); }
 .mod-text { overflow-wrap: anywhere; }
+/* the owner's own lines and posts: a still eye and the name, aphesist, in rubedo, before the words */
+.mod-owner { white-space: nowrap; }
+.mod-eye { display: inline-block; width: 20px; height: 20px; vertical-align: -5px; margin-right: var(--space-1); color: var(--accent); }
+.mod-eye svg { display: block; width: 100%; height: 100%; }
+.mod-owner .owner-name { color: var(--accent-text); font-size: var(--type-gloss-size); line-height: 1; letter-spacing: .02em; }
+/* writing as the owner: a field and its button, above each column's list and under the open thread */
+.mod-write { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0 var(--space-4); margin: 0 0 var(--space-4); }
+.mod-write .field { flex: 1 1 16em; margin-bottom: var(--space-2); }
+.mod-write .act { margin-bottom: var(--space-2); }
+.mod-thread .mod-write { margin-top: var(--space-3); }
 .mod-thread h3, .mod h3 { margin: var(--space-4) 0 var(--space-1); color: var(--ink-soft); font-weight: 400; }
 @media (max-width: 560px) { .mod-list li { grid-template-columns: minmax(0, 1fr) auto; } .mod-list li .act { grid-column: 1 / -1; justify-self: start; } }
 
 /* the site's texts: each key a field, its preview line in the face it is read in, save and reset */
 .tx-list { max-width: 46em; }
 .tx-screen { margin-bottom: var(--space-6); }
+.tx-note { margin: 0 0 var(--space-4); }
 .tx-row { margin-bottom: var(--space-5); }
 .tx-row .field { margin-bottom: var(--space-1); }
 .tx-row .field textarea { min-height: 0; resize: none; field-sizing: content; }
@@ -2273,7 +2284,7 @@ M["archive/render.js"] = (function () {
    or the dashboard's live preview, is the same markup the build writes. tools/render-parity.mjs proves it on every
    post in content/.
 
-   A post is {slug, title, summary, stage, date, example, body, notes: [{id, text}], figures: [{name, url}]}:
+   A post is {slug, title, summary, stage, date, body, notes: [{id, text}], figures: [{name, url}]}:
    the body without its notes, the notes apart (as the content service keeps them), and the URL of each figure's
    density map. A figure the post does not list falls back to the build's own maps (data-map only). */
 
@@ -2284,6 +2295,11 @@ const STAGE_TIPS = {
   citrinitas: 'citrinitas · the yellow: nearly there',
   rubedo: 'rubedo · the red: finished',
 };
+const LEDE = 'writing about anything, from draft to finished.';
+const EMPTY = 'the scraped tablet: nothing on it, everything possible.';
+/* the site's texts: the owner's version of a line where the site has one (the shell's Aphesis.text), else this one.
+   The markup also names its key (data-text, data-text-tip), as build.py writes it. */
+const T = (key, own) => { const A = typeof window !== 'undefined' && window.Aphesis; return A && A.text ? A.text(key, own) : own; };
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 
 /* html.escape(s, quote=True) */
@@ -2400,10 +2416,11 @@ function dateText(d) {
 
 /* ---------- markup ---------- */
 function stageIconSpan(stage, cls = '') {
-  return `<span class="stage-icon ${cls}" data-stage="${stage}" data-tip="${esc(STAGE_TIPS[stage])}" aria-hidden="true"></span>`;
+  return `<span class="stage-icon ${cls}" data-stage="${stage}" data-tip="${esc(T('archive.stage.' + stage, STAGE_TIPS[stage]))}" ` +
+    `data-text-tip="archive.stage.${stage}" aria-hidden="true"></span>`;
 }
 function metaLine(p) {
-  return `<time datetime="${p.date}">${dateText(p.date)}</time>${p.example ? ' · example' : ''}`;
+  return `<time datetime="${p.date}">${dateText(p.date)}</time>`;
 }
 
 function listHtml(posts) {
@@ -2417,15 +2434,20 @@ function listHtml(posts) {
     `<span class="aph-meta">${metaLine(p)}</span></span>` +
     '</a></li>');
   const legend = STAGES.map((s) => `<li>${stageIconSpan(s, 'small')}<span class="aph-gloss" lang="la">${s}</span></li>`).join('');
+  /* with no posts the codex is a scraped tablet: the nigredo's sediment and one gloss, no legend, no empty list */
+  const stages = items.length ? `<ol class="stages" aria-label="from draft to finished: nigredo, albedo, citrinitas, rubedo">${legend}</ol>` : '';
+  const entries = items.length ? `<ol class="entries">${items.join('')}</ol>` :
+    `<p class="blank">${stageIconSpan('nigredo')}<span class="aph-gloss" lang="la">tabula rasa</span>` +
+    `<span class="aph-meta" data-text="archive.empty">${esc(T('archive.empty', EMPTY))}</span></p>`;
   return '<section class="view list" data-view="list" aria-labelledby="codex-title">' +
     '<div class="col">' +
     '<header class="head">' +
     '<p class="gloss-title aph-gloss" lang="la">codex</p>' +
     '<h1 id="codex-title" class="title aph-display" tabindex="-1">archive</h1>' +
-    '<p class="lede">writing about anything, from draft to finished.</p>' +
-    `<ol class="stages" aria-label="from draft to finished: nigredo, albedo, citrinitas, rubedo">${legend}</ol>` +
+    `<p class="lede" data-text="archive.lede">${esc(T('archive.lede', LEDE))}</p>` +
+    stages +
     '</header>' +
-    `<ol class="entries">${items.join('')}</ol>` +
+    entries +
     '<footer class="foot"><span class="rule" aria-hidden="true"></span>' +
     '<a class="feed aph-label" href="feed.xml" type="application/atom+xml">feed</a>' +
     '<span class="aph-meta">atom · every post, from nigredo to rubedo</span></footer>' +
@@ -2461,7 +2483,7 @@ function sortPosts(posts) {
   return posts.slice().sort((a, b) => (a.date === b.date ? (a.slug < b.slug ? 1 : a.slug > b.slug ? -1 : 0) : a.date < b.date ? 1 : -1));
 }
 
-return { STAGES, STAGE_TIPS, esc, convert, dateText, listHtml, postHtml, sortPosts };
+return { STAGES, STAGE_TIPS, LEDE, EMPTY, esc, convert, dateText, listHtml, postHtml, sortPosts };
 })();
 /* ---- archive/stage-icon.js ---- */
 M["archive/stage-icon.js"] = (function () {
@@ -2584,7 +2606,7 @@ function drawMarks(root) {
    paragraph go grey for the length of the wave, as the design system's .aph-ink rules set them. */
 const INK = [
   '.head .gloss-title', '.head .title', '.head .lede', '.stages .aph-gloss',
-  '.entry-name', '.entry-summary', '.entry-meta .aph-meta', '.foot .aph-meta',
+  '.entry-name', '.entry-summary', '.entry-meta .aph-meta', '.blank .aph-gloss', '.blank .aph-meta', '.foot .aph-meta',
   '.back .aph-label', '.post-stage .aph-meta', '.post-title', '.post-head .lede',
   '.prose > p', '.prose > h2', '.prose > h3', '.prose > ul', '.prose > ol',
   '.prose blockquote > p', '.prose .code pre', '.sim figcaption', '.notes li',
@@ -2685,7 +2707,7 @@ return { createFigures };
 })();
 /* ---- archive/css.js ---- */
 M["archive/css.js"] = (function () {
-const ARCHIVE_CSS = ".gp-archive *{box-sizing: border-box;}\n.gp-archive a{color: inherit;}\n.gp-archive button{font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; border-radius: var(--radius-none);}\n.gp-archive .sr{position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;}\n.gp-archive [hidden]{display: none !important;}\n.gp-archive .views{position: relative; display: block; min-height: 100%;}\n.gp-archive .view{display: block;}\n.gp-archive .view.leaving{pointer-events: none;}\n.gp-archive .col{width: 100%; max-width: calc(33em + 2 * var(--space-4)); margin: 0 auto;\n  padding: var(--space-8) max(var(--space-4), calc(var(--space-4) + env(safe-area-inset-right, 0px))) var(--space-8) max(var(--space-4), calc(var(--space-4) + env(safe-area-inset-left, 0px)));\n  text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg);}\n.aph-shifting .gp-archive .col,.aph-shifting .gp-archive .col *{text-shadow: none;}\n.gp-archive :focus{outline: none;}\n.gp-archive :focus-visible{outline: 1px solid var(--accent); outline-offset: 4px;}\n.gp-archive .aph-gloss{font-size: var(--type-gloss-size); line-height: var(--type-gloss-line); padding-right: .2em;}\n.gp-archive .lede{font-size: var(--type-lede-size); line-height: var(--type-lede-line); color: var(--ink-soft); margin: var(--space-4) 0 0;}\n.gp-archive .stage-icon{display: inline-block; flex: none; width: 28px; height: 28px; color: var(--ink-soft);}\n.gp-archive .stage-icon svg{width: 100%; height: 100%; display: block;}\n.gp-archive .stage-icon[data-stage=\"rubedo\"]{color: var(--accent);}\n.gp-archive .stage-icon.small{width: 20px; height: 20px;}\n.gp-archive .head{margin-bottom: var(--space-6);}\n.gp-archive .gloss-title{font-size: var(--type-gloss-title-size); letter-spacing: var(--type-gloss-title-tracking); margin: 0 0 var(--space-3);}\n.gp-archive .title{font-size: clamp(44px, 8vw, 96px); margin: 0; font-weight: var(--type-title-weight);}\n.gp-archive .stages{list-style: none; margin: var(--space-5) 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4);}\n.gp-archive .stages li{display: flex; align-items: center; gap: var(--space-2);}\n.gp-archive .stages .aph-gloss{font-size: 17px;}\n.gp-archive .stages li:not(:last-child)::after{content: \"\u00b7\"; color: var(--ink-soft); margin-left: var(--space-2);}\n.gp-archive .entries{list-style: none; margin: 0; padding: 0;}\n.gp-archive .entry + .entry{margin-top: var(--space-2);}\n.gp-archive .entry-link{display: grid; grid-template-columns: 28px 1fr auto; column-gap: var(--space-4); align-items: start;\n  padding: var(--space-4) 0; text-decoration: none;}\n.gp-archive .entry-link .stage-icon{margin-top: -2px; transition: transform var(--duration-slow) var(--easing-settle);}\n.gp-archive .entry-main{display: block; min-width: 0;}\n.gp-archive .entry-title{position: relative; display: inline; font-size: var(--type-lede-size); line-height: 1.45; color: var(--ink);}\n.gp-archive .uline{position: absolute; left: 0; right: 0; bottom: -7px; height: 6px; color: var(--accent); pointer-events: none;\n  clip-path: inset(0 100% 0 0); transition: clip-path var(--duration-slow) var(--easing-settle);}\n.gp-archive .uline svg{width: 100%; height: 100%; display: block;}\n.gp-archive .entry-link:hover .uline,.gp-archive .entry-link:focus-visible .uline{clip-path: inset(0 0 0 0);}\n.gp-archive .entry-link:hover .stage-icon,.gp-archive .entry-link:focus-visible .stage-icon{transform: rotate(-12deg);}\n.gp-archive .entry-summary{display: block; margin-top: var(--space-2); color: var(--ink-soft);}\n.gp-archive .entry-meta{display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-1); text-align: right; white-space: nowrap; padding-top: 2px;}\n.gp-archive .entry-stage{font-size: 18px;}\n.gp-archive .entry[data-stage=\"rubedo\"] .entry-stage{color: var(--accent-text);}\n.gp-archive .entry-link:hover .entry-stage,.gp-archive .entry-link:focus-visible .entry-stage{color: var(--accent-text);}\n.gp-archive .foot{margin-top: var(--space-6); display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-3);}\n.gp-archive .foot .rule{display: block; flex: 0 0 100%; height: 6px; color: var(--line); margin-bottom: var(--space-4);}\n.gp-archive .foot .rule svg{width: 100%; height: 100%; display: block;}\n.gp-archive .feed{text-decoration: none; color: var(--accent-text);}\n.gp-archive .feed:hover{text-decoration: underline; text-underline-offset: 4px;}\n.gp-archive .back-row{margin-bottom: var(--space-5);}\n.gp-archive .back{display: inline-flex; align-items: center; gap: var(--space-2); text-decoration: none; color: var(--ink-soft); padding: var(--space-1) 0;}\n.gp-archive .back-mark{display: block; width: 28px; height: 28px; color: var(--accent); transition: transform var(--duration-slow) var(--easing-settle);}\n.gp-archive .back-mark svg{width: 100%; height: 100%; display: block;}\n.gp-archive .back:hover .back-mark,.gp-archive .back:focus-visible .back-mark{transform: translateX(-4px);}\n.gp-archive .back:hover,.gp-archive .back:focus-visible{color: var(--ink);}\n.gp-archive .post-foot{margin-top: var(--space-6);}\n.gp-archive .post-stage{display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-3); margin: 0 0 var(--space-4);}\n.gp-archive .post-stage .aph-gloss{font-size: 20px;}\n.gp-archive .post[data-slug] .post-stage .stage-icon[data-stage=\"rubedo\"] + .aph-gloss{color: var(--accent-text);}\n.gp-archive .post-title{font-size: clamp(40px, 7vw, 68px); line-height: 1; margin: 0; font-weight: var(--type-title-weight);}\n.gp-archive .post-head{margin-bottom: var(--space-6);}\n.gp-archive .prose{font-size: var(--type-body-size); line-height: var(--type-body-line);}\n.gp-archive .prose p,.gp-archive .prose ul,.gp-archive .prose ol{margin: 0 0 var(--space-4);}\n.gp-archive .prose h2,.gp-archive .prose h3{font-family: var(--font-display); font-weight: var(--type-heading-weight); font-variation-settings: \"wght\" 500, \"slnt\" -12;\n  line-height: var(--type-heading-line); text-transform: lowercase; margin: var(--space-6) 0 var(--space-4); padding-right: .2em;}\n.gp-archive .prose h2{font-size: clamp(30px, 6vw, var(--type-heading-size));}\n.gp-archive .prose h3{font-size: 28px;}\n.gp-archive .prose a{text-decoration-color: var(--accent); text-underline-offset: 4px;}\n.gp-archive .prose em{font-style: normal; font-family: var(--font-display); font-variation-settings: \"wght\" 400, \"slnt\" -12; font-size: 1.12em; padding-right: .08em;}\n.gp-archive .prose code{font-family: var(--font-text); color: var(--ink-soft);}\n.gp-archive .prose blockquote{position: relative; margin: var(--space-5) 0; padding: 0 0 0 var(--space-5); font-size: var(--type-lede-size); line-height: var(--type-lede-line);}\n.gp-archive .prose blockquote p{margin: 0 0 var(--space-3);}\n.gp-archive .prose blockquote .cite{font-size: var(--type-meta-size); letter-spacing: var(--type-meta-tracking); line-height: var(--type-meta-line); color: var(--ink-soft); margin: 0;}\n.gp-archive .q-rule{position: absolute; left: 0; top: 4px; bottom: 4px; width: 6px; color: var(--accent);}\n.gp-archive .q-rule svg{width: 100%; height: 100%; display: block;}\n.gp-archive .code{margin: var(--space-5) 0;}\n.gp-archive .s-rule{display: block; color: var(--fog); opacity: .62;}\n.gp-archive .s-rule svg{display: block; width: 100%; height: auto;}\n.gp-archive .prose pre{margin: var(--space-3) 0; padding: 0 0 0 var(--space-3); overflow-x: auto; font-size: 14px; line-height: 1.7;}\n.gp-archive .prose pre code{color: var(--ink); white-space: pre;}\n.gp-archive .fn{line-height: 0;}\n.gp-archive .fn-mark{font-size: 11px; letter-spacing: 0; color: var(--accent-text); padding: 0 2px; margin: 0 0 0 -2px; vertical-align: super; line-height: 1;}\n.gp-archive .fn-mark:hover{text-decoration: underline; text-underline-offset: 3px;}\n.gp-archive .fn-mark{position: relative;}\n.gp-archive .fn-mark::after{content: \"\"; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%);}\n.gp-archive .notes{margin-top: var(--space-6); font-size: var(--type-meta-size); line-height: var(--type-meta-line); letter-spacing: .06em; color: var(--ink-soft);}\n.gp-archive .notes ol{margin: 0; padding-left: var(--space-4);}\n.gp-archive .notes li{padding-left: var(--space-1);}\n.gp-archive .notes li::marker{color: var(--ink-soft);}\n.gp-archive .fn-back{text-decoration: none; color: var(--accent-text); padding: 0 var(--space-1);}\n.gp-archive .arc-tip.note{max-width: min(340px, calc(100vw - 32px));}\n.gp-archive .sim{margin: var(--space-6) 0;}\n.gp-archive .sim-box{position: relative; width: 100%; aspect-ratio: 1;}\n.gp-archive .sim-canvas{position: absolute; inset: -8%; width: 116%; height: 116%; display: block; pointer-events: none;\n  opacity: 0; transition: opacity var(--duration-scene) var(--easing-settle);}\n.gp-archive .sim-canvas.on{opacity: 1;}\n.gp-archive .sim figcaption{text-align: right; margin-top: var(--space-2);}\n.is-dark .gp-archive #bTheme .eye.open{opacity: 0; transform: scaleY(.08);}\n.is-dark .gp-archive #bTheme .eye.closed{opacity: 1; transform: none;}\n@media (max-width: 640px){.aph-shifting .gp-archive #scroller{-webkit-mask-image: none; mask-image: none;}\n.gp-archive .col{padding-top: 132px; padding-bottom: var(--space-7);}\n.gp-archive .entry-link{grid-template-columns: 28px 1fr;}\n.gp-archive .entry-meta{grid-column: 2; flex-direction: row; align-items: baseline; gap: var(--space-3); margin-top: var(--space-2); white-space: normal; text-align: left;}}\n@media (min-aspect-ratio: 1/1) and (max-height: 520px){.aph-shifting .gp-archive #scroller{-webkit-mask-image: none; mask-image: none;}\n.gp-archive .col{padding-top: calc(var(--space-7) + var(--space-4) + env(safe-area-inset-top, 0px)); padding-bottom: calc(var(--space-7) + env(safe-area-inset-bottom, 0px));}}";
+const ARCHIVE_CSS = ".gp-archive *{box-sizing: border-box;}\n.gp-archive a{color: inherit;}\n.gp-archive button{font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; border-radius: var(--radius-none);}\n.gp-archive .sr{position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;}\n.gp-archive [hidden]{display: none !important;}\n.gp-archive .views{position: relative; display: block; min-height: 100%;}\n.gp-archive .view{display: block;}\n.gp-archive .view.leaving{pointer-events: none;}\n.gp-archive .col{width: 100%; max-width: calc(33em + 2 * var(--space-4)); margin: 0 auto;\n  padding: var(--space-8) max(var(--space-4), calc(var(--space-4) + env(safe-area-inset-right, 0px))) var(--space-8) max(var(--space-4), calc(var(--space-4) + env(safe-area-inset-left, 0px)));\n  text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg);}\n.aph-shifting .gp-archive .col,.aph-shifting .gp-archive .col *{text-shadow: none;}\n.gp-archive :focus{outline: none;}\n.gp-archive :focus-visible{outline: 1px solid var(--accent); outline-offset: 4px;}\n.gp-archive .aph-gloss{font-size: var(--type-gloss-size); line-height: var(--type-gloss-line); padding-right: .2em;}\n.gp-archive .lede{font-size: var(--type-lede-size); line-height: var(--type-lede-line); color: var(--ink-soft); margin: var(--space-4) 0 0;}\n.gp-archive .stage-icon{display: inline-block; flex: none; width: 28px; height: 28px; color: var(--ink-soft);}\n.gp-archive .stage-icon svg{width: 100%; height: 100%; display: block;}\n.gp-archive .stage-icon[data-stage=\"rubedo\"]{color: var(--accent);}\n.gp-archive .stage-icon.small{width: 20px; height: 20px;}\n.gp-archive .head{margin-bottom: var(--space-6);}\n.gp-archive .gloss-title{font-size: var(--type-gloss-title-size); letter-spacing: var(--type-gloss-title-tracking); margin: 0 0 var(--space-3);}\n.gp-archive .title{font-size: clamp(44px, 8vw, 96px); margin: 0; font-weight: var(--type-title-weight);}\n.gp-archive .stages{list-style: none; margin: var(--space-5) 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4);}\n.gp-archive .stages li{display: flex; align-items: center; gap: var(--space-2);}\n.gp-archive .stages .aph-gloss{font-size: 17px;}\n.gp-archive .stages li:not(:last-child)::after{content: \"\u00b7\"; color: var(--ink-soft); margin-left: var(--space-2);}\n.gp-archive .entries{list-style: none; margin: 0; padding: 0;}\n.gp-archive .entry + .entry{margin-top: var(--space-2);}\n.gp-archive .entry-link{display: grid; grid-template-columns: 28px 1fr auto; column-gap: var(--space-4); align-items: start;\n  padding: var(--space-4) 0; text-decoration: none;}\n.gp-archive .entry-link .stage-icon{margin-top: -2px; transition: transform var(--duration-slow) var(--easing-settle);}\n.gp-archive .entry-main{display: block; min-width: 0;}\n.gp-archive .entry-title{position: relative; display: inline; font-size: var(--type-lede-size); line-height: 1.45; color: var(--ink);}\n.gp-archive .uline{position: absolute; left: 0; right: 0; bottom: -7px; height: 6px; color: var(--accent); pointer-events: none;\n  clip-path: inset(0 100% 0 0); transition: clip-path var(--duration-slow) var(--easing-settle);}\n.gp-archive .uline svg{width: 100%; height: 100%; display: block;}\n.gp-archive .entry-link:hover .uline,.gp-archive .entry-link:focus-visible .uline{clip-path: inset(0 0 0 0);}\n.gp-archive .entry-link:hover .stage-icon,.gp-archive .entry-link:focus-visible .stage-icon{transform: rotate(-12deg);}\n.gp-archive .entry-summary{display: block; margin-top: var(--space-2); color: var(--ink-soft);}\n.gp-archive .entry-meta{display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-1); text-align: right; white-space: nowrap; padding-top: 2px;}\n.gp-archive .entry-stage{font-size: 18px;}\n.gp-archive .entry[data-stage=\"rubedo\"] .entry-stage{color: var(--accent-text);}\n.gp-archive .entry-link:hover .entry-stage,.gp-archive .entry-link:focus-visible .entry-stage{color: var(--accent-text);}\n.gp-archive .blank{display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin: var(--space-5) 0 0; padding: var(--space-4) 0;}\n.gp-archive .blank .aph-gloss{font-size: var(--type-gloss-size);}\n.gp-archive .blank .aph-meta{flex: 0 0 100%; padding-left: calc(28px + var(--space-3)); color: var(--ink-soft);}\n.gp-archive .foot{margin-top: var(--space-6); display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-3);}\n.gp-archive .foot .rule{display: block; flex: 0 0 100%; height: 6px; color: var(--line); margin-bottom: var(--space-4);}\n.gp-archive .foot .rule svg{width: 100%; height: 100%; display: block;}\n.gp-archive .feed{text-decoration: none; color: var(--accent-text);}\n.gp-archive .feed:hover{text-decoration: underline; text-underline-offset: 4px;}\n.gp-archive .back-row{margin-bottom: var(--space-5);}\n.gp-archive .back{display: inline-flex; align-items: center; gap: var(--space-2); text-decoration: none; color: var(--ink-soft); padding: var(--space-1) 0;}\n.gp-archive .back-mark{display: block; width: 28px; height: 28px; color: var(--accent); transition: transform var(--duration-slow) var(--easing-settle);}\n.gp-archive .back-mark svg{width: 100%; height: 100%; display: block;}\n.gp-archive .back:hover .back-mark,.gp-archive .back:focus-visible .back-mark{transform: translateX(-4px);}\n.gp-archive .back:hover,.gp-archive .back:focus-visible{color: var(--ink);}\n.gp-archive .post-foot{margin-top: var(--space-6);}\n.gp-archive .post-stage{display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-3); margin: 0 0 var(--space-4);}\n.gp-archive .post-stage .aph-gloss{font-size: 20px;}\n.gp-archive .post[data-slug] .post-stage .stage-icon[data-stage=\"rubedo\"] + .aph-gloss{color: var(--accent-text);}\n.gp-archive .post-title{font-size: clamp(40px, 7vw, 68px); line-height: 1; margin: 0; font-weight: var(--type-title-weight);}\n.gp-archive .post-head{margin-bottom: var(--space-6);}\n.gp-archive .prose{font-size: var(--type-body-size); line-height: var(--type-body-line);}\n.gp-archive .prose p,.gp-archive .prose ul,.gp-archive .prose ol{margin: 0 0 var(--space-4);}\n.gp-archive .prose h2,.gp-archive .prose h3{font-family: var(--font-display); font-weight: var(--type-heading-weight); font-variation-settings: \"wght\" 500, \"slnt\" -12;\n  line-height: var(--type-heading-line); text-transform: lowercase; margin: var(--space-6) 0 var(--space-4); padding-right: .2em;}\n.gp-archive .prose h2{font-size: clamp(30px, 6vw, var(--type-heading-size));}\n.gp-archive .prose h3{font-size: 28px;}\n.gp-archive .prose a{text-decoration-color: var(--accent); text-underline-offset: 4px;}\n.gp-archive .prose em{font-style: normal; font-family: var(--font-display); font-variation-settings: \"wght\" 400, \"slnt\" -12; font-size: 1.12em; padding-right: .08em;}\n.gp-archive .prose code{font-family: var(--font-text); color: var(--ink-soft);}\n.gp-archive .prose blockquote{position: relative; margin: var(--space-5) 0; padding: 0 0 0 var(--space-5); font-size: var(--type-lede-size); line-height: var(--type-lede-line);}\n.gp-archive .prose blockquote p{margin: 0 0 var(--space-3);}\n.gp-archive .prose blockquote .cite{font-size: var(--type-meta-size); letter-spacing: var(--type-meta-tracking); line-height: var(--type-meta-line); color: var(--ink-soft); margin: 0;}\n.gp-archive .q-rule{position: absolute; left: 0; top: 4px; bottom: 4px; width: 6px; color: var(--accent);}\n.gp-archive .q-rule svg{width: 100%; height: 100%; display: block;}\n.gp-archive .code{margin: var(--space-5) 0;}\n.gp-archive .s-rule{display: block; color: var(--fog); opacity: .62;}\n.gp-archive .s-rule svg{display: block; width: 100%; height: auto;}\n.gp-archive .prose pre{margin: var(--space-3) 0; padding: 0 0 0 var(--space-3); overflow-x: auto; font-size: 14px; line-height: 1.7;}\n.gp-archive .prose pre code{color: var(--ink); white-space: pre;}\n.gp-archive .fn{line-height: 0;}\n.gp-archive .fn-mark{font-size: 11px; letter-spacing: 0; color: var(--accent-text); padding: 0 2px; margin: 0 0 0 -2px; vertical-align: super; line-height: 1;}\n.gp-archive .fn-mark:hover{text-decoration: underline; text-underline-offset: 3px;}\n.gp-archive .fn-mark{position: relative;}\n.gp-archive .fn-mark::after{content: \"\"; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%);}\n.gp-archive .notes{margin-top: var(--space-6); font-size: var(--type-meta-size); line-height: var(--type-meta-line); letter-spacing: .06em; color: var(--ink-soft);}\n.gp-archive .notes ol{margin: 0; padding-left: var(--space-4);}\n.gp-archive .notes li{padding-left: var(--space-1);}\n.gp-archive .notes li::marker{color: var(--ink-soft);}\n.gp-archive .fn-back{text-decoration: none; color: var(--accent-text); padding: 0 var(--space-1);}\n.gp-archive .arc-tip.note{max-width: min(340px, calc(100vw - 32px));}\n.gp-archive .sim{margin: var(--space-6) 0;}\n.gp-archive .sim-box{position: relative; width: 100%; aspect-ratio: 1;}\n.gp-archive .sim-canvas{position: absolute; inset: -8%; width: 116%; height: 116%; display: block; pointer-events: none;\n  opacity: 0; transition: opacity var(--duration-scene) var(--easing-settle);}\n.gp-archive .sim-canvas.on{opacity: 1;}\n.gp-archive .sim figcaption{text-align: right; margin-top: var(--space-2);}\n.is-dark .gp-archive #bTheme .eye.open{opacity: 0; transform: scaleY(.08);}\n.is-dark .gp-archive #bTheme .eye.closed{opacity: 1; transform: none;}\n@media (max-width: 640px){.aph-shifting .gp-archive #scroller{-webkit-mask-image: none; mask-image: none;}\n.gp-archive .col{padding-top: 132px; padding-bottom: var(--space-7);}\n.gp-archive .entry-link{grid-template-columns: 28px 1fr;}\n.gp-archive .entry-meta{grid-column: 2; flex-direction: row; align-items: baseline; gap: var(--space-3); margin-top: var(--space-2); white-space: normal; text-align: left;}}\n@media (min-aspect-ratio: 1/1) and (max-height: 520px){.aph-shifting .gp-archive #scroller{-webkit-mask-image: none; mask-image: none;}\n.gp-archive .col{padding-top: calc(var(--space-7) + var(--space-4) + env(safe-area-inset-top, 0px)); padding-bottom: calc(var(--space-7) + env(safe-area-inset-bottom, 0px));}}";
 
 return { ARCHIVE_CSS };
 })();
@@ -3030,6 +3052,10 @@ function createApi(base) {
     upload(blob) { const fd = new FormData(); fd.append('file', blob, 'map.jpg'); return call('POST', '/v1/admin/media', fd); },
     wall: () => call('GET', '/v1/admin/wall'),
     wallRemove: (id) => call('DELETE', `/v1/admin/wall/${encodeURIComponent(id)}`),
+    /* the owner writes: the content service passes it on with the wall's or the forum's admin secret, which is what
+       marks it as the owner's (nothing this page sends could) */
+    wallWrite: (text) => call('POST', '/v1/admin/wall', { text }),
+    forumWrite: (thread, text) => call('POST', thread ? `/v1/admin/forum/threads/${encodeURIComponent(thread)}/posts` : '/v1/admin/forum/threads', { text }),
     board: (cursor) => call('GET', '/v1/admin/forum/board' + (cursor ? '?cursor=' + encodeURIComponent(cursor) : '')),
     thread: (id) => call('GET', `/v1/admin/forum/threads/${encodeURIComponent(id)}`),
     reports: () => call('GET', '/v1/admin/forum/reports'),
@@ -3682,9 +3708,34 @@ return { createEntriesEditor };
 M["moderation.js"] = (function () {
 /* moderation: the wall and the forum, through the content service (which calls their admin APIs server to server;
    no admin secret is ever in this page). The wall's lines, each with its removal; the forum's reports first, then
-   the board; a thread opens to its posts, each removable (the first post removes the thread). */
+   the board; a thread opens to its posts, each removable (the first post removes the thread).
 
-const { h, act, sure, status } = M["ui.js"];
+   The owner writes here too, as aphesist: a line on the wall, a thread, a reply in the open thread. The content
+   service passes them on with the wall's and the forum's admin secrets, which is what marks them as the owner's on
+   the site (the eye and the name in place of a sigil). In these lists the owner's own lines and posts carry the
+   same name, in rubedo, so they are told apart at a glance. */
+
+const { h, act, sure, status, field, text, area } = M["ui.js"];
+const A = window.Aphesis;
+const OWNER = 'aphesist';
+/* the owner's mark in a list: a still eye and the name (the live eyes are the site's; here a list stays quiet) */
+function mark(owner) {
+  if (!owner) return null;
+  const eye = h('span', { class: 'mod-eye aph-red', 'aria-hidden': 'true' });
+  if (A && A.icon) eye.innerHTML = A.icon('eye', 0);
+  return h('span', { class: 'mod-owner' }, eye, h('span', { class: 'owner-name aph-display', text: OWNER }), h('span', { class: 'sr', text: ', the owner:' }), ' ');
+}
+/* the wall's and the forum's refusals, in the desk's words */
+const WALL_NO = { empty: 'a line needs words', long: 'at most 140 characters', word: 'the wall refuses a word in it', link: 'no links on the wall', bad: 'no' };
+/* Enter sends a one-line field; Ctrl or Cmd + Enter sends a text area */
+function onSend(el, f) {
+  el.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || e.isComposing) return;
+    if (el.tagName === 'TEXTAREA' && !(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault(); f();
+  });
+}
+
 const ago = (ms) => {
   const s = Math.max(0, (Date.now() - ms) / 1000);
   if (s < 3600) return Math.round(s / 60) + ' min ago';
@@ -3698,9 +3749,32 @@ function createModeration({ api, root }) {
   const reportsEl = h('ol', { class: 'mod-list', 'aria-label': 'reports' });
   const boardEl = h('ol', { class: 'mod-list', 'aria-label': 'threads' });
   const threadEl = h('div', { class: 'mod-thread' });
+
+  /* writing as the owner: a line on the wall, a new thread on the forum */
+  const wallIn = text('', { maxlength: '140', class: 'aph-ink' });
+  const wallSend = async () => {
+    const t = wallIn.value.trim();
+    if (!t) { wallIn.focus(); return; }
+    const r = await api.wallWrite(t);
+    if (r.status === 201) { wallIn.value = ''; status(say, 'your line is on the wall'); loadWall(); }
+    else status(say, WALL_NO[r.data.error] || r.data.error || 'the wall did not take it', true);
+  };
+  onSend(wallIn, wallSend);
+  const wallWrite = h('div', { class: 'mod-write' }, field('a line on the wall, as ' + OWNER, wallIn, 'at most 140 characters'), act('write', wallSend));
+  const threadIn = area('', { maxlength: '2000', rows: '3' });
+  const threadSend = async () => {
+    const t = threadIn.value.trim();
+    if (!t) { threadIn.focus(); return; }
+    const r = await api.forumWrite(null, t);
+    if (r.status === 201) { threadIn.value = ''; status(say, 'your thread is on the board'); await loadForum(); openThread(r.data.thread); }
+    else status(say, r.data.error || 'the forum did not take it', true);
+  };
+  onSend(threadIn, threadSend);
+  const threadWrite = h('div', { class: 'mod-write' }, field('a new thread, as ' + OWNER, threadIn, 'ctrl or cmd + enter posts it'), act('post', threadSend));
+
   const cols = h('div', { class: 'mod-cols' },
-      h('div', {}, h('h2', { class: 'mod-h aph-display aph-ink' }, 'wall ', h('span', { class: 'aph-gloss', lang: 'la', text: 'paries' })), wallEl),
-      h('div', {}, h('h2', { class: 'mod-h aph-display aph-ink' }, 'forum ', h('span', { class: 'aph-gloss', lang: 'grc', text: 'ἀγορά' })),
+      h('div', {}, h('h2', { class: 'mod-h aph-display aph-ink' }, 'wall ', h('span', { class: 'aph-gloss', lang: 'la', text: 'paries' })), wallWrite, wallEl),
+      h('div', {}, h('h2', { class: 'mod-h aph-display aph-ink' }, 'forum ', h('span', { class: 'aph-gloss', lang: 'grc', text: 'ἀγορά' })), threadWrite,
         h('h3', { class: 'aph-label aph-ink', text: 'reports' }), reportsEl, h('h3', { class: 'aph-label aph-ink', text: 'threads' }), boardEl, threadEl));
   const pane = h('section', { class: 'pane mod' }, h('div', { class: 'pane-head' }, act('again', () => load()), say), cols);
   root.append(pane);
@@ -3709,8 +3783,8 @@ function createModeration({ api, root }) {
     const r = await api.wall();
     if (r.status !== 200) { wallEl.replaceChildren(h('li', { class: 'aph-meta aph-ink', text: r.data.error || 'the wall did not answer' })); return; }
     const lines = r.data.messages || [];
-    wallEl.replaceChildren(...lines.map((m) => h('li', { 'data-id': m.id },
-      h('span', { class: 'mod-text aph-ink', text: m.text }), h('span', { class: 'aph-meta aph-ink', text: ago(m.at) }),
+    wallEl.replaceChildren(...lines.map((m) => h('li', { 'data-id': m.id, class: m.owner === true ? 'owner' : null },
+      h('span', { class: 'mod-text aph-ink' }, mark(m.owner === true), m.text), h('span', { class: 'aph-meta aph-ink', text: ago(m.at) }),
       sure('remove', async () => { const x = await api.wallRemove(m.id); if (x.status === 200) { status(say, 'the line is gone'); loadWall(); } else status(say, x.data.error || 'no', true); }))));
     if (!lines.length) wallEl.append(h('li', { class: 'aph-meta aph-ink', text: 'the wall is empty.' }));
   }
@@ -3732,25 +3806,36 @@ function createModeration({ api, root }) {
   /* the board comes a page at a time (the forum keeps every thread); `more` reads the next one */
   function page(data) {
     boardEl.querySelectorAll('.more').forEach((x) => x.remove());
-    boardEl.append(...(data.threads || []).map((t) => h('li', {},
-      h('span', { class: 'mod-text aph-ink', text: t.first || '(a picture)' }), h('span', { class: 'aph-meta aph-ink', text: `${t.replies} ${t.replies === 1 ? 'reply' : 'replies'} · ${ago(t.bumped)}` }),
+    boardEl.append(...(data.threads || []).map((t) => h('li', { class: t.owner === true ? 'owner' : null },
+      h('span', { class: 'mod-text aph-ink' }, mark(t.owner === true), t.first || '(a picture)'), h('span', { class: 'aph-meta aph-ink', text: `${t.replies} ${t.replies === 1 ? 'reply' : 'replies'} · ${ago(t.bumped)}` }),
       act('read', () => openThread(t.id)))));
     if (data.next) boardEl.append(h('li', { class: 'more' }, act('more', async () => { const r = await api.board(data.next); if (r.status === 200) page(r.data); })));
   }
-  async function openThread(id, mark) {
+  async function openThread(id, marked) {
     const r = await api.thread(id);
     if (r.status !== 200) { status(say, r.data.error || 'the thread is gone', true); loadForum(); return; }
+    /* a reply as the owner, under the thread's posts */
+    const replyIn = area('', { maxlength: '2000', rows: '3' });
+    const replySend = async () => {
+      const t = replyIn.value.trim();
+      if (!t) { replyIn.focus(); return; }
+      const x = await api.forumWrite(id, t);
+      if (x.status === 201) { status(say, 'your reply is in the thread'); openThread(id, x.data.n); loadForum(); }
+      else status(say, x.data.error || 'the forum did not take it', true);
+    };
+    onSend(replyIn, replySend);
     threadEl.replaceChildren(h('h3', { class: 'aph-label aph-ink', text: 'thread ' + id }),
-      h('ol', { class: 'mod-list' }, ...r.data.posts.map((p) => h('li', { class: p.n === mark ? 'marked' : null, 'data-n': p.n },
+      h('ol', { class: 'mod-list' }, ...r.data.posts.map((p) => h('li', { class: [p.n === marked ? 'marked' : '', !p.removed && p.owner === true ? 'owner' : ''].join(' ').trim() || null, 'data-n': p.n },
         h('span', { class: 'aph-meta aph-ink', text: '#' + p.n }),
-        h('span', { class: 'mod-text aph-ink', text: p.removed ? '(removed)' : (p.text || '(a picture)') }),
+        h('span', { class: 'mod-text aph-ink' }, p.removed ? null : mark(p.owner === true), p.removed ? '(removed)' : (p.text || '(a picture)')),
         p.removed ? null : sure(p.n === 1 ? 'remove the thread' : 'remove', async () => {
           const x = await api.forumRemove(id, p.n);
           if (x.status !== 200) { status(say, x.data.error || 'no', true); return; }
           status(say, x.data.thread === 'removed' ? 'the thread is gone' : 'the post is gone');
           if (x.data.thread === 'removed') threadEl.replaceChildren(); else openThread(id);
           loadForum();
-        })))));
+        })))),
+      h('div', { class: 'mod-write' }, field('a reply, as ' + OWNER, replyIn, 'ctrl or cmd + enter replies'), act('reply', replySend)));
     threadEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
   /* the first time, the two columns wait until both have answered and come in whole: filled one by one, the wall's
@@ -3771,9 +3856,15 @@ M["ed-texts.js"] = (function () {
 /* ed-texts: the site's texts, the short lines the owner changes without a rebuild (the home's line for each section,
    the ledes, the helper lines, the empty states). Every key the site reads, grouped by screen, with its value now,
    a field to change it, and a preview line in the face it is read in. Save sends it through the content service;
-   reset takes it back to the page's own string. The page reads them on its next load (backend/content: texts). */
+   reset takes it back to the page's own string. The page reads them on its next load (backend/content: texts); the link
+   preview's two, from the site's Pages worker, within five minutes. */
 
 const { h, act, field, area, status, setLabel } = M["ui.js"];
+/* a screen whose name alone would not say what it is: its heading, and a line under it. `meta` is the whole page as
+   a shared link shows it: the site's Pages worker writes meta.title and meta.description into the served page */
+const HEADS = { meta: 'link preview' };
+const NOTES = { meta: 'what discord, imessage, whatsapp, slack and x show under a link to aphes.ist. live within five minutes of a save; each app keeps its own copy of a preview for a while.' };
+
 function createTexts({ api, root }) {
   const say = h('p', { class: 'say aph-meta aph-ink', role: 'status', 'aria-live': 'polite' });
   const listEl = h('div', { class: 'tx-list' });
@@ -3787,7 +3878,8 @@ function createTexts({ api, root }) {
     for (const t of r.data.texts || []) (by[t.screen] = by[t.screen] || []).push(t);
     const screens = (r.data.screens || Object.keys(by)).filter((s) => by[s]);
     listEl.replaceChildren(...screens.map((s) => h('section', { class: 'tx-screen', 'aria-labelledby': 'tx-' + s },
-      h('h2', { class: 'mod-h aph-display aph-ink', id: 'tx-' + s, text: s }),
+      h('h2', { class: 'mod-h aph-display aph-ink', id: 'tx-' + s, text: HEADS[s] || s }),
+      ...(NOTES[s] ? [h('p', { class: 'tx-note aph-meta aph-ink', text: NOTES[s] })] : []),
       ...by[s].map(row))));
     if (!screens.length) listEl.append(h('p', { class: 'empty aph-meta aph-ink', text: 'no texts.' }));
   }

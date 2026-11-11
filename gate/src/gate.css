@@ -200,6 +200,16 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .mod-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--space-1) var(--space-3); align-items: baseline; padding: var(--space-2) 0; }
 .mod-list li.marked .mod-text { color: var(--accent-text); }
 .mod-text { overflow-wrap: anywhere; }
+/* the owner's own lines and posts: a still eye and the name, aphesist, in rubedo, before the words */
+.mod-owner { white-space: nowrap; }
+.mod-eye { display: inline-block; width: 20px; height: 20px; vertical-align: -5px; margin-right: var(--space-1); color: var(--accent); }
+.mod-eye svg { display: block; width: 100%; height: 100%; }
+.mod-owner .owner-name { color: var(--accent-text); font-size: var(--type-gloss-size); line-height: 1; letter-spacing: .02em; }
+/* writing as the owner: a field and its button, above each column's list and under the open thread */
+.mod-write { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0 var(--space-4); margin: 0 0 var(--space-4); }
+.mod-write .field { flex: 1 1 16em; margin-bottom: var(--space-2); }
+.mod-write .act { margin-bottom: var(--space-2); }
+.mod-thread .mod-write { margin-top: var(--space-3); }
 .mod-thread h3, .mod h3 { margin: var(--space-4) 0 var(--space-1); color: var(--ink-soft); font-weight: 400; }
 @media (max-width: 560px) { .mod-list li { grid-template-columns: minmax(0, 1fr) auto; } .mod-list li .act { grid-column: 1 / -1; justify-self: start; } }
 

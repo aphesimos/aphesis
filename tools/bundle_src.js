@@ -566,31 +566,48 @@
      over old cells and new ones alike. When the wave has covered the screen the blend is lifted; nothing visibly
      changes. A call while a wave is running is ignored (returns false). */
   var SHIFT = null;
+  /* the reds. An element marked .aph-red (the seal, an icon, the eye, the ear, red words) keeps the old theme's reds
+     (accent, accent-text, seal) until the wave reaches it, then turns to the new ones over RED_TURN ms with minimum
+     jerk (bundle.css: .aph-red). Its moment comes from the fields' own model of the wave: a cell turns once
+     MJ(t / duration) passes .76 times its distance from the origin over the farthest corner, plus a hash (.14) and the
+     fog's noise (.1), .12 on average; the turn is centred on that moment. */
+  var RED_TURN = 500, REDS = ['--accent', '--accent-text', '--seal'];
+  function rootValue(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+  function mjInverse(y) { var lo = 0, hi = 1; for (var i = 0; i < 24; i++) { var m = (lo + hi) / 2; if (MJ(m) < y) lo = m; else hi = m; } return (lo + hi) / 2; }
+  function redsAt(org, far, dur) {
+    Array.prototype.forEach.call(document.querySelectorAll('.aph-red'), function (el) {
+      var r = el.getBoundingClientRect(), d = Math.hypot(r.left + r.width / 2 - org[0], r.top + r.height / 2 - org[1]);
+      el.style.setProperty('--aph-red-at', Math.max(0, Math.round(dur * mjInverse(Math.min(1, 0.76 * d / far + 0.12)) - RED_TURN / 2)) + 'ms');
+    });
+  }
   function themeShift(apply, o) {
     o = o || {};
     if (SHIFT) return false;
     var root = document.documentElement, before = root.getAttribute('data-theme');
     var dark = before ? before === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
-    var softA = cssColor('--ink-soft'), lineA = cssColor('--line');
+    var softA = cssColor('--ink-soft'), lineA = cssColor('--line'), redA = REDS.map(rootValue);
     var org = o.origin || [24, innerHeight - 24], W = innerWidth, H = innerHeight;
     var far = Math.max(Math.hypot(org[0], org[1]), Math.hypot(W - org[0], org[1]), Math.hypot(org[0], H - org[1]), Math.hypot(W - org[0], H - org[1]));
     SHIFT = { o: org, far: far, p: 0 };
     /* colour transitions would smear the switch into and out of difference: hold them off for two frames at each end */
     function still() { root.classList.add('aph-still'); requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.remove('aph-still'); }); }); }
     still(); apply(); Sound.event('shift');
-    var softB = cssColor('--ink-soft'), lineB = cssColor('--line');
+    var softB = cssColor('--ink-soft'), lineB = cssColor('--line'), redB = REDS.map(rootValue);
     /* a grey under difference shows as itself on a dark ground and as its negative on a light one:
        take the grey that reads as each theme's own grey on its own ground */
     function grey(a, b) { var dk = dark ? a : b, lt = dark ? b : a; return 'rgb(' + [0, 1, 2].map(function (i) { return Math.round((dk[i] + 1 - lt[i]) / 2 * 255); }).join(',') + ')'; }
     root.style.setProperty('--shift-soft', grey(softA, softB)); root.style.setProperty('--shift-line', grey(lineA, lineB));
-    root.classList.add('aph-shifting');
+    REDS.forEach(function (n, i) { root.style.setProperty('--shift-' + n.slice(2) + '-a', redA[i]); root.style.setProperty('--shift-' + n.slice(2) + '-b', redB[i]); });
     var dur = o.duration || cssMs('--duration-shift', 5200), t = 0, last = null;
+    redsAt(org, far, dur);
+    root.classList.add('aph-shifting');
     /* time advances at most 100 ms a frame, like tween(): a stalled frame pauses the wave instead of jumping it */
     function tick(now) {
       if (last !== null) t += Math.min(100, Math.max(0, now - last)); last = now;
       var k = clamp(t / dur); SHIFT.p = MJ(k);
       if (k < 1) { requestAnimationFrame(tick); return; }
       still(); root.classList.remove('aph-shifting'); SHIFT = null; themeColor(); if (o.done) o.done();
+      Array.prototype.forEach.call(document.querySelectorAll('.aph-red'), function (el) { el.style.removeProperty('--aph-red-at'); });
     }
     requestAnimationFrame(tick);
     return true;

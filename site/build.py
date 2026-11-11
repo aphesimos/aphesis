@@ -102,10 +102,11 @@ SECTIONS = [
 MUSIC_INDEX = 'https://music.aphes.ist/index.json'
 LOCAL = False   # --local: build the sections from the local branches instead of what origin has
 # the wall's and the forum's backends; they go live only with a Turnstile site key (--turnstile-sitekey, or the
-# environment's TURNSTILE_SITEKEY), and stay in preview mode, with their example lines, until then
+# environment's TURNSTILE_SITEKEY), and stay in preview mode (empty, keeping a visitor's posts in the browser) until
+# then. Both read their backend from the page's head: a section's own <head> is not kept when it mounts.
 WALL_API, FORUM_API = 'https://wall-api.aphes.ist', 'https://forum-api.aphes.ist'
 SITEKEY = os.environ.get('TURNSTILE_SITEKEY', '').strip()
-SECTION_ARGS = {'music': lambda: ['--index', MUSIC_INDEX], 'wall': lambda: ['--api', WALL_API, '--sitekey', SITEKEY] if SITEKEY else []}
+SECTION_ARGS = {'music': lambda: ['--index', MUSIC_INDEX]}
 REQUIRE_GATE = False   # --require-gate: stop when the gate's phrase or route is missing (the deploy sets it)
 PASSAGES = [
     dict(o='ἓν τὸ πᾶν', l='grc', t='the one is the all', a='Chrysopoeia of Cleopatra'),
@@ -306,9 +307,12 @@ def build(fragment, refs):
     # the static icons and the manifest are files in site/public (tools/make_icons.py); the artifact page has none
     links = '' if fragment else ('<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">\n<link rel="apple-touch-icon" href="/apple-touch-icon.png">\n'
                                  '<link rel="manifest" href="/site.webmanifest">')   # theme-color: Aphesis.themeColor keeps it with the ground
-    # the forum reads its backend from the page's head; without a Turnstile site key it stays in preview mode
+    # the wall and the forum read their backends from the page's head (the wall's own build writes these two metas
+    # in its <head>, which the mount drops); without a Turnstile site key both stay in preview mode
     if SITEKEY:
-        links += f'\n<meta name="forum-api" content="{FORUM_API}">\n<meta name="forum-turnstile" content="{html.escape(SITEKEY, quote=True)}">'
+        key = html.escape(SITEKEY, quote=True)
+        links += (f'\n<meta name="aphesis:wall-api" content="{WALL_API}">\n<meta name="aphesis:turnstile" content="{key}">'
+                  f'\n<meta name="forum-api" content="{FORUM_API}">\n<meta name="forum-turnstile" content="{key}">')
     page = page.replace('<!--__HEADLINKS__-->', links).replace('__FAVICON_OPEN__', html.escape(fav_open, quote=True))
     page = (page.replace('/*__CSS__*/', css).replace('<!--__NAV__-->', nav).replace('<!--__STYLES__-->', styles)
             .replace('<!--__TEMPLATES__-->', tpl).replace('/*__BUNDLE__*/', show('design-system', 'system/components/bundle.js'))
@@ -348,7 +352,7 @@ if __name__ == '__main__':
         sys.exit('--content-api is an http(s) URL')
     print('  content api: ' + (api or 'none: archive, book and works use what they carry, and the gate cannot sign in'), file=sys.stderr)
     print('  wall and forum: ' + ('live, at ' + WALL_API + ' and ' + FORUM_API if SITEKEY else
-          'preview mode (no TURNSTILE_SITEKEY): their example lines, nothing is sent'), file=sys.stderr)
+          'preview mode (no TURNSTILE_SITEKEY): empty, nothing is sent'), file=sys.stderr)
     page = build(frag, refs)
     open(out, 'w', encoding='utf-8').write(page)
     print(out, len(page))

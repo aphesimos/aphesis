@@ -135,7 +135,8 @@ real domain (`aphes.ist`), not `aphesist.pages.dev`.
 - **Content** (`https://content-api.aphes.ist`): archive, book and works read their entries from it and fall back
   to what they carry when it does not answer; the gate signs in through it.
 - **Wall and forum** (`https://wall-api.aphes.ist`, `https://forum-api.aphes.ist`): they go live only with a
-  Turnstile site key. Without one they stay in preview mode, with their example lines, and the build log says so.
+  Turnstile site key, which the build writes into the page's head with both backends' addresses. Without one they
+  stay in preview mode (empty, a visitor's posts kept in their browser), and the build log says so.
 
 ## Routes
 

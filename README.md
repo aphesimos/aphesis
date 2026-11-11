@@ -117,10 +117,12 @@ left of the name, about twice its cap height, and moves with it as one unit; it 
 and focus (`.aph-icon`) and gathers (`.aph-gather`) as the press begins, before the section comes in. On a phone
 (600 px wide or less, or a small touch screen on its side) the icons alone stand around the φ, 40 px with 44 px
 targets: the first tap gathers an icon and condenses its name and gloss beside it, the second enters, a tap elsewhere
-dismisses the name. A key enters at once, and keyboard focus shows the name. The icons are decorative: each link is
-named by its words. The names sit on an ellipse, spaced along its length, each pushed out until it clears the φ;
-their sizes are measured once (again on resize, when the fonts arrive or the ring turns from names to icons), and
-nothing is written when nothing moved.
+dismisses the name. A key enters at once, and keyboard focus shows the name. Back at the home, by any way (the seal,
+Back, the address, Escape), the ring is as it was before it was touched: no name chosen, hovered or gathered, nothing
+dimmed, and it turns again; only a visitor who entered by keyboard finds the focus (and so the name) on the section
+they left. The icons are decorative: each link is named by its words. The names sit on an ellipse, spaced along its
+length, each pushed out until it clears the φ; their sizes are measured once (again on resize, when the fonts arrive
+or the ring turns from names to icons), and nothing is written when nothing moved.
 
 In the eye's wave the names and glosses (`.tx`, each `.aph-ink`) blend by difference with the fog, cell by cell,
 while the icons keep their red. A blend reaches no further than the nearest stacking context, so while the wave runs

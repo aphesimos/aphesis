@@ -194,6 +194,17 @@ function ray(a, show) {
 }
 function nameIt(a) { if (named && named !== a) named.classList.remove('named', 'on', 'aph-gather'); named = a; a.classList.add('named', 'on'); ring.classList.add('focus'); ray(a, true); }
 function unname() { if (!named) return; named.classList.remove('named', 'on', 'aph-gather'); named = null; ring.classList.remove('focus'); ray(null, false); }
+/* back home, the ring is as untouched: no name chosen, hovered or gathered, nothing dimmed, and it turns again. Only a
+   visitor who came by keyboard gets the focus back on the name they left by (and sees it, as focus shows it). */
+let byKey = false;
+addEventListener('keydown', (e) => { if ((e.key === 'Tab' || e.key === 'Enter' || e.key === ' ') && !(e.target.closest && e.target.closest('input,textarea,select,[contenteditable]'))) byKey = true; }, true);
+addEventListener('pointerdown', () => { byKey = false; }, true);
+function untouch() {
+  named = null;
+  links.forEach((l) => l.classList.remove('named', 'on', 'aph-gather'));
+  ring.classList.remove('focus'); ray(null, false);
+  if (!byKey && ring.contains(document.activeElement)) document.activeElement.blur();
+}
 links.forEach((a) => {
   const on = () => { if (a._x === undefined || named) return; ring.classList.add('focus'); a.classList.add('on'); ray(a, true); };
   const off = () => { if (named) return; ring.classList.remove('focus'); a.classList.remove('on'); ray(null, false); };
@@ -794,14 +805,15 @@ function goTo(next, first) {
   if (next === '') {
     target.d = 1; target.l = 1;
     clearTimeout(mountTimer); pendingMount = null;
+    untouch();
     document.title = 'aphes.ist'; $('aph-announce').textContent = 'home';
     const de = { ...sealBox }, para = centerBox(), u0 = u;
     tween(first ? 1 : 1600, (k) => { const e = MJ(k); placeSeal({ x: lerp(de.x, para.x, e), y: lerp(de.y, para.y, e), s: lerp(de.s, para.s, e) }); u = lerp(u0, 0, k); paint(estadoT(u)); },
       () => {
-        unname(); links.forEach((l) => l.classList.remove('aph-gather'));
+        untouch();
         ring.classList.add('visible');
         const a = document.activeElement;
-        if (prev && (!a || a === document.body)) { const l = links.find((x) => x.getAttribute('href') === routeOf(prev)); if (l) l.focus({ preventScroll: true }); }
+        if (prev && byKey && (!a || a === document.body)) { const l = links.find((x) => x.getAttribute('href') === routeOf(prev)); if (l) l.focus({ preventScroll: true }); }
       });
   } else {
     const sec = SECTIONS.find((s) => s.id === next); document.title = sec.name ? sec.name + ' · aphes.ist' : 'aphes.ist'; $('aph-announce').textContent = sec.name;

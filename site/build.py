@@ -306,7 +306,7 @@ def build(fragment, refs):
              .replace('/*__CONTENTAPI__*/', json.dumps(os.environ.get('APHESIS_CONTENT_API', '').strip().rstrip('/'))))
     page = open(os.path.join(D, 'src', 'shell.html'), encoding='utf-8').read()
     # the static icons and the manifest are files in site/public (tools/make_icons.py); the artifact page has none
-    links = '' if fragment else ('<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">\n<link rel="apple-touch-icon" href="/apple-touch-icon.png">\n'
+    links = '' if fragment else ('<link rel="icon" href="/favicon.ico" sizes="32x32">\n<link rel="apple-touch-icon" href="/apple-touch-icon.png">\n'
                                  '<link rel="manifest" href="/site.webmanifest">')   # theme-color: Aphesis.themeColor keeps it with the ground
     # the wall and the forum read their backends from the page's head (the wall's own build writes these two metas
     # in its <head>, which the mount drops); without a Turnstile site key both stay in preview mode

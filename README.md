@@ -21,3 +21,8 @@ The Φ is derived from the φ by the engine; the old separate Φ drawing is supe
 The image above is the engine itself: its outlines recorded frame by frame on the home and played back in the SVG, with the same boil. The stem rises from its tapered tip, then the ring is swept around to the free end.
 
 **Pending:** the engine's identifiers and comments are still in Portuguese; rename them to English.
+
+## Trademark
+
+The φ mark and the wordmark `aφesis` are trademarks of aphesist; see [TRADEMARKS.md](TRADEMARKS.md). They are not
+covered by the font's licence.

@@ -85,11 +85,12 @@ export function createDrift(list, { rect, describe }) {
     el.style.setProperty('--alpha', lk.alpha.toFixed(3));
     el.style.setProperty('--blur', lk.blur.toFixed(2) + 'px');
     el.style.setProperty('--lift', (19 / lk.size).toFixed(3));
-    /* the owner's eye, twice the words' size wide (near 38px, far 25px), alive on the shared tick */
+    /* the owner's eye, 2.8 times the words' size wide (near 53px, far 35px), alive on the shared tick: the gate's eye
+       in miniature (drawn as the gate draws it at 240px, then scaled down whole) */
     if (eye) {
-      const px = Math.round(lk.size * 2);
+      const px = Math.round(lk.size * 2.8);
       eye.style.width = px + 'px';
-      if (A && typeof A.Eye === 'function') A.Eye(eye, { size: px, shared: true, drawIn: false, gaze: 'auto', blink: true });
+      if (A && typeof A.Eye === 'function') A.Eye(eye, { size: px, drawAt: 240, shared: true, drawIn: false, gaze: 'auto', blink: true });
       else if (A && A.icon) eye.innerHTML = A.icon('eye', 0);
     }
     el.style.maxWidth = Math.min(field.width * 0.88, phone() ? 330 : 470) + 'px';

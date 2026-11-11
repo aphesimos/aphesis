@@ -6,8 +6,8 @@
    - The ritual (via 'ritual'): three clicks or taps on the passage in the bottom-right corner (Enter or Space when it
      has the focus), each within 1.6 s of the last; its text stutters slightly at each, a hard cut of a pixel or two
      on the 8 fps tick, as a typist's hand slips. Within the next 12 s, hold the φ for 7 s (a pointer, a finger, or
-     Enter held while the seal has the focus): it fills with stipple, cells of 2 CSS pixels in the seal's red that
-     rise inside the φ's own strokes and a thin halo around them on the tick, then lets go, and the gate opens.
+     Enter held while the seal has the focus): a circle of red stipple, cells of 2 CSS pixels, grows from the seal on
+     the tick until it has painted the whole screen; the gate opens beneath it and the red goes back cell by cell.
      Without the three clicks first, the seal is only the seal. Let go early and the cells fall back the way they
      rose, quicker and eased with minimum jerk, to nothing; holding again on the way down fills on from there.
    - A phrase typed anywhere (via 'phrase'): on a page with a keyboard, outside any field, the last characters typed
@@ -48,7 +48,7 @@
   style.textContent = '#aph-seal{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}' +
     '.aph-ritual #aph-seal{pointer-events:auto}' +
     '#aph-ptext{position:relative}' +
-    '#aph-fill{position:fixed;left:0;top:0;pointer-events:none;z-index:var(--z-seal);image-rendering:pixelated}';
+    '#aph-fill{position:fixed;left:0;top:0;pointer-events:none;z-index:calc(var(--z-nav) + 1);image-rendering:pixelated}';
   D.head.appendChild(style);
 
   /* a stutter: two or three hard offsets on the tick, then back; nothing slides */
@@ -74,14 +74,27 @@
     passage.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) { e.preventDefault(); knock(); } });
   }
 
-  /* the hold: a canvas over the seal, one canvas pixel per cell */
-  const HOLD = 7000, LET_GO = 5;
+  /* the hold: a circle of red stipple grows from the seal's centre over the whole screen, on one fixed canvas the
+     size of the viewport (one canvas pixel per 2 CSS px cell, scaled up pixelated, so a phone draws a few tens of
+     thousands of cells), above the inscription and below the tooltip and the cursor, taking no pointer. At the end
+     of the hold the circle has reached the farthest corner and the screen is red stipple; the gate opens beneath it
+     and the red goes back into the ground cell by cell. */
+  const HOLD = 7000, LET_GO = 12, C = 2;
   /* level: how far the fill has risen, 0 to 1. It rises linearly while held; let go early, it falls back from where
      it was over 0.6 of the time it took to rise, eased with minimum jerk, the last cells to light the first to go */
   const BACK = 0.6;
   const MJ = (W.Aphesis && W.Aphesis.MJ) || ((t) => { t = Math.max(0, Math.min(1, t)); return t * t * t * (10 - 15 * t + 6 * t * t); });
-  let holding = false, done = false, reversing = false, level = 0, last = 0, back = null, timer = 0, canvas = null, cells = null, swallowClick = false;
-  function sealColor() { return getComputedStyle(D.documentElement).getPropertyValue('--seal').trim() || '#ab0d19'; }
+  let holding = false, done = false, reversing = false, level = 0, last = 0, back = null, timer = 0, canvas = null, cells = null, gone = null, swallowClick = false;
+  let img = null, px = null, rgba = 0, ctx2d = null;
+  /* the seal's red, as one packed pixel (the token is oklch: the browser resolves it) */
+  function sealRGBA() {
+    const c = D.createElement('canvas'); c.width = c.height = 1;
+    /* a CPU canvas: reading a pixel back from a GPU one stalls the page for whole seconds on some devices */
+    const g = c.getContext('2d', { willReadFrequently: true }); g.fillStyle = getComputedStyle(D.documentElement).getPropertyValue('--seal').trim() || '#ab0d19';
+    g.fillRect(0, 0, 1, 1);
+    const [r, gg, b2] = g.getImageData(0, 0, 1, 1).data;
+    return new Uint32Array(new Uint8ClampedArray([r, gg, b2, 235]).buffer)[0];
+  }
   function start(e) {
     if (holding || done || !seal) return;
     /* a press while it falls back fills on from where it is */
@@ -89,59 +102,46 @@
     if (!armed()) return;
     if (e) e.preventDefault();
     holding = true; done = false; level = 0; last = performance.now();
-    /* the φ fills with stipple: its own drawing (the seal's ink path, as it stands) is the density field, softened
-       into a thin halo, on a square canvas around the seal's centre that holds the whole fill, one canvas pixel per
-       2 CSS px cell. Nothing reaches past the halo, so the inscription around the seal stays clear. */
-    const r = seal.getBoundingClientRect(), side = Math.max(r.width, r.height);
-    const pad = Math.max(8, side * 0.06), C = 2;
-    const n = Math.ceil((side + 2 * pad) / C), half = (n * C) / 2;
-    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-    canvas = D.createElement('canvas'); canvas.id = 'aph-fill'; canvas.width = canvas.height = n;
-    canvas.style.left = (cx - half) + 'px'; canvas.style.top = (cy - half) + 'px';
-    canvas.style.width = canvas.style.height = n * C + 'px';
+    const w = Math.ceil(innerWidth / C), h = Math.ceil(innerHeight / C);
+    canvas = D.createElement('canvas'); canvas.id = 'aph-fill'; canvas.width = w; canvas.height = h;
+    canvas.style.cssText = 'left:0;top:0;width:' + w * C + 'px;height:' + h * C + 'px';
     canvas.setAttribute('aria-hidden', 'true');
     D.body.appendChild(canvas);
-    const field = D.createElement('canvas'); field.width = field.height = n;
-    const f = field.getContext('2d', { willReadFrequently: true });
-    const svg = seal.querySelector('svg'), ink = seal.querySelector('path');
-    const vb = svg && svg.viewBox && svg.viewBox.baseVal;
-    if (ink && vb && vb.width) {
-      /* the svg fills the seal's box: map its viewBox onto the box, in cells */
-      const k = Math.min(r.width / vb.width, r.height / vb.height) / C;
-      const ox = (r.left - (cx - half)) / C + (r.width / C - vb.width * k) / 2, oy = (r.top - (cy - half)) / C + (r.height / C - vb.height * k) / 2;
-      const P = new Path2D(ink.getAttribute('d') || '');
-      f.setTransform(k, 0, 0, k, ox - vb.x * k, oy - vb.y * k);
-      f.fillStyle = '#fff';
-      f.filter = 'blur(' + Math.max(1.5, pad / C / 2.2).toFixed(1) + 'px)'; f.fill(P);   /* the halo */
-      f.filter = 'none'; f.fill(P);                                                       /* the φ itself */
-    }
-    const dens = f.getImageData(0, 0, n, n).data;
-    /* each cell lights at its own moment: the φ's own cells first, the halo's late and only some, never all */
-    cells = new Float32Array(n * n);
-    for (let i = 0; i < n * n; i++) {
-      const v = dens[i * 4 + 3] / 255;
-      cells[i] = v < 0.06 ? 9 : (1 - v) * 0.75 + Math.random() * 0.32 + (Math.random() < 0.1 ? 9 : 0);
+    /* a CPU canvas: a whole viewport of cells is redrawn each tick with putImageData, which a GPU canvas turns into
+       a readback and an upload, a stall of seconds where the GPU is slow or emulated */
+    ctx2d = canvas.getContext('2d', { willReadFrequently: true });
+    img = ctx2d.createImageData(w, h);
+    px = new Uint32Array(img.data.buffer);
+    rgba = sealRGBA();
+    /* each cell lights when the circle reaches it, its edge frayed: a cell's moment is its distance from the seal's
+       centre over the distance to the farthest corner, with a little scatter; a few never light, so the red is
+       stipple to the end, never a solid field */
+    const r = seal.getBoundingClientRect();
+    const cx = (r.left + r.width / 2) / C, cy = (r.top + r.height / 2) / C;
+    const far = Math.max(Math.hypot(cx, cy), Math.hypot(w - cx, cy), Math.hypot(cx, h - cy), Math.hypot(w - cx, h - cy));
+    cells = new Float32Array(w * h); gone = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x, d = Math.hypot(x - cx, y - cy) / far;
+      cells[i] = Math.random() < 0.08 ? 9 : d * 0.9 + Math.random() * 0.1;
+      gone[i] = Math.random();
     }
     clearInterval(timer); timer = setInterval(frame, TICK);
     frame();
   }
-  function paint(share, gone) {
-    const g = canvas.getContext('2d'), w = canvas.width, h = canvas.height;
-    g.clearRect(0, 0, w, h);
-    g.fillStyle = sealColor();
-    for (let i = 0; i < cells.length; i++) {
-      if (cells[i] > share) continue;
-      if (gone && (i * 2654435761 % 997) / 997 < gone) continue;
-      g.fillRect(i % w, (i / w) | 0, 1, 1);
-    }
+  /* share: the cells whose moment has come; out: the share of them already gone back into the ground */
+  function paint(share, out) {
+    px.fill(0);
+    for (let i = 0; i < cells.length; i++) if (cells[i] <= share && gone[i] >= out) px[i] = rgba;
+    ctx2d.putImageData(img, 0, 0);
   }
   let letGo = 0;
   function frame() {
     if (!canvas) return;
     if (done) {
+      /* the gate is already opening beneath; the red leaves cell by cell */
       letGo++;
-      paint(1, letGo / LET_GO);
-      if (letGo >= LET_GO) { end(); open('ritual'); }
+      paint(1, MJ(letGo / LET_GO));
+      if (letGo >= LET_GO) end();
       return;
     }
     const now = performance.now();
@@ -150,10 +150,10 @@
       if (level <= 0.002 || now - back.t0 >= back.dur) { end(); return; }
     } else level = Math.min(1, level + (now - last) / HOLD);
     last = now;
-    paint(level * 1.05, 0);
-    if (level >= 1 && !reversing) { done = true; letGo = 0; armedUntil = 0; arm(false); swallowClick = true; }
+    paint(level, 0);
+    if (level >= 1 && !reversing) { done = true; letGo = 0; armedUntil = 0; arm(false); swallowClick = true; open('ritual'); }
   }
-  function end() { clearInterval(timer); timer = 0; holding = false; reversing = false; back = null; level = 0; if (!armed()) arm(false); if (canvas) canvas.remove(); canvas = null; cells = null; }
+  function end() { clearInterval(timer); timer = 0; holding = false; done = false; reversing = false; back = null; level = 0; if (!armed()) arm(false); if (canvas) canvas.remove(); canvas = null; cells = null; gone = null; img = null; px = null; ctx2d = null; }
   /* let go before the end: the fill falls back rather than vanishing */
   function cancel() {
     if (!holding || done) return;

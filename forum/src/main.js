@@ -107,12 +107,25 @@ async function show(r, opts = {}) {
   }
   const keep = opts.keepScroll ? scroller.scrollTop : 0;
   if (!first && !opts.quiet) view.classList.add('leaving');
+  /* between the board and a thread the head changes shape (the lede goes, the title gets smaller): it leaves with
+     the view and comes back once the new one is in, so its lines never jump while they are seen */
+  const turning = !first && !opts.quiet && root.classList.contains('is-thread') !== !!r.thread;
+  if (turning) forum.classList.add('turning');
   const leave = new Promise((res) => setTimeout(res, first || opts.quiet ? 0 : 320));
+  /* the head changes shape only once it has gone (its fade ends, or a second has passed) */
+  const headGone = turning ? new Promise((res) => {
+    const head = $('head');
+    const done = () => { head.removeEventListener('transitionend', end); res(); };
+    const end = (e) => { if (e.target === head && e.propertyName === 'opacity') done(); };
+    head.addEventListener('transitionend', end);
+    setTimeout(done, 1000);
+  }) : null;
   let data = null, err = null;
   /* a redraw in place (images on or off) keeps every page of the board already gathered, and the scroll with it */
   if (!r.thread && opts.quiet && board) data = board;
   else { try { data = await (r.thread ? api.thread(r.thread) : api.board()); } catch (e) { err = e; } }
   await leave;
+  if (headGone) await headGone;
   if (my !== seq) return;
   root.classList.toggle('is-thread', !!r.thread);
   let v;
@@ -129,6 +142,7 @@ async function show(r, opts = {}) {
   }
   view.replaceChildren(v.el);
   view.classList.remove('leaving');
+  forum.classList.remove('turning');
   if (!opts.quiet) enter(v.items);
   scroller.scrollTop = keep;
   document.title = (r.thread ? 'a thread · ' : '') + 'forum · aphes.ist';

@@ -76,6 +76,8 @@ h1 .w { display: inline-block; }
 .in { transition: opacity var(--duration-scene) var(--easing-settle), filter var(--duration-scene) var(--easing-settle), transform var(--duration-scene) var(--easing-settle);
   transition-delay: calc(min(var(--i, 0), 10) * 60ms); }
 #view.leaving { opacity: 0; filter: blur(6px); transition: opacity var(--duration-quick) var(--easing-settle), filter var(--duration-quick) var(--easing-settle); }
+#head { transition: opacity var(--duration-quick) var(--easing-settle), filter var(--duration-quick) var(--easing-settle); }
+.turning #head { opacity: 0; filter: blur(6px); }
 
 /* labels that act: lowercase, tracked, no boxes */
 .act { font-size: var(--type-label-size); letter-spacing: var(--type-label-tracking); line-height: 1; padding: var(--space-2) 0; color: var(--ink); text-decoration: none; display: inline-block; }

@@ -185,14 +185,12 @@ Public, read-only, published entries only, CORS for `ALLOWED_ORIGINS`, `cache-co
 `GET /v1/posts`, `/v1/posts/:slug`, `/v1/books`, `/v1/books/:slug`, `/v1/works` (with the section's name and gloss),
 `/v1/works/:id`, `GET /media/:key`. Pictures come back as absolute URLs.
 
-**The site's texts** (`content/src/texts.rs`): the short lines the owner can change without a rebuild: the home's
-line for each section, the ledes, the helper lines, the empty states. Every key is listed once in `TEXTS`, with its
+**The site's texts** (`content/src/texts.rs`): the short lines the owner can change without a rebuild: the ledes, the helper lines, the empty states. Every key is listed once in `TEXTS`, with its
 screen and its default, which is the same string the page carries; the page keeps its own copy and shows it whenever
 the API does not answer or has nothing set, so a missing key never breaks a screen. `GET /v1/texts` answers only the
 keys the owner set, `{texts: {"music.lede": "..."}, version}`, with `cache-control: public, max-age=15` and an
 `ETag` of the version (`If-None-Match` gets `304`). The version is the sum of every key's version, which grows by one
-with each save and each reset, so it never comes back to an earlier value. The keys: `home.sections.<section>.description`
-(book, descent, archive, laboratory, works, wall, forum, music), `archive.lede`, `archive.empty`, `archive.stage.<stage>`,
+with each save and each reset, so it never comes back to an earlier value. The keys: `archive.lede`, `archive.empty`, `archive.stage.<stage>`,
 `laboratory.lede`, `laboratory.live`, `wall.placeholder`, `wall.helper`, `wall.sent`, `wall.empty`, `forum.lede`, `forum.empty`,
 `forum.placeholder.thread`, `forum.placeholder.reply`, `forum.pictures`, `music.lede`, `music.idle`, `music.empty`.
 A new key is one line in `TEXTS` and the same default in the page.

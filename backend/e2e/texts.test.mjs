@@ -73,15 +73,14 @@ test('the dashboard: every key with its default, edit, conflict, reset; the page
   let r = await send('/v1/admin/texts', { cookie });
   assert.equal(r.status, 200);
   const all = await r.json();
-  assert.ok(all.screens.includes('home') && all.screens.includes('music'));
+  assert.ok(all.screens.includes('archive') && all.screens.includes('music'));
   const lede = all.texts.find((t) => t.key === 'music.lede');
   assert.equal(lede.screen, 'music');
   assert.equal(lede.value, lede.default);
   assert.equal(lede.overridden, false);
   assert.equal(lede.version, 0);
-  for (const s of ['book', 'descent', 'archive', 'laboratory', 'works', 'wall', 'forum', 'music']) {
-    assert.ok(all.texts.some((t) => t.key === `home.sections.${s}.description`), s);
-  }
+  const stage = all.texts.find((t) => t.key === 'archive.stage.rubedo');
+  assert.equal(stage.default, 'rubedo · the red: finished');
 
   const w = { 'X-CSRF-Token': csrf };
   assert.equal((await send('/v1/admin/texts/music.lede', { method: 'PUT', cookie, body: { value: 'x' } })).status, 403, 'no CSRF token');

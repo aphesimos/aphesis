@@ -1,5 +1,5 @@
-//! The site's texts: the short lines the owner can change from the dashboard (the home's line for each section,
-//! the ledes, the helper lines, the empty states) without a rebuild.
+//! The site's texts: the short lines the owner can change from the dashboard (the ledes, the helper lines, the
+//! empty states) without a rebuild.
 //!
 //! Every key the site reads is listed here once, with the screen it belongs to and its built-in default: the same
 //! string the page carries. The page always has its own copy and shows it whenever the API does not answer or has
@@ -34,170 +34,32 @@ const fn t(
 }
 
 /// the screens, in the order the dashboard shows them
-pub const SCREENS: [&str; 6] = ["home", "archive", "laboratory", "wall", "forum", "music"];
+pub const SCREENS: [&str; 5] = ["archive", "laboratory", "wall", "forum", "music"];
 
 /// at most this many characters in a text
 pub const MAX_CHARS: usize = 400;
 
 pub const TEXTS: &[Text] = &[
-    t(
-        "home.sections.book.description",
-        "home",
-        "book: its line on the home",
-        "what i'm reading.",
-    ),
-    t(
-        "home.sections.descent.description",
-        "home",
-        "descent: its line on the home",
-        "a door, and the chambers behind it.",
-    ),
-    t(
-        "home.sections.archive.description",
-        "home",
-        "archive: its line on the home",
-        "writing, finished or not.",
-    ),
-    t(
-        "home.sections.laboratory.description",
-        "home",
-        "laboratory: its line on the home",
-        "experiments that run in your browser.",
-    ),
-    t(
-        "home.sections.works.description",
-        "home",
-        "works: its line on the home",
-        "things i've made.",
-    ),
-    t(
-        "home.sections.wall.description",
-        "home",
-        "wall: its line on the home",
-        "anonymous lines. each one fades after thirty days.",
-    ),
-    t(
-        "home.sections.forum.description",
-        "home",
-        "forum: its line on the home",
-        "an anonymous forum.",
-    ),
-    t(
-        "home.sections.music.description",
-        "home",
-        "music: its line on the home",
-        "my music folder. mostly lossless.",
-    ),
-    t(
-        "archive.lede",
-        "archive",
-        "lede",
-        "writing, finished or not.",
-    ),
-    t(
-        "archive.empty",
-        "archive",
-        "the list with no posts",
-        "nothing here yet.",
-    ),
-    t(
-        "archive.stage.nigredo",
-        "archive",
-        "stage tooltip: nigredo",
-        "nigredo · just started",
-    ),
-    t(
-        "archive.stage.albedo",
-        "archive",
-        "stage tooltip: albedo",
-        "albedo · taking shape",
-    ),
-    t(
-        "archive.stage.citrinitas",
-        "archive",
-        "stage tooltip: citrinitas",
-        "citrinitas · almost done",
-    ),
-    t(
-        "archive.stage.rubedo",
-        "archive",
-        "stage tooltip: rubedo",
-        "rubedo · finished",
-    ),
-    t(
-        "laboratory.lede",
-        "laboratory",
-        "lede",
-        "experiments that run in your browser. each one says what i expected and what came out.",
-    ),
-    t(
-        "laboratory.live",
-        "laboratory",
-        "an experiment's meta line, after its number",
-        "runs in your browser",
-    ),
-    t("wall.placeholder", "wall", "the empty line", "write a line"),
-    t(
-        "wall.helper",
-        "wall",
-        "the line's tooltip",
-        "one line · no names · gone after thirty days",
-    ),
-    t("wall.sent", "wall", "after a line is posted", "posted."),
-    t(
-        "wall.empty",
-        "wall",
-        "the wall with no lines",
-        "no lines yet.",
-    ),
-    t(
-        "forum.lede",
-        "forum",
-        "lede",
-        "an anonymous forum. no names, no accounts.",
-    ),
-    t(
-        "forum.empty",
-        "forum",
-        "the board with no threads",
-        "no threads yet.",
-    ),
-    t(
-        "forum.placeholder.thread",
-        "forum",
-        "a new thread, empty",
-        "start a thread",
-    ),
-    t(
-        "forum.placeholder.reply",
-        "forum",
-        "a reply, empty",
-        "reply · >>2 quotes post 2",
-    ),
-    t(
-        "forum.pictures",
-        "forum",
-        "the pictures switch's tooltip",
-        "show or hide pictures",
-    ),
-    t(
-        "music.lede",
-        "music",
-        "lede",
-        "my music folder. mostly lossless.",
-    ),
-    t(
-        "music.idle",
-        "music",
-        "the player, with nothing playing",
-        "choose a track, or play a folder",
-    ),
-    t(
-        "music.empty",
-        "music",
-        "a search with no results",
-        "nothing matches",
-    ),
+    t("archive.lede", "archive", "lede", "writing about anything, from draft to finished."),
+    t("archive.empty", "archive", "the list with no posts", "the scraped tablet: nothing on it, everything possible."),
+    t("archive.stage.nigredo", "archive", "stage tooltip: nigredo", "nigredo · the black: barely begun"),
+    t("archive.stage.albedo", "archive", "stage tooltip: albedo", "albedo · the white: taking shape"),
+    t("archive.stage.citrinitas", "archive", "stage tooltip: citrinitas", "citrinitas · the yellow: nearly there"),
+    t("archive.stage.rubedo", "archive", "stage tooltip: rubedo", "rubedo · the red: finished"),
+    t("laboratory.lede", "laboratory", "lede", "measured experiments. each one states what i expect, says how i measure it, runs here in your browser, and reports what it found, whatever it finds."),
+    t("laboratory.live", "laboratory", "an experiment's meta line, after its number", "measured live in this browser"),
+    t("wall.placeholder", "wall", "the empty line", "leave a line in the fog"),
+    t("wall.helper", "wall", "the line's tooltip", "one line · no names · it fades after thirty days"),
+    t("wall.sent", "wall", "after a line is posted", "it is in the fog now."),
+    t("wall.empty", "wall", "the wall with no lines", "the wall is quiet. the first line is yours."),
+    t("forum.lede", "forum", "lede", "talk without names. each voice gets a sigil, the same one all through a thread; every picture arrives as fog."),
+    t("forum.empty", "forum", "the board with no threads", "the agora is quiet. start a thread, and the first word is yours."),
+    t("forum.placeholder.thread", "forum", "a new thread, empty", "begin with a first line worth reading"),
+    t("forum.placeholder.reply", "forum", "a reply, empty", "say it plainly. >>n quotes a post"),
+    t("forum.pictures", "forum", "the pictures switch's tooltip", "pictures as fog, or words only"),
+    t("music.lede", "music", "lede", "my music folder. mostly lossless."),
+    t("music.idle", "music", "the player, with nothing playing", "choose a track, or play a folder"),
+    t("music.empty", "music", "a search with no results", "nothing matches"),
 ];
 
 pub fn find(key: &str) -> Option<&'static Text> {
@@ -314,25 +176,6 @@ mod tests {
                 t.default.to_lowercase(),
                 "{} is lowercase",
                 t.key
-            );
-        }
-    }
-
-    #[test]
-    fn the_home_has_a_line_for_every_section() {
-        for s in [
-            "book",
-            "descent",
-            "archive",
-            "laboratory",
-            "works",
-            "wall",
-            "forum",
-            "music",
-        ] {
-            assert!(
-                find(&format!("home.sections.{s}.description")).is_some(),
-                "{s}"
             );
         }
     }

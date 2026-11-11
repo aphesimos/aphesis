@@ -1,8 +1,10 @@
 /* music · phonotheca
    layout: on a wide screen two columns on the fog (density .62, light .4): the explorer, a quiet terminal file
    explorer whose list scrolls in its own pane, and the deck, the player. On a phone one column, and the whole
-   section scrolls. Nothing here is positioned with a z-index, masked, filtered or faded as an ancestor of text,
-   so every .aph-ink line blends with the fog itself while the eye's wave runs. The bottom corners (the eye, the
+   section scrolls, receding under the seal and the bottom corners through the design system's bands (a mask on the
+   section; for the eye's wave the runtime puts a mirror of the fog at its back, so its text still blends cell by
+   cell). Otherwise nothing here is positioned with a z-index, masked, filtered or faded as an ancestor of text, so
+   every .aph-ink line blends with the fog itself while the eye's wave runs. The bottom corners (the eye, the
    passage) and the top-left (the seal) stay free; the now-playing line takes the top-right (np.css). */
 
 * { box-sizing: border-box; }
@@ -194,6 +196,8 @@ button:disabled { cursor: default; opacity: .45; }
 @media (max-width: 899px) {
   .music {
     display: block; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+    /* what scrolls recedes under the seal and the corners instead of running into them */
+    -webkit-mask-image: var(--aph-bands); mask-image: var(--aph-bands);
     padding: calc(var(--space-7) + var(--space-4) + env(safe-area-inset-top, 0px)) max(var(--space-4), calc(var(--space-4) + env(safe-area-inset-right, 0px))) calc(var(--space-7) + env(safe-area-inset-bottom, 0px)) max(var(--space-4), calc(var(--space-4) + env(safe-area-inset-left, 0px)));
   }
   .music { display: flex; flex-direction: column; }

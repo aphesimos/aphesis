@@ -35,8 +35,10 @@ like a file explorer and listen with the player built in. The gloss is *phonothe
 - **Lossless.** The switch loads the original FLAC instead of the AAC stream, at the same moment of the track. It
   is off where `canPlayType('audio/flac')` says no; a lossy original says so and plays as it is; an original that
   fails to load falls back to the stream and says so.
-- **Phones.** Media Session metadata and handlers: the lock screen and headphone keys play, pause, skip and seek;
-  the artwork is the cover in stipple, drawn on a canvas. Volume is hidden where the browser ignores it (iOS).
+- **Phones.** What scrolls recedes under the seal and the bottom corners (the eye, the ear, the passage) through the
+  design system's bands (`--aph-bands`), instead of running into them. Media Session metadata and handlers: the lock
+  screen and headphone keys play, pause, skip and seek; the artwork is the cover in stipple, drawn on a canvas.
+  Volume is hidden where the browser ignores it (iOS).
 - **Continuity.** The music keeps playing when the visitor leaves the section: see below.
 - **Remembering.** The track, the moment, the queue, the volume and the switches are kept in this browser's
   `localStorage`, so a return resumes (paused) where it was. Nothing else is stored.

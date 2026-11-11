@@ -120,7 +120,7 @@ h1 .w { display: inline-block; }
 .pm button { color: var(--ink-soft); }
 .pm button:hover, .pm .num:hover { color: var(--accent-text); }
 .pm .op { color: var(--ink-soft); }
-/* the owner's post: the gate's eye in miniature, in rubedo, where the sigil would be, with as much ink as a sigil
+/* the owner's post: the gate's eye drawn as a mark, in rubedo, where the sigil would be, with as much ink as a sigil
    (56 wide, 14/24 of that high, centred on the sigil's 36px row), and the name in Aphesis Script. Nothing else
    changes: no box, no rule, the words as anyone's */
 .pm .owner-eye { display: inline-block; width: 56px; color: var(--accent); margin: calc((36px - 56px * 14 / 24) / 2) var(--space-1) calc((36px - 56px * 14 / 24) / 2) 0; }

@@ -1,6 +1,6 @@
 /* owner: the owner's mark, in place of a sigil. A post the server marked `owner` (only the owner's desk can make one:
    the content service passes it on with the forum's admin secret; nothing a visitor sends can claim it) shows a small
-   Aphesis.Eye in rubedo, alive (the gate's eye in miniature), and the name, aphesist, in Aphesis Script, like a capcode.
+   Aphesis.Eye in rubedo, alive (the gate's eye, drawn as a mark), and the name, aphesist, in Aphesis Script, like a capcode.
 
    ownerMark()       -> the markup for a post's header: the eye's place, the name, and words for assistive technology
    wakeOwners(root)  -> brings every eye under root to life, once: shared eyes (one tick for the page, still while off
@@ -10,9 +10,9 @@
    ownerIcon()       -> a still eye, for the quote preview */
 
 export const OWNER = 'aphesist';
-/* as much ink as a sigil (36px): the eye is wide and short, so its box is 56px wide; it is drawn as the gate draws its
-   eye on a phone (240px) and scaled down whole, a miniature of the gate's eye */
-const EYE_PX = 56, DRAW_AT = 240;
+/* as much ink as a sigil (36px): the eye is wide and short, so its box is 56px wide. It is the runtime's mark preset:
+   the gate's eye in its construction and its cells, with a bolder brush and larger cells, so it reads as a mark */
+const EYE_PX = 56;
 const live = new WeakMap();
 
 export function ownerMark() {
@@ -24,7 +24,7 @@ export function wakeOwners(root) {
   const A = window.Aphesis;
   root.querySelectorAll('.owner-eye:not([data-live])').forEach((el) => {
     el.dataset.live = '1';
-    if (A && typeof A.Eye === 'function') live.set(el, A.Eye(el, { size: EYE_PX, drawAt: DRAW_AT, shared: true, drawIn: false, gaze: 'auto', blink: true }));
+    if (A && typeof A.Eye === 'function') live.set(el, A.Eye(el, { size: EYE_PX, mark: true, drawIn: false, gaze: 'auto', blink: true }));
     else if (A && A.icon) el.innerHTML = A.icon('eye', 0);
   });
 }

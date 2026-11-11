@@ -72,7 +72,7 @@ export async function start(name, vars = {}, { prepare, logLevel = 'warn' } = {}
   const url = `http://127.0.0.1:${port}`;
   const deadline = Date.now() + 120_000;
   for (;;) {
-    if (child.exitCode !== null) throw new Error(`wrangler dev exited:\n${log}`);
+    if (child.exitCode !== null) throw new Error(`wrangler dev exited (code ${child.exitCode}, signal ${child.signalCode}):\n${log}`);
     /* each probe gives up after 2 s, so a port that accepts but never answers cannot hold the loop past the deadline */
     try { await fetch(url + '/', { signal: AbortSignal.timeout(2000) }); break; } catch (_) { /* not yet */ }
     if (Date.now() > deadline) { kill(child, 'SIGKILL'); throw new Error(`wrangler dev did not start:\n${log}`); }

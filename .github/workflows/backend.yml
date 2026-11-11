@@ -86,7 +86,10 @@ jobs:
         timeout-minutes: 15
         run: |
           for s in $(jq -r '.services[].name' services.json); do (cd "$s" && worker-build --release); done
-          E2E_NO_BUILD=1 node --test --test-timeout=300000 --test-force-exit e2e/*.test.mjs
+          # one wrangler, installed once: several test files starting npx at the same moment on a fresh runner race
+          # over npx's cache, and the loser exits before printing anything
+          npm install -g wrangler@4.153.0
+          E2E_NO_BUILD=1 WRANGLER=wrangler node --test --test-concurrency=1 --test-timeout=300000 --test-force-exit e2e/*.test.mjs
 
   build:
     needs: test

@@ -27,11 +27,13 @@ SECTION_URL = SITE + '/archive'          # a post lives at SECTION_URL#<slug>
 
 STAGES = ['nigredo', 'albedo', 'citrinitas', 'rubedo']
 STAGE_TIPS = {
-    'nigredo': 'nigredo · the black: barely begun',
-    'albedo': 'albedo · the white: taking shape',
-    'citrinitas': 'citrinitas · the yellow: nearly there',
-    'rubedo': 'rubedo · the red: finished',
+    'nigredo': 'nigredo · just started',
+    'albedo': 'albedo · taking shape',
+    'citrinitas': 'citrinitas · almost done',
+    'rubedo': 'rubedo · finished',
 }
+LEDE = 'writing, finished or not.'
+EMPTY = 'nothing here yet.'
 MAP_FILES = {  # density maps a post may name as ![caption](simulacrum:<name>), from system/assets/Simulacra
     'trismegistus': 'trismegistus.png', 'jerome': 'jerome.jpg', 'alchemist': 'alchemist.jpg',
     'flammarion': 'flammarion.png', 'cagnacci': 'cagnacci.jpg', 'magdalen': 'magdalen.jpg',
@@ -254,8 +256,9 @@ def load_posts(folder=None):
 
 # ---------- markup ----------
 def stage_icon(stage, cls=''):
+    # data-text-tip: the owner may change the tooltip from the desk (the site's texts); this is the page's own
     return (f'<span class="stage-icon {cls}" data-stage="{stage}" data-tip="{esc(STAGE_TIPS[stage])}" '
-            f'aria-hidden="true"></span>')
+            f'data-text-tip="archive.stage.{stage}" aria-hidden="true"></span>')
 
 
 def meta_line(p):
@@ -280,20 +283,20 @@ def list_html(posts):
     stages = f'<ol class="stages" aria-label="from draft to finished: nigredo, albedo, citrinitas, rubedo">{legend}</ol>' if items else ''
     entries = (f'<ol class="entries">{"".join(items)}</ol>' if items else
                f'<p class="blank">{stage_icon("nigredo")}<span class="aph-gloss" lang="la">tabula rasa</span>'
-               '<span class="aph-meta">the scraped tablet: nothing on it, everything possible.</span></p>')
+               f'<span class="aph-meta" data-text="archive.empty">{esc(EMPTY)}</span></p>')
     return (
         '<section class="view list" data-view="list" aria-labelledby="codex-title">'
         '<div class="col">'
         '<header class="head">'
         '<p class="gloss-title aph-gloss" lang="la">codex</p>'
         '<h1 id="codex-title" class="title aph-display" tabindex="-1">archive</h1>'
-        '<p class="lede">writing about anything, from draft to finished.</p>'
+        f'<p class="lede" data-text="archive.lede">{esc(LEDE)}</p>'
         f'{stages}'
         '</header>'
         f'{entries}'
         '<footer class="foot"><span class="rule" aria-hidden="true"></span>'
         '<a class="feed aph-label" href="feed.xml" type="application/atom+xml">feed</a>'
-        '<span class="aph-meta">atom · every post, from nigredo to rubedo</span></footer>'
+        '<span class="aph-meta">atom · every post</span></footer>'
         '</div></section>')
 
 
@@ -349,7 +352,7 @@ def feed_xml(posts):
         '<?xml version="1.0" encoding="utf-8"?>\n'
         '<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">\n'
         '  <title>aphes.ist · archive</title>\n'
-        '  <subtitle>writing about anything, from draft to finished.</subtitle>\n'
+        f'  <subtitle>{esc(LEDE)}</subtitle>\n'
         f'  <link rel="alternate" type="text/html" href="{SECTION_URL}"/>\n'
         f'  <link rel="self" type="application/atom+xml" href="{SECTION_URL}/feed.xml"/>\n'
         f'  <id>{SECTION_URL}</id>\n'

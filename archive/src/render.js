@@ -9,11 +9,16 @@
 
 export const STAGES = ['nigredo', 'albedo', 'citrinitas', 'rubedo'];
 export const STAGE_TIPS = {
-  nigredo: 'nigredo · the black: barely begun',
-  albedo: 'albedo · the white: taking shape',
-  citrinitas: 'citrinitas · the yellow: nearly there',
-  rubedo: 'rubedo · the red: finished',
+  nigredo: 'nigredo · just started',
+  albedo: 'albedo · taking shape',
+  citrinitas: 'citrinitas · almost done',
+  rubedo: 'rubedo · finished',
 };
+export const LEDE = 'writing, finished or not.';
+export const EMPTY = 'nothing here yet.';
+/* the site's texts: the owner's version of a line where the site has one (the shell's Aphesis.text), else this one.
+   The markup also names its key (data-text, data-text-tip), as build.py writes it. */
+const T = (key, own) => { const A = typeof window !== 'undefined' && window.Aphesis; return A && A.text ? A.text(key, own) : own; };
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 
 /* html.escape(s, quote=True) */
@@ -130,7 +135,8 @@ export function dateText(d) {
 
 /* ---------- markup ---------- */
 function stageIconSpan(stage, cls = '') {
-  return `<span class="stage-icon ${cls}" data-stage="${stage}" data-tip="${esc(STAGE_TIPS[stage])}" aria-hidden="true"></span>`;
+  return `<span class="stage-icon ${cls}" data-stage="${stage}" data-tip="${esc(T('archive.stage.' + stage, STAGE_TIPS[stage]))}" ` +
+    `data-text-tip="archive.stage.${stage}" aria-hidden="true"></span>`;
 }
 function metaLine(p) {
   return `<time datetime="${p.date}">${dateText(p.date)}</time>`;
@@ -151,19 +157,19 @@ export function listHtml(posts) {
   const stages = items.length ? `<ol class="stages" aria-label="from draft to finished: nigredo, albedo, citrinitas, rubedo">${legend}</ol>` : '';
   const entries = items.length ? `<ol class="entries">${items.join('')}</ol>` :
     `<p class="blank">${stageIconSpan('nigredo')}<span class="aph-gloss" lang="la">tabula rasa</span>` +
-    '<span class="aph-meta">the scraped tablet: nothing on it, everything possible.</span></p>';
+    `<span class="aph-meta" data-text="archive.empty">${esc(T('archive.empty', EMPTY))}</span></p>`;
   return '<section class="view list" data-view="list" aria-labelledby="codex-title">' +
     '<div class="col">' +
     '<header class="head">' +
     '<p class="gloss-title aph-gloss" lang="la">codex</p>' +
     '<h1 id="codex-title" class="title aph-display" tabindex="-1">archive</h1>' +
-    '<p class="lede">writing about anything, from draft to finished.</p>' +
+    `<p class="lede" data-text="archive.lede">${esc(T('archive.lede', LEDE))}</p>` +
     stages +
     '</header>' +
     entries +
     '<footer class="foot"><span class="rule" aria-hidden="true"></span>' +
     '<a class="feed aph-label" href="feed.xml" type="application/atom+xml">feed</a>' +
-    '<span class="aph-meta">atom · every post, from nigredo to rubedo</span></footer>' +
+    '<span class="aph-meta">atom · every post</span></footer>' +
     '</div></section>';
 }
 

@@ -117,7 +117,7 @@ export function createEntriesEditor({ api, root, kind }) {
       const a = text(l.label, { class: 'link-l aph-ink', 'aria-label': 'the link’s words' });
       const b = text(l.href, { class: 'link-h aph-ink', 'aria-label': 'its address', inputmode: 'url' });
       const li = h('li', {}, a, b, act('remove', () => { li.remove(); refresh(); }));
-      [a, b].forEach((x) => x.addEventListener('input', refresh));
+      [a, b].forEach((x) => x.addEventListener('input', () => refresh()));
       return li;
     }
     if (kind === 'works') (e.links || []).forEach((l) => linksEl.append(linkRow(l)));

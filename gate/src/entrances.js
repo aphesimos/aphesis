@@ -6,9 +6,9 @@
    - The ritual (via 'ritual'): three clicks or taps on the passage in the bottom-right corner (Enter or Space when it
      has the focus), each within 1.6 s of the last; its text stutters slightly at each, a hard cut of a pixel or two
      on the 8 fps tick, as a typist's hand slips. Within the next 12 s, hold the φ for 7 s (a pointer, a finger, or
-     Enter held while the seal has the focus): a circle of red paint, cells of 2 CSS pixels each its own tone, grows
-     from the seal on the tick until it has soaked the whole screen, the φ absorbed into it as a deeper red; the gate
-     opens beneath it and the red goes back cell by cell.
+     Enter held while the seal has the focus): a circle of stipple in the seal's own red, cells of 2 CSS pixels,
+     grows from the seal on the tick until the whole screen is one red mist of its colour; the gate opens beneath it,
+     and once it is in place the red goes the way the first ritual's did, in lines of dashes that thin out.
      Without the three clicks first, the seal is only the seal. Let go early and the cells fall back the way they
      rose, quicker and eased with minimum jerk, to nothing; holding again on the way down fills on from there.
    - A phrase typed anywhere (via 'phrase'): on a page with a keyboard, outside any field, the last characters typed
@@ -77,49 +77,34 @@
     passage.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) { e.preventDefault(); knock(); } });
   }
 
-  /* the hold: a circle of red paint grows from the seal's centre over the whole screen, on one fixed canvas the
+  /* the hold: a circle of red stipple grows from the seal's centre over the whole screen, on one fixed canvas the
      size of the viewport (one canvas pixel per 2 CSS px cell, scaled up pixelated, so a phone draws a few tens of
-     thousands of cells), above the inscription and below the tooltip and the cursor, taking no pointer. At the end
-     of the hold the circle has reached the farthest corner and the screen is painted red; the gate opens beneath it
-     and the red goes back into the ground cell by cell. */
-  const HOLD = 7000, LET_GO = 12, C = 2;
+     thousands of cells), above the inscription and below the tooltip and the cursor, taking no pointer. Every cell
+     is the seal's own red, the --seal token as the browser renders it, so the φ melts into the field and the whole
+     screen becomes one red mist of its colour; only the front, frayed, still reads as stipple.
+
+     At the end of the hold the screen is all red and the gate opens beneath it: the shell clears the home, the
+     inscription and the φ under the red and sets the gate in place. Once the gate is mounted and the seal has come
+     to rest in its corner, the red goes as the first ritual's did: over 5 ticks a share of the cells goes at a
+     time, chosen by the cell's index hashed (i * 2654435761 mod 997), which cuts the red into lines of dashes that
+     thin out and are gone. */
+  const HOLD = 7000, LET_GO = 5, C = 2, WAIT = 5000;
   /* level: how far the fill has risen, 0 to 1. It rises linearly while held; let go early, it falls back from where
      it was over 0.6 of the time it took to rise, eased with minimum jerk, the last cells to light the first to go */
   const BACK = 0.6;
   const MJ = (W.Aphesis && W.Aphesis.MJ) || ((t) => { t = Math.max(0, Math.min(1, t)); return t * t * t * (10 - 15 * t + 6 * t * t); });
-  let holding = false, done = false, reversing = false, level = 0, last = 0, back = null, timer = 0, canvas = null, cells = null, gone = null, swallowClick = false;
-  let img = null, px = null, ctx2d = null, colors = null;
-  /* the seal's red as r, g, b (the token is oklch: the browser resolves it) */
-  function sealRGB() {
+  let holding = false, done = false, reversing = false, level = 0, last = 0, back = null, timer = 0, canvas = null, cells = null, swallowClick = false;
+  let img = null, px = null, ctx2d = null, red = 0;
+  /* after the hold: waiting for the gate beneath, then the red's exit */
+  let doneAt = 0, lifting = false, still = 0, lastBox = '';
+  /* the seal's red as one opaque packed pixel (the token is oklch: the browser resolves it) */
+  function sealRGBA() {
     const c = D.createElement('canvas'); c.width = c.height = 1;
     /* a CPU canvas: reading a pixel back from a GPU one stalls the page for whole seconds on some devices */
     const g = c.getContext('2d', { willReadFrequently: true }); g.fillStyle = getComputedStyle(D.documentElement).getPropertyValue('--seal').trim() || '#ab0d19';
     g.fillRect(0, 0, 1, 1);
-    const d = g.getImageData(0, 0, 1, 1).data;
-    return [d[0], d[1], d[2]];
-  }
-  /* the seal's φ on the cell grid: the cells under its ink take a deeper red, so the paint carries the φ. The seal
-     draws itself in and lives, so its ink is read again on each tick and the φ in the paint follows it; only the
-     seal's own box is rasterized, on a CPU canvas */
-  let pack = null, tones = null, inkD = null, box = null;
-  function tint() {
-    const svg = seal.querySelector('svg'), ink = seal.querySelector('path'), vb = svg && svg.viewBox && svg.viewBox.baseVal;
-    const d = (ink && ink.getAttribute('d')) || '';
-    if (d === inkD) return;
-    inkD = d;
-    const [x0, y0, bw, bh] = box, field = D.createElement('canvas'); field.width = bw; field.height = bh;
-    const f = field.getContext('2d', { willReadFrequently: true });
-    if (d && vb && vb.width) {
-      const r = seal.getBoundingClientRect(), k = Math.min(r.width / vb.width, r.height / vb.height) / C;
-      const ox = r.left / C - x0 + (r.width / C - vb.width * k) / 2, oy = r.top / C - y0 + (r.height / C - vb.height * k) / 2;
-      f.setTransform(k, 0, 0, k, ox - vb.x * k, oy - vb.y * k);
-      f.fillStyle = '#fff'; f.fill(new Path2D(d));
-    }
-    const m = f.getImageData(0, 0, bw, bh).data, w = canvas.width;
-    for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) {
-      const i = (y0 + y) * w + x0 + x;
-      colors[i] = pack(tones[i] - (m[(y * bw + x) * 4 + 3] / 255) * 0.26);
-    }
+    const [r, gg, b2] = g.getImageData(0, 0, 1, 1).data;
+    return new Uint32Array(new Uint8ClampedArray([r, gg, b2, 255]).buffer)[0];
   }
   function start(e) {
     if (holding || done || !seal) return;
@@ -127,7 +112,7 @@
     if (reversing) { if (e) e.preventDefault(); reversing = false; back = null; holding = true; last = performance.now(); return; }
     if (!armed()) return;
     if (e) e.preventDefault();
-    holding = true; done = false; level = 0; last = performance.now();
+    holding = true; done = false; lifting = false; level = 0; last = performance.now();
     const w = Math.ceil(innerWidth / C), h = Math.ceil(innerHeight / C);
     canvas = D.createElement('canvas'); canvas.id = 'aph-fill'; canvas.width = w; canvas.height = h;
     canvas.style.cssText = 'left:0;top:0;width:' + w * C + 'px;height:' + h * C + 'px';
@@ -138,46 +123,38 @@
     ctx2d = canvas.getContext('2d', { willReadFrequently: true });
     img = ctx2d.createImageData(w, h);
     px = new Uint32Array(img.data.buffer);
+    red = sealRGBA();
     D.body.classList.add('aph-painting');
-    /* the paint: each cell lights when the circle reaches it (its distance from the seal's centre over the distance
-       to the farthest corner, with a little scatter, so the front is frayed) and behind the front the screen is
-       soaked in rubedo, opaque, so the ground of either theme never shows through and the φ reads the same on both.
-       The grain is in the red itself: each cell its own tone, a few a shade deeper.
-       Where the φ is, the cells are deeper still, so the seal is absorbed into the paint as a darker stroke, not a
-       shape laid on it */
+    /* each cell lights when the circle reaches it: its distance from the seal's centre over the distance to the
+       farthest corner, with a little scatter, so the front is frayed and behind it every cell is lit */
     const r = seal.getBoundingClientRect();
     const cx = (r.left + r.width / 2) / C, cy = (r.top + r.height / 2) / C;
     const far = Math.max(Math.hypot(cx, cy), Math.hypot(w - cx, cy), Math.hypot(cx, h - cy), Math.hypot(w - cx, h - cy));
-    const [R, G, B] = sealRGB();
-    pack = (k) => ((255 << 24) | (Math.min(255, B * k) << 16) | (Math.min(255, G * k) << 8) | Math.min(255, R * k)) >>> 0;
-    cells = new Float32Array(w * h); gone = new Float32Array(w * h); colors = new Uint32Array(w * h); tones = new Float32Array(w * h);
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const i = y * w + x, d = Math.hypot(x - cx, y - cy) / far;
-      cells[i] = d * 0.9 + Math.random() * 0.1;
-      gone[i] = Math.random();
-      tones[i] = 0.9 + Math.random() * 0.2 - (Math.random() < 0.06 ? 0.16 : 0);
-      colors[i] = pack(tones[i]);
-    }
-    const bx = Math.max(0, Math.floor(r.left / C)), by = Math.max(0, Math.floor(r.top / C));
-    box = [bx, by, Math.max(1, Math.min(w, Math.ceil(r.right / C)) - bx), Math.max(1, Math.min(h, Math.ceil(r.bottom / C)) - by)];
-    inkD = null;
+    cells = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) cells[y * w + x] = Math.hypot(x - cx, y - cy) / far * 0.9 + Math.random() * 0.1;
     clearInterval(timer); timer = setInterval(frame, TICK);
     frame();
   }
-  /* share: the cells whose moment has come; out: the share of them already gone back into the ground */
+  /* share: the cells whose moment has come; out: the share of them already gone, by the hashed index */
   function paint(share, out) {
-    tint();
     px.fill(0);
-    for (let i = 0; i < cells.length; i++) if (cells[i] <= share && gone[i] >= out) px[i] = colors[i];
+    for (let i = 0; i < cells.length; i++) if (cells[i] <= share && !(out && (i * 2654435761 % 997) / 997 < out)) px[i] = red;
     ctx2d.putImageData(img, 0, 0);
+  }
+  /* the gate is in place beneath the red: the shell has mounted it and the seal has stopped moving (two ticks
+     still), or, whatever happens beneath, after WAIT */
+  function settled() {
+    const r = seal.getBoundingClientRect(), b = [r.left, r.top, r.width].map(Math.round).join();
+    still = b === lastBox ? still + 1 : 0; lastBox = b;
+    return (W.aphesis && W.aphesis.mounted === 'gate' && still >= 2) || performance.now() - doneAt > WAIT;
   }
   let letGo = 0;
   function frame() {
     if (!canvas) return;
     if (done) {
-      /* the gate is already opening beneath; the red leaves cell by cell */
+      if (!lifting) { if (!settled()) return; lifting = true; letGo = 0; }
       letGo++;
-      paint(1, MJ(letGo / LET_GO));
+      paint(1, letGo / LET_GO);
       if (letGo >= LET_GO) end();
       return;
     }
@@ -188,9 +165,12 @@
     } else level = Math.min(1, level + (now - last) / HOLD);
     last = now;
     paint(level, 0);
-    if (level >= 1 && !reversing) { done = true; letGo = 0; armedUntil = 0; arm(false); swallowClick = true; open('ritual'); }
+    if (level >= 1 && !reversing) {
+      /* every cell lit: the screen is red, and the gate opens beneath it */
+      done = true; doneAt = now; still = 0; lastBox = ''; armedUntil = 0; arm(false); swallowClick = true; open('ritual');
+    }
   }
-  function end() { clearInterval(timer); timer = 0; holding = false; done = false; reversing = false; back = null; level = 0; if (!armed()) arm(false); if (canvas) canvas.remove(); canvas = null; cells = null; gone = null; img = null; px = null; ctx2d = null; colors = null; tones = null; inkD = null; D.body.classList.remove('aph-painting'); }
+  function end() { clearInterval(timer); timer = 0; holding = false; done = false; lifting = false; reversing = false; back = null; level = 0; if (!armed()) arm(false); if (canvas) canvas.remove(); canvas = null; cells = null; img = null; px = null; ctx2d = null; D.body.classList.remove('aph-painting'); }
   /* let go before the end: the fill falls back rather than vanishing */
   function cancel() {
     if (!holding || done) return;

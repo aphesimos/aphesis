@@ -306,7 +306,7 @@ the content service holds as its own secrets; the pages never see them.
 
 **The nightly export** (`content/src/export.rs`, cron `17 3 * * *`): every entry, drafts too, as the files the section
 branches read (`archive/content/<slug>.md`, `book/content/<NN>-<slug>.md`, `works/content/works.json`), committed to
-this repository's `content` branch as the owner (`aphesimos`, the noreply address) through GitHub's git data API, only
+this repository's `content` branch as the owner (`aphesist`, the noreply address) through GitHub's git data API, only
 when something changed. It needs `EXPORT_GITHUB_TOKEN`; without it the cron does nothing.
 
 Vars: `ALLOWED_ORIGINS`, `EMAIL_FROM` (`clavis@aphes.ist`), `MAIL_API` (`https://api.resend.com`),
@@ -340,13 +340,13 @@ their pictures from R2: a row goes only if its slug is one of the examples' (lis
 marked example, so the owner's entries (at any slug, if not marked example) and every work stay; a picture goes only
 if no row left in posts, books or works names it. It prints each removal, and a second run says there is nothing to
 remove. From GitHub Actions: Actions → backend → Run workflow → branch `backend`, tick **prune** (or
-`gh workflow run backend.yml --repo aphesimos/aphesis --ref backend -f prune=true`); it runs after the deploy, with
+`gh workflow run backend.yml --repo aphesist/aphesis --ref backend -f prune=true`); it runs after the deploy, with
 the repository's Cloudflare secrets, and its log (the step *Remove the seeded examples*) lists what went.
 
 **From GitHub Actions**, with no clone: Actions → backend → Run workflow → branch `backend`, tick **seed**. The
 workflow tests, builds and deploys as usual, then fetches `section/archive`, `section/book`, `section/works` and
 `design-system` and runs the seed against the deployed D1 and R2 with the repository's Cloudflare secrets. Or:
-`gh workflow run backend.yml --repo aphesimos/aphesis --ref backend -f seed=true`.
+`gh workflow run backend.yml --repo aphesist/aphesis --ref backend -f seed=true`.
 
 ## Local development
 

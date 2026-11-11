@@ -12,8 +12,8 @@
 
 use serde_json::{json, Value};
 
-pub const OWNER_NAME: &str = "aphesimos";
-pub const OWNER_EMAIL: &str = "126630868+aphesimos@users.noreply.github.com";
+pub const OWNER_NAME: &str = "aphesist";
+pub const OWNER_EMAIL: &str = "126630868+aphesist@users.noreply.github.com";
 
 fn st<'a>(v: &'a Value, k: &str) -> &'a str {
     v[k].as_str().unwrap_or("")

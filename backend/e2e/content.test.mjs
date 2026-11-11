@@ -483,8 +483,8 @@ test('the nightly export: every entry as the section files, committed as the own
   let out = await r.json();
   assert.equal(out.committed, true);
   const commit = gh.commits[gh.refs.content];
-  assert.deepEqual([commit.author.name, commit.author.email], ['aphesimos', '126630868+aphesimos@users.noreply.github.com']);
-  assert.deepEqual(commit.committer.name, 'aphesimos');
+  assert.deepEqual([commit.author.name, commit.author.email], ['aphesist', '126630868+aphesist@users.noreply.github.com']);
+  assert.deepEqual(commit.committer.name, 'aphesist');
   assert.ok(!/co-authored|claude|session/i.test(commit.message));
   assert.deepEqual(commit.parents, []);
   const files = Object.fromEntries(gh.trees[commit.tree].map((e) => [e.path, e.content]));

@@ -23,7 +23,7 @@ SESSION_SECONDS = "7200"
 WALL_API = "https://wall-api.aphes.ist"
 FORUM_API = "https://forum-api.aphes.ist"
 # the nightly export: the repository and branch it commits to, and the API's public address for picture URLs
-EXPORT_REPO = "aphesimos/aphesis"
+EXPORT_REPO = "aphesist/aphesis"
 EXPORT_BRANCH = "content"
 PUBLIC_URL = "https://content-api.aphes.ist"
 

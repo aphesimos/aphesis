@@ -1234,7 +1234,7 @@ async fn run_export(env: &Env) -> Result<Value> {
     let Some(token) = var("EXPORT_GITHUB_TOKEN") else {
         return Ok(json!({ "committed": false, "why": "no token" }));
     };
-    let repo = var("EXPORT_REPO").unwrap_or_else(|| "aphesimos/aphesis".into());
+    let repo = var("EXPORT_REPO").unwrap_or_else(|| "aphesist/aphesis".into());
     let branch = var("EXPORT_BRANCH").unwrap_or_else(|| "content".into());
     let api = var("GITHUB_API").unwrap_or_else(|| "https://api.github.com".into());
     let base = var("PUBLIC_URL").unwrap_or_else(|| "https://content-api.aphes.ist".into());

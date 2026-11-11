@@ -58,7 +58,9 @@ button:disabled { cursor: default; opacity: .45; }
 .m-title { font-size: clamp(44px, 8vw, 96px); margin: 0; font-weight: var(--type-title-weight); width: max-content; }
 .m-title:focus-visible { outline: 1px solid var(--accent); outline-offset: 4px; }
 .m-lede { font-size: var(--type-lede-size); line-height: var(--type-lede-line); color: var(--ink-soft); margin: var(--space-3) 0 0; max-width: 40em; }
-.m-stats { margin: var(--space-2) 0 0; }
+/* the counts and the crumbs keep their line while the library loads: the section shows a moment before they are
+   written, and filling them in would push the bar and the list down */
+.m-stats { margin: var(--space-2) 0 0; min-height: 1lh; }
 
 /* ---------- views and search ---------- */
 .m-bar { flex: none; display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-3) var(--space-5); flex-wrap: wrap; margin-bottom: var(--space-3); }
@@ -80,7 +82,7 @@ button:disabled { cursor: default; opacity: .45; }
 .m-search:focus-within .m-search-line { color: var(--ink-soft); }
 
 /* ---------- where we are ---------- */
-.m-crumbs { flex: none; margin: 0 0 var(--space-2); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.m-crumbs { flex: none; margin: 0 0 var(--space-2); min-height: 1lh; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .m-crumbs a { text-decoration: none; color: var(--ink-soft); }
 .m-crumbs a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--accent); }
 .m-crumbs [aria-current] { color: var(--ink); }

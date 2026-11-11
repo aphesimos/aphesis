@@ -1,4 +1,4 @@
-/* @ds-bundle: {"format":4,"namespace":"Aphesis","components":[{"name":"Seal"},{"name":"Brush"},{"name":"Icons"},{"name":"Fog"},{"name":"Simulacrum"},{"name":"Typist"},{"name":"Tooltip"},{"name":"Cursor"},{"name":"LetterWave"},{"name":"ThemeShift"},{"name":"Sound"},{"name":"Eye"}]} */
+/* @ds-bundle: {"format":4,"namespace":"Aphesis","components":[{"name":"Seal"},{"name":"Brush"},{"name":"Icons"},{"name":"Fog"},{"name":"Simulacrum"},{"name":"Typist"},{"name":"Tooltip"},{"name":"Cursor"},{"name":"LetterWave"},{"name":"ThemeShift"},{"name":"Sound"},{"name":"Eye"},{"name":"Scroll"}]} */
 /* aphes.ist design system runtime. Plain JavaScript, no framework: every screen of the site loads this one script.
    Everything visible is made of two marks: the BRUSH (a centerline with a width profile, tapered, with unsure edges)
    and the STIPPLE (small square cells that light up where a density field passes a fixed threshold). Nothing is solid. */
@@ -1415,10 +1415,198 @@
     return api;
   }
 
+  /* ================= SCROLL ================= */
+  /* The browser's scrollbars are hidden everywhere (bundle.css). In their place, a red disturbance in the stipple
+     along the right edge of whatever scrolls. At rest there is nothing. While an element scrolls, or while a fine
+     pointer is within 24px of its right edge, accent cells gather there in a soft vertical patch where the thumb would
+     be: its length is the visible share of the content, its place the scroll offset. The cells thin out toward the
+     patch's ends and away from the edge, so it never reads as a shape; it trembles at 8 fps and grows denser while
+     the element moves, and fades back into the fog a second after the scrolling stops or the pointer leaves the edge
+     (minimum jerk both ways). Scrolling stays the browser's own: wheel, keys, touch, find in page, screen readers.
+     With a fine pointer, the 14px along the edge drag the patch, and a press above or below it pages.
+     One canvas for the whole page, fixed over the content and under the seal and the corners, on the fog's own cell
+     grid (one canvas pixel per cell), drawn only while a patch is visible. It attaches to every scroller by itself:
+     a scroll anywhere (scroll events, caught on the document) or the pointer at an edge finds its element, the
+     document included. The runtime starts it at load; Scroll(el) returns an element's state ({el, near, last}) and
+     Scroll.show(el) lights its patch as if it had scrolled. A page that wants none sets window.APHESIS_NO_SCROLL. */
+  var SCR = null;
+  var SC_EDGE = 24, SC_HIT = 14, SC_W = 12, SC_FEATHER = 26, SC_HOLD = 1000, SC_IN = 320, SC_OUT = 1000, SC_PAD = 6, SC_MIN = 36;
+  function scHash(x, y, t) {
+    var h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(t | 0, 1103515245);
+    h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296;
+  }
+  function scrollAuto() {
+    if (SCR) return SCR;
+    if (typeof document === 'undefined' || !document.body) return null;
+    var root = document.documentElement, cv = document.createElement('canvas'), ctx = cv.getContext('2d');
+    cv.className = 'aph-scroll aph-mark'; cv.setAttribute('aria-hidden', 'true');
+    var states = new Map(), raf = 0, W = 0, H = 0, C = 2, color = '', colorAt = -1e9, drawnKey = '';
+    var drag = null, eat = false, hoverEl = null, px = -1, py = -1, pt = null, pending = false, found = new WeakMap();
+    function docEl() { return document.scrollingElement || root; }
+    function oy(el) { return getComputedStyle(el).overflowY; }
+    /* does el scroll vertically right now? the document scrolls unless its overflow (or the body's, which the
+       viewport takes when the root's is visible) is hidden */
+    function scrolls(el) {
+      if (!el || el.nodeType !== 1) return false;
+      if (el === docEl()) {
+        if (el.scrollHeight <= innerHeight + 1) return false;
+        var v = oy(root); if (v === 'visible' && document.body) v = oy(document.body);
+        return v !== 'hidden' && v !== 'clip';
+      }
+      if (el.scrollHeight <= el.clientHeight + 1) return false;
+      var o = oy(el); return o === 'auto' || o === 'scroll';
+    }
+    /* the nearest scroller under a target, remembered for half a second so a moving pointer costs little */
+    function under(t) {
+      var now = performance.now(), m = t && found.get(t);
+      if (m && now - m.at < 500) return m.el;
+      var el = t && t.nodeType === 1 ? t : null, hit = null;
+      for (; el && el !== root && el !== document.body; el = el.parentElement) if (scrolls(el)) { hit = el; break; }
+      if (!hit && scrolls(docEl())) hit = docEl();
+      if (t) found.set(t, { el: hit, at: now });
+      return hit;
+    }
+    /* the frame of the patch: the element's padding box in the viewport, the track inside it, the thumb on it */
+    function geom(el) {
+      var doc = el === docEl(), r, ch;
+      if (doc) { r = { left: 0, top: 0, right: root.clientWidth, bottom: innerHeight }; ch = innerHeight; }
+      else {
+        var b = el.getBoundingClientRect(), t = b.top + el.clientTop;
+        r = { left: b.left + el.clientLeft, top: t, right: b.left + el.clientLeft + el.clientWidth, bottom: t + el.clientHeight }; ch = el.clientHeight;
+      }
+      var sh = el.scrollHeight, max = sh - ch; if (max <= 1 || r.right <= r.left) return null;
+      var track = Math.max(1, r.bottom - r.top - 2 * SC_PAD), len = Math.min(track, Math.max(SC_MIN, track * ch / sh));
+      var top = r.top + SC_PAD + (track - len) * clamp(el.scrollTop / max);
+      return { r: r, top: top, len: len, track: track, max: max, page: ch };
+    }
+    function get(el) {
+      var s = states.get(el);
+      if (!s) { s = { el: el, from: 0, to: 0, t0: 0, dur: 1, last: -1e9, near: false, stir: 0, top: el.scrollTop }; states.set(el, s); }
+      return s;
+    }
+    function alpha(s, now) { return s.from + (s.to - s.from) * MJ((now - s.t0) / s.dur); }
+    function aim(s, to, now) { if (s.to === to) return; s.from = alpha(s, now); s.to = to; s.t0 = now; s.dur = to ? SC_IN : SC_OUT; }
+    function size() {
+      C = cellPx(2); var w = Math.max(1, Math.round(innerWidth / C)), h = Math.max(1, Math.round(innerHeight / C));
+      if (w !== W || h !== H) { W = cv.width = w; H = cv.height = h; cv.style.width = (w * C) + 'px'; cv.style.height = (h * C) + 'px'; drawnKey = ''; }
+    }
+    /* the patch: cells along the right edge, densest at the edge and in the thumb's span, thinning over a feather at
+       both ends; a slow grain along its length keeps it from reading as a bar. Density stays below .75: never solid. */
+    function draw(g, a, stir, tick) {
+      var r = g.r, x1 = Math.round(r.right / C) - 1, cols = Math.max(2, Math.round(SC_W / C));
+      var ya = Math.max(0, Math.floor(Math.max(r.top, g.top - SC_FEATHER) / C)), yb = Math.min(H, Math.ceil(Math.min(r.bottom, innerHeight, g.top + g.len + SC_FEATHER) / C));
+      var hi = g.top + g.len, base = a * (0.44 + 0.3 * stir);
+      for (var y = ya; y < yb; y++) {
+        var cy = (y + 0.5) * C, d = cy < g.top ? g.top - cy : cy > hi ? cy - hi : 0, vy = 1 - d / SC_FEATHER;
+        if (vy <= 0) continue;
+        vy = vy * vy * (3 - 2 * vy) * (0.72 + 0.28 * scHash(7, y >> 2, tick >> 1));
+        for (var i = 0; i < cols; i++) {
+          var vx = 1 - i / cols, p = base * vy * vx * (0.6 + 0.4 * vx);
+          if (scHash(x1 - i, y, tick) < p) ctx.fillRect(x1 - i, y, 1, 1);
+        }
+        /* a few loose grains a little further in */
+        if (scHash(y, 3, tick) < base * vy * 0.06) ctx.fillRect(x1 - cols - Math.floor(scHash(y, 5, tick) * cols), y, 1, 1);
+      }
+    }
+    function frame(now) {
+      raf = 0; size();
+      if (now - colorAt > 125) { colorAt = now; color = getComputedStyle(root).getPropertyValue('--accent').trim() || '#ab0d19'; }
+      var tick = Math.floor(now / 125), live = false, jobs = [], key = color + '|' + tick;
+      states.forEach(function (s, el) {
+        if (!el.isConnected) { states.delete(el); if (hoverEl === el) hoverEl = null; return; }
+        var want = (drag && drag.s === s) || s.near || now - s.last < SC_HOLD;
+        aim(s, want ? 1 : 0, now); s.stir *= 0.9;
+        var a = alpha(s, now);
+        if (s.to || a > 0.002) live = true;
+        if (a <= 0.002) return;
+        var g = geom(el); if (!g) return;
+        jobs.push([g, a, s.stir]); key += '|' + [g.r.right, g.r.top, g.r.bottom, g.top, g.len, a, s.stir].map(function (v) { return Math.round(v * 50); }).join(',');
+      });
+      /* drawn only when something changed: a held patch redraws at its 8 fps tremble, not every frame */
+      if (key !== drawnKey) {
+        drawnKey = key; ctx.clearRect(0, 0, W, H); ctx.fillStyle = color;
+        jobs.forEach(function (j) { draw(j[0], j[1], j[2], tick); });
+      }
+      if (live) raf = requestAnimationFrame(frame);
+    }
+    function wake() { if (!cv.isConnected) document.body.appendChild(cv); if (!raf) raf = requestAnimationFrame(frame); }
+
+    document.addEventListener('scroll', function (e) {
+      var el = e.target === document ? docEl() : e.target;
+      if (!el || el.nodeType !== 1 || el.scrollHeight <= el.clientHeight + 1 && el !== docEl()) return;
+      var fresh = !states.has(el), s = get(el), dy = Math.abs(el.scrollTop - s.top); if (!dy && !fresh && !drag) return;
+      s.top = el.scrollTop; s.last = performance.now(); s.stir = Math.min(1, s.stir + dy / 240); wake();
+    }, { capture: true, passive: true });
+
+    function atEdge(el, x, y, w) { var g = geom(el); return g && x <= g.r.right && x >= g.r.right - w && y >= g.r.top && y <= g.r.bottom ? g : null; }
+    /* the scroller whose right edge is under the pointer. Something else may lie over that edge (the now-playing line,
+       a corner): then the scrollers already met are tried, and, for a press or near the screen's edge, everything
+       under the point. */
+    function pick(t, x, y, w, deep) {
+      var el = under(t), g = el && atEdge(el, x, y, w), hit = null;
+      if (g) return { el: el, g: g };
+      states.forEach(function (s, e) { if (!hit && e.isConnected && scrolls(e)) { var h = atEdge(e, x, y, w); if (h) hit = { el: e, g: h }; } });
+      if (hit || !(deep || x >= innerWidth - 2 * SC_EDGE) || !document.elementsFromPoint) return hit;
+      var stack = document.elementsFromPoint(x, y), seen = new Set();
+      for (var i = 0; i < stack.length && !hit; i++)
+        for (var e = stack[i]; e && e !== root && e !== document.body && !seen.has(e); e = e.parentElement) {
+          seen.add(e); if (scrolls(e)) { var h2 = atEdge(e, x, y, w); if (h2) { hit = { el: e, g: h2 }; break; } }
+        }
+      return hit;
+    }
+    function hover() {
+      var p = pick(pt, px, py, SC_EDGE, false), near = p ? p.el : null;
+      if (hoverEl && hoverEl !== near) get(hoverEl).near = false;
+      hoverEl = near; if (near) { get(near).near = true; wake(); }
+    }
+    addEventListener('pointermove', function (e) {
+      if (e.pointerType === 'touch') return;
+      if (drag) { drag.el.scrollTop = drag.st + (e.clientY - drag.y) * drag.k; return; }
+      px = e.clientX; py = e.clientY; pt = e.target;
+      if (!pending) { pending = true; requestAnimationFrame(function () { pending = false; hover(); }); }
+    }, { passive: true });
+    document.addEventListener('pointerleave', function () { if (hoverEl) get(hoverEl).near = false; hoverEl = null; });
+    addEventListener('pointerdown', function (e) {
+      eat = false;
+      if (e.pointerType === 'touch' || e.button !== 0) return;
+      var p = pick(e.target, e.clientX, e.clientY, SC_HIT, true); if (!p) return;
+      var el = p.el, g = p.g;
+      e.preventDefault(); e.stopPropagation(); eat = true;
+      var s = get(el); s.last = performance.now();
+      if (e.clientY >= g.top && e.clientY <= g.top + g.len) {
+        drag = { s: s, el: el, y: e.clientY, st: el.scrollTop, k: g.max / Math.max(1, g.track - g.len) };
+        root.classList.add('aph-scroll-drag');
+        try { (el === docEl() ? root : el).setPointerCapture(e.pointerId); } catch (_) {}
+      } else el.scrollBy({ top: (e.clientY < g.top ? -1 : 1) * g.page * 0.875, behavior: 'smooth' });
+      wake();
+    }, true);
+    /* the press on the strip is the scrollbar's, not the page's: no selection starts and no click follows */
+    addEventListener('mousedown', function (e) { if (eat) { e.preventDefault(); e.stopPropagation(); } }, true);
+    addEventListener('click', function (e) { if (eat) { eat = false; e.preventDefault(); e.stopPropagation(); } }, true);
+    function up() {
+      if (drag) { drag.s.last = performance.now(); drag = null; root.classList.remove('aph-scroll-drag'); wake(); }
+      if (eat) setTimeout(function () { eat = false; }, 0);
+    }
+    addEventListener('pointerup', up, true); addEventListener('pointercancel', up, true);
+
+    SCR = {
+      get: get,
+      show: function (el) { el = el === document ? docEl() : el; var s = get(el); s.last = performance.now(); s.stir = Math.max(s.stir, 0.4); wake(); return s; },
+      canvas: cv
+    };
+    return SCR;
+  }
+  function Scroll(el) { var S = scrollAuto(); return S ? S.get(el === document ? (document.scrollingElement || document.documentElement) : el) : null; }
+  Scroll.auto = scrollAuto;
+  Scroll.show = function (el) { var S = scrollAuto(); return S ? S.show(el) : null; };
+  if (typeof document !== 'undefined' && typeof window !== 'undefined' && !window.APHESIS_NO_SCROLL) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scrollAuto); else scrollAuto();
+  }
+
   window.Aphesis = {
     reducedMotion: REDUCED, MJ: MJ, cellPx: cellPx, canFilter: canFilter, blur2d: blur2d, lerp: lerp, clamp: clamp, tween: tween, rng: rng, cssColor: cssColor,
     brush: brush, arc: arc, line: line, stipple: stipple, inC: inC,
     icon: icon, ICONS: ICONS, SECTIONS: SECTIONS, PHI: PHI, seal: seal, Eye: Eye,
-    Fog: Fog, Simulacrum: Simulacrum, Typist: Typist, tooltip: tooltip, cursor: cursor, letters: letters, themeShift: themeShift, themeColor: themeColor, Sound: Sound
+    Fog: Fog, Simulacrum: Simulacrum, Typist: Typist, tooltip: tooltip, cursor: cursor, letters: letters, themeShift: themeShift, themeColor: themeColor, Sound: Sound, Scroll: Scroll
   };
 })();

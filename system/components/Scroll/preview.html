@@ -1,0 +1,19 @@
+<!-- @dsCard group="Voice" height=420 subtitle="the scrollbar: nothing at rest; scroll, or bring the pointer to the right edge, and a red disturbance gathers in the stipple where the thumb would be. drag it, or press above or below it" -->
+<div class="sc aph-ink">
+  <div class="pane" id="a" tabindex="0" aria-label="a long column"></div>
+  <div class="pane short" id="b" tabindex="0" aria-label="a short column"></div>
+</div>
+<style>
+.sc{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:var(--space-5);padding:var(--space-5);height:100%;box-sizing:border-box}
+.pane{height:340px;overflow-y:auto;overscroll-behavior:contain;padding-right:var(--space-4);font-size:16px;line-height:1.75}
+.pane p{margin:0 0 var(--space-3);max-width:34em}
+.pane .aph-gloss{color:var(--ink-soft)}
+</style>
+<script>
+(function(){
+var lines=['quod est inferius est sicut quod est superius','solve et coagula','visita interiora terrae','the stone is found by rectifying','nigredo, albedo, citrinitas, rubedo','what is loosed below is loosed above','πάντα ῥεῖ','tempus edax rerum'];
+function fill(el,n){var h='';for(var i=0;i<n;i++)h+='<p'+(i%4?'':' class="aph-gloss"')+'>'+lines[i%lines.length]+'</p>';el.innerHTML=h;}
+fill(document.getElementById('a'),60);fill(document.getElementById('b'),14);
+setTimeout(function(){Aphesis.Scroll.show(document.getElementById('a'));},700);
+})();
+</script>

@@ -108,9 +108,12 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
 @keyframes aph-eyes-look { 0% { transform: translateX(-96px); } 66.67% { transform: translateX(-120px); } 100% { transform: translateX(-120px); } }
 
 /* ================= browser defaults =================
-   Everything the browser would draw in its own colours is brought into the system here: selection, scrollbars,
-   caret, native controls, autofill, placeholders, markers, backdrops. Tokens only, both themes. See "Browser
-   defaults" in system/README.md for each rule and for what the OS still draws itself. */
+   Everything the browser would draw in its own colours is brought into the system here: scrollbars, selection,
+   caret, focus, fields, autofill, placeholders, native controls, markers, dialogs, spelling marks, touch. Tokens
+   only, both themes. Most rules are wrapped in :where(), so they weigh nothing and a screen's own rule always wins
+   where it draws something better; the few marked !important are the ones a screen must never undo. See "Browser
+   defaults" in system/README.md for each component, its states, the browsers that honour it, and what the OS still
+   draws itself. */
 
 /* the theme the system draws its own controls in follows data-theme, like tokens.css; --aph-veil is the share of
    accent in the selection veil, chosen per theme so red ink on it stays above 4.5:1 and the veil stays visible */
@@ -119,84 +122,77 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
 :root[data-theme="dark"] { color-scheme: dark; --aph-veil: 28%; }
 :root[data-theme="light"] { color-scheme: light; --aph-veil: 16%; }
 
-/* the ground reaches past the page: rubber-band and overscroll on iOS show bg, never white */
-html { background: var(--bg); -webkit-tap-highlight-color: transparent; caret-color: var(--accent); accent-color: var(--accent); }
+/* the ground reaches past the page: rubber-band and overscroll on iOS show bg, never white. Text keeps its size
+   when a phone turns. */
+html { background: var(--bg); -webkit-tap-highlight-color: transparent; caret-color: var(--accent); accent-color: var(--accent);
+  -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 input, textarea, select, progress, meter, [contenteditable] { caret-color: var(--accent); accent-color: var(--accent); }
+
+/* scrollbars: the browser's are hidden on every element, in every engine, and nothing may bring them back.
+   Scrolling stays native; where something scrolls, the runtime draws a red disturbance in the stipple along its
+   right edge while it moves (Aphesis.Scroll). Nothing is reserved for a bar, so no gutter and no layout shift. */
+* { scrollbar-width: none !important; }
+::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; background: transparent !important; }
+.aph-scroll { position: fixed; left: 0; top: 0; z-index: var(--z-scroll, 2); pointer-events: none; image-rendering: pixelated; }
+.aph-scroll-drag, .aph-scroll-drag * { -webkit-user-select: none !important; user-select: none !important; }
 
 /* selection: red ink on a faint veil of red, never the system blue. Scroll-to-text highlights read the same. */
 ::selection { color: var(--accent-text); background: color-mix(in oklch, var(--accent) var(--aph-veil), transparent); text-shadow: none; -webkit-text-fill-color: var(--accent-text); }
-::target-text { color: var(--accent-text); background: color-mix(in oklch, var(--accent) var(--aph-veil), transparent); }
+::target-text { color: var(--accent-text); background: color-mix(in oklch, var(--accent) var(--aph-veil), transparent); text-shadow: none; }
 /* during the eye's wave, selected text in .aph-ink is the white ink like the rest (the negative of the cell beneath
    it), on the veil in the shift grey: red under difference would read as cyan */
 .aph-shifting .aph-ink::selection, .aph-shifting .aph-ink ::selection { color: var(--ink); -webkit-text-fill-color: var(--ink); }
 /* the canvas cells and the drawn marks never take a selection veil */
 svg ::selection, canvas::selection { background: transparent; }
 
-/* scrollbars. Firefox (and any engine without the WebKit pseudo-elements) draws the standard thin bar in accent.
-   The standard properties stay out of WebKit and Blink on purpose: once scrollbar-width or scrollbar-color is set
-   on an element, Chromium ignores ::-webkit-scrollbar for it, and the stipple below is lost. */
-@supports not selector(::-webkit-scrollbar) {
-  * { scrollbar-width: thin; scrollbar-color: color-mix(in oklch, var(--accent) 55%, transparent) transparent; }
-}
-/* Chromium and Safari: a thin, empty track and a thumb made of stipple: 2px square cells in accent (rubedo), laid by five
-   grids whose periods never line up, so the cells read as scattered rather than ruled. Hover adds two more grids. */
-::-webkit-scrollbar { width: 8px; height: 8px; background: transparent; }
-::-webkit-scrollbar-track, ::-webkit-scrollbar-track-piece, ::-webkit-scrollbar-corner { background: transparent; }
-::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
-::-webkit-scrollbar-thumb {
-  --c: color-mix(in oklch, var(--accent) 80%, transparent);
-  border: 0; border-radius: var(--radius-none);
-  background-color: transparent;
-  background-image:
-    conic-gradient(at 2px 2px, transparent 75%, var(--c) 0),
-    conic-gradient(at 2px 2px, transparent 75%, var(--c) 0),
-    conic-gradient(at 2px 2px, transparent 75%, var(--c) 0),
-    conic-gradient(at 2px 2px, transparent 75%, var(--c) 0),
-    conic-gradient(at 2px 2px, transparent 75%, var(--c) 0);
-  background-size: 8px 6px, 8px 10px, 8px 14px, 8px 22px, 8px 18px;
-  background-position: 0 0, 4px 4px, 6px 8px, 2px 12px, 4px 16px;
-}
-::-webkit-scrollbar-thumb:horizontal {
-  background-size: 6px 8px, 10px 8px, 14px 8px, 22px 8px, 18px 8px;
-  background-position: 0 0, 4px 4px, 8px 6px, 12px 2px, 16px 4px;
-}
-::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active {
-  --c: var(--accent);
-  background-image:
-    conic-gradient(at 2px 2px, transparent 75%, var(--c) 0),
-    conic-gradient(at 2px 2px, transparent 75%, var(--c) 0),
-    conic-gradient(at 2px 2px, transparent 75%, var(--c) 0),
-    conic-gradient(at 2px 2px, transparent 75%, var(--c) 0),
-    conic-gradient(at 2px 2px, transparent 75%, var(--c) 0),
-    conic-gradient(at 2px 2px, transparent 75%, var(--c) 0),
-    conic-gradient(at 2px 2px, transparent 75%, var(--c) 0);
-  background-size: 8px 6px, 8px 10px, 8px 14px, 8px 22px, 8px 18px, 8px 8px, 8px 12px;
-  background-position: 0 0, 4px 4px, 6px 8px, 2px 12px, 4px 16px, 2px 2px, 6px 0;
-}
-::-webkit-scrollbar-thumb:horizontal:hover, ::-webkit-scrollbar-thumb:horizontal:active {
-  background-size: 6px 8px, 10px 8px, 14px 8px, 22px 8px, 18px 8px, 8px 8px, 12px 8px;
-  background-position: 0 0, 4px 4px, 8px 6px, 12px 2px, 16px 4px, 2px 2px, 0 6px;
-}
+/* spelling and grammar marks (only in fields that ask for spellcheck): a dotted line of accent, stipple instead of
+   the system's wavy red. Chromium only; elsewhere the OS draws its own. */
+::spelling-error { color: inherit; background: transparent; text-decoration: underline dotted var(--accent) 2px; text-underline-offset: 3px; }
+::grammar-error { color: inherit; background: transparent; text-decoration: underline dotted var(--ink-soft) 2px; text-underline-offset: 3px; }
+
+/* focus: the red hairline, only for the keyboard */
+:focus:not(:focus-visible) { outline: none; }
 
 /* interactive marks: the seal, the eye, the ear, the experimental door, canvases, controls drawn as brush or
-   stipple. A long press there does nothing (no iOS callout, no selection). Text and links keep the normal behaviour. */
+   stipple. A long press there does nothing (no iOS callout, no selection), and dragging lifts no ghost image.
+   Text and links keep the normal behaviour. */
 .aph-mark, [data-aph-mark], .aph-ear, canvas { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.aph-mark, [data-aph-mark], .aph-ear, canvas, svg, img { -webkit-user-drag: none; }
+
+/* buttons and fields begin as words with no box: the browser's bevel, fill, border and system font are gone.
+   :where() weighs nothing, so a screen's own rule always wins. */
+:where(button, input, textarea, select) { font: inherit; letter-spacing: inherit; color: inherit; }
+:where(button) { -webkit-appearance: none; appearance: none; background: none; border: 0; border-radius: var(--radius-none); cursor: pointer; }
+:where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"]), textarea, select) {
+  -webkit-appearance: none; appearance: none; background: transparent; border: 0; border-radius: var(--radius-none);
+}
+/* a textarea's grip, where a screen leaves it resizable, is a few cells of soft ink in its corner */
+::-webkit-resizer {
+  background-color: transparent;
+  background-image: linear-gradient(135deg, var(--bg) 50%, transparent 50%),
+    conic-gradient(at 2px 2px, transparent 75%, var(--ink-soft) 0), conic-gradient(at 2px 2px, transparent 75%, var(--ink-soft) 0);
+  background-size: 100% 100%, 4px 4px, 6px 6px; background-position: 0 0, 0 0, 2px 2px;
+}
+
+/* disabled: soft ink and the plain arrow, never the browser's greyed box or iOS's dimming. Ordinary weight, so it
+   wins over a screen's colour for the control at rest (a class); a screen's own :disabled rule comes later and wins. */
+button:disabled, input:disabled, textarea:disabled, select:disabled { color: var(--ink-soft); -webkit-text-fill-color: currentColor; opacity: 1; cursor: default; }
 
 /* autofill keeps the ground and the ink: the browser's tint is held off by a transition that never finishes, and
-   painted over with the ground where it is not (Firefox). The brushed baseline sits outside the field and stays. */
-input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus,
-textarea:-webkit-autofill, select:-webkit-autofill {
+   painted over with the ground where it is not (Firefox). The brushed baseline sits outside the field and stays.
+   :where() lets a field that draws its own text (the gate's line, whose words are a mirror) keep it hidden. */
+:where(input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus, textarea:-webkit-autofill, select:-webkit-autofill) {
   -webkit-text-fill-color: var(--ink); caret-color: var(--accent);
   -webkit-box-shadow: 0 0 0 100vmax var(--bg) inset; box-shadow: 0 0 0 100vmax var(--bg) inset;
   transition: background-color 600000s 0s, color 600000s 0s;
 }
-input:autofill, textarea:autofill, select:autofill {
+:where(input:autofill, textarea:autofill, select:autofill) {
   -webkit-text-fill-color: var(--ink); caret-color: var(--accent); filter: none;
   box-shadow: 0 0 0 100vmax var(--bg) inset;
 }
 
 /* placeholders: soft ink, lowercase, like every label */
-::placeholder { color: var(--ink-soft); opacity: 1; text-transform: lowercase; }
+::placeholder { color: var(--ink-soft); opacity: 1; text-transform: lowercase; -webkit-text-fill-color: var(--ink-soft); }
 
 /* file inputs: the button is a label in the site's voice, with no box */
 input[type="file"] { color: var(--ink-soft); font: 400 11px/1.6 var(--font-text); letter-spacing: .14em; text-transform: lowercase; }
@@ -207,6 +203,43 @@ input[type="file"] { color: var(--ink-soft); font: 400 11px/1.6 var(--font-text)
   transition: color var(--duration-slow) var(--easing-settle);
 }
 ::file-selector-button:hover { color: var(--accent-text); }
+
+/* checkboxes and radios, should they appear: a square of sparse soft-ink stipple at rest, filled with dense accent
+   stipple when chosen. The radio is the same cells inside a circle. No box, no tick drawn by the OS. */
+input[type="checkbox"], input[type="radio"] {
+  -webkit-appearance: none; appearance: none; width: 14px; height: 14px; margin: 0 var(--space-2) 0 0; vertical-align: -2px;
+  border: 0; border-radius: var(--radius-none); cursor: pointer; background-color: transparent;
+  background-image:
+    conic-gradient(at 2px 2px, transparent 75%, var(--ink-soft) 0),
+    conic-gradient(at 2px 2px, transparent 75%, var(--ink-soft) 0);
+  background-size: 6px 6px, 10px 4px; background-position: 0 0, 4px 2px;
+}
+input[type="radio"] { clip-path: circle(50%); }
+input[type="checkbox"]:checked, input[type="radio"]:checked {
+  background-image:
+    conic-gradient(at 2px 2px, transparent 75%, var(--accent) 0),
+    conic-gradient(at 2px 2px, transparent 75%, var(--accent) 0),
+    conic-gradient(at 2px 2px, transparent 75%, var(--accent) 0),
+    conic-gradient(at 2px 2px, transparent 75%, var(--accent) 0);
+  background-size: 4px 4px, 6px 6px, 4px 6px, 6px 10px; background-position: 0 0, 2px 2px, 2px 0, 0 4px;
+}
+input[type="checkbox"]:indeterminate { background-image: conic-gradient(at 2px 2px, transparent 75%, var(--accent) 0); background-size: 4px 4px; background-position: 0 6px; background-repeat: repeat-x; }
+input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .45; cursor: default; }
+
+/* progress and meter, should they appear: an empty track and a value of accent stipple */
+progress, meter { -webkit-appearance: none; appearance: none; height: 6px; border: 0; background: transparent; }
+progress::-webkit-progress-bar, meter::-webkit-meter-bar { background: transparent; border: 0; }
+/* (one rule per engine: a selector one engine does not know would drop the whole list) */
+progress::-webkit-progress-value, meter::-webkit-meter-optimum-value, meter::-webkit-meter-suboptimum-value, meter::-webkit-meter-even-less-good-value {
+  background-color: transparent;
+  background-image: conic-gradient(at 2px 2px, transparent 75%, var(--accent) 0), conic-gradient(at 2px 2px, transparent 75%, var(--accent) 0);
+  background-size: 4px 4px, 6px 6px; background-position: 0 0, 2px 2px;
+}
+progress::-moz-progress-bar {
+  background-color: transparent;
+  background-image: conic-gradient(at 2px 2px, transparent 75%, var(--accent) 0), conic-gradient(at 2px 2px, transparent 75%, var(--accent) 0);
+  background-size: 4px 4px, 6px 6px; background-position: 0 0, 2px 2px;
+}
 
 /* range inputs: a brushed track (tapered ends, ink that thins and thickens along it) and a thumb of stipple in accent */
 input[type="range"] { -webkit-appearance: none; appearance: none; background: transparent; height: 28px; margin: 0; }
@@ -248,16 +281,29 @@ input[type="range"]::-moz-range-thumb {
   background-size: 4px 4px, 6px 10px, 10px 6px, 8px 14px;
   background-position: 0 0, 2px 2px, 2px 0, 6px 6px;
 }
+input[type="range"]:disabled { opacity: .45; cursor: default; }
 
 /* search inputs: no cancel cross, no magnifier, no results button; the field is a line of text like any other */
 input[type="search"] { -webkit-appearance: none; appearance: none; }
 input[type="search"]::-webkit-search-decoration, input[type="search"]::-webkit-search-cancel-button,
 input[type="search"]::-webkit-search-results-button, input[type="search"]::-webkit-search-results-decoration { -webkit-appearance: none; appearance: none; display: none; }
 
+/* number fields: no spinners; dates and datalists: no picker arrow (type dates as text, see the README) */
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; appearance: none; margin: 0; display: none; }
+input::-webkit-calendar-picker-indicator { display: none !important; }
+/* Safari's key and contact buttons inside a field: the field stays a line of words (the password manager is still
+   offered by the keyboard and the autofill bar) */
+input::-webkit-credentials-auto-fill-button { visibility: hidden; pointer-events: none; }
+input::-webkit-contacts-auto-fill-button { visibility: hidden; pointer-events: none; }
+input::-webkit-caps-lock-indicator { display: none; }
+
 /* native elements, should they appear */
 ::marker { color: var(--ink-soft); }
-summary { cursor: pointer; }
-summary::marker, summary::-webkit-details-marker { color: var(--ink-soft); }
-dialog { background: transparent; color: var(--ink); border: 0; border-radius: var(--radius-none); }
-dialog::backdrop { background: color-mix(in oklch, var(--bg) 78%, transparent); }
+summary { cursor: pointer; list-style: none; }
+summary::-webkit-details-marker { display: none; }
+summary::before { content: "· "; color: var(--accent); }
+details[open] > summary::before { content: "∙ "; }
+dialog { background: transparent; color: var(--ink); border: 0; border-radius: var(--radius-none); padding: 0; }
+dialog::backdrop { background: color-mix(in oklch, var(--bg) 78%, transparent); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
 ::cue { color: var(--ink); background: color-mix(in oklch, var(--bg) 72%, transparent); font-family: var(--font-text); }

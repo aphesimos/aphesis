@@ -107,6 +107,7 @@ The φ is the only logo. It is always `seal` red, with a boil that reseeds 8 tim
 - **Cursor** (`Aphesis.cursor`): a disc in difference blend, the negative of what it covers. 0.2 at rest, 1 over links and buttons, `data-cursor=".55"` for small controls, tightening on press. Fine pointers only. It is the only cursor: the system cursor is hidden everywhere while it runs.
 - **Theme shift** (`Aphesis.themeShift`): the eye's switch. The theme is applied at once and the ground changes cell by cell as a wave from the eye over `duration-shift`, while the page stays live; text in `.aph-ink` containers is the negative of the cell beneath it until the wave has passed. Never switch the theme from the eye without it.
 - **Tooltip** (`Aphesis.tooltip`): any element with `data-tip`. Never the `title` attribute.
+- **Scrollbar** (`Aphesis.Scroll`): no native bar anywhere; a red disturbance in the stipple along the right edge of whatever scrolls, only while it scrolls or the pointer is at that edge. It runs by itself (see "Browser defaults").
 - **Typist** (`Aphesis.Typist`): the voice of the site. Passages, chamber inscriptions, anything that should feel written now.
 - **Navigation** is one document with hash routes: the seal returns home, section names sit around the center as an inscription, sections enter without a reload.
 
@@ -127,32 +128,122 @@ The site has a sound: one ambient voice per screen, made in Web Audio (`Aphesis.
 - Spacing follows Fibonacci steps of 4px: `space-1` 4 to `space-8` 136. Gutters are at least 16px plus the safe-area insets.
 - No containers with borders or fills: group by space and by calm zones in the fog.
 - Corners: bottom-left holds the eye and the ear, bottom-right the passage, top-left the seal (inside a section). Keep them free on every screen.
-- Layers by `zIndex` tokens: fog 0, ray 1, content 2, seal 3, corners 4, inscription 5, tooltip 15, cursor 20.
+- Layers by `zIndex` tokens: fog 0, ray 1, content 2, the scroll disturbance 2 (drawn after the content), seal 3, corners 4, inscription 5, tooltip 15, cursor 20.
 - `radius-none` everywhere; `radius-disc` only for the cursor.
 
 ## Browser defaults
 
-Everything the browser would otherwise draw in its own colours follows the system. The rules live in `components/bundle.css` (tokens only, both themes); the preview is `components/BrowserDefaults/preview.html`.
+Everything the browser would otherwise draw by itself follows the system: in the tokens, in both themes, as brush or stipple, never a solid box in the system's colours. The rules live in `components/bundle.css`; the scrollbar is a runtime component (`components/Scroll`). The preview is `components/BrowserDefaults/preview.html`.
 
-- **Selection.** `::selection` and `::target-text` (scroll-to-text) are red ink (`accent-text`) on a veil of `accent`: 16% in light, 28% in dark (`--aph-veil`), never the system blue. Selected text reads at 5.3:1 on the light veil and 4.9:1 on the dark one. The halo is dropped inside a selection. During the eye's wave, selected text in `.aph-ink` turns white ink like the rest of it (red under difference would read as cyan).
-- **Scrollbars.** Chromium and Safari: an 8px scrollbar with an empty track, no buttons and no corner, and a thumb made of stipple (2px square cells in `accent`, rubedo, from grids whose periods never line up), the one small place red marks where you are; hover makes it denser. Firefox: `scrollbar-width: thin` and a thumb of `accent` at 55% on a clear track. The standard properties are set only where `::-webkit-scrollbar` does not exist, because Chromium drops the WebKit pseudo-elements on any element that sets `scrollbar-width` or `scrollbar-color`. So a screen must not set either property on its own scroll containers, or it loses the stipple; and it must not hide a scrollbar that people need to see where they are.
-- **Caret and controls.** `caret-color` and `accent-color` are `accent` everywhere, so checkboxes, radios, ranges and progress bars are rubedo. `color-scheme` follows the theme (`light`, `dark`, switched by `data-theme`), so what the system draws (scrollbars where it still draws them, pickers, the checkbox's box) matches the ground.
-- **Touch.** No tap highlight anywhere (`-webkit-tap-highlight-color: transparent`). Mark interactive marks with `.aph-mark` (or `data-aph-mark`): the seal, the eye, the experimental door, controls drawn as brush or stipple. A long press there brings no iOS callout and selects nothing. `canvas` and the ear get it on their own. Never put it on text or links: those keep select, copy and the link preview.
-- **Overscroll.** `html` carries `bg`, so iOS rubber-banding and overscroll show the ground, never white. A section that scrolls inside its own container gives that container `overscroll-behavior: contain` (the archive column, the forum, the works views, the music panes and the book's leaf on a phone), so reaching its end neither scrolls the page behind it nor pulls to refresh. A full-screen gesture surface (the experimental chambers, the book's turning, a laboratory bench) takes `touch-action` for the gestures it handles and `overscroll-behavior: none` if it scrolls at all. The root keeps its default, so the page still bounces.
-- **Autofill.** `:-webkit-autofill` and `:autofill` keep the ground and the ink: `-webkit-text-fill-color: var(--ink)`, an inset shadow of `bg` over the browser's tint, and a transition that never finishes. The brushed baseline sits outside the field and stays as it is.
-- **Fields.** `::placeholder` is `ink-soft` and lowercase. `::file-selector-button` is a `label` in the site's voice with no box, turning `accent-text` on hover; the file name beside it is `meta`. Search fields lose the cancel cross and the magnifier. Ranges have a brushed track (an ellipse as long as the track, so both ends taper, with the ink thinning in two places) and a thumb of stipple in `accent`; a screen that draws its own slider puts a transparent native range on top, as the laboratory and music do.
-- **Native elements, should they appear.** `::marker` and the `summary` marker are `ink-soft`; `dialog` has no box and its `::backdrop` is a veil of `bg`; `::cue` captions are `ink` on a veil of `bg` in Special Elite.
-- **Focus.** `:focus-visible` is the red hairline everywhere. A screen may remove the outline from an element only when it draws another sign of focus (a baseline turning red, an outline on the wrapper).
-- **The browser's bars.** `<meta name="theme-color">` follows the current theme's `bg` (`Aphesis.themeColor`, run by itself at load and on every theme change; during the eye's wave it changes when the wave ends). The runtime creates the meta if the page has none.
+How the rules are built, and what that asks of a screen:
 
-What the OS still draws itself, and how to stay clear of it:
+- Most rules are wrapped in `:where()` and weigh nothing, so a screen's own rule always wins where it draws something better (the gate's line, the music search). `:disabled` has ordinary weight, so it wins over a control's colour at rest; a screen's own `:disabled` rule still wins. The rules a screen must never undo carry `!important`: the hidden scrollbars.
+- A screen adds only what is specific to it. It never restyles a component below in its own way, never sets a property this section says it must not, and never repeats a rule the bundle already has.
+- "Chromium" means Chrome, Edge, Opera and Samsung Internet; "Safari" is macOS and iOS (every iOS browser is Safari).
+
+### Scrollbars
+
+- **Looks like.** Nothing at rest. While an element scrolls, or while a fine pointer is within 24px of its right edge, a red disturbance gathers in the stipple along that edge where the thumb would be: 2px accent cells on the fog's grid, in a band 12px wide, its length the visible share of the content and its place the scroll offset, feathered at both ends and thinning away from the edge, never a solid shape. It trembles at 8 fps, grows denser while the element moves, and fades back into the fog a second after the scrolling stops (minimum jerk in and out). Same in both themes, in the current `accent`.
+- **Rule.** The browser's bars are hidden on every element (`scrollbar-width: none` and `::-webkit-scrollbar { display: none }`, both `!important`). `Aphesis.Scroll` draws the disturbance on one fixed canvas (`z-scroll`) and finds every scroller by itself, the document included. States: rest (nothing), scrolling (the patch, denser with speed), near the edge (the patch, still), dragging (the patch follows the pointer), fading. With a fine pointer the 14px along the edge drag it, and a press above or below it pages; on touch it shows only while scrolling. Scrolling itself is native: wheel, trackpad, keys, touch, find in page, screen readers.
+- **Browsers.** Hidden bars: Chromium 121+ and Firefox through `scrollbar-width`, Safari through `::-webkit-scrollbar` (and `scrollbar-width` from 18.2). The disturbance runs wherever canvas 2D does. Without the runtime, there is simply no bar.
+- **A screen must not** set `scrollbar-width`, `scrollbar-color`, `scrollbar-gutter` or any `::-webkit-scrollbar` style, draw a scrollbar of its own, or hide overflow that people need to scroll to: `Aphesis.Scroll` finds a scroller by its `overflow-y: auto | scroll`. Nothing is reserved for a bar, so no layout shifts when content grows past the screen.
+- **Overscroll.** `html` carries `bg`, so iOS rubber-banding and overscroll show the ground, never white. A section that scrolls inside its own container gives that container `overscroll-behavior: contain` (the archive column, the forum, the works views, the music panes, the desk and its preview, the book's leaf on a phone), so reaching its end neither scrolls the page behind it nor pulls to refresh. A full-screen gesture surface (the descent's chambers, the book's turning, a laboratory bench) takes `touch-action` for the gestures it handles and `overscroll-behavior: none` if it scrolls at all. The root keeps its default, so the page still bounces.
+
+### Selection
+
+- **Looks like.** Red ink (`accent-text`) on a veil of `accent`: 16% in light, 28% in dark (`--aph-veil`), never the system blue. Selected text reads at 5.3:1 on the light veil and 4.9:1 on the dark one. The halo (`text-shadow`) is dropped inside a selection. `::target-text` (a link to a passage, "scroll to text") reads the same.
+- **Rule.** `::selection` and `::target-text` in `bundle.css`, with `-webkit-text-fill-color` so filled text follows. During the eye's wave, selected text in `.aph-ink` turns white ink like the rest of it (red under difference would read as cyan). Canvases and drawn marks take no veil. Marks (`.aph-mark`) cannot be selected at all.
+- **Browsers.** All. `::target-text`: Chromium 89+, Safari 18.2+; elsewhere the browser's yellow.
+- **A screen must not** colour its own selection, solid or not; a field that draws its words elsewhere (the gate's line, a mirror) may make its input's selection transparent.
+
+### Caret
+
+- **Looks like.** `accent` in both themes. The typist's caret (`.aph-caret`, a block in `currentColor`) is the site's own and is not the text caret.
+- **Rule.** `caret-color: var(--accent)` on the root and on every field and `[contenteditable]`. A field that draws its own caret (the gate) sets `caret-color: transparent`.
+- **Browsers.** All. Its shape and blink are the OS's.
+
+### Focus
+
+- **Looks like.** A 1px `accent` hairline, offset 4px, for the keyboard only; nothing for a mouse or a tap.
+- **Rule.** `:focus-visible` draws it; `:focus:not(:focus-visible)` removes the outline. A screen may remove the outline from an element only when it draws another sign of focus: a baseline turning red (fields), an outline on the wrapper (`:focus-within`), a label turning `accent-text`.
+- **Browsers.** All current ones; the heuristic (keyboard or not) is the browser's.
+- **A screen must not** write `:focus { outline: none }` without a replacement, or move focus with no visible sign of where it went.
+
+### Buttons
+
+- **Looks like.** Words in `label`: no bevel, no fill, no border, no system font. Hover and focus draw a brushed underline or turn the label `accent-text`; a pressed control shows its result, not a pressed box.
+- **Rule.** `:where(button)` drops the appearance, background and border and takes the font and colour of its context. Disabled: `ink-soft`, the plain arrow, no underline; never greyed out by the browser or dimmed by iOS.
+- **Browsers.** All.
+
+### Fields: inputs, textareas, placeholders
+
+- **Looks like.** Words in `body` on a brushed baseline drawn by the screen (`ink-soft` at rest, `accent` while focused); no box, no fill, no border, no rounded corners. The placeholder is `ink-soft`, lowercase. Disabled: `ink-soft`, never iOS's dimming. A textarea that may be resized has a grip of a few cells of `ink-soft` stipple in its corner.
+- **Rule.** `:where(input, textarea, select)` drops the appearance, background and border and inherits font and colour. `::placeholder` is `ink-soft` at full opacity. Forms carry `novalidate`, and what is wrong is said in the page's own voice. Fields at least 16px, so iOS does not zoom in on focus.
+- **Browsers.** All; the grip (`::-webkit-resizer`) is Chromium and Safari only, Firefox draws its own.
+- **A screen must not** give a field a box, a fill or a border, or rely on the browser's validation bubble.
+
+### Autofill
+
+- **Looks like.** The ground and the ink stay as they are: no yellow or blue tint, no change of font.
+- **Rule.** `:-webkit-autofill` and `:autofill` take `-webkit-text-fill-color: var(--ink)`, an inset shadow of `bg` over the browser's tint, and a transition that never finishes; all in `:where()`, so a field that hides its own words (the gate's line) keeps them hidden.
+- **Browsers.** Chromium and Safari (`:-webkit-autofill`), Firefox (`:autofill`).
+- **The OS draws** the autofill dropdown and the password manager's sheet; they cannot be styled. Ask for autofill only where it helps (`autocomplete="current-password"` at the gate, `off` elsewhere).
+
+### Spelling marks
+
+- **Looks like.** A dotted line of `accent` under a misspelled word (`ink-soft` for grammar): stipple instead of the system's wavy red.
+- **Rule.** `::spelling-error` and `::grammar-error`. Spellcheck is on only in fields of prose (the desk's titles, summaries and bodies); names, slugs, addresses, the wall and the gate set `spellcheck="false"`.
+- **Browsers.** Chromium 121+. Safari and Firefox draw the OS's red squiggle; keep spellcheck off where it is not wanted.
+
+### Checkboxes, radios, ranges, progress
+
+- **Looks like.** A checkbox or radio is a square (a circle for the radio) of sparse `ink-soft` stipple, filled with dense `accent` stipple when chosen. A range is a brushed track in `ink-soft` (an ellipse as long as the track, so both ends taper, with the ink thinning in two places) and a thumb of `accent` stipple. Progress and meter are an empty track with a value of `accent` stipple. Disabled: the same at 45%.
+- **Rule.** All drawn by `bundle.css` with `appearance: none`; `accent-color` is `accent` everywhere as a fallback for anything still drawn by the system. The site itself chooses with labels (`role="radio"`, `role="switch"` buttons in the site's voice), and a screen that draws its own slider lays a transparent native range on top (the laboratory, music).
+- **Browsers.** Chromium, Safari and Firefox for all of them.
+
+### File inputs
+
+- **Looks like.** The button is a `label` in the site's voice with no box, turning `accent-text` on hover; the file name beside it is `meta` in `ink-soft`.
+- **Rule.** `::file-selector-button`. A screen may hide the input under its own label (the desk's "choose a picture") and keep it focusable.
+- **The OS draws** the file chooser sheet; open it only from a control that says so.
+
+### Search and number fields, dates
+
+- **Looks like.** A line of text like any other: no cancel cross, no magnifier, no spinners, no picker arrow.
+- **Rule.** The WebKit search decorations, number spin buttons and calendar indicator are hidden; Firefox's number field is a `textfield`. Dates are typed as text (`yyyy-mm-dd`), checked by the page.
+- **A screen must not** use `type="date"`, `type="time"`, `type="color"`, `<select>` or `<datalist>`: their pickers are the OS's (below).
+
+### Markers, details, dialogs, captions
+
+- **Looks like.** List markers in `ink-soft`. A `summary` has no triangle: a grain of `accent` (`·`) marks it. A `dialog` has no box, and its `::backdrop` is a veil of `bg` at 78% with a slight blur. `::cue` captions are `ink` on a veil of `bg` in Special Elite.
+- **Rule.** In `bundle.css`; the site uses none of these today, so they are ready rather than seen. A modal dialog (`showModal()`) and its backdrop live in the top layer, above the site's cursor: while one is open, move `.aph-cursor` into it, as the preview does, or the pointer disappears. Close it with Escape and a labelled control; never use `alert`, `confirm` or `prompt`.
+
+### Tooltips
+
+- **Looks like.** The site's tooltip (`Aphesis.tooltip`, any element with `data-tip`): typed in `meta`, beside the pointer.
+- **A screen must not** use the `title` attribute, or `<title>` inside an inline SVG: both show the browser's tooltip. Name icons with `aria-label` and give them `data-tip`.
+
+### Touch: tap highlight, callout, drag
+
+- **Looks like.** No grey flash on tap, anywhere. A long press on a mark (the seal, the eye, the ear, the descent's door, a canvas, a control drawn as brush or stipple) brings no iOS callout and selects nothing; dragging a mark, an SVG or an image lifts no ghost.
+- **Rule.** `-webkit-tap-highlight-color: transparent` on the root; `.aph-mark` (or `data-aph-mark`) for marks, which `canvas` and the ear get on their own; `-webkit-user-drag: none` on marks, SVG and images. The root keeps text at its size when a phone turns (`text-size-adjust: 100%`).
+- **A screen must not** put `.aph-mark` on text or links: those keep select, copy, the link preview and dragging a link out.
+
+### Colour scheme and the browser's bars
+
+- **Rule.** `color-scheme` follows the theme (`light`, `dark`, switched by `data-theme`), so what the system still draws (pickers, the autofill dropdown, form controls a screen left native) matches the ground. `<meta name="theme-color">` follows the current theme's `bg` (`Aphesis.themeColor`, run by itself at load and on every theme change; during the eye's wave it changes when the wave ends); the runtime creates the meta if the page has none.
+- **Browsers.** `theme-color`: Safari 15+ (the tab bar), Chrome on Android (the address bar); desktop Chrome ignores it.
+
+### What the OS still draws itself, and how to stay clear of it
 
 - **Copy, paste and lookup bubbles, and the selection handles** on phones: the system's own, in its own colours. They only appear on text a person selects; leave them there, and keep them off marks with `.aph-mark`.
-- **`<select>` popups, date and colour pickers, the `<datalist>` dropdown, the native validation bubble** (`required`, `type="email"`): drawn by the OS, beyond CSS (only `color-scheme` reaches them). Do not use them: build choices as a list of labels, dates as typed text, and say what is wrong in the page's own voice (`novalidate` on forms).
-- **Permission prompts** (microphone, camera, motion, notifications), **`alert`, `confirm`, `prompt`**, the file chooser sheet and the share sheet: the browser's. Ask only from a gesture that already says what will happen, and never use the dialogs.
-- **Scrollbars on Firefox** are a thin bar, not stipple; on iOS and on macOS with overlay scrollbars the system draws its own thin bar while scrolling, whatever the CSS says.
+- **`<select>` popups, date, time and colour pickers, the `<datalist>` dropdown, the validation bubble** (`required`, `type="email"`): drawn by the OS, beyond CSS (only `color-scheme` reaches them). Do not use them: build choices as a list of labels, dates as typed text, and say what is wrong in the page's own voice (`novalidate`).
+- **The autofill dropdown, the password manager and the keyboard's suggestion bar:** the OS's. Mark fields honestly (`autocomplete`, `enterkeyhint`, `inputmode`) and they behave.
+- **Permission prompts** (microphone, camera, motion, notifications), **`alert`, `confirm`, `prompt`**, the file chooser and the share sheet: the browser's. Ask only from a gesture that already says what will happen, and never use the dialogs; a destructive action asks once more in the page itself (the desk's "· sure?").
+- **The OS's scroll indicator** on iOS and on macOS with overlay scrollbars may still flash while scrolling in a browser that ignores `::-webkit-scrollbar` and `scrollbar-width`; current ones honour both.
 - **Video controls and full screen** are the browser's; a picture is a simulacrum, never a video with controls.
+- **The spelling squiggle** outside Chromium, and the caret's shape and blink everywhere.
 
 ## Using it in a screen
 
-Load `components/bundle.css` and `components/bundle.js` after `tokens.css`. Set `data-theme` from the system preference and the eye. Then: one `Aphesis.Fog` on a fixed full-screen canvas, `Aphesis.cursor()` and `Aphesis.tooltip()` once per document, and the screen's own marks drawn with `Aphesis.brush` and `Aphesis.stipple`.
+Load `components/bundle.css` and `components/bundle.js` after `tokens.css`. Set `data-theme` from the system preference and the eye. Then: one `Aphesis.Fog` on a fixed full-screen canvas, `Aphesis.cursor()` and `Aphesis.tooltip()` once per document, and the screen's own marks drawn with `Aphesis.brush` and `Aphesis.stipple`. The scroll disturbance (`Aphesis.Scroll`) starts by itself.

@@ -22,6 +22,16 @@ interface SealProps { boil?: boolean }
 interface TypistProps { el: Element; caret?: Element }
 interface TooltipProps { 'data-tip': string }
 interface CursorProps { 'data-cursor'?: string }
+/** the state the scroll disturbance keeps for one scrolling element */
+interface ScrollState { el: Element; near: boolean; last: number }
+interface Scroll {
+  /** the state of el's disturbance (the document for document), attaching the runtime if it has not started */
+  (el: Element | Document): ScrollState | null;
+  /** start it: one canvas for the page, attached to every scroller on its own. The runtime calls it at load unless window.APHESIS_NO_SCROLL is set. */
+  auto(): { get(el: Element): ScrollState; show(el: Element | Document): ScrollState; canvas: HTMLCanvasElement } | null;
+  /** light el's patch as if it had just scrolled; it fades a second later */
+  show(el: Element | Document): ScrollState | null;
+}
 interface LetterWaveProps { el: Element }
 /** the screens that have a voice */
 type SoundVoice = 'home' | 'book' | 'experimental' | 'archive' | 'laboratory' | 'works' | 'wall' | 'forum' | 'music';
@@ -78,6 +88,8 @@ interface Aphesis {
   themeShift(apply: () => void, opts?: { origin?: [number, number]; duration?: number; done?: () => void }): boolean;
   /** sets <meta name="theme-color"> to the current theme's bg; runs by itself at load, on every theme change and when a themeShift wave ends */
   themeColor(): void;
+  /** the red disturbance in the stipple that stands in for every scrollbar (components/Scroll); runs by itself */
+  Scroll: Scroll;
   reducedMotion: boolean;
   Sound: Sound;
 }

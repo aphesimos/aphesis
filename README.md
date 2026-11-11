@@ -128,8 +128,9 @@ dismisses the name. A key enters at once, and keyboard focus shows the name. Bac
 Back, the address, Escape), the ring is as it was before it was touched: no name chosen, hovered or gathered, nothing
 dimmed, and it turns again; only a visitor who entered by keyboard finds the focus (and so the name) on the section
 they left. The icons are decorative: each link is named by its words. The names sit on an ellipse, spaced along its
-length, each pushed out until it clears the φ; their sizes are measured once (again on resize, when the fonts arrive
-or the ring turns from names to icons), and nothing is written when nothing moved.
+length, each pushed out just as far as it takes to clear the φ, so a name that meets it slides along its edge and
+never steps out and back; their sizes are measured once (again on resize, when the fonts arrive or the ring turns
+from names to icons), and nothing is written when nothing moved.
 
 In the eye's wave the names and glosses (`.tx`, each `.aph-ink`) blend by difference with the fog, cell by cell,
 while the icons keep their red. A blend reaches no further than the nearest stacking context, so while the wave runs

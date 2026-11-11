@@ -116,8 +116,9 @@ const links = [...document.querySelectorAll('#aph-ring a')];
 let spin = 0;
 /* the names sit on an ellipse around the center, spaced evenly along its length rather than by angle: on a wide
    screen the ellipse is nearly a circle and the two are alike; on a tall, narrow one the names keep their distance
-   where the ellipse turns tightly at the top and bottom. Each is pushed out along its own direction until it clears
-   the φ, then held inside the screen. Sizes are measured once (again on resize, when the fonts arrive or the ring
+   where the ellipse turns tightly at the top and bottom. Each is pushed out along its own direction just as far as
+   it takes to clear the φ (so a name that meets it slides along its edge, never stepping out and back), then held
+   inside the screen. Sizes are measured once (again on resize, when the fonts arrive or the ring
    changes between names and icons), and nothing is written when nothing moved: inside a section the ring rests. */
 const ARC = new Float64Array(257), GAP = 12;
 let sizes = null, placed = '', measured = false;
@@ -125,6 +126,16 @@ addEventListener('resize', () => { measured = false; });
 if (document.fonts) document.fonts.ready.then(() => { measured = false; });
 function glyphBox(c) { return { l: c.x + 0.20 * c.s - GAP, r: c.x + 0.80 * c.s + GAP, t: c.y + 0.124 * c.s - GAP, b: c.y + 0.959 * c.s + GAP }; }
 const hit = (g, x, y, w, h) => x + w / 2 > g.l && x - w / 2 < g.r && y + h / 2 > g.t && y - h / 2 < g.b;
+/* the least scale of (ox, oy) that puts a name of w × h at (cx, cy) + scale · (ox, oy) past one of the glyph's sides:
+   each side is cleared from its own scale on, so the least of them, never less than 1 (and never more than the
+   1.04^40 that forty steps of 4% reached). It changes as smoothly as the name moves. */
+function clearOf(g, cx, cy, ox, oy, w, h) {
+  if (!hit(g, cx + ox, cy + oy, w, h)) return 1;
+  let k = Infinity;
+  if (ox > 0) k = Math.min(k, (g.r + w / 2 - cx) / ox); else if (ox < 0) k = Math.min(k, (g.l - w / 2 - cx) / ox);
+  if (oy > 0) k = Math.min(k, (g.b + h / 2 - cy) / oy); else if (oy < 0) k = Math.min(k, (g.t - h / 2 - cy) / oy);
+  return Math.min(Math.max(1, k), 4.80102);
+}
 function placeInscription() {
   if (!measured) { sizes = links.map((a) => { const b = a.getBoundingClientRect(); return { w: a.offsetWidth || 120, h: a.offsetHeight || 40, pw: (a.querySelector('.tx').offsetWidth || 0), bw: b.width, bh: b.height }; }); measured = true; placed = ''; }
   /* the screen's size is read once, before anything is written: on a phone (a page with a viewport) reading
@@ -143,7 +154,7 @@ function placeInscription() {
   links.forEach((a, i) => {
     const t = ang(s0 + L * ((spin / (2 * Math.PI)) + (0.5 + i) / n)), z = sizes[i];
     let ox = Rx * Math.cos(t), oy = Ry * Math.sin(t);
-    for (let k = 0; k < 40 && hit(g, cxp + ox, cyp + oy, z.w, z.h); k++) { ox *= 1.04; oy *= 1.04; }
+    const k = clearOf(g, cxp, cyp, ox, oy, z.w, z.h); ox *= k; oy *= k;
     const x = Math.max(16 + z.w / 2, Math.min(vw - 16 - z.w / 2, cxp + ox)), y = Math.max(16 + z.h / 2, Math.min(vh - 56, cyp + oy));
     const tr = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) translate(-50%,-50%)`;
     /* during the eye's wave the same place by left and top, so the link forms no stacking context (shell.css) */

@@ -195,7 +195,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   .edge svg { width: 34px; height: 34px; }
   /* closed, the spine stands alone on the axis and the gloss below it */
   .blank #spine { display: block; top: 28vh; height: 34vh; }
-  #closed { left: 50%; top: calc(62vh + var(--space-5)); transform: translateX(-50%); text-align: center; white-space: nowrap; }
+  /* centred with `translate`, not `transform`: the entrance animation ends on `transform: none` and kept it, which
+     left the gloss starting at the middle and running off the right edge */
+  #closed { left: 50%; top: calc(62vh + var(--space-5)); transform: none; translate: -50% 0; text-align: center; white-space: nowrap; }
 }
 
 /* ---------- a short landscape screen (a phone on its side): the foot clears the passage too ---------- */

@@ -1,0 +1,64 @@
+# Builds the one-page site and publishes it to Cloudflare Pages on every push to `site` (and by hand).
+# The page is built here, not committed: the gate's phrase and route reach it only as salted hashes made from
+# secrets, so they never sit in the repository. site/build.py reads every section, design-system and mark from origin.
+#
+# Secrets: CLOUDFLARE_API_TOKEN (Account · Cloudflare Pages · Edit), CLOUDFLARE_ACCOUNT_ID,
+#          GATE_PHRASE and GATE_ROUTE (required: the build stops without them), GATE_SALT (optional, 32 hex).
+# Variables: CONTENT_API (the content service; https://content-api.aphes.ist when unset),
+#            TURNSTILE_SITEKEY (optional: the wall and the forum stay in preview mode until it is set).
+name: deploy
+
+on:
+  push:
+    branches: [site]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROJECT: aphesist
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build the page
+        env:
+          APHESIS_CONTENT_API: ${{ vars.CONTENT_API || 'https://content-api.aphes.ist' }}
+          APHESIS_GATE_PHRASE: ${{ secrets.GATE_PHRASE }}
+          APHESIS_GATE_ROUTE: ${{ secrets.GATE_ROUTE }}
+          APHESIS_GATE_SALT: ${{ secrets.GATE_SALT }}
+          TURNSTILE_SITEKEY: ${{ vars.TURNSTILE_SITEKEY }}
+        run: |
+          mkdir -p dist
+          python3 site/build.py --require-gate --out dist/index.html
+
+      - name: Assemble what is served
+        run: cp -r site/public/. dist/
+
+      - name: Create the Pages project the first time
+        run: |
+          if ! npx --yes wrangler@4.153.0 pages project list | grep -q "\b$PROJECT\b"; then
+            npx --yes wrangler@4.153.0 pages project create "$PROJECT" --production-branch site
+          fi
+
+      - name: Deploy
+        run: npx --yes wrangler@4.153.0 pages deploy dist --project-name "$PROJECT" --branch site --commit-hash "$GITHUB_SHA" --commit-message "$(git log -1 --format=%s)"

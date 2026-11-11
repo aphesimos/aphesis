@@ -206,6 +206,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 /* the site's texts: each key a field, its preview line in the face it is read in, save and reset */
 .tx-list { max-width: 46em; }
 .tx-screen { margin-bottom: var(--space-6); }
+.tx-note { margin: 0 0 var(--space-4); }
 .tx-row { margin-bottom: var(--space-5); }
 .tx-row .field { margin-bottom: var(--space-1); }
 .tx-row .field textarea { min-height: 0; resize: none; field-sizing: content; }

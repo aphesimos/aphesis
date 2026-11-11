@@ -32,6 +32,8 @@ export function createMockApi() {
   };
   /* a few of the site's texts (the real list is the content service's, backend/content/src/texts.rs) */
   const texts = [
+    ['meta.title', 'meta', 'link preview: the title (discord, imessage, whatsapp, slack, x)', 'aphes.ist'],
+    ['meta.description', 'meta', 'link preview: the description under the title', 'aphes.ist: one continuous page. the φ in the fog, the sections around it as an inscription.'],
     ['music.lede', 'music', 'lede', 'my music folder. mostly lossless.'],
     ['wall.placeholder', 'wall', 'the empty line', 'leave a line in the fog'],
     ['forum.empty', 'forum', 'the board with no threads', 'the agora is quiet. start a thread, and the first word is yours.'],
@@ -91,7 +93,7 @@ export function createMockApi() {
     },
     thread(id) { if (!session) return no(); return threads[id] ? ok(structuredClone(threads[id])) : no(404); },
     reports() { if (!session) return no(); return ok({ reports: reports.slice() }); },
-    texts() { if (!session) return no(); return ok({ screens: ['archive', 'laboratory', 'wall', 'forum', 'music'], texts: structuredClone(texts) }); },
+    texts() { if (!session) return no(); return ok({ screens: ['meta', 'archive', 'laboratory', 'wall', 'forum', 'music'], texts: structuredClone(texts) }); },
     textSave(k, value, version) {
       if (!session) return no();
       const t = texts.find((x) => x.key === k); if (!t) return no(404);

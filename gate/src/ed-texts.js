@@ -1,9 +1,15 @@
 /* ed-texts: the site's texts, the short lines the owner changes without a rebuild (the home's line for each section,
    the ledes, the helper lines, the empty states). Every key the site reads, grouped by screen, with its value now,
    a field to change it, and a preview line in the face it is read in. Save sends it through the content service;
-   reset takes it back to the page's own string. The page reads them on its next load (backend/content: texts). */
+   reset takes it back to the page's own string. The page reads them on its next load (backend/content: texts); the link
+   preview's two, from the site's Pages worker, within five minutes. */
 
 import { h, act, field, area, status, setLabel } from './ui.js';
+
+/* a screen whose name alone would not say what it is: its heading, and a line under it. `meta` is the whole page as
+   a shared link shows it: the site's Pages worker writes meta.title and meta.description into the served page */
+const HEADS = { meta: 'link preview' };
+const NOTES = { meta: 'what discord, imessage, whatsapp, slack and x show under a link to aphes.ist. live within five minutes of a save; each app keeps its own copy of a preview for a while.' };
 
 export function createTexts({ api, root }) {
   const say = h('p', { class: 'say aph-meta aph-ink', role: 'status', 'aria-live': 'polite' });
@@ -18,7 +24,8 @@ export function createTexts({ api, root }) {
     for (const t of r.data.texts || []) (by[t.screen] = by[t.screen] || []).push(t);
     const screens = (r.data.screens || Object.keys(by)).filter((s) => by[s]);
     listEl.replaceChildren(...screens.map((s) => h('section', { class: 'tx-screen', 'aria-labelledby': 'tx-' + s },
-      h('h2', { class: 'mod-h aph-display aph-ink', id: 'tx-' + s, text: s }),
+      h('h2', { class: 'mod-h aph-display aph-ink', id: 'tx-' + s, text: HEADS[s] || s }),
+      ...(NOTES[s] ? [h('p', { class: 'tx-note aph-meta aph-ink', text: NOTES[s] })] : []),
       ...by[s].map(row))));
     if (!screens.length) listEl.append(h('p', { class: 'empty aph-meta aph-ink', text: 'no texts.' }));
   }

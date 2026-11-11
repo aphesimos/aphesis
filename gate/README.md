@@ -66,7 +66,9 @@ moderation · *custodia*, texts · *verba*, and `leave` (which ends the session;
   section, the ledes, the helper lines, the empty states), grouped by screen. Each key shows its value now, a field
   to change it (one line; Enter saves), a preview line in the face it is read in, and `reset to default`. Saved
   through the content service (`/v1/admin/texts`); the page reads them on its next load, and keeps its own strings
-  whenever the service does not answer.
+  whenever the service does not answer. The first group, `link preview` (`meta.title`, `meta.description`), is what
+  a shared link to aphes.ist shows in discord, imessage, whatsapp, slack or x: the site's Pages worker writes them
+  into the served page's `og:` tags, within five minutes of a save (each app keeps its own copy for a while).
 - **On a phone**, one column, with a choice between `write` and `read` for the editor and its preview.
 
 Nothing is solid: fields are words on a brushed baseline, buttons are labels whose brushed underline draws in,

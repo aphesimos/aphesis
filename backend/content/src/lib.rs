@@ -449,7 +449,7 @@ async fn password(c: &Ctx, req: &mut Request) -> Result<Response> {
     };
     let from = c
         .var("EMAIL_FROM")
-        .unwrap_or_else(|| "clavis@aphes.ist".into());
+        .unwrap_or_else(|| "clavis@post.aphes.ist".into());
     // one challenge at a time: a new password step replaces any earlier code
     let now = now_ms();
     c.run("DELETE FROM challenges", &[]).await?;

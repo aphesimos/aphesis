@@ -14,7 +14,7 @@ command = "worker-build --release"
 # the site's origins, comma-separated: CORS answers only these, and the gate takes requests only from them
 ALLOWED_ORIGINS = "https://aphes.ist,https://www.aphes.ist,https://aphesist.pages.dev"
 # the gate's email comes from this address (Email Routing must have the zone set up; see ../README.md)
-EMAIL_FROM = "clavis@aphes.ist"
+EMAIL_FROM = "clavis@post.aphes.ist"
 # the session lasts this long, in seconds (two hours)
 SESSION_SECONDS = "7200"
 # the APIs moderated from the dashboard, called server to server with their admin secrets

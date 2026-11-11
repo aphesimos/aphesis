@@ -236,7 +236,7 @@ branches read (`archive/content/<slug>.md`, `book/content/<NN>-<slug>.md`, `work
 this repository's `content` branch as the owner (`aphesimos`, the noreply address) through GitHub's git data API, only
 when something changed. It needs `EXPORT_GITHUB_TOKEN`; without it the cron does nothing.
 
-Vars: `ALLOWED_ORIGINS`, `EMAIL_FROM` (`clavis@aphes.ist`), `SESSION_SECONDS` (7200), `WALL_API`, `FORUM_API`,
+Vars: `ALLOWED_ORIGINS`, `EMAIL_FROM` (`clavis@post.aphes.ist`), `SESSION_SECONDS` (7200), `WALL_API`, `FORUM_API`,
 `EXPORT_REPO`, `EXPORT_BRANCH`, `PUBLIC_URL`. Secrets: `OWNER_PASSWORD_HASH`, `OWNER_EMAIL`, `AUTH_SALT`,
 `WALL_ADMIN_TOKEN`, `FORUM_ADMIN_SECRET`, `EXPORT_GITHUB_TOKEN`. Without `OWNER_PASSWORD_HASH`, `OWNER_EMAIL` or
 `AUTH_SALT` the gate refuses everything (the public API works).
@@ -371,11 +371,13 @@ node --test e2e/*.test.mjs             # the Workers under wrangler dev, over HT
    answers on its `aphes.ist` subdomain only, and its workers.dev address is switched off, since the account's
    workers.dev name belongs to the account, not to this site. Without it the Workers answer on workers.dev only.
 
-7. **Email Routing**, for the gate's mail. In the Cloudflare dashboard, zone `aphes.ist` → Email → Email Routing →
-   enable it (Cloudflare adds its MX and SPF records), then Destination addresses → add the owner's address and open
-   the link Cloudflare mails to it, so it shows *Verified*. The `send_email` binding only delivers to verified
-   destinations, and `EMAIL_FROM` (`clavis@aphes.ist`) must be on the zone. The API token also needs Account →
-   *D1: Edit*.
+7. **Email Routing**, for the gate's mail, on the subdomain `post.aphes.ist` (the apex `aphes.ist` receives its mail
+   at Proton, and a domain has one set of MX records). In the Cloudflare dashboard, zone `aphes.ist` → Email → Email
+   Routing → Settings → add the subdomain `post.aphes.ist` and accept the records Cloudflare adds there (never enable
+   Email Routing on the apex, which would replace Proton's MX). Then Destination addresses → add the owner's address
+   and open the link Cloudflare mails to it, so it shows *Verified*. The `send_email` binding only delivers to verified
+   destinations, and `EMAIL_FROM` (`clavis@post.aphes.ist`) must be on a domain with Email Routing. The API token also
+   needs Account → *D1: Edit*.
 8. **The first content.** After the first deploy, once: run the backend workflow by hand with **seed** ticked (see
    Tools above), or locally `node backend/content/tools/seed.mjs --remote` (with `CLOUDFLARE_API_TOKEN` and
    `CLOUDFLARE_ACCOUNT_ID` in the environment, and the section branches fetched).

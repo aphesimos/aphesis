@@ -33,13 +33,16 @@ const fn t(
     }
 }
 
-/// the screens, in the order the dashboard shows them
-pub const SCREENS: [&str; 5] = ["archive", "laboratory", "wall", "forum", "music"];
+/// the screens, in the order the dashboard shows them; `meta` is no screen of its own but the whole page as a link
+/// preview shows it (the site's Pages middleware writes these into the served page's meta tags)
+pub const SCREENS: [&str; 6] = ["meta", "archive", "laboratory", "wall", "forum", "music"];
 
 /// at most this many characters in a text
 pub const MAX_CHARS: usize = 400;
 
 pub const TEXTS: &[Text] = &[
+    t("meta.title", "meta", "link preview: the title (discord, imessage, whatsapp, slack, x)", "aphes.ist"),
+    t("meta.description", "meta", "link preview: the description under the title", "aphes.ist: one continuous page. the φ in the fog, the sections around it as an inscription."),
     t("archive.lede", "archive", "lede", "writing about anything, from draft to finished."),
     t("archive.empty", "archive", "the list with no posts", "the scraped tablet: nothing on it, everything possible."),
     t("archive.stage.nigredo", "archive", "stage tooltip: nigredo", "nigredo · the black: barely begun"),
@@ -178,6 +181,17 @@ mod tests {
                 t.key
             );
         }
+    }
+
+    #[test]
+    fn the_link_preview_keeps_the_page_defaults() {
+        // the same strings as the og and twitter tags in site/src/shell.html on the site branch
+        assert_eq!(find("meta.title").unwrap().default, "aphes.ist");
+        assert_eq!(
+            find("meta.description").unwrap().default,
+            "aphes.ist: one continuous page. the φ in the fog, the sections around it as an inscription."
+        );
+        assert_eq!(SCREENS[0], "meta");
     }
 
     #[test]

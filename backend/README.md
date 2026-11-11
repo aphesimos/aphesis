@@ -190,7 +190,8 @@ screen and its default, which is the same string the page carries; the page keep
 the API does not answer or has nothing set, so a missing key never breaks a screen. `GET /v1/texts` answers only the
 keys the owner set, `{texts: {"music.lede": "..."}, version}`, with `cache-control: public, max-age=15` and an
 `ETag` of the version (`If-None-Match` gets `304`). The version is the sum of every key's version, which grows by one
-with each save and each reset, so it never comes back to an earlier value. The keys: `archive.lede`, `archive.empty`, `archive.stage.<stage>`,
+with each save and each reset, so it never comes back to an earlier value. The keys: `meta.title`, `meta.description` (the link preview: the site's Pages middleware writes them into the
+served page's `og:` and `twitter:` tags, so a shared link shows them; see the `site` branch), `archive.lede`, `archive.empty`, `archive.stage.<stage>`,
 `laboratory.lede`, `laboratory.live`, `wall.placeholder`, `wall.helper`, `wall.sent`, `wall.empty`, `forum.lede`, `forum.empty`,
 `forum.placeholder.thread`, `forum.placeholder.reply`, `forum.pictures`, `music.lede`, `music.idle`, `music.empty`.
 A new key is one line in `TEXTS` and the same default in the page.
@@ -372,7 +373,7 @@ node --test e2e/*.test.mjs             # the Workers under wrangler dev, over HT
   moderation against local wall and forum Workers, and the nightly export against a stand-in for GitHub's API;
   `e2e/prune.test.mjs`: the removal of the seeded examples from a database as the first seed left it, with the
   owner's entries beside them (a dry run, the run, a second run, then the Worker's answers and pictures); and
-  `e2e/texts.test.mjs`: the public texts (CORS, cache, `304`), and the dashboard's list, edit, conflict and reset.
+  `e2e/texts.test.mjs`: the public texts (CORS, cache, `304`), and the dashboard's list, edit, conflict and reset, and the link preview's keys.
 
 ## One-time setup
 

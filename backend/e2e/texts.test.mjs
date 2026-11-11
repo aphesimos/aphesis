@@ -130,3 +130,25 @@ test('the dashboard: every key with its default, edit, conflict, reset; the page
   r = await send('/v1/admin/texts/music.lede', { cookie });
   assert.equal((await r.json()).text.version, 2);
 });
+
+test('the link preview: its title and description are listed first and reach the public answer like any text', async () => {
+  const { cookie, csrf } = await login();
+  let r = await send('/v1/admin/texts', { cookie });
+  const all = await r.json();
+  assert.equal(all.screens[0], 'meta');
+  const title = all.texts.find((t) => t.key === 'meta.title');
+  const desc = all.texts.find((t) => t.key === 'meta.description');
+  assert.equal(title.default, 'aphes.ist');
+  assert.equal(desc.default, 'aphes.ist: one continuous page. the φ in the fog, the sections around it as an inscription.');
+  assert.match(desc.label, /link preview/);
+
+  const w = { 'X-CSRF-Token': csrf };
+  r = await send('/v1/admin/texts/meta.description', { method: 'PUT', cookie, body: { value: 'a letting go, in one page.', version: desc.version }, headers: w });
+  assert.equal(r.status, 200);
+  r = await send('/v1/texts', { origin: null });
+  assert.equal(r.status, 200, 'a request with no origin (the site\'s middleware, server to server) is answered');
+  assert.equal((await r.json()).texts['meta.description'], 'a letting go, in one page.');
+  r = await send('/v1/admin/texts/meta.description/reset', { method: 'POST', cookie, headers: w });
+  assert.equal(r.status, 200);
+  assert.equal((await (await send('/v1/texts')).json()).texts['meta.description'], undefined);
+});

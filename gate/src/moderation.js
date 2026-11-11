@@ -17,12 +17,11 @@ export function createModeration({ api, root }) {
   const reportsEl = h('ol', { class: 'mod-list', 'aria-label': 'reports' });
   const boardEl = h('ol', { class: 'mod-list', 'aria-label': 'threads' });
   const threadEl = h('div', { class: 'mod-thread' });
-  const pane = h('section', { class: 'pane mod' },
-    h('div', { class: 'pane-head' }, act('again', () => load()), say),
-    h('div', { class: 'mod-cols' },
+  const cols = h('div', { class: 'mod-cols' },
       h('div', {}, h('h2', { class: 'mod-h aph-display aph-ink' }, 'wall ', h('span', { class: 'aph-gloss', lang: 'la', text: 'paries' })), wallEl),
       h('div', {}, h('h2', { class: 'mod-h aph-display aph-ink' }, 'forum ', h('span', { class: 'aph-gloss', lang: 'grc', text: 'ἀγορά' })),
-        h('h3', { class: 'aph-label aph-ink', text: 'reports' }), reportsEl, h('h3', { class: 'aph-label aph-ink', text: 'threads' }), boardEl, threadEl)));
+        h('h3', { class: 'aph-label aph-ink', text: 'reports' }), reportsEl, h('h3', { class: 'aph-label aph-ink', text: 'threads' }), boardEl, threadEl));
+  const pane = h('section', { class: 'pane mod' }, h('div', { class: 'pane-head' }, act('again', () => load()), say), cols);
   root.append(pane);
 
   async function loadWall() {
@@ -73,6 +72,13 @@ export function createModeration({ api, root }) {
         })))));
     threadEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
-  function load() { status(say, ''); loadWall(); loadForum(); }
+  /* the first time, the two columns wait until both have answered and come in whole: filled one by one, the wall's
+     lines would push the forum's heading down under the reader's eyes (on a phone the columns stack) */
+  let first = true;
+  function load() {
+    status(say, '');
+    const both = Promise.allSettled([loadWall(), loadForum()]);
+    if (first) { first = false; cols.hidden = true; both.then(() => { cols.hidden = false; }); }
+  }
   return { load };
 }

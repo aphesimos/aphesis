@@ -10,6 +10,8 @@
    section (`notes`, say) follows the result as text. */
 
 const A = window.Aphesis;
+/* the site's texts: the owner's version of a line where the site has one (the shell's Aphesis.text), else this one */
+const T = (key, own) => (A.text ? A.text(key, own) : own);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const no = (e) => String(e.order).padStart(2, '0');
 const lang = (s) => (/[Ͱ-Ͽἀ-῿]/.test(s) ? 'grc' : 'la');
@@ -26,8 +28,7 @@ export function indexView(list) {
   <header class="head aph-ink" data-zone="20">
     <p class="gloss-title aph-gloss" lang="la">officina</p>
     <h1 class="title aph-display">laboratory</h1>
-    <p class="lede">measured experiments. each one states what i expect, says how i measure it, runs here in your
-      browser, and reports what it found, whatever it finds.</p>
+    <p class="lede">${esc(T('laboratory.lede', 'experiments that run in your browser. each one says what i expected and what came out.'))}</p>
   </header>
   <nav class="aph-ink" aria-label="experiments"><ol class="inscription">${items}</ol></nav>`;
 }
@@ -55,7 +56,7 @@ export function experimentView(e, list) {
     <header class="head aph-ink" data-zone="20">
       <p class="gloss-title aph-gloss" lang="${lang(e.gloss)}">${esc(e.gloss)}</p>
       <h1 class="title aph-display">${esc(e.title)}</h1>
-      <p class="aph-meta num">no. ${no(e)}${e.example ? ' · example' : ''} · measured live in this browser</p>
+      <p class="aph-meta num">no. ${no(e)}${e.example ? ' · example' : ''} · ${esc(T('laboratory.live', 'runs in your browser'))}</p>
     </header>
     ${parts}
     <nav class="turn aph-ink" aria-label="other experiments">

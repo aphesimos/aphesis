@@ -4,7 +4,7 @@ title: the simulacrum
 gloss: εἴδωλον
 order: 4
 module: simulacrum
-summary: bring a picture and turn it into fog with the site's own engine, measured while it renders.
+summary: turn a picture of yours into fog, and measure what is left of it.
 ---
 
 ## hypothesis

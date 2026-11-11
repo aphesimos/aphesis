@@ -5,7 +5,7 @@ gloss: nebula
 order: 2
 example: true
 module: fog
-summary: does the fog light as many cells as its density says? measured on the fog's own hash.
+summary: does the fog light as many cells as its density says?
 ---
 
 ## hypothesis

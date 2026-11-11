@@ -5,7 +5,7 @@ gloss: angulus aureus
 order: 3
 example: true
 module: golden
-summary: why the fog turns its layers by 137.5°: seeds placed by many angles, measured for evenness.
+summary: why the fog turns its layers by 137.5°.
 ---
 
 ## hypothesis

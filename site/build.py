@@ -282,7 +282,8 @@ def favicon_open(red):
     js = ('global.window = global;\n' + show('design-system', 'system/components/bundle.js') + '\n' +
           open(os.path.join(D, 'src', 'favicon.js'), encoding='utf-8').read() +
           '\nprocess.stdout.write(favicons(window.Aphesis, ' + json.dumps(red) + ').open);')
-    return subprocess.run(['node', '-e', js], capture_output=True, check=True, text=True).stdout
+    # on stdin, not as an argument: the runtime is longer than one argument may be (128 KiB on Linux)
+    return subprocess.run(['node', '-'], input=js, capture_output=True, check=True, text=True).stdout
 
 
 def build(fragment, refs):

@@ -7,7 +7,8 @@
 
    createApi() -> { live, sitekey, list(), post(text, token) }
    list() -> [{ id, text, at, owner?, mine? }]   owner: true only for the owner's lines (the server says so)
-   post() -> { ok: true, message } | { ok: false, reason: 'empty'|'long'|'word'|'link'|'rate'|'turnstile'|'offline', retryAfter? } */
+   post() -> { ok: true, message } | { ok: false, reason: 'empty'|'long'|'word'|'link'|'rate'|'turnstile'|'unavailable'|'stumbled'|'offline', retryAfter? }
+   (offline: the wall could not be reached at all) */
 
 import { check } from './filter.js';
 
@@ -80,7 +81,9 @@ function remote(base, sitekey) {
         });
         const body = await r.json().catch(() => ({}));
         if (r.ok && body.message) return { ok: true, message: Object.assign({ mine: true }, body.message) };
-        return { ok: false, reason: body.error || 'offline', retryAfter: body.retryAfter };
+        /* an answer without its word: the wall's own stumble when it is a 5xx, else a line it could not read */
+        const reason = body.error || (r.status >= 500 ? 'stumbled' : r.status === 429 ? 'rate' : 'bad');
+        return { ok: false, reason, retryAfter: body.retryAfter || +r.headers.get('Retry-After') || undefined };
       } catch (_) { return { ok: false, reason: 'offline' }; }
     },
   };

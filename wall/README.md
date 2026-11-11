@@ -18,6 +18,12 @@ Anonymous lines drifting in the fog. A visitor reads them, holds one still, and 
   the typewriter's own underscore as the caret. Enter or `send` sends it. The page checks the filter first and answers
   a refused word quietly under the baseline; the server decides. Once taken, the line lifts off the baseline and blurs
   into the fog, and condenses again among the others, near and held longer.
+- **When a line does not go:** the line stays where it was written, and the voice under the baseline (a live region,
+  in the accent) says why until the line is touched or sent again: a filtered word, a link, too long (140 characters),
+  too fast (with the seconds to wait), the check failed or ran out of time, the wall out of reach, the wall's own
+  stumble, or not open yet. `try again` follows when sending the same line again may work (the check, the network, a
+  stumble). The Turnstile widget is drawn again whenever it has been lost (Turnstile forgets a widget whose box leaves
+  the page, as it does each time the site puts the section aside), and its answer is renewed after every try.
 - **The quiet:** while the wall holds no line, the middle of the field holds the gloss *silentium* ("silence" in its
   tooltip) and one line, "the wall is quiet. the first line is yours.", on a calm zone; it fades as the first line
   condenses.

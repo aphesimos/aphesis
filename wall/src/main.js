@@ -64,14 +64,19 @@ const drift = createDrift($('lines'), { rect, describe });
 /* the quiet voice under the line: what just happened, then back to what is always true */
 const IDLE = api.live ? '' : 'a preview: your lines stay on this device.';
 let quiet = null;
-function say(text, refused) {
+const retry = $('retry');
+/* a refusal stays until the composer clears it (the line touched, or sent again), with `try again` when sending the
+   same line again may work; anything else goes back to the quiet after a moment */
+function say(text, refused, again) {
   clearTimeout(quiet);
   status.textContent = text;
   /* a refusal is red, so it leaves the black-and-white ink while it shows */
   status.classList.toggle('refused', !!refused);
   status.classList.toggle('aph-ink', !refused);
-  quiet = setTimeout(() => { status.textContent = IDLE; status.classList.remove('refused'); status.classList.add('aph-ink'); }, refused ? 6000 : 4200);
+  retry.hidden = !(refused && again);
+  if (!refused) quiet = setTimeout(() => { status.textContent = IDLE; }, text ? 4200 : 0);
 }
+retry.addEventListener('click', () => { retry.hidden = true; form.requestSubmit(); $('line').focus({ preventScroll: true }); });
 status.textContent = IDLE;
 if (!api.live) $('line').dataset.tip = 'one line · no names · this preview keeps it on this device only';
 

@@ -4,6 +4,8 @@
    receives it among the others.
 
    createComposer(form, { api, onSent, say }) -> { field }
+   say(text, refused, again): a refusal stays, in the accent, until the line is touched or sent again; `again` offers
+   `try again` beside it when sending the same line again may work (the check, the network, the wall's own stumble).
    Turnstile is loaded only when the wall is live and a site key is configured, and only when someone starts to
    write; its widget stays invisible unless Cloudflare needs to ask something. */
 
@@ -17,14 +19,18 @@ const T = (key, own) => (A.text ? A.text(key, own) : own);
 const WORDS = {
   word: 'the fog will not carry that word.',
   link: 'no links on the wall.',
-  long: 'one line, ' + MAX_LENGTH + ' characters at most.',
+  long: 'too long: one line, ' + MAX_LENGTH + ' characters at most.',
   empty: 'write a line first.',
-  turnstile: 'the check did not pass. try once more.',
-  offline: 'the wall is out of reach. try again later.',
-  unavailable: 'the wall is out of reach. try again later.',
+  turnstile: 'the check did not pass, or it ran out of time.',
+  turnstile_load: 'the check did not load; the line was not sent.',
+  offline: 'the wall is out of reach; the line was not sent.',
+  stumbled: 'the wall stumbled on its side; the line did not go.',
+  unavailable: 'the wall is not open yet. try again later.',
   bad: 'that line could not be read.',
 };
-const rate = (s) => `a little patience: try again in ${Math.max(1, s | 0)} s.`;
+/* the refusals that sending the same line again may get past */
+const AGAIN = new Set(['turnstile', 'turnstile_load', 'offline', 'stumbled']);
+const rate = (s) => `too fast: a little patience. try again in ${Math.max(1, Math.ceil(+s || 20))} s.`;
 
 export function createComposer(form, { api, onSent, say }) {
   const input = form.querySelector('#line');
@@ -34,7 +40,11 @@ export function createComposer(form, { api, onSent, say }) {
   const count = form.querySelector('#count');
   const send = form.querySelector('#send');
   const box = form.querySelector('#turnstile');
-  let busy = false;
+  let busy = false, refused = false;
+  const refuse = (reason, retryAfter) => {
+    refused = true;
+    say(reason === 'rate' ? rate(retryAfter) : (WORDS[reason] || WORDS.bad), true, AGAIN.has(reason));
+  };
 
   /* ---------- the brushed baseline ---------- */
   function drawBase() {
@@ -71,6 +81,8 @@ export function createComposer(form, { api, onSent, say }) {
     count.classList.toggle('near', n > MAX_LENGTH - 20);
     count.classList.toggle('aph-ink', n <= MAX_LENGTH - 20); /* red near the limit: out of the ink then */
     form.classList.toggle('has-text', n > 0);
+    /* a refusal stays until the line changes */
+    if (refused) { refused = false; say('', false); }
     placeCaret();
   }
   ['input', 'focus', 'blur', 'keyup', 'click', 'select', 'scroll'].forEach((e) => input.addEventListener(e, e === 'input' ? typed : placeCaret));
@@ -78,46 +90,58 @@ export function createComposer(form, { api, onSent, say }) {
   addEventListener('resize', placeCaret);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(placeCaret);
 
-  /* ---------- Turnstile, only when live and configured ---------- */
+  /* ---------- Turnstile, only when live and configured ----------
+     Turnstile forgets a widget whose box leaves the page, which happens whenever the site puts the wall aside and
+     brings it back, and asking a forgotten widget for its answer throws: so the widget is checked, and drawn again
+     when it is gone, on focus and before every send. Its answer is good for one line and renewed after each. */
   let widget = null, loading = null;
   const useTurnstile = api.live && !!api.sitekey;
   function loadTurnstile() {
-    if (!useTurnstile || loading) return loading;
-    loading = new Promise((resolve) => {
-      const s = document.createElement('script');
-      s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
-      s.async = true;
-      s.onload = () => {
-        try {
-          const dark = document.documentElement.classList.contains('is-dark');
-          widget = window.turnstile.render(box, {
-            sitekey: api.sitekey, appearance: 'interaction-only', theme: dark ? 'dark' : 'light', size: 'flexible',
-            'before-interactive-callback': () => box.classList.add('on'),
-            'after-interactive-callback': () => box.classList.remove('on'),
-          });
-        } catch (_) { widget = null; }
-        resolve();
-      };
-      s.onerror = () => resolve();
-      document.head.appendChild(s);
-    });
+    if (!useTurnstile) return Promise.resolve(false);
+    if (!loading) {
+      loading = new Promise((resolve) => {
+        const s = document.createElement('script');
+        s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+        s.async = true;
+        s.onload = () => resolve(true);
+        /* a failed load is tried again on the next send */
+        s.onerror = () => { loading = null; s.remove(); resolve(false); };
+        document.head.appendChild(s);
+      });
+    }
     return loading;
   }
-  if (useTurnstile) input.addEventListener('focus', loadTurnstile, { once: true });
+  const alive = () => {
+    if (widget === null || !window.turnstile) return false;
+    try { window.turnstile.getResponse(widget); return box.isConnected; } catch (_) { return false; }
+  };
+  async function draw() {
+    if (!(await loadTurnstile()) || !window.turnstile) return false;
+    if (alive()) return true;
+    if (widget !== null) { try { window.turnstile.remove(widget); } catch (_) { /* already forgotten */ } }
+    widget = null; box.replaceChildren(); box.classList.remove('on');
+    try {
+      const dark = document.documentElement.classList.contains('is-dark');
+      widget = window.turnstile.render(box, {
+        sitekey: api.sitekey, appearance: 'interaction-only', theme: dark ? 'dark' : 'light', size: 'flexible',
+        'before-interactive-callback': () => box.classList.add('on'),
+        'after-interactive-callback': () => box.classList.remove('on'),
+      });
+    } catch (_) { widget = null; }
+    return widget !== null;
+  }
+  if (useTurnstile) input.addEventListener('focus', () => { draw(); });
+  /* the answer, or a reason it could not be had: waiting quietly up to 25 s for the challenge to finish */
   async function token() {
-    if (!useTurnstile) return '';
-    await loadTurnstile();
-    if (widget === null || !window.turnstile) return '';
-    const t = window.turnstile.getResponse(widget);
-    if (t) return t;
-    /* wait for the challenge to finish, quietly, up to 20 s */
-    return new Promise((resolve) => {
-      let n = 0;
-      const id = setInterval(() => {
-        const v = window.turnstile.getResponse(widget);
-        if (v || ++n > 80) { clearInterval(id); resolve(v || ''); }
-      }, 250);
-    });
+    if (!useTurnstile) return { token: '' };
+    if (!(await draw())) return { reason: 'turnstile_load' };
+    for (let n = 0; n < 100; n++) {
+      let v = '';
+      try { v = window.turnstile.getResponse(widget) || ''; } catch (_) { if (!(await draw())) return { reason: 'turnstile_load' }; }
+      if (v) return { token: v };
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    return { reason: 'turnstile' };
   }
 
   /* ---------- the line leaves the baseline ---------- */
@@ -144,19 +168,28 @@ export function createComposer(form, { api, onSent, say }) {
     const text = input.value;
     const v = check(text);
     if (!v.ok) {
-      if (v.reason !== 'empty' || document.activeElement !== input) say(WORDS[v.reason] || WORDS.bad, true);
+      if (v.reason !== 'empty' || document.activeElement !== input) refuse(v.reason);
       input.focus();
       return;
     }
     busy = true;
     form.classList.add('busy');
+    refused = false;
     say('condensing…');
-    const res = await api.post(v.text, await token());
-    if (useTurnstile && widget !== null) try { window.turnstile.reset(widget); } catch (_) { /* nothing to reset */ }
-    busy = false;
-    form.classList.remove('busy');
+    let res;
+    try {
+      const t = await token();
+      res = t.reason ? { ok: false, reason: t.reason } : await api.post(v.text, t.token);
+    } catch (_) {
+      res = { ok: false, reason: 'offline' };
+    } finally {
+      if (useTurnstile && widget !== null) try { window.turnstile.reset(widget); } catch (_) { widget = null; }
+      busy = false;
+      form.classList.remove('busy');
+    }
     if (!res.ok) {
-      say(res.reason === 'rate' ? rate(res.retryAfter) : (WORDS[res.reason] || WORDS.bad), true);
+      /* the line stays where it was written */
+      refuse(res.reason, res.retryAfter);
       return;
     }
     release(v.text);

@@ -129,6 +129,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .under { display: flex; justify-content: space-between; gap: var(--space-3); margin: var(--space-1) 0 0; height: 1.7em; }
 #status { flex: 1; transition: color var(--duration-quick) var(--easing-settle); }
 #status.refused { color: var(--accent-text); }
+#retry { white-space: nowrap; color: var(--ink); padding: 0; transition: color var(--duration-quick) var(--easing-settle); }
+#retry:hover, #retry:focus-visible { color: var(--accent-text); }
+#retry:focus-visible { outline: 1px solid var(--accent); outline-offset: 4px; }
 #count { white-space: nowrap; font-variant-numeric: tabular-nums; }
 #count.near { color: var(--accent-text); }
 

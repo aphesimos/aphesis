@@ -28,10 +28,11 @@ click away.
 - **The owner's posts**: a post the server marks `owner` shows the owner's mark in place of the sigil: a small live
   `Aphesis.Eye` in rubedo, the gate's eye drawn as a mark (48px wide, the runtime's `mark` preset: the gate's
   construction and cells with a bolder brush and larger cells; trembling at 8 fps, blinking and glancing on its own,
-  as the gate's does) and the name *aphesist* in
-  Aphesis Script, in rubedo, like a capcode; for assistive technology, "aphesist, the owner". Nothing else about the
+  as the gate's does) and the name as the wordmark
+  writes it, *aφesist* (the font's upright φ, with a t), in the eye's own red (`accent`, marked `.aph-red` as the eye
+  is), like a capcode; for assistive technology, "aphesist, the owner". Nothing else about the
   post changes. A quote leading to it opens the eye wide for a moment (the eye is rubedo already), and its quote
-  preview carries a still eye and the name. On the board a thread the owner opened says *aphesist* before its replies,
+  preview carries a still eye and the name. On the board a thread the owner opened says *aφesist* before its replies,
   without an eye. Only the owner's desk can make such a post: the content service passes it on with the forum's admin
   secret (`backend/README.md`, *The owner's posts*); the page never guesses, and nothing a visitor sends can claim it.
   Many of them stay light: the eyes are `shared` (one tick for the page, still while off screen, one set of drawings

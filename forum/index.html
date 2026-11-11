@@ -475,7 +475,9 @@ h1 .w { display: inline-block; }
    changes: no box, no rule, the words as anyone's */
 .pm .owner-eye { display: inline-block; width: 48px; color: var(--accent); margin: calc((36px - 48px * 14 / 24) / 2) var(--space-1) calc((36px - 48px * 14 / 24) / 2) 0; }
 .pm .owner-eye svg { display: block; }
-.owner-name { color: var(--accent-text); font-size: var(--type-gloss-size); line-height: var(--type-gloss-line); letter-spacing: .02em; }
+/* the name in the eye's own red: accent, not accent-text (a lighter red for running text), marked .aph-red as the eye
+   is, so both turn together in the theme wave */
+.owner-name { color: var(--accent); font-size: var(--type-gloss-size); line-height: var(--type-gloss-line); letter-spacing: .02em; }
 .pm .owner-name { padding-right: .2em; }
 .row .meta .owner-name { font-size: var(--type-gloss-title-size); line-height: 1; padding-right: .25em; }
 .body { margin: var(--space-2) 0 0; overflow-wrap: anywhere; max-width: 62ch; }
@@ -2629,6 +2631,12 @@ M["owner.js"] = (function () {
    ownerIcon()       -> a still eye, for the quote preview */
 
 const OWNER = 'aphesist';
+/* the name as the wordmark writes it: aφesis in Aphesis Script, its upright φ the font's own, with a t (read aloud as
+   "aphesist": the drawn name is hidden from assistive technology, the words beside it say it) */
+const OWNER_WORD = 'aφesist';
+function ownerWord(extra) {
+  return '<span class="owner-name aph-display aph-red" aria-hidden="true">' + OWNER_WORD + '</span><span class="sr">' + OWNER + ', the owner' + (extra || '') + '</span>';
+}
 /* near a sigil's weight (36px): the eye is wide and short, so its box is 48px wide. It is the runtime's mark preset:
    the gate's eye in its construction and its cells, with a bolder brush and larger cells, so it reads as a mark */
 const EYE_PX = 48;
@@ -2636,7 +2644,7 @@ const live = new WeakMap();
 
 function ownerMark() {
   return '<span class="owner-eye aph-red" aria-hidden="true"></span>' +
-    '<span class="owner-name aph-display">' + OWNER + '</span><span class="sr">, the owner</span>';
+    ownerWord();
 }
 
 function wakeOwners(root) {
@@ -2658,7 +2666,7 @@ function ownerIcon() {
   return A && A.icon ? A.icon('eye', 0) : '';
 }
 
-return { OWNER, ownerMark, wakeOwners, ownerEye, ownerIcon };
+return { OWNER, OWNER_WORD, ownerWord, ownerMark, wakeOwners, ownerEye, ownerIcon };
 })();
 /* ---- legible.js ---- */
 M["legible.js"] = (function () {
@@ -3516,7 +3524,7 @@ M["views.js"] = (function () {
 
 const { esc, render, firstLine, age } = M["text.js"];
 const { sigilSVG, sigilLabel } = M["sigil.js"];
-const { ownerMark, wakeOwners, OWNER } = M["owner.js"];
+const { ownerMark, ownerWord, wakeOwners, OWNER } = M["owner.js"];
 const { image, stillSimulacrum } = M["thumb.js"];
 const { createComposer, T } = M["composer.js"];
 const { stillOptions } = M["legible.js"];
@@ -3548,7 +3556,7 @@ function row(t, now) {
   const li = document.createElement('li');
   const meta = [plural(t.replies, 'reply', 'replies'), age(t.bumped, now)];
   /* a thread the owner opened says so by name, in rubedo: no eye on the board, where there can be many */
-  const by = t.owner ? '<span class="owner-name aph-display">' + OWNER + '</span><span class="sr">, the owner,</span> ' : '';
+  const by = t.owner ? ownerWord(',') + ' ' : '';
   li.innerHTML = '<a class="row" href="#forum/' + esc(t.id) + '">' +
     '<span class="thumb" aria-hidden="true"></span>' +
     '<span class="txt"><span class="first">' + esc(firstLine(t.first) || 'a picture') + '</span>' +
@@ -3739,7 +3747,7 @@ const { boardView, threadView, enter } = M["views.js"];
 const { scrollToEl } = M["motion.js"];
 const { esc, firstLine } = M["text.js"];
 const { sigilSVG } = M["sigil.js"];
-const { ownerEye, ownerIcon, OWNER } = M["owner.js"];
+const { ownerEye, ownerIcon, ownerWord } = M["owner.js"];
 const { load, save } = M["store.js"];
 const A = window.Aphesis;
 const $ = (id) => document.getElementById(id);
@@ -3925,7 +3933,7 @@ function showQuote(a) {
   else {
     const words = firstLine(p.text.replace(/^>(?!>).*$/gm, ''), 220) || 'a picture';
     qtip.innerHTML = p.owner === true
-      ? '<span class="qs qo aph-red" aria-hidden="true">' + ownerIcon() + '</span><span class="owner-name aph-display">' + OWNER + '</span> · ' + p.n + ' · ' + esc(words)
+      ? '<span class="qs qo aph-red" aria-hidden="true">' + ownerIcon() + '</span>' + ownerWord() + ' · ' + p.n + ' · ' + esc(words)
       : '<span class="qs" aria-hidden="true">' + sigilSVG(p.poster) + '</span>' + p.n + ' · ' + esc(words);
   }
   const r = a.getBoundingClientRect();

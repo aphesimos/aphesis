@@ -1,6 +1,6 @@
 /* owner: the owner's mark, in place of a sigil. A post the server marked `owner` (only the owner's desk can make one:
    the content service passes it on with the forum's admin secret; nothing a visitor sends can claim it) shows a small
-   Aphesis.Eye in rubedo, alive (the gate's eye, drawn as a mark), and the name, aphesist, in Aphesis Script, like a capcode.
+   Aphesis.Eye in rubedo, alive (the gate's eye, drawn as a mark), and the name as the wordmark writes it, aφesist, in the eye's red, like a capcode.
 
    ownerMark()       -> the markup for a post's header: the eye's place, the name, and words for assistive technology
    wakeOwners(root)  -> brings every eye under root to life, once: shared eyes (one tick for the page, still while off
@@ -10,6 +10,12 @@
    ownerIcon()       -> a still eye, for the quote preview */
 
 export const OWNER = 'aphesist';
+/* the name as the wordmark writes it: aφesis in Aphesis Script, its upright φ the font's own, with a t (read aloud as
+   "aphesist": the drawn name is hidden from assistive technology, the words beside it say it) */
+export const OWNER_WORD = 'aφesist';
+export function ownerWord(extra) {
+  return '<span class="owner-name aph-display aph-red" aria-hidden="true">' + OWNER_WORD + '</span><span class="sr">' + OWNER + ', the owner' + (extra || '') + '</span>';
+}
 /* near a sigil's weight (36px): the eye is wide and short, so its box is 48px wide. It is the runtime's mark preset:
    the gate's eye in its construction and its cells, with a bolder brush and larger cells, so it reads as a mark */
 const EYE_PX = 48;
@@ -17,7 +23,7 @@ const live = new WeakMap();
 
 export function ownerMark() {
   return '<span class="owner-eye aph-red" aria-hidden="true"></span>' +
-    '<span class="owner-name aph-display">' + OWNER + '</span><span class="sr">, the owner</span>';
+    ownerWord();
 }
 
 export function wakeOwners(root) {

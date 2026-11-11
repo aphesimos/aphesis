@@ -9,7 +9,7 @@ import { boardView, threadView, enter } from './views.js';
 import { scrollToEl } from './motion.js';
 import { esc, firstLine } from './text.js';
 import { sigilSVG } from './sigil.js';
-import { ownerEye, ownerIcon, OWNER } from './owner.js';
+import { ownerEye, ownerIcon, ownerWord } from './owner.js';
 import { load, save } from './store.js';
 
 const A = window.Aphesis;
@@ -196,7 +196,7 @@ function showQuote(a) {
   else {
     const words = firstLine(p.text.replace(/^>(?!>).*$/gm, ''), 220) || 'a picture';
     qtip.innerHTML = p.owner === true
-      ? '<span class="qs qo aph-red" aria-hidden="true">' + ownerIcon() + '</span><span class="owner-name aph-display">' + OWNER + '</span> · ' + p.n + ' · ' + esc(words)
+      ? '<span class="qs qo aph-red" aria-hidden="true">' + ownerIcon() + '</span>' + ownerWord() + ' · ' + p.n + ' · ' + esc(words)
       : '<span class="qs" aria-hidden="true">' + sigilSVG(p.poster) + '</span>' + p.n + ' · ' + esc(words);
   }
   const r = a.getBoundingClientRect();

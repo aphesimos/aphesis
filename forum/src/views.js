@@ -4,7 +4,7 @@
 
 import { esc, render, firstLine, age } from './text.js';
 import { sigilSVG, sigilLabel } from './sigil.js';
-import { ownerMark, wakeOwners, OWNER } from './owner.js';
+import { ownerMark, ownerWord, wakeOwners, OWNER } from './owner.js';
 import { image, stillSimulacrum } from './thumb.js';
 import { createComposer, T } from './composer.js';
 import { stillOptions } from './legible.js';
@@ -37,7 +37,7 @@ function row(t, now) {
   const li = document.createElement('li');
   const meta = [plural(t.replies, 'reply', 'replies'), age(t.bumped, now)];
   /* a thread the owner opened says so by name, in rubedo: no eye on the board, where there can be many */
-  const by = t.owner ? '<span class="owner-name aph-display">' + OWNER + '</span><span class="sr">, the owner,</span> ' : '';
+  const by = t.owner ? ownerWord(',') + ' ' : '';
   li.innerHTML = '<a class="row" href="#forum/' + esc(t.id) + '">' +
     '<span class="thumb" aria-hidden="true"></span>' +
     '<span class="txt"><span class="first">' + esc(firstLine(t.first) || 'a picture') + '</span>' +

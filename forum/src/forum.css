@@ -125,7 +125,9 @@ h1 .w { display: inline-block; }
    changes: no box, no rule, the words as anyone's */
 .pm .owner-eye { display: inline-block; width: 48px; color: var(--accent); margin: calc((36px - 48px * 14 / 24) / 2) var(--space-1) calc((36px - 48px * 14 / 24) / 2) 0; }
 .pm .owner-eye svg { display: block; }
-.owner-name { color: var(--accent-text); font-size: var(--type-gloss-size); line-height: var(--type-gloss-line); letter-spacing: .02em; }
+/* the name in the eye's own red: accent, not accent-text (a lighter red for running text), marked .aph-red as the eye
+   is, so both turn together in the theme wave */
+.owner-name { color: var(--accent); font-size: var(--type-gloss-size); line-height: var(--type-gloss-line); letter-spacing: .02em; }
 .pm .owner-name { padding-right: .2em; }
 .row .meta .owner-name { font-size: var(--type-gloss-title-size); line-height: 1; padding-right: .25em; }
 .body { margin: var(--space-2) 0 0; overflow-wrap: anywhere; max-width: 62ch; }

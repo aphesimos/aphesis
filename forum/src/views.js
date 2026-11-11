@@ -5,7 +5,7 @@
 import { esc, render, firstLine, age } from './text.js';
 import { sigilSVG, sigilLabel } from './sigil.js';
 import { image, stillSimulacrum } from './thumb.js';
-import { createComposer } from './composer.js';
+import { createComposer, T } from './composer.js';
 import { stillOptions } from './legible.js';
 
 /* a still simulacrum into el, once its map has loaded; nothing shows before it is drawn */
@@ -66,7 +66,7 @@ export function boardView(data, ctx) {
   const list = document.createElement('ol');
   list.className = 'threads';
   /* an empty board: one gloss and one line where the threads would be, and the form above, ready */
-  if (!data.threads.length) list.innerHTML = '<li class="empty"><span class="aph-gloss" lang="grc" data-tip="silence">σιγή</span><span class="aph-meta">the agora is quiet. start a thread, and the first word is yours.</span></li>';
+  if (!data.threads.length) list.innerHTML = '<li class="empty"><span class="aph-gloss" lang="grc" data-tip="silence">σιγή</span><span class="aph-meta">' + esc(T('forum.empty', 'no threads yet.')) + '</span></li>';
   root.appendChild(list);
 
   /* still simulacra, drawn when their row nears the screen */
@@ -107,7 +107,7 @@ export function boardView(data, ctx) {
       foot.innerHTML = '<button type="button" class="act older" data-cursor=".55">' + (failed ? 'older threads · try again' : 'older threads') + '</button>';
       foot.firstChild.addEventListener('click', () => more(true));
     } else {
-      foot.textContent = data.threads.length > 1 ? 'the board begins here.' : '';
+      foot.textContent = data.threads.length > 1 ? 'no older threads.' : '';
       if (watch) { watch.disconnect(); watch = null; }
     }
   }

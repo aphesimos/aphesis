@@ -33,6 +33,11 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
 .ltr { display: inline-block; transition: transform var(--duration-slow) var(--easing-settle); transition-delay: calc(var(--i) * 22ms); }
 .aph-wave:hover .ltr, .aph-wave:focus-visible .ltr { transform: translateY(-2px); }
 
+/* masked text: one round grain of stipple per hidden character (Aphesis.grain, Aphesis.grains), in ink, never squares
+   or bullets; --grain-size and --grain-gap shrink it where a line must hold more */
+.aph-grains { display: inline-flex; align-items: center; gap: var(--grain-gap, 4px); color: var(--ink); vertical-align: middle; }
+.aph-grain { display: block; flex: none; width: var(--grain-size, 14px); height: var(--grain-size, 14px); }
+.aph-grain path { fill: currentColor; }
 /* typist caret: solid while typing, blinking when idle, fading when done */
 .aph-caret { display: inline-block; width: .55em; height: 1.05em; margin-left: .12em; vertical-align: -.18em; background: currentColor; opacity: .75; }
 .aph-caret.blink { animation: aph-blink 1.06s steps(1, end) infinite; }

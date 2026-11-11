@@ -1,4 +1,4 @@
-/* @ds-bundle: {"format":4,"namespace":"Aphesis","components":[{"name":"Seal"},{"name":"Brush"},{"name":"Icons"},{"name":"Fog"},{"name":"Simulacrum"},{"name":"Typist"},{"name":"Tooltip"},{"name":"Cursor"},{"name":"LetterWave"},{"name":"ThemeShift"},{"name":"Sound"},{"name":"Eye"},{"name":"Scroll"}]} */
+/* @ds-bundle: {"format":4,"namespace":"Aphesis","components":[{"name":"Seal"},{"name":"Brush"},{"name":"Icons"},{"name":"Fog"},{"name":"Simulacrum"},{"name":"Typist"},{"name":"Tooltip"},{"name":"Cursor"},{"name":"LetterWave"},{"name":"ThemeShift"},{"name":"Sound"},{"name":"Eye"},{"name":"Grain"},{"name":"Scroll"}]} */
 /* aphes.ist design system runtime. Plain JavaScript, no framework: every screen of the site loads this one script.
    Everything visible is made of two marks: the BRUSH (a centerline with a width profile, tapered, with unsure edges)
    and the STIPPLE (small square cells that light up where a density field passes a fixed threshold). Nothing is solid. */
@@ -1620,10 +1620,25 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scrollAuto); else scrollAuto();
   }
 
+  /* ================= GRAIN ================= */
+  /* grain(i): the mark of one hidden character (a password, a secret word): a round grain of stipple, the i-th of a
+     fixed sequence (seed 900 + 7i, 64 in all, then again), so a character always lands as the same grain at its place.
+     Path data on a 10 x 10 viewBox, filled with currentColor. grains(el, n) fills el with n of them, as .aph-grain
+     svgs (14 px, 4 px apart by default, in ink; see .aph-grains). The marks are aria-hidden: the real input stays in
+     the page, for screen readers and password managers. */
+  var GRAINS = [];
+  function grain(i) { i = ((i % 64) + 64) % 64; return GRAINS[i] || (GRAINS[i] = stipple(inC(5, 5, 2.6), 900 + i * 7, 60, 1.25, 10)); }
+  function grains(el, n) {
+    var h = '';
+    for (var i = 0; i < n; i++) h += '<svg class="aph-grain" viewBox="0 0 10 10" aria-hidden="true" focusable="false"><path d="' + grain(i) + '"/></svg>';
+    el.innerHTML = h;
+    el.setAttribute('aria-hidden', 'true');
+  }
+
   window.Aphesis = {
     reducedMotion: REDUCED, MJ: MJ, cellPx: cellPx, canFilter: canFilter, blur2d: blur2d, lerp: lerp, clamp: clamp, tween: tween, rng: rng, cssColor: cssColor,
     brush: brush, arc: arc, line: line, stipple: stipple, inC: inC,
-    icon: icon, ICONS: ICONS, SECTIONS: SECTIONS, PHI: PHI, seal: seal, Eye: Eye,
+    icon: icon, ICONS: ICONS, SECTIONS: SECTIONS, PHI: PHI, seal: seal, Eye: Eye, grain: grain, grains: grains,
     Fog: Fog, Simulacrum: Simulacrum, Typist: Typist, tooltip: tooltip, cursor: cursor, letters: letters, themeShift: themeShift, themeColor: themeColor, Sound: Sound, Scroll: Scroll
   };
 })();

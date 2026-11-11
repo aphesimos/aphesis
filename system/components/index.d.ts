@@ -79,6 +79,10 @@ interface Aphesis {
   Simulacrum(canvas: HTMLCanvasElement, opts?: SimulacrumProps): { show(src?: SimulacrumProps['source'], done?: () => void): void; hide(done?: () => void): void; set(src: SimulacrumProps['source'], done?: () => void): void; stop(): void; start(): void; drawn(cb: () => void): void; destroy(): void };
   /** the eye, alive: drawn in, then trembling at 8 fps with hard-cut blinks and saccadic gaze (components/Eye) */
   Eye(el: Element, opts?: EyeProps): EyeHandle;
+  /** the mark of the i-th hidden character: a round grain of stipple, path data on a 10 x 10 viewBox (components/Grain) */
+  grain(i: number): string;
+  /** fills el with n grains (.aph-grain svgs), aria-hidden */
+  grains(el: Element, n: number): void;
   Typist: new (el: Element, caret?: Element) => { type(text: string, done?: () => void): void; erase(done?: () => void): void; loop(lines: (string | { text: string })[], hold?: number, onLine?: (l: any, i: number) => void): void; stop(): void };
   tooltip(root?: Element): void;
   cursor(root?: Element): void;

@@ -25,6 +25,7 @@ python3 site/build.py --out FILE         # write the page elsewhere (the deploy 
 python3 site/build.py --content-api URL  # the content service for archive, book, works and the gate (or APHESIS_CONTENT_API)
 python3 site/build.py --turnstile-sitekey KEY   # the wall and the forum go live (or TURNSTILE_SITEKEY)
 python3 site/build.py --require-gate     # stop if APHESIS_GATE_PHRASE or APHESIS_GATE_ROUTE is missing (the deploy sets it)
+python3 site/build.py --worker FILE      # also write the Pages worker (src/worker.js, the link preview) with the content api
 ```
 
 The build copies nothing from other branches; it reads them with git:
@@ -39,7 +40,8 @@ The build copies nothing from other branches; it reads them with git:
 - `site/src/shell.html`: the page: the fog canvas, the seal, the inscription, the host for a section, the passage, the eye.
 - `site/src/shell.css`: the shell's marks, all under `aph-*` ids, so no section stylesheet touches them and they touch no section.
 - `site/src/shell.js`: the home (seal, inscription, passage, eye), the routes, and the mount and unmount of sections.
-- `site/tools/make_icons.py`: the static icons in `site/public/` (apple-touch-icon, icon-512, favicon.ico, site.webmanifest),
+- `site/src/worker.js`: the Pages worker that writes the link preview's words into the served page (below).
+- `site/tools/make_icons.py`: the static icons in `site/public/` (apple-touch-icon, icon-512, og-card, favicon.ico, site.webmanifest),
   made from the closed Φ as the seal engine draws it. The tab icon is the eye, drawn live by the shell: open while the
   page is seen, closed while it is hidden or the window is left.
 - `prototype/`: the home as it was built before the merge, kept for reference.
@@ -159,6 +161,25 @@ or says nothing for a key.
 - A section's first visit waits for the answer (1.2 s at most, `TEXTS_WAIT` in `site/src/shell.js`), so it enters
   with its words already set and no line is ever seen changing.
 
+## The link preview
+
+What Discord, iMessage, WhatsApp, Slack, X and the rest show under a link to aphes.ist: the head of
+`site/src/shell.html` carries the meta description and the `og:` tags (type, url, site name, title, description, the
+image) and `twitter:card` (`summary_large_image`). The image is `og-card.png`, 1200 x 630: the closed Φ of the icons
+on the dark ground, from `site/tools/make_icons.py`. The title and description in `shell.html` are the defaults.
+
+The owner changes the title and the description from the desk (texts, `link preview`: `meta.title` and
+`meta.description` in the content service). Crawlers run no script, so the words must be in the HTML as served:
+`site/src/worker.js` is published as `dist/_worker.js` (Pages advanced mode), and `site/public/_routes.json` sends
+only `/` through it; every other path is a static file the worker never sees. For `/` it reads `/v1/texts` from the
+content service, keeps the answer five minutes per Cloudflare location (Cache API), and writes the set keys over
+`og:title`, `og:description` and the meta description with HTMLRewriter. A key not set, or a service down, slow
+(1.5 s) or answering nonsense, leaves the page exactly as built (a failed answer is kept a minute). The page's ETag
+carries a tag of the words, so a browser holding the page from before an edit gets the new one. A save in the desk
+reaches the served page within five minutes, with no redeploy; each app then keeps its own copy of a preview for a
+while (Discord and X for hours or days); Facebook's sharing debugger refreshes its copy at once, and a link with a
+new query (`aphes.ist/?v=2`) is a new link to every app.
+
 ## Backends
 
 - **Content** (`https://content-api.aphes.ist`): archive, book and works read their entries from it and fall back
@@ -217,8 +238,9 @@ the runtime script and the section script. Its routes are `#<name>` and `#<name>
 
 `aphes.ist` is served by Cloudflare Pages, project `aphesist`, from this branch. The page is **built in the deploy,
 not committed**: `.github/workflows/deploy.yml` checks the branch out with its full history, runs `site/build.py`
-(which reads every section, design-system and mark from origin), adds `site/public/` (`_headers`, `robots.txt`, the
-icons and the manifest) and publishes `dist/`. It runs on every push to `site` and by hand (workflow_dispatch). The
+(which reads every section, design-system and mark from origin) with `--worker dist/_worker.js` (the link preview),
+adds `site/public/` (`_headers`, `_routes.json`, `robots.txt`, the icons, the link preview's card and the manifest) and
+publishes `dist/`. It runs on every push to `site` and by hand (workflow_dispatch). The
 gate's phrase and route therefore exist only as GitHub secrets and as hashes in the published page, never in the
 repository. Refreshing a section is pushing it and re-running the workflow.
 

@@ -5,6 +5,7 @@
 Writes into site/public/:
   apple-touch-icon.png  180 x 180, the Φ in red on the dark ground (n-975), with a margin
   icon-512.png          512 x 512, the same, for the manifest
+  og-card.png           1200 x 630, the same Φ on the same ground, centred: the image of a link preview (og:image)
   favicon.ico           16, 32 and 48, the Φ in red on a transparent ground (the fallback for browsers without SVG icons)
   site.webmanifest      the name and the two colours, from the tokens
 
@@ -104,6 +105,10 @@ def main():
 
     tile(180, 0.17, ground).convert('RGB').save(os.path.join(OUT, 'apple-touch-icon.png'), optimize=True)
     tile(512, 0.17, ground).convert('RGB').save(os.path.join(OUT, 'icon-512.png'), optimize=True)
+    # the link preview's card: the 512 icon's Φ, at the card's height with the same margin, centred on the ground
+    card = Image.new('RGB', (1200, 630), ground)
+    card.paste(tile(630, 0.17, ground).convert('RGB'), ((1200 - 630) // 2, 0))
+    card.save(os.path.join(OUT, 'og-card.png'), optimize=True)
     ico = [tile(s, 0.04, None) for s in (16, 32, 48)]
     ico[2].save(os.path.join(OUT, 'favicon.ico'), sizes=[(16, 16), (32, 32), (48, 48)], append_images=ico[:2])
     manifest = {

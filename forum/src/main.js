@@ -48,8 +48,8 @@ const api = createApi();
 if (api.preview) {
   const note = $('note');
   note.hidden = false;
-  note.dataset.tip = 'preview: your posts stay on this device';
-  note.innerHTML = 'preview<span class="sr">: your posts stay on this device</span>';
+  note.dataset.tip = 'this preview keeps your posts on this device only';
+  note.innerHTML = 'preview<span class="sr">: this preview keeps your posts on this device only</span>';
 }
 
 /* ---------- images on or off (the text-only fallback) ---------- */
@@ -57,7 +57,7 @@ const IMG_KEY = 'aphesis.forum.images';
 let imagesOn = load(IMG_KEY, true) !== false;
 function imagesState() {
   const b = $('bImages');
-  b.textContent = 'pictures · ' + (imagesOn ? 'on' : 'off');
+  b.textContent = 'images · ' + (imagesOn ? 'on' : 'off');
   b.setAttribute('aria-pressed', String(imagesOn));
 }
 imagesState();
@@ -155,7 +155,7 @@ view.addEventListener('click', (e) => {
   if (rep && current.thread) {
     rep.disabled = true;
     api.report(current.thread, +rep.dataset.report).then(() => {
-      rep.textContent = 'reported'; rep.removeAttribute('aria-label'); announce('reported.');
+      rep.textContent = 'reported'; rep.removeAttribute('aria-label'); announce('reported. thank you.');
     }).catch(() => { rep.disabled = false; announce('the report did not go through'); });
     return;
   }

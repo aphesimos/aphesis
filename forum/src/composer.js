@@ -43,13 +43,13 @@ export function createComposer({ api, thread, onPosted, label }) {
   form.innerHTML =
     '<label class="sr" for="' + id + 't">' + esc(label) + '</label>' +
     '<textarea id="' + id + 't" name="text" rows="4" maxlength="' + MAX_TEXT + '" placeholder="' +
-      esc(thread ? T('forum.placeholder.reply', 'reply · >>2 quotes post 2') : T('forum.placeholder.thread', 'start a thread')) + '"></textarea>' +
+      esc(thread ? T('forum.placeholder.reply', 'say it plainly. >>n quotes a post') : T('forum.placeholder.thread', 'begin with a first line worth reading')) + '"></textarea>' +
     baseline(thread ? 811 : 523) +
-    '<div class="chosen" hidden><span class="pv"></span><button type="button" class="act rm" data-cursor=".55">remove the picture</button></div>' +
+    '<div class="chosen" hidden><span class="pv"></span><button type="button" class="act rm" data-cursor=".55">remove the image</button></div>' +
     '<div class="ts" hidden></div>' +
     '<div class="crow">' +
       '<input class="file" id="' + id + 'f" type="file" accept="' + ACCEPT.join(',') + '">' +
-      '<label class="act attach" for="' + id + 'f" data-cursor=".55">add a picture</label>' +
+      '<label class="act attach" for="' + id + 'f" data-cursor=".55">add an image</label>' +
       '<span class="grow"></span>' +
       '<span class="count aph-meta" aria-hidden="true">0 / ' + MAX_TEXT + '</span>' +
       '<button type="submit" class="act send" data-cursor=".55">' + (thread ? 'reply' : 'post') + '</button>' +
@@ -61,9 +61,9 @@ export function createComposer({ api, thread, onPosted, label }) {
   let picked = null, busy = false, tsWidget = null;
 
   if (api.preview) {
-    send.dataset.tip = 'preview: your posts stay on this device';
+    send.dataset.tip = 'this preview keeps your posts on this device only';
     send.setAttribute('aria-describedby', id + 'n');
-    form.insertAdjacentHTML('beforeend', '<span class="sr" id="' + id + 'n">preview: your posts stay on this device</span>');
+    form.insertAdjacentHTML('beforeend', '<span class="sr" id="' + id + 'n">this preview keeps your posts on this device only</span>');
   }
 
   const say = (t, err) => { status.textContent = t; status.classList.toggle('err', !!err); };
@@ -78,7 +78,7 @@ export function createComposer({ api, thread, onPosted, label }) {
   if (api.turnstile) {
     tsBox.hidden = false;
     turnstileReady().then((ts) => { tsWidget = ts.render(tsBox, { sitekey: api.turnstile, appearance: 'interaction-only' }); })
-      .catch(() => say("the check didn't load. try again later.", true));
+      .catch(() => say('the check that keeps robots out did not load', true));
   }
 
   file.addEventListener('change', async () => {
@@ -86,14 +86,14 @@ export function createComposer({ api, thread, onPosted, label }) {
     if (!f) return;
     const bad = checkFile(f);
     if (bad) { say(bad, true); file.value = ''; return; }
-    say('preparing the picture…');
+    say('turning the picture into fog…');
     try {
       const density = await toDensity(f, api.densityLimits ? await api.densityLimits() : null);
       picked = { original: f, density };
       const im = await image(density.url);
       pv.innerHTML = stillSimulacrum(im, [160, 160], Object.assign(stillOptions(), { seed: 5 })).svg;
       chosen.hidden = false;
-      say('this is how it will look. the original is one click away.');
+      say('this is how it will appear. the original goes with it, a click away.');
     } catch (_) {
       picked = null; chosen.hidden = true;
       say('this picture could not be read', true);
@@ -109,7 +109,7 @@ export function createComposer({ api, thread, onPosted, label }) {
     e.preventDefault();
     if (busy) return;
     const text = ta.value.replace(/\s+$/, '');
-    if (!text.trim() && !(thread && picked)) { say(thread ? 'write something, or add a picture' : 'a thread begins with words', true); ta.focus(); return; }
+    if (!text.trim() && !(thread && picked)) { say(thread ? 'write something, or add an image' : 'a thread begins with words', true); ta.focus(); return; }
     let token = '';
     if (api.turnstile) {
       token = (window.turnstile && tsWidget !== null) ? window.turnstile.getResponse(tsWidget) : '';

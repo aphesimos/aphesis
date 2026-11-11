@@ -66,7 +66,7 @@ export function boardView(data, ctx) {
   const list = document.createElement('ol');
   list.className = 'threads';
   /* an empty board: one gloss and one line where the threads would be, and the form above, ready */
-  if (!data.threads.length) list.innerHTML = '<li class="empty"><span class="aph-gloss" lang="grc" data-tip="silence">σιγή</span><span class="aph-meta">' + esc(T('forum.empty', 'no threads yet.')) + '</span></li>';
+  if (!data.threads.length) list.innerHTML = '<li class="empty"><span class="aph-gloss" lang="grc" data-tip="silence">σιγή</span><span class="aph-meta">' + esc(T('forum.empty', 'the agora is quiet. start a thread, and the first word is yours.')) + '</span></li>';
   root.appendChild(list);
 
   /* still simulacra, drawn when their row nears the screen */
@@ -107,7 +107,7 @@ export function boardView(data, ctx) {
       foot.innerHTML = '<button type="button" class="act older" data-cursor=".55">' + (failed ? 'older threads · try again' : 'older threads') + '</button>';
       foot.firstChild.addEventListener('click', () => more(true));
     } else {
-      foot.textContent = data.threads.length > 1 ? 'no older threads.' : '';
+      foot.textContent = data.threads.length > 1 ? 'the board begins here.' : '';
       if (watch) { watch.disconnect(); watch = null; }
     }
   }

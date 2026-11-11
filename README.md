@@ -119,8 +119,8 @@ to that screen's voice (`Sound.scene`); the descent (`experimental` voice) chang
 Leaving the browser and coming back (iOS: the app switcher, the screen locked, a call, Siri, another app's audio), the
 sound fades back in on the route's voice, by itself where the browser allows it and otherwise at the first touch;
 the music player resumes a track the system paused the same way. `?sounddebug` in the address
-(`https://aphes.ist/?sounddebug`) logs every change of the audio's state to the console and to a small overlay, to
-check it on a phone.
+(`https://aphes.ist/?sounddebug`) logs every change of the audio's state to the console
+(on an iPhone: Safari › Develop › the phone › Console); nothing is shown on the page.
 
 ## The inscription and its icons
 

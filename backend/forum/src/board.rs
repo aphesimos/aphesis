@@ -6,7 +6,8 @@
 //! The board is permanent: nothing here deletes a thread on its own. A thread leaves the index only when the admin
 //! removes its opening post (`/drop`); the alarm touches buckets only, and reports only count.
 //!
-//! - `threads (id, first, replies, created, bumped, image, seq)`: `bumped` is the time of the last post and `seq`
+//! - `threads (id, first, replies, created, bumped, image, seq, owner)`: `owner` is 1 when the opening post is the
+//!   owner's; `bumped` is the time of the last post and `seq`
 //!   grows with every touch, never given twice. The board's order is `bumped DESC, seq DESC` (newest activity first;
 //!   `seq` settles two posts in the same millisecond, or two touches that arrived out of order), and a page ends at
 //!   a `(bumped, seq)` the next page starts strictly below: the cursor, `"<bumped>-<seq>"`;
@@ -45,13 +46,21 @@ CREATE TABLE IF NOT EXISTS schema_version (k INTEGER PRIMARY KEY CHECK (k = 1), 
 /// - `v2`: the board keeps every thread and is read a page at a time (`WHERE (bumped, seq) < (?, ?) ORDER BY bumped
 ///   DESC, seq DESC LIMIT ?`), so the scan walks an index on `(bumped, seq)` and stops after one page, however many
 ///   threads there are. (`v1`'s index on `seq` stays: it answers `MAX(seq)` for the next touch.)
-pub const MIGRATIONS: &[(i64, &str)] = &[(
-    2,
-    "CREATE INDEX IF NOT EXISTS threads_bumped_seq ON threads (bumped, seq);",
-)];
+/// - `v3`: `owner` on each thread, 1 when its opening post is the owner's (every earlier thread at 0). SQLite has no
+///   `ADD COLUMN IF NOT EXISTS`, so a repeat of it is told apart by its error (`duplicate column`) and passes.
+pub const MIGRATIONS: &[(i64, &str)] = &[
+    (
+        2,
+        "CREATE INDEX IF NOT EXISTS threads_bumped_seq ON threads (bumped, seq);",
+    ),
+    (
+        3,
+        "ALTER TABLE threads ADD COLUMN owner INTEGER NOT NULL DEFAULT 0;",
+    ),
+];
 
 /// the newest schema version
-pub const VERSION: i64 = 2;
+pub const VERSION: i64 = 3;
 
 /// threads on a page of the board: 40 unless asked, never more than 100
 pub const PAGE_DEFAULT: i64 = 40;
@@ -73,6 +82,8 @@ struct ThreadRow {
     bumped: f64,
     image: Option<String>,
     seq: f64,
+    #[serde(default)]
+    owner: Option<f64>,
 }
 
 #[derive(Serialize)]
@@ -84,6 +95,7 @@ struct ListedThread {
     created: Option<i64>,
     bumped: i64,
     image: Option<PublicImage>,
+    owner: bool,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -158,11 +170,11 @@ impl Board {
         // one more than the page, to know whether another follows
         let rows: Vec<ThreadRow> = match cursor {
             Some((bumped, seq)) => self.sql.exec(
-                "SELECT id, first, replies, created, bumped, image, seq FROM threads WHERE (bumped, seq) < (?, ?) ORDER BY bumped DESC, seq DESC LIMIT ?",
+                "SELECT id, first, replies, created, bumped, image, seq, owner FROM threads WHERE (bumped, seq) < (?, ?) ORDER BY bumped DESC, seq DESC LIMIT ?",
                 vec![bumped.into(), seq.into(), (limit + 1).into()],
             )?,
             None => self.sql.exec(
-                "SELECT id, first, replies, created, bumped, image, seq FROM threads ORDER BY bumped DESC, seq DESC LIMIT ?",
+                "SELECT id, first, replies, created, bumped, image, seq, owner FROM threads ORDER BY bumped DESC, seq DESC LIMIT ?",
                 vec![(limit + 1).into()],
             )?,
         }
@@ -189,6 +201,7 @@ impl Board {
                     created: t.created.map(|c| c as i64),
                     bumped: t.bumped as i64,
                     image: image.as_ref().map(PublicImage::from),
+                    owner: t.owner.unwrap_or(0.0) != 0.0,
                 }
             })
             .collect();
@@ -214,7 +227,12 @@ impl Board {
             if *version <= at {
                 continue;
             }
-            self.sql.exec(statements, None)?;
+            if let Err(e) = self.sql.exec(statements, None) {
+                // a column added by a run that stopped before recording its version
+                if !e.to_string().contains("duplicate column") {
+                    return Err(e);
+                }
+            }
             self.sql.exec(
                 "INSERT INTO schema_version (k, version) VALUES (1, ?) ON CONFLICT (k) DO UPDATE SET version = excluded.version",
                 vec![(*version).into()],
@@ -270,11 +288,11 @@ impl DurableObject for Board {
                     .into();
                 let seq = self.next_seq("threads")?;
                 self.sql.exec(
-                    "INSERT INTO threads (id, first, replies, created, bumped, image, seq) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    "INSERT INTO threads (id, first, replies, created, bumped, image, seq, owner) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                      ON CONFLICT (id) DO UPDATE SET first = excluded.first, replies = excluded.replies,
                        created = COALESCE(excluded.created, threads.created), bumped = excluded.bumped,
-                       image = excluded.image, seq = excluded.seq",
-                    vec![id.into(), e.first.into(), e.replies.into(), e.created.into(), e.bumped.into(), image, seq.into()],
+                       image = excluded.image, seq = excluded.seq, owner = excluded.owner",
+                    vec![id.into(), e.first.into(), e.replies.into(), e.created.into(), e.bumped.into(), image, seq.into(), (e.owner as i64).into()],
                 )?;
                 reply(200, &json!({ "ok": true }))
             }
@@ -400,6 +418,9 @@ mod tests {
         assert!(MIGRATIONS[0]
             .1
             .contains("CREATE INDEX IF NOT EXISTS threads_bumped_seq ON threads (bumped, seq)"));
+        assert!(MIGRATIONS[1]
+            .1
+            .contains("ALTER TABLE threads ADD COLUMN owner INTEGER NOT NULL DEFAULT 0"));
     }
 
     #[test]

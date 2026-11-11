@@ -36,7 +36,8 @@ the runtime is plain Rust and tested natively.
 
 **wall**: one Worker in front of one Durable Object (`Wall`, one instance named `wall`), SQLite-backed:
 
-- `lines (id, text, at, exp)` indexed on `(at, id)`, so a listing is already in order (newest first, at most 300);
+- `lines (id, text, at, exp, owner)` indexed on `(at, id)` (`owner` is 1 for the owner's lines; a wall made before
+  the column gets it, at 0, when the object starts), so a listing is already in order (newest first, at most 300);
 - `rates (visitor, hits, exp)`: the sliding window per visitor. The visitor is `SHA-256(HASH_SALT|day|address)`
   cut to 32 hex: the raw address is never stored and the key changes every day;
 - an alarm at the earliest expiry deletes expired lines and forgotten rate records, then sets itself for the next.
@@ -53,14 +54,15 @@ runs them against Rust; `node wall/tests/filter-parity.mjs` runs them against th
 **forum**: one Worker, a Durable Object per thread (`Thread`) and one for the board (`Board`), both SQLite-backed,
 and R2 for pictures:
 
-- `Thread`: `meta` and `posts (n, poster, text, created, image, reports, removed)`. The only writer of its posts, so
+- `Thread`: `meta` and `posts (n, poster, text, created, image, reports, removed, owner)` (`owner`: 1 for the owner's
+  posts; a thread made before the column gets it, at 0, the first time it is touched). The only writer of its posts, so
   numbers are given once. Its tables are made by the first post (a lookup of a thread that does not exist leaves
   nothing behind); removing the opening post deletes all of it. At most 500 posts of 2000 characters, so one object
   stays a few MB at worst;
 - `Board`: `threads` (the index of every thread, newest activity first, read a page at a time through an index on
   `(bumped, seq)`), `buckets` (token buckets keyed by action and IP hash, swept by an hourly alarm once refilled),
   `reports` (the newest 500 records for the admin) and `schema_version`. Its SQL schema migrates itself when the
-  object starts (`MIGRATIONS` in `board.rs`; `v2` is the index for pages), so a deploy needs no wrangler migration
+  object starts (`MIGRATIONS` in `board.rs`; `v2` is the index for pages, `v3` the `owner` of each thread's opening post), so a deploy needs no wrangler migration
   for it;
 - R2 bucket `aphesis-forum-images`, written once per picture under a fresh random name: the original (jpeg, png, webp or gif, at most 4 MB and 40 megapixels, its type
   read from its bytes) and the density map made in the browser (jpeg or png, at most 900 KB, 32 to 960 px: 960 so the small text of a wide
@@ -115,8 +117,8 @@ Errors are always JSON `{"error": "..."}`. CORS answers only `ALLOWED_ORIGINS`
 
 | method | path | what |
 | --- | --- | --- |
-| GET | `/messages` | `200 {messages: [{id, text, at}]}`, newest first, at most 300; `Cache-Control: public, max-age=15` |
-| POST | `/messages` | JSON `{text, token}` → `201 {message: {id, text, at}}` |
+| GET | `/messages` | `200 {messages: [{id, text, at, owner}]}`, newest first, at most 300; `Cache-Control: public, max-age=15` |
+| POST | `/messages` | JSON `{text, token}` → `201 {message: {id, text, at, owner}}`; with `Authorization: Bearer <ADMIN_TOKEN>`, the owner's line (below) |
 | DELETE | `/messages/:id` | admin, `Authorization: Bearer <ADMIN_TOKEN>` → `204`, `401 {error: "unauthorized"}`, `404` |
 
 `POST /messages` refusals: `400` with `empty`, `long` (over 140 characters), `word`, `link` or `bad` (not JSON, or
@@ -131,10 +133,11 @@ Vars: `ALLOWED_ORIGINS`, `TTL_DAYS` (30), `BLOCKLIST` (extra words, comma-separa
 
 | method | path | what |
 | --- | --- | --- |
-| GET | `/api/board` | `{threads: [{id, first, replies, created, bumped, image}], next, density: {long: 960, bytes: 921600}}`, newest activity first, one page, and the density maps this Worker takes; `cache-control: public, max-age=5` |
-| GET | `/api/threads/:id` | `{id, created, posts: [{n, poster, text, created, image?} or {n, created, removed: true}]}` |
+| GET | `/api/board` | `{threads: [{id, first, replies, created, bumped, image, owner}], next, density: {long: 960, bytes: 921600}}`, newest activity first, one page, and the density maps this Worker takes; `cache-control: public, max-age=5` |
+| GET | `/api/threads/:id` | `{id, created, posts: [{n, poster, text, created, owner, image?} or {n, created, removed: true}]}` |
 | POST | `/api/threads` | a new thread, multipart: `text`, optional `image` + `density`, `turnstile` → `201 {thread, n: 1}` |
 | POST | `/api/threads/:id/posts` | a reply, the same fields; text may be empty with a picture → `201 {thread, n}` |
+|  | either, with `Authorization: Bearer <ADMIN_SECRET>` | the owner's post (below) |
 | POST | `/api/threads/:id/posts/:n/report` | report a post → `{ok: true}` (10 per window per IP hash) |
 | GET | `/api/images/t/:id/:file` | a picture from R2 |
 | GET | `/api/admin/reports` | admin → `{reports: [{thread, n, count, at}]}`, newest first |
@@ -161,6 +164,28 @@ calls carry `Authorization: Bearer <ADMIN_SECRET>`.
 
 Vars: `ALLOWED_ORIGINS`, `RATE_POSTS` (4), `RATE_THREADS` (1), `RATE_WINDOW_SECONDS` (120),
 `ALLOW_NO_TURNSTILE` (local only). Secrets: `TURNSTILE_SECRET`, `IP_SALT`, `POSTER_SALT`, `ADMIN_SECRET`.
+
+### The owner's posts
+
+The owner writes on the wall and the forum from the desk, and those lines and posts carry `owner: true`, which the
+pages draw as the owner's mark (the eye in rubedo and the name *aphesist*) in place of a sigil. Only a request that
+carries the Worker's admin secret is the owner's:
+
+1. The desk sends `{text}` to `content-api` (`POST /v1/admin/wall`, `/v1/admin/forum/threads[/:id/posts]`), with the
+   owner's session cookie (HttpOnly, SameSite=Strict, set by the gate), the session's `X-CSRF-Token` and the site's
+   `Origin`, like every write on the dashboard.
+2. The content service passes it on server to server with the admin secret it already holds for moderation
+   (`WALL_ADMIN_TOKEN`, `FORUM_ADMIN_SECRET`): no new secret, and the cookie never has to cross to `wall-api` or
+   `forum-api`, which cannot see it.
+3. The wall and the forum mark the post `owner` only when `Authorization` carries their admin secret, and then skip
+   Turnstile and the rate limit (the content service's address is one for every owner post). Any other
+   `Authorization` is refused (`401` on the wall, `403` on the forum), not taken as a visitor's post; without it, the
+   post is a visitor's, whatever the request says (an `owner` field in the form or the JSON, a header, a cookie).
+   The wall's filter applies to the owner too.
+
+The owner's poster token on the forum is made like anyone's, from a fixed word in place of the IP hash: 16 hex, one
+per thread, so `the opener` still reads right. `owner` is stored on the line or post (and, on the board, for each
+thread's opening post) and returned always, `false` for everyone else.
 
 ## The content service
 
@@ -249,6 +274,7 @@ CORS preflight, which only the site's origins pass):
 | GET, DELETE | `/v1/admin/wall`, `/v1/admin/wall/:id` | the wall's lines and their removal, through the wall's admin API |
 | GET | `/v1/admin/forum/board[?cursor=<next>]`, `/threads/:id`, `/reports` | the forum's board a page at a time, a thread, the reports |
 | DELETE | `/v1/admin/forum/threads/:id/posts/:n` | remove a post (post 1 removes the thread) |
+| POST | `/v1/admin/wall`, `/v1/admin/forum/threads`, `/v1/admin/forum/threads/:id/posts` | the owner writes: JSON `{text}` → the wall's or the forum's own answer, the line or post marked `owner` |
 | POST | `/v1/admin/export` | the nightly export, now |
 
 Moderation calls the wall and the forum server to server (`WALL_API`, `FORUM_API`) with their admin secrets, which
@@ -359,8 +385,9 @@ node --test e2e/*.test.mjs             # the Workers under wrangler dev, over HT
   `Retry-After`, Turnstile refusal (no secret, Cloudflare's always-failing test secret) and success (its
   always-passing test secret), CORS, admin removal, the TTL with its alarm (the SQLite row disappears), uploads
   checked, stored in R2 and served with their headers, refused uploads leaving nothing behind, 413, reports, removal
-  of a thread with its pictures, the board limit, per-thread poster tokens and their exact format, and that no
-  address is ever in storage.
+  of a thread with its pictures, the board limit, per-thread poster tokens and their exact format, that no
+  address is ever in storage, and the owner's posts and lines: marked only with the admin secret (a wrong key
+  refused, forged flags ignored), without Turnstile or the rate limit, the wall's filter kept.
 - **The content service**: unit tests for hashing (RFC 7914 vectors, a vector from Node, the stored line), the words
   (2048, 33 bits, loose reading), the lockout and its backoff, cookies and CSRF, validation of every kind of entry,
   the email (the backlog's rules, and its colours against the design system's tokens), the export's files and the
@@ -370,7 +397,8 @@ node --test e2e/*.test.mjs             # the Workers under wrangler dev, over HT
   the mail read from a local stand-in for Resend's API (the request, its key and its JSON, the HTML and text checked),
   Resend failing or never answering (a bare 503, the words void), code expiry, replacement and single use,
   lockout on both steps, CSRF (token, origin), create, edit, preview, publish, rename and delete for each kind, uploads,
-  moderation against local wall and forum Workers, and the nightly export against a stand-in for GitHub's API;
+  moderation against local wall and forum Workers, the owner's lines and posts from the desk (marked, and refused
+  without the session, the token or the origin), and the nightly export against a stand-in for GitHub's API;
   `e2e/prune.test.mjs`: the removal of the seeded examples from a database as the first seed left it, with the
   owner's entries beside them (a dry run, the run, a second run, then the Worker's answers and pictures); and
   `e2e/texts.test.mjs`: the public texts (CORS, cache, `304`), and the dashboard's list, edit, conflict and reset, and the link preview's keys.

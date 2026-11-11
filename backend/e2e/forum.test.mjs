@@ -42,7 +42,8 @@ test('a thread, replies, sigils per thread, the board', async () => {
   const t = await (await req(f, `/api/threads/${thread}`)).json();
   assert.deepEqual(Object.keys(t), ['id', 'created', 'posts']);
   assert.equal(t.posts.length, 3);
-  assert.deepEqual(Object.keys(t.posts[0]), ['n', 'poster', 'text', 'created']);
+  assert.deepEqual(Object.keys(t.posts[0]), ['n', 'poster', 'text', 'created', 'owner']);
+  assert.ok(t.posts.every((p) => p.owner === false), 'nobody here is the owner');
   assert.match(t.posts[0].poster, /^[0-9a-f]{16}$/);
   assert.equal(t.posts[0].poster, t.posts[2].poster, 'same person, same token in a thread');
   assert.notEqual(t.posts[0].poster, t.posts[1].poster);
@@ -61,9 +62,57 @@ test('a thread, replies, sigils per thread, the board', async () => {
   assert.equal(b.threads[1].id, thread);
   assert.equal(b.threads[1].replies, 2);
   assert.equal(b.threads[1].first, 'first line\nsecond');
-  assert.deepEqual(Object.keys(b.threads[1]), ['id', 'first', 'replies', 'created', 'bumped', 'image']);
+  assert.deepEqual(Object.keys(b.threads[1]), ['id', 'first', 'replies', 'created', 'bumped', 'image', 'owner']);
   assert.equal(b.threads[1].image, null);
   assert.ok(!dump(f.state).includes('1.1.1.1'), 'no address anywhere in storage');
+});
+
+test('the owner: marked only with the admin secret, never by a flag; no Turnstile, no rate limit', async (t) => {
+  /* a forum that refuses every visitor's post (no Turnstile secret, no ALLOW_NO_TURNSTILE: a first deploy) */
+  const shut = await start('forum', { ...base, RATE_THREADS: '1', RATE_POSTS: '1' });
+  t.after(() => shut.stop());
+  const asOwner = (p, fields, key = 'open-sesame') => req(shut, p, { method: 'POST', headers: { Authorization: 'Bearer ' + key }, body: form(fields) });
+  let r = await postForm(shut, '/api/threads', '4.4.4.4', { text: 'a visitor', owner: 'true', turnstile: 'x' });
+  assert.equal(r.status, 403, 'a visitor still needs the check');
+  /* the owner, server to server, as the content service sends it: no Origin, no address, no Turnstile token */
+  r = await asOwner('/api/threads', { text: 'from the owner' });
+  assert.equal(r.status, 201);
+  const { thread } = await r.json();
+  for (let i = 0; i < 4; i++) {
+    r = await asOwner(`/api/threads/${thread}/posts`, { text: 'again ' + i });
+    assert.equal(r.status, 201, 'no rate limit for the owner');
+  }
+  /* a wrong key is refused outright, not taken as a visitor's post */
+  r = await asOwner(`/api/threads/${thread}/posts`, { text: 'a guess' }, 'open-sesamf');
+  assert.equal(r.status, 403);
+  assert.deepEqual(await r.json(), { error: 'not allowed' });
+  r = await req(shut, `/api/threads/${thread}/posts`, { method: 'POST', headers: { Authorization: '' }, body: form({ text: 'empty key' }) });
+  assert.equal(r.status, 403);
+  let th = await (await req(shut, `/api/threads/${thread}`)).json();
+  assert.equal(th.posts.length, 5);
+  assert.ok(th.posts.every((p) => p.owner === true));
+  assert.match(th.posts[0].poster, /^[0-9a-f]{16}$/, 'the token keeps its format');
+  assert.equal(th.posts[0].poster, th.posts[4].poster);
+  let b = await (await req(shut, '/api/board')).json();
+  assert.equal(b.threads.find((x) => x.id === thread).owner, true, 'the board says the opening post is the owner\'s');
+
+  /* forged flags on the open forum: a field, a header, a JSON-looking text; none of them mark a post */
+  r = await postForm(f, '/api/threads', '4.4.4.5', { text: 'i am the owner', owner: 'true', isOwner: '1' });
+  assert.equal(r.status, 201);
+  const forged = (await r.json()).thread;
+  r = await req(f, `/api/threads/${forged}/posts`, { method: 'POST', headers: H('4.4.4.6', { 'X-Owner': '1', Cookie: 'aph_session=x' }), body: form({ text: '{"owner":true}', owner: '1' }) });
+  assert.equal(r.status, 201);
+  th = await (await req(f, `/api/threads/${forged}`)).json();
+  assert.deepEqual(th.posts.map((p) => p.owner), [false, false]);
+  b = await (await req(f, '/api/board')).json();
+  assert.equal(b.threads.find((x) => x.id === forged).owner, false);
+  /* the owner replying in a visitor's thread: that post alone is marked, and the board still says the opener is not */
+  r = await req(f, `/api/threads/${forged}/posts`, { method: 'POST', headers: admin, body: form({ text: 'the owner answers' }) });
+  assert.equal(r.status, 201);
+  th = await (await req(f, `/api/threads/${forged}`)).json();
+  assert.deepEqual(th.posts.map((p) => p.owner), [false, false, true]);
+  b = await (await req(f, '/api/board')).json();
+  assert.equal(b.threads.find((x) => x.id === forged).owner, false);
 });
 
 test('the poster token is SHA-256(POSTER_SALT|poster|thread|ipHash), 16 hex', async () => {
@@ -278,7 +327,7 @@ test('the board is permanent: hundreds of threads, none lost, read page by page'
     const first = await (await req(big, '/api/board')).json();
     assert.equal(first.threads.length, 40);
     assert.match(first.next, /^\d+-\d+$/);
-    assert.deepEqual(Object.keys(first.threads[0]), ['id', 'first', 'replies', 'created', 'bumped', 'image']);
+    assert.deepEqual(Object.keys(first.threads[0]), ['id', 'first', 'replies', 'created', 'bumped', 'image', 'owner']);
 
     /* every page, at the default size, at 100, and at 1000 (kept to 100): every thread once, in board order */
     const sorted = (xs) => [...xs].sort();
@@ -349,8 +398,9 @@ test('the board is permanent: hundreds of threads, none lost, read page by page'
     const end = await (await req(big, '/api/board?cursor=0-0')).json();
     assert.deepEqual(end, { threads: [], next: null, density: { long: 960, bytes: 900 * 1024 } }, 'below the first thread there is nothing');
 
-    /* the v2 migration ran, and the page scan walks its index */
-    assert.deepEqual((await query(big.state, 'SELECT version FROM schema_version')).map((x) => x.version), [2]);
+    /* the migrations ran (v2: the page scan walks its index; v3: owner on each thread) */
+    assert.deepEqual((await query(big.state, 'SELECT version FROM schema_version')).map((x) => x.version), [3]);
+    assert.ok((await query(big.state, 'PRAGMA table_info(threads)')).some((c) => c.name === 'owner'));
     const idx = (await query(big.state, "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'threads'")).map((x) => x.name);
     assert.ok(idx.includes('threads_bumped_seq'), idx.join());
     assert.ok(idx.includes('threads_seq'), 'v1 index kept, for MAX(seq)');

@@ -1,6 +1,6 @@
 //! The Durable Object that keeps the wall in order: one instance ("wall"), SQLite-backed.
 //!
-//! - `lines (id, text, at, exp)`, indexed on `(at, id)`, so a listing is already chronological (the JavaScript
+//! - `lines (id, text, at, exp, owner)`, `owner` 1 for the owner's lines (added to a wall made before it, at 0), indexed on `(at, id)`, so a listing is already chronological (the JavaScript
 //!   object used ordered keys `m:<time>:<id>` for the same thing) and on `exp` for the sweep;
 //! - `rates (visitor, hits, exp)`: the sliding-window record per visitor hash, and when it can be forgotten.
 //!
@@ -28,6 +28,9 @@ CREATE TABLE IF NOT EXISTS rates (visitor TEXT PRIMARY KEY, hits TEXT NOT NULL, 
 CREATE INDEX IF NOT EXISTS rates_exp ON rates (exp);
 ";
 
+/// `owner` on a wall made before it: SQLite has no `ADD COLUMN IF NOT EXISTS`, so it runs only when missing
+const OWNER_COLUMN: &str = "ALTER TABLE lines ADD COLUMN owner INTEGER NOT NULL DEFAULT 0";
+
 #[durable_object]
 pub struct Wall {
     state: State,
@@ -40,6 +43,8 @@ struct Line {
     text: String,
     at: f64,
     exp: f64,
+    #[serde(default)]
+    owner: Option<f64>,
 }
 
 #[derive(Deserialize)]
@@ -57,14 +62,14 @@ impl Wall {
         let rows: Vec<Line> = self
             .sql
             .exec(
-                "SELECT id, text, at, exp FROM lines ORDER BY at DESC, id DESC LIMIT ?",
+                "SELECT id, text, at, exp, owner FROM lines ORDER BY at DESC, id DESC LIMIT ?",
                 vec![KEEP.into()],
             )?
             .to_array()?;
         Ok(rows
             .into_iter()
             .filter(|m| m.exp > now as f64)
-            .map(|m| json!({ "id": m.id, "text": m.text, "at": m.at as i64 }))
+            .map(|m| json!({ "id": m.id, "text": m.text, "at": m.at as i64, "owner": m.owner.unwrap_or(0.0) != 0.0 }))
             .collect())
     }
 
@@ -87,6 +92,11 @@ impl DurableObject for Wall {
         let sql = state.storage().sql();
         if let Err(e) = sql.exec(SCHEMA, None) {
             worker::console_error!("wall schema: {e}");
+        }
+        if sql.exec("SELECT owner FROM lines LIMIT 0", None).is_err() {
+            if let Err(e) = sql.exec(OWNER_COLUMN, None) {
+                worker::console_error!("wall owner column: {e}");
+            }
         }
         Wall { state, sql }
     }
@@ -132,19 +142,21 @@ impl DurableObject for Wall {
                 let id = hex(&random_bytes(8));
                 let text = b["text"].as_str().unwrap_or_default().to_string();
                 let exp = now + b["ttl"].as_f64().unwrap_or(0.0) as i64;
+                let owner = b["owner"].as_bool() == Some(true);
                 self.sql.exec(
-                    "INSERT INTO lines (id, text, at, exp) VALUES (?, ?, ?, ?)",
+                    "INSERT INTO lines (id, text, at, exp, owner) VALUES (?, ?, ?, ?, ?)",
                     vec![
                         id.clone().into(),
                         text.clone().into(),
                         now.into(),
                         exp.into(),
+                        (owner as i64).into(),
                     ],
                 )?;
                 alarm_no_later_than(&storage, exp).await?;
                 reply(
                     200,
-                    &json!({ "message": { "id": id, "text": text, "at": now } }),
+                    &json!({ "message": { "id": id, "text": text, "at": now, "owner": owner } }),
                 )
             }
             "/remove" => {

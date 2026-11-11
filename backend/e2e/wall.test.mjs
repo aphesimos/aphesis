@@ -33,8 +33,34 @@ test('posts, lists newest first, never stores the address', async () => {
   assert.equal(r.headers.get('cache-control'), 'public, max-age=15');
   const { messages } = await r.json();
   assert.deepEqual(messages.slice(0, 2).map((m) => m.text), ['second line', 'first line']);
-  assert.deepEqual(Object.keys(messages[0]), ['id', 'text', 'at']);
+  assert.deepEqual(Object.keys(messages[0]), ['id', 'text', 'at', 'owner']);
+  assert.equal(messages[0].owner, false);
   assert.ok(!dump(w.state).includes('198.51.100'), 'no address anywhere in storage');
+});
+
+test('the owner: marked only with the admin token, never by a flag; the filter still applies', async (t) => {
+  /* a wall that refuses every visitor (no Turnstile secret: a first deploy) */
+  const shut = await start('wall', base);
+  t.after(() => shut.stop());
+  const asOwner = (text, key = 'secret-admin') => fetch(shut.url + '/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key }, body: JSON.stringify({ text }) });
+  let r = await post(shut.url, 'a visitor', '198.51.100.30', { owner: true });
+  assert.equal(r.status, 403, 'a visitor still needs the check');
+  r = await asOwner('from the owner');
+  assert.equal(r.status, 201);
+  assert.equal((await r.json()).message.owner, true);
+  r = await asOwner('and again, at once');
+  assert.equal(r.status, 201, 'no rate limit for the owner');
+  r = await asOwner('see https://x.example');
+  assert.deepEqual([r.status, await r.json()], [400, { error: 'link' }], 'the filter is the same for the owner');
+  r = await asOwner('a guess', 'secret-admim');
+  assert.deepEqual([r.status, await r.json()], [401, { error: 'unauthorized' }]);
+  const lines = await list(shut.url);
+  assert.deepEqual(lines.map((m) => [m.text, m.owner]), [['and again, at once', true], ['from the owner', true]]);
+  /* forged flags on the open wall */
+  r = await post(w.url, 'i am the owner', '198.51.100.31', { owner: true });
+  assert.equal(r.status, 201);
+  assert.equal((await r.json()).message.owner, false);
+  assert.equal((await list(w.url)).find((m) => m.text === 'i am the owner').owner, false);
 });
 
 test('filter refusals, with the same error words', async () => {

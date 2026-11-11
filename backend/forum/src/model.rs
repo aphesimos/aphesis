@@ -41,6 +41,9 @@ pub struct NewPost {
     pub created: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image: Option<Image>,
+    /// posted by the owner: set only when the request carried the admin secret, never from anything a visitor sends
+    #[serde(default)]
+    pub owner: bool,
 }
 
 /// A thread's line on the board, as the Worker sends it after a post.
@@ -52,4 +55,7 @@ pub struct Entry {
     pub replies: i64,
     pub first: String,
     pub image: Option<Image>,
+    /// the opening post is the owner's
+    #[serde(default)]
+    pub owner: bool,
 }

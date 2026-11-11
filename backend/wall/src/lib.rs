@@ -1,9 +1,12 @@
 //! wall · paries: the Worker in front of the wall, and the Durable Object that holds it.
 //!
 //! ```text
-//! GET    /messages        the live lines, newest first: { messages: [{ id, text, at }] }
+//! GET    /messages        the live lines, newest first: { messages: [{ id, text, at, owner }] }
 //! POST   /messages        { text, token } -> 201 { message } | 400 { error: 'empty'|'long'|'word'|'link'|'bad' }
 //!                         | 403 { error: 'turnstile' } | 429 { error: 'rate', retryAfter } | 503 { error: 'unavailable' }
+//!                         With `Authorization: Bearer <ADMIN_TOKEN>` the line is the owner's (`owner: true`): the
+//!                         filter still applies, the rate limit and Turnstile do not; any other key is 401. Nothing
+//!                         else in a request (an `owner` in the JSON, say) can mark a line as the owner's.
 //! DELETE /messages/:id    removal, with `Authorization: Bearer <ADMIN_TOKEN>` -> 204 | 401 | 404
 //! ```
 //!
@@ -107,36 +110,51 @@ async fn fetch(mut req: Request, env: Env, _ctx: Context) -> Result<Response> {
         let Some(text) = body.get("text").and_then(Value::as_str) else {
             return refuse(400, "bad", &h);
         };
+        // the owner's line comes from the content service with the admin token; any other key is refused
+        let owner = match req.headers().get("Authorization")? {
+            None => false,
+            Some(a) if secret::bearer_exact(&a, env::string(&env, "ADMIN_TOKEN").as_deref()) => {
+                true
+            }
+            Some(_) => return refuse(401, "unauthorized", &h),
+        };
         let extra = filter::blocklist(&env::string(&env, "BLOCKLIST").unwrap_or_default());
         let text = match filter::check(text, &extra) {
             filter::Verdict::Ok { text, .. } => text,
             filter::Verdict::Refused { reason, .. } => return refuse(400, reason, &h),
         };
 
-        let ip = req.headers().get("CF-Connecting-IP")?.unwrap_or_default();
-        let Some(salt) = env::string(&env, "HASH_SALT") else {
-            return refuse(503, "unavailable", &h);
-        };
-        let visitor = rules::visitor_key(&ip, &salt, aphesis_common::time::now_ms());
-        // count the attempt first, so failed challenges are limited too
-        let (status, rate) = call(&wall, "/rate", Some(&json!({ "visitor": visitor }))).await?;
-        if status == 429 {
-            let retry = rate.get("retryAfter").and_then(Value::as_i64).unwrap_or(1);
-            return reply(
-                429,
-                &json!({ "error": "rate", "retryAfter": retry }),
-                &h.clone().with("Retry-After", &retry.to_string()),
-            );
-        }
-        if !turnstile_ok(&env, body.get("token").unwrap_or(&Value::Null), &ip).await {
-            return refuse(403, "turnstile", &h);
+        if !owner {
+            let ip = req.headers().get("CF-Connecting-IP")?.unwrap_or_default();
+            let Some(salt) = env::string(&env, "HASH_SALT") else {
+                return refuse(503, "unavailable", &h);
+            };
+            let visitor = rules::visitor_key(&ip, &salt, aphesis_common::time::now_ms());
+            // count the attempt first, so failed challenges are limited too
+            let (status, rate) = call(&wall, "/rate", Some(&json!({ "visitor": visitor }))).await?;
+            if status == 429 {
+                let retry = rate.get("retryAfter").and_then(Value::as_i64).unwrap_or(1);
+                return reply(
+                    429,
+                    &json!({ "error": "rate", "retryAfter": retry }),
+                    &h.clone().with("Retry-After", &retry.to_string()),
+                );
+            }
+            if !turnstile_ok(&env, body.get("token").unwrap_or(&Value::Null), &ip).await {
+                return refuse(403, "turnstile", &h);
+            }
         }
 
         let ttl = ttl_ms(
             env::string(&env, "TTL_DAYS").as_deref(),
             env::string(&env, "TTL_SECONDS").as_deref(),
         );
-        let (_, added) = call(&wall, "/add", Some(&json!({ "text": text, "ttl": ttl }))).await?;
+        let (_, added) = call(
+            &wall,
+            "/add",
+            Some(&json!({ "text": text, "ttl": ttl, "owner": owner })),
+        )
+        .await?;
         return reply(201, &added, &h);
     }
 

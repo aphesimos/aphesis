@@ -26,6 +26,8 @@
 //!   GET  /v1/admin/wall                  DELETE /v1/admin/wall/:id                     the wall's admin API
 //!   GET  /v1/admin/forum/board[?cursor]  GET /v1/admin/forum/threads/:id               the forum's admin API
 //!   GET  /v1/admin/forum/reports         DELETE /v1/admin/forum/threads/:id/posts/:n
+//!   POST /v1/admin/wall {text}           POST /v1/admin/forum/threads {text}            the owner's words, marked
+//!   POST /v1/admin/forum/threads/:id/posts {text}                                       as the owner's
 //!   POST /v1/admin/export                the nightly export, now
 //! ```
 //!
@@ -813,6 +815,27 @@ async fn admin(c: &Ctx, req: &mut Request, m: Method, p: &[&str]) -> Result<Resp
             )
             .await
         }
+        // the owner writes: only this session can reach these, and only the content service holds the admin secrets
+        // that make the wall and the forum mark a line or a post as the owner's
+        (Method::Post, ["wall"]) => {
+            let Some(text) = owner_text(req).await else {
+                return c.fail(400, "bad");
+            };
+            let body = json!({ "text": text }).to_string();
+            upstream_with(
+                c,
+                "WALL_API",
+                "WALL_ADMIN_TOKEN",
+                Method::Post,
+                "/messages",
+                Some((JsValue::from_str(&body), Some("application/json"))),
+            )
+            .await
+        }
+        (Method::Post, ["forum", "threads"]) => owner_post(c, req, None).await,
+        (Method::Post, ["forum", "threads", id, "posts"]) if plain(id) => {
+            owner_post(c, req, Some(id)).await
+        }
         (Method::Get, ["forum", "board"]) => {
             // the board is read a page at a time: the forum's cursor ("<bumped>-<seq>") passes through, checked
             let url = req.url()?;
@@ -1088,6 +1111,36 @@ async fn upload(c: &Ctx, req: &mut Request) -> Result<Response> {
     c.json(201, &json!({ "key": key, "url": format!("{}/media/{key}", c.base), "w": size.width, "h": size.height }))
 }
 
+/// `{text}` from the desk: a string of at most 4000 characters (the wall and the forum check it again by their own
+/// rules); anything else is None
+async fn owner_text(req: &mut Request) -> Option<String> {
+    let v = body_json(req).await;
+    let t = v.get("text")?.as_str()?;
+    (t.chars().count() <= 4000).then(|| t.to_string())
+}
+
+/// the owner's thread or reply on the forum: words only, as a form, the way the forum's page sends them
+async fn owner_post(c: &Ctx, req: &mut Request, thread: Option<&str>) -> Result<Response> {
+    let Some(text) = owner_text(req).await else {
+        return c.fail(400, "bad");
+    };
+    let form = worker::FormData::new();
+    form.append("text", &text)?;
+    let path = match thread {
+        Some(id) => format!("/api/threads/{id}/posts"),
+        None => "/api/threads".into(),
+    };
+    upstream_with(
+        c,
+        "FORUM_API",
+        "FORUM_ADMIN_SECRET",
+        Method::Post,
+        &path,
+        Some((form.into(), None)),
+    )
+    .await
+}
+
 /// The wall's and the forum's admin APIs, server to server, with their admin secrets.
 async fn upstream(
     c: &Ctx,
@@ -1096,6 +1149,18 @@ async fn upstream(
     method: Method,
     path: &str,
 ) -> Result<Response> {
+    upstream_with(c, base_var, secret_var, method, path, None).await
+}
+
+/// the same with a body (and its content type, unless the body sets its own, as a form does)
+async fn upstream_with(
+    c: &Ctx,
+    base_var: &str,
+    secret_var: &str,
+    method: Method,
+    path: &str,
+    body: Option<(JsValue, Option<&str>)>,
+) -> Result<Response> {
     let (Some(base), Some(secret)) = (c.var(base_var), c.var(secret_var)) else {
         return c.fail(503, "not set up");
     };
@@ -1103,6 +1168,12 @@ async fn upstream(
     h.set("Authorization", &format!("Bearer {secret}"))?;
     h.set("Accept", "application/json")?;
     let mut init = RequestInit::new();
+    if let Some((b, ctype)) = body {
+        if let Some(t) = ctype {
+            h.set("Content-Type", t)?;
+        }
+        init.with_body(Some(b));
+    }
     init.with_method(method).with_headers(h);
     let mut r = Fetch::Request(Request::new_with_init(
         &format!("{}{path}", base.trim_end_matches('/')),

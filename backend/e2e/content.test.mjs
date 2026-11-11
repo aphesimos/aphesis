@@ -440,6 +440,38 @@ test('moderation through the content service: the wall and the forum, server to 
   assert.equal((await send('/v1/admin/forum/reports')).status, 401, 'no session, no moderation');
 });
 
+test('the owner writes from the desk: the wall and the forum mark it, and only a session can', async () => {
+  const { j, csrf } = await login();
+  const W = (p, body, more = {}) => send(p, { method: 'POST', body, j, headers: { 'X-CSRF-Token': csrf }, ...more });
+  let r = await W('/v1/admin/wall', { text: 'a line from the desk' });
+  assert.equal(r.status, 201, await r.clone().text());
+  assert.equal((await r.json()).message.owner, true);
+  let lines = (await (await fetch(wall.url + '/messages')).json()).messages;
+  assert.equal(lines.find((m) => m.text === 'a line from the desk').owner, true);
+  r = await W('/v1/admin/wall', { text: 'see https://x.example' });
+  assert.deepEqual([r.status, await r.json()], [400, { error: 'link' }], 'the wall\'s own refusal comes back');
+  assert.equal((await W('/v1/admin/wall', { words: 'x' })).status, 400);
+
+  r = await W('/v1/admin/forum/threads', { text: 'a thread from the desk' });
+  assert.equal(r.status, 201, await r.clone().text());
+  const { thread } = await r.json();
+  r = await W(`/v1/admin/forum/threads/${thread}/posts`, { text: 'and a reply' });
+  assert.deepEqual(await r.json(), { thread, n: 2 });
+  let t = await (await fetch(`${forum.url}/api/threads/${thread}`)).json();
+  assert.deepEqual(t.posts.map((p) => [p.text, p.owner]), [['a thread from the desk', true], ['and a reply', true]]);
+  assert.equal((await W('/v1/admin/forum/threads/zzzzzzzzzz/posts', { text: 'x' })).status, 404);
+
+  /* without the session, the token or the site's origin, nothing goes out */
+  assert.equal((await send('/v1/admin/wall', { method: 'POST', body: { text: 'no session' } })).status, 401);
+  assert.equal((await send('/v1/admin/wall', { method: 'POST', body: { text: 'no token' }, j })).status, 403);
+  assert.equal((await W('/v1/admin/wall', { text: 'elsewhere' }, { origin: 'https://evil.example' })).status, 403);
+  assert.equal((await send(`/v1/admin/forum/threads/${thread}/posts`, { method: 'POST', body: { text: 'no session', owner: true } })).status, 401);
+  lines = (await (await fetch(wall.url + '/messages')).json()).messages;
+  assert.ok(!lines.some((m) => ['no session', 'no token', 'elsewhere'].includes(m.text)));
+  t = await (await fetch(`${forum.url}/api/threads/${thread}`)).json();
+  assert.equal(t.posts.length, 2);
+});
+
 test('the nightly export: every entry as the section files, committed as the owner, only when it changed', async () => {
   const { j, csrf } = await login();
   const W = (p, method, body) => send(p, { method, body, j, headers: { 'X-CSRF-Token': csrf } });

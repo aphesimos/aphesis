@@ -7,6 +7,9 @@
 //! GET    /api/threads/:id                    one thread, its posts in order
 //! POST   /api/threads                        a new thread   (multipart: text, image?, density?, w?, h?, turnstile?)
 //! POST   /api/threads/:id/posts              a reply        (the same fields)
+//!                                            With `Authorization: Bearer ADMIN_SECRET` either is the owner's post:
+//!                                            marked `owner`, no Turnstile, no rate limit. A wrong key is refused;
+//!                                            nothing else a request carries can mark a post as the owner's.
 //! POST   /api/threads/:id/posts/:n/report    report a post
 //! GET    /api/images/t/:id/:file             a picture from R2
 //! GET    /api/admin/reports                  reports        (Authorization: Bearer ADMIN_SECRET)
@@ -101,6 +104,16 @@ impl Ctx {
             .unwrap_or_default();
         secret::bearer_loose(&h, self.var("ADMIN_SECRET").as_deref())
     }
+    /// Who posts: `Ok(false)` for anyone (no `Authorization`), `Ok(true)` for the owner (the admin secret, which only
+    /// the content service holds and sends for the desk's owner session), `Err(())` for any other key.
+    fn poster_is_owner(&self, req: &Request) -> std::result::Result<bool, ()> {
+        let given = req.headers().get("Authorization").ok().flatten();
+        match given {
+            None => Ok(false),
+            Some(_) if self.is_admin(req) => Ok(true),
+            Some(_) => Err(()),
+        }
+    }
     /// Both salts are set. Without them a hash of an address could be reversed by trying every address, so the
     /// Worker takes nothing that would store one (a deploy before its secrets, for a moment).
     fn salted(&self) -> bool {
@@ -171,9 +184,20 @@ async fn handle_post(c: &Ctx, mut req: Request, thread_id: Option<&str>) -> Resu
     if !c.salted() {
         return c.fail(503, NOT_SET_UP);
     }
-    let ip_h = c.ip_hash(&req);
-    let wait = c
-        .limited(
+    let Ok(owner) = c.poster_is_owner(&req) else {
+        return c.fail(403, "not allowed");
+    };
+    // the owner's posts come from the content service, one address for every one of them: its poster token is made
+    // from a fixed word in place of the IP hash (still one token per thread, never the same across threads)
+    let ip_h = if owner {
+        "owner".to_string()
+    } else {
+        c.ip_hash(&req)
+    };
+    let wait = if owner {
+        0
+    } else {
+        c.limited(
             if thread_id.is_some() {
                 "post"
             } else {
@@ -181,7 +205,8 @@ async fn handle_post(c: &Ctx, mut req: Request, thread_id: Option<&str>) -> Resu
             },
             &ip_h,
         )
-        .await?;
+        .await?
+    };
     if wait > 0 {
         let extra = http::Headers::new().with("Retry-After", &wait.to_string());
         return c.json(
@@ -194,7 +219,7 @@ async fn handle_post(c: &Ctx, mut req: Request, thread_id: Option<&str>) -> Resu
     let Ok(form) = req.form_data().await else {
         return c.fail(400, "unreadable form");
     };
-    if !c.turnstile(field(form.get("turnstile"))).await {
+    if !owner && !c.turnstile(field(form.get("turnstile"))).await {
         return c.fail(403, "the check did not pass");
     }
 
@@ -237,6 +262,7 @@ async fn handle_post(c: &Ctx, mut req: Request, thread_id: Option<&str>) -> Resu
         text,
         created: now_ms(),
         image: None,
+        owner,
     };
     let mut keys = Vec::new();
     let images = c.env.bucket("IMAGES")?;
@@ -288,6 +314,7 @@ async fn handle_post(c: &Ctx, mut req: Request, thread_id: Option<&str>) -> Resu
                 .unwrap_or_default()
                 .to_string(),
             image: serde_json::from_value(r["summary"]["firstImage"].clone()).unwrap_or(None),
+            owner: r["summary"]["firstOwner"].as_bool().unwrap_or(false),
         },
         None => Entry {
             created: Some(post.created),
@@ -295,6 +322,7 @@ async fn handle_post(c: &Ctx, mut req: Request, thread_id: Option<&str>) -> Resu
             replies: 0,
             first: post.text.clone(),
             image: post.image.clone(),
+            owner,
         },
     };
     call(

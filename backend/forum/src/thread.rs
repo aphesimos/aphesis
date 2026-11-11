@@ -2,7 +2,9 @@
 //! writer, so numbers are given out one at a time and never twice.
 //!
 //! Tables are made by the first post, so asking for a thread that does not exist leaves no storage behind:
-//! `meta (id, created, bumped, count)`, one row, and `posts (n, poster, text, created, image, reports, removed)`.
+//! `meta (id, created, bumped, count)`, one row, and `posts (n, poster, text, created, image, reports, removed, owner)`.
+//! `owner` is 1 for a post the owner made (the request carried the admin secret); a thread made before the column
+//! existed gets it, at 0, the first time it is touched.
 //! The thread is kept for good: nothing here expires. Only the admin removing the opening post deletes everything
 //! (`deleteAll`); removing a later post blanks that post alone. A thread holds at most `MAX_POSTS` posts of at most
 //! 2000 characters, so one object stays small (a few MB at worst) however long the board lives.
@@ -21,13 +23,15 @@ pub const MAX_POSTS: i64 = 500;
 
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS meta (k INTEGER PRIMARY KEY CHECK (k = 1), id TEXT NOT NULL, created INTEGER NOT NULL, bumped INTEGER NOT NULL, count INTEGER NOT NULL);
-CREATE TABLE IF NOT EXISTS posts (n INTEGER PRIMARY KEY, poster TEXT, text TEXT, created INTEGER NOT NULL, image TEXT, reports INTEGER NOT NULL DEFAULT 0, removed INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS posts (n INTEGER PRIMARY KEY, poster TEXT, text TEXT, created INTEGER NOT NULL, image TEXT, reports INTEGER NOT NULL DEFAULT 0, removed INTEGER NOT NULL DEFAULT 0, owner INTEGER NOT NULL DEFAULT 0);
 ";
 
 #[durable_object]
 pub struct Thread {
     state: State,
     sql: SqlStorage,
+    /// the posts table is known to have its `owner` column (checked once per instance)
+    upgraded: std::cell::Cell<bool>,
 }
 
 #[derive(Deserialize)]
@@ -45,6 +49,8 @@ struct Row {
     created: f64,
     image: Option<String>,
     removed: f64,
+    #[serde(default)]
+    owner: Option<f64>,
 }
 
 impl Row {
@@ -52,6 +58,9 @@ impl Row {
         self.image
             .as_deref()
             .and_then(|s| serde_json::from_str(s).ok())
+    }
+    fn owner(&self) -> bool {
+        self.owner.unwrap_or(0.0) != 0.0
     }
 }
 
@@ -69,6 +78,7 @@ pub enum PublicPost {
         poster: String,
         text: String,
         created: i64,
+        owner: bool,
         #[serde(skip_serializing_if = "Option::is_none")]
         image: Option<PublicImage>,
     },
@@ -87,6 +97,7 @@ fn public(p: &Row) -> PublicPost {
         poster: p.poster.clone().unwrap_or_default(),
         text: p.text.clone().unwrap_or_default(),
         created: p.created as i64,
+        owner: p.owner(),
         image: p.image().as_ref().map(PublicImage::from),
     }
 }
@@ -96,6 +107,28 @@ fn not_found(msg: &str) -> Result<Response> {
 }
 
 impl Thread {
+    /// A thread made before posts had `owner` gets the column (every earlier post at 0). Only once its tables
+    /// exist: a lookup of a thread that was never made still leaves nothing behind.
+    fn upgrade(&self) {
+        if self.upgraded.get() {
+            return;
+        }
+        if self
+            .sql
+            .exec("SELECT owner FROM posts LIMIT 0", None)
+            .is_err()
+        {
+            if let Err(e) = self.sql.exec(
+                "ALTER TABLE posts ADD COLUMN owner INTEGER NOT NULL DEFAULT 0",
+                None,
+            ) {
+                worker::console_error!("thread: owner column: {e}");
+                return;
+            }
+        }
+        self.upgraded.set(true);
+    }
+
     /// None while the thread has never been made (no tables) or has been deleted.
     fn meta(&self) -> Option<Meta> {
         let rows: Vec<Meta> = self
@@ -111,7 +144,7 @@ impl Thread {
         let rows: Vec<Row> = self
             .sql
             .exec(
-                "SELECT n, poster, text, created, image, removed FROM posts WHERE n = ?",
+                "SELECT n, poster, text, created, image, removed, owner FROM posts WHERE n = ?",
                 vec![n.into()],
             )?
             .to_array()?;
@@ -121,7 +154,7 @@ impl Thread {
     fn all(&self) -> Result<Vec<Row>> {
         self.sql
             .exec(
-                "SELECT n, poster, text, created, image, removed FROM posts ORDER BY n",
+                "SELECT n, poster, text, created, image, removed, owner FROM posts ORDER BY n",
                 None,
             )?
             .to_array()
@@ -145,13 +178,14 @@ impl Thread {
             .map(|i| serde_json::to_string(i).unwrap_or_default())
             .into();
         self.sql.exec(
-            "INSERT INTO posts (n, poster, text, created, image) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO posts (n, poster, text, created, image, owner) VALUES (?, ?, ?, ?, ?, ?)",
             vec![
                 n.into(),
                 p.poster.clone().into(),
                 p.text.clone().into(),
                 p.created.into(),
                 image,
+                (p.owner as i64).into(),
             ],
         )?;
         Ok(())
@@ -161,13 +195,20 @@ impl Thread {
 impl DurableObject for Thread {
     fn new(state: State, _env: Env) -> Self {
         let sql = state.storage().sql();
-        Thread { state, sql }
+        Thread {
+            state,
+            sql,
+            upgraded: std::cell::Cell::new(false),
+        }
     }
 
     async fn fetch(&self, mut req: Request) -> Result<Response> {
         let path = req.path();
         let b = body(&mut req).await;
         let meta = self.meta();
+        if meta.is_some() {
+            self.upgrade();
+        }
         match path.as_str() {
             "/get" => {
                 let Some(m) = meta else {
@@ -186,6 +227,7 @@ impl DurableObject for Thread {
                 let post: NewPost = serde_json::from_value(b["post"].clone())?;
                 let id = b["id"].as_str().unwrap_or_default();
                 self.sql.exec(SCHEMA, None)?;
+                self.upgraded.set(true);
                 self.sql.exec(
                     "INSERT INTO meta (k, id, created, bumped, count) VALUES (1, ?, ?, ?, 1)",
                     vec![id.into(), post.created.into(), post.created.into()],
@@ -211,6 +253,7 @@ impl DurableObject for Thread {
                 let summary = json!({
                     "first": first.as_ref().and_then(|p| p.text.clone()).unwrap_or_default(),
                     "firstImage": first.as_ref().and_then(Row::image),
+                    "firstOwner": first.as_ref().is_some_and(Row::owner),
                     "replies": n - 1,
                 });
                 reply(200, &json!({ "n": n, "summary": summary }))
@@ -255,7 +298,7 @@ impl DurableObject for Thread {
                     return reply(200, &json!({ "gone": true, "keys": keys }));
                 }
                 self.sql.exec(
-                    "UPDATE posts SET poster = NULL, text = NULL, image = NULL, reports = 0, removed = 1 WHERE n = ?",
+                    "UPDATE posts SET poster = NULL, text = NULL, image = NULL, reports = 0, removed = 1, owner = 0 WHERE n = ?",
                     vec![n.into()],
                 )?;
                 reply(200, &json!({ "gone": false, "keys": keys }))

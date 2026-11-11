@@ -7,8 +7,8 @@
      has the focus), each within 1.6 s of the last; its text stutters slightly at each, a hard cut of a pixel or two
      on the 8 fps tick, as a typist's hand slips. Within the next 12 s, hold the φ for 7 s (a pointer, a finger, or
      Enter held while the seal has the focus): it fills with stipple, cells of 2 CSS pixels in the seal's red that
-     gather toward it on the tick, then lets go, and the gate opens. Without the three clicks first, the seal is
-     only the seal. Let go early and the cells are gone at once.
+     rise inside the φ's own strokes and a thin halo around them on the tick, then lets go, and the gate opens.
+     Without the three clicks first, the seal is only the seal. Let go early and the cells are gone at once.
    - A phrase typed anywhere (via 'phrase'): on a page with a keyboard, outside any field, the last characters typed
      are compared with the phrase's hash.
    - A secret route (via 'route'): the address's hash, compared with its hash on load and on every change; it is
@@ -81,19 +81,38 @@
     if (holding || !armed() || !seal) return;
     if (e) e.preventDefault();
     holding = true; done = false; t0 = performance.now();
-    const r = seal.getBoundingClientRect();
-    const pad = Math.max(10, r.width * 0.12);
-    const w = Math.ceil((r.width + 2 * pad) / 2), h = Math.ceil((r.height + 2 * pad) / 2);
-    canvas = D.createElement('canvas'); canvas.id = 'aph-fill'; canvas.width = w; canvas.height = h;
-    canvas.style.left = (r.left - pad) + 'px'; canvas.style.top = (r.top - pad) + 'px';
-    canvas.style.width = w * 2 + 'px'; canvas.style.height = h * 2 + 'px';
+    /* the φ fills with stipple: its own drawing (the seal's ink path, as it stands) is the density field, softened
+       into a thin halo, on a square canvas around the seal's centre that holds the whole fill, one canvas pixel per
+       2 CSS px cell. Nothing reaches past the halo, so the inscription around the seal stays clear. */
+    const r = seal.getBoundingClientRect(), side = Math.max(r.width, r.height);
+    const pad = Math.max(8, side * 0.06), C = 2;
+    const n = Math.ceil((side + 2 * pad) / C), half = (n * C) / 2;
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    canvas = D.createElement('canvas'); canvas.id = 'aph-fill'; canvas.width = canvas.height = n;
+    canvas.style.left = (cx - half) + 'px'; canvas.style.top = (cy - half) + 'px';
+    canvas.style.width = canvas.style.height = n * C + 'px';
     canvas.setAttribute('aria-hidden', 'true');
     D.body.appendChild(canvas);
-    /* each cell lights at its own moment: the ones near the φ first, the far ones late, never all of them */
-    cells = new Float32Array(w * h);
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const dx = (x - w / 2) / (w / 2), dy = (y - h / 2) / (h / 2), d = Math.min(1, Math.hypot(dx * 0.95, dy * 0.8));
-      cells[y * w + x] = d > 0.98 ? 9 : (0.15 + d * 0.7) * (0.55 + Math.random() * 0.6);
+    const field = D.createElement('canvas'); field.width = field.height = n;
+    const f = field.getContext('2d', { willReadFrequently: true });
+    const svg = seal.querySelector('svg'), ink = seal.querySelector('path');
+    const vb = svg && svg.viewBox && svg.viewBox.baseVal;
+    if (ink && vb && vb.width) {
+      /* the svg fills the seal's box: map its viewBox onto the box, in cells */
+      const k = Math.min(r.width / vb.width, r.height / vb.height) / C;
+      const ox = (r.left - (cx - half)) / C + (r.width / C - vb.width * k) / 2, oy = (r.top - (cy - half)) / C + (r.height / C - vb.height * k) / 2;
+      const P = new Path2D(ink.getAttribute('d') || '');
+      f.setTransform(k, 0, 0, k, ox - vb.x * k, oy - vb.y * k);
+      f.fillStyle = '#fff';
+      f.filter = 'blur(' + Math.max(1.5, pad / C / 2.2).toFixed(1) + 'px)'; f.fill(P);   /* the halo */
+      f.filter = 'none'; f.fill(P);                                                       /* the φ itself */
+    }
+    const dens = f.getImageData(0, 0, n, n).data;
+    /* each cell lights at its own moment: the φ's own cells first, the halo's late and only some, never all */
+    cells = new Float32Array(n * n);
+    for (let i = 0; i < n * n; i++) {
+      const v = dens[i * 4 + 3] / 255;
+      cells[i] = v < 0.06 ? 9 : (1 - v) * 0.75 + Math.random() * 0.32 + (Math.random() < 0.1 ? 9 : 0);
     }
     clearInterval(timer); timer = setInterval(frame, TICK);
     frame();

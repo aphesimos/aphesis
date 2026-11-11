@@ -111,7 +111,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .baseline { display: block; width: 100%; height: 10px; color: var(--ink-soft); overflow: visible; transition: color var(--duration-slow) var(--easing-settle); }
 #composer:focus-within .baseline { color: var(--accent); }
 
-.under { display: flex; justify-content: space-between; gap: var(--space-3); margin: var(--space-1) 0 0; min-height: 1.7em; }
+/* one line tall, always: the form stands on the bottom of the screen, so a status that wraps (a narrow phone, a
+   longer text from the desk) runs down into the margin below instead of lifting the line to write in */
+.under { display: flex; justify-content: space-between; gap: var(--space-3); margin: var(--space-1) 0 0; height: 1.7em; }
 #status { flex: 1; transition: color var(--duration-quick) var(--easing-settle); }
 #status.refused { color: var(--accent-text); }
 #count { white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -124,7 +126,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 
 /* Turnstile: no frame of its own, invisible unless Cloudflare has to ask */
-#turnstile { display: none; margin-top: var(--space-2); }
+/* the check floats just above the line to write in, over the fog and on a calm zone of its own (main.js), so the
+   form never moves when it appears; it stays inside the form's width, clear of the corners, and in the tab order */
+#turnstile { display: none; position: absolute; left: 0; right: 0; bottom: calc(100% + var(--space-3)); z-index: 1; }
 #turnstile.on { display: block; }
 #turnstile iframe { border: 0 !important; }
 

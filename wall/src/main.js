@@ -46,9 +46,10 @@ const header = $('wallHead'), form = $('composer'), status = $('status');
 
 /* the field the lines may use: between the title and the line to write in, inside the gutters */
 function rect() {
-  const h = header.getBoundingClientRect(), f = form.getBoundingClientRect();
+  /* from the layout, not the boxes on screen: the title and the form enter with a rise, and a field measured during
+     it would sit 14 px low until the next resize, then jump */
+  const top = header.offsetTop + header.offsetHeight + 8, bottom = form.offsetTop - 12;
   const gut = Math.max(16, innerWidth * 0.04);
-  const top = h.bottom + 8, bottom = f.top - 12;
   return { left: gut, top, width: innerWidth - gut * 2, height: Math.max(80, bottom - top) };
 }
 
@@ -96,7 +97,9 @@ const fixed = [
   { el: $('controls'), pad: 8 }, { el: $('seal'), pad: 10 },
   { el: header, pad: 16 }, { el: form, pad: 14 },
 ];
+/* the check floats above the line when it needs a hand, on a calm zone of its own */
+const check = $('turnstile');
 (function zones() {
-  fog.zones(fixed.concat(lines ? [] : [{ el: hush, pad: 18 }], drift.zones()).slice(0, 12));
+  fog.zones(fixed.concat(check.classList.contains('on') ? [{ el: check, pad: 18 }] : [], lines ? [] : [{ el: hush, pad: 18 }], drift.zones()).slice(0, 12));
   requestAnimationFrame(zones);
 })();

@@ -85,10 +85,10 @@ export function createDrift(list, { rect, describe }) {
     el.style.setProperty('--alpha', lk.alpha.toFixed(3));
     el.style.setProperty('--blur', lk.blur.toFixed(2) + 'px');
     el.style.setProperty('--lift', (19 / lk.size).toFixed(3));
-    /* the owner's eye, 2.8 times the words' size wide (near 53px, far 35px), alive on the shared tick: the gate's eye
+    /* the owner's eye, 2.4 times the words' size wide (near 46px, far 30px), alive on the shared tick: the gate's eye
        drawn as a mark (the runtime's mark preset: a bolder brush and larger cells) */
     if (eye) {
-      const px = Math.round(lk.size * 2.8);
+      const px = Math.round(lk.size * 2.4);
       eye.style.width = px + 'px';
       if (A && typeof A.Eye === 'function') A.Eye(eye, { size: px, mark: true, drawIn: false, gaze: 'auto', blink: true });
       else if (A && A.icon) eye.innerHTML = A.icon('eye', 0);

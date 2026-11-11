@@ -1828,7 +1828,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
      so a small eye is a miniature of a large one, not a drawing of its own; else it is drawn at the size it is shown).
      weight (1: the lids' brush weight), grain (1: the size of each iris cell, the pupil's growing about half as much;
      their number and places stay), and mark (true: the owner's mark, the preset EYE_MARK: drawn at 240px, a brush
-     1.4 times as bold and cells 2.2 times as large, shared), for an eye of about 56px that should read as a mark.
+     1.4 times as bold and cells 2.2 times as large at 56px, both following the size so they keep their CSS px, shared),
+     for a small eye that should read as a mark.
      The box's height is 14/24 of its width: the eye's own band of the icon grid. The drawings for a size are made once
      and kept for every eye of that size. */
   var EYE_BLINKS = ['open', 'half', 'closed', 'squint', 'wide'];
@@ -1883,7 +1884,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   function eyeDrawingsAt(u, wk, gk) {
     wk = wk || 1; gk = gk || 1;
     for (var i = 0; i < EYE_MADE.length; i++) if (EYE_MADE[i].u === u && EYE_MADE[i].wk === wk && EYE_MADE[i].gk === gk) return EYE_MADE[i];
-    var d = eyeDrawings(u, wk, gk); EYE_MADE.unshift(d); if (EYE_MADE.length > 6) EYE_MADE.pop();
+    var d = eyeDrawings(u, wk, gk); EYE_MADE.unshift(d); if (EYE_MADE.length > 10) EYE_MADE.pop();
     return d;
   }
   /* shared eyes: one tick for all of them, run only while one is on screen; one observer says which are */
@@ -1923,10 +1924,17 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   }
   /* the owner's mark: the gate's eye at 56px or so, with its construction and its cells counted as the gate draws its
      eye at 240px, but a bolder brush and larger cells, so it reads as a mark and not as a far-away eye */
-  var EYE_MARK = { drawAt: 240, weight: 1.4, grain: 2.2, shared: true };
+  var EYE_MARK = { drawAt: 240, weight: 1.4, grain: 2.2, shared: true }, EYE_MARK_AT = 56;
   function Eye(el, o) {
     o = o || {};
-    if (o.mark) { var m = {}; for (var k in EYE_MARK) m[k] = EYE_MARK[k]; for (var k2 in o) m[k2] = o[k2]; o = m; }
+    if (o.mark) {
+      /* the weight and grain are measured at 56px: at another size they follow it, so the lids (about 2 CSS px) and the
+         cells (about 1 CSS px) keep their weight on screen; the factor goes in tenths, so near sizes share drawings */
+      var m = {}, f = o.size ? Math.round(EYE_MARK_AT / o.size * 10) / 10 : 1;
+      for (var k in EYE_MARK) m[k] = EYE_MARK[k];
+      m.weight = Math.round(EYE_MARK.weight * f * 100) / 100; m.grain = Math.round(EYE_MARK.grain * f * 100) / 100;
+      for (var k2 in o) m[k2] = o[k2]; o = m;
+    }
     var id = 'aph-eye-boil-' + (++eyeCount);
     if (o.size) el.style.width = o.size + 'px';
     if (!el.style.aspectRatio) el.style.aspectRatio = '24 / 14';
@@ -2567,10 +2575,10 @@ function createDrift(list, { rect, describe }) {
     el.style.setProperty('--alpha', lk.alpha.toFixed(3));
     el.style.setProperty('--blur', lk.blur.toFixed(2) + 'px');
     el.style.setProperty('--lift', (19 / lk.size).toFixed(3));
-    /* the owner's eye, 2.8 times the words' size wide (near 53px, far 35px), alive on the shared tick: the gate's eye
+    /* the owner's eye, 2.4 times the words' size wide (near 46px, far 30px), alive on the shared tick: the gate's eye
        drawn as a mark (the runtime's mark preset: a bolder brush and larger cells) */
     if (eye) {
-      const px = Math.round(lk.size * 2.8);
+      const px = Math.round(lk.size * 2.4);
       eye.style.width = px + 'px';
       if (A && typeof A.Eye === 'function') A.Eye(eye, { size: px, mark: true, drawIn: false, gaze: 'auto', blink: true });
       else if (A && A.icon) eye.innerHTML = A.icon('eye', 0);

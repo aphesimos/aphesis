@@ -22,7 +22,7 @@ Anonymous lines drifting in the fog. A visitor reads them, holds one still, and 
   tooltip) and one line, "the wall is quiet. the first line is yours.", on a calm zone; it fades as the first line
   condenses.
 - **The owner's lines:** a line the server marks `owner` carries the owner's mark above its words, at the line's
-  depth: a small live `Aphesis.Eye` in rubedo, the gate's eye drawn as a mark (the runtime's `mark` preset; 2.8 times the words' size wide: 53px near, 35px far), trembling, blinking
+  depth: a small live `Aphesis.Eye` in rubedo, the gate's eye drawn as a mark (the runtime's `mark` preset; 2.4 times the words' size wide: 46px near, 30px far), trembling, blinking
   and glancing on its own, and the name *aphesist* in Aphesis Script, in rubedo; for assistive technology,
   "aphesist, the owner: ...". It drifts, condenses, is held and thins like any line. Only the owner's desk can write
   one (the content service passes it on with the wall's admin token; see `backend/README.md`, *The owner's posts*),

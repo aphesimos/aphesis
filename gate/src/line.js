@@ -62,19 +62,21 @@ export function createLine(form, { secret }) {
   for (let v = 0; v < VARIANTS; v++) drawings.push(A.brush(A.line(2, 7.4, 238, 6.6, 90), 1.6, 301 + v * 17, 0.18, 0.12));
   base.innerHTML = '<svg viewBox="0 0 240 14" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path fill="currentColor"/></svg>';
   const path = base.querySelector('path');
-  /* grains: three or four cells of 2 CSS px on a 7 px square, fixed per position, so a character always lands as the
-     same grain; 7 px and a 2 px gap make an advance of 9 px, so 32 fit on the line of a 360 px phone, centred with the caret's room each side, and 35 at 390 px */
-  const GRAIN = [], rand = A.rng(907);
-  const SPOTS = [[0, 0], [2.5, 0], [5, 0], [0, 2.5], [2.5, 2.5], [5, 2.5], [0, 5], [2.5, 5], [5, 5]];
-  for (let i = 0; i < 64; i++) {
-    const pick = SPOTS.filter(() => rand() < 0.42);
-    if (pick.length < 3) pick.push(SPOTS[4], SPOTS[(i * 5) % 9]);
-    GRAIN.push(pick.map(([x, y]) => `M${x} ${y}h2v2h-2z`).join(''));
+  /* the password's marks are the design system's masked text (Aphesis.grain): one round grain of stipple per
+     character, the i-th always the same, 14 px with a 4 px gap. A long password that would leave the line shrinks
+     them, still round, down to 7 px with a 2 px gap; the cap is what fits at that size (32 on a 360 px phone) */
+  const ADV = 18, MIN_ADV = 9;
+  function grainSize(n) {
+    const w = form.getBoundingClientRect().width || 420;
+    const adv = Math.max(MIN_ADV, Math.min(ADV, Math.floor((w - 28) / Math.max(1, n))));
+    const size = Math.round(adv * 7 / 9);
+    marks.style.setProperty('--grain-size', size + 'px');
+    marks.style.setProperty('--grain-gap', (adv - size) + 'px');
   }
 
   /* the cap: as many characters as the line holds at the current size, the caret's room kept */
   function advance() {
-    if (secret) return 9;
+    if (secret) return MIN_ADV;
     const cs = getComputedStyle(mirror), g = document.createElement('canvas').getContext('2d');
     g.font = cs.fontSize + ' ' + cs.fontFamily;
     const ls = parseFloat(cs.letterSpacing) || 0;
@@ -101,7 +103,8 @@ export function createLine(form, { secret }) {
     if (input.value.length > cap) { input.value = input.value.slice(0, cap); tremor(); }
     const v = input.value;
     if (secret) {
-      marks.innerHTML = [...v].map((_, i) => '<svg viewBox="0 0 7 7" aria-hidden="true" focusable="false" shape-rendering="crispEdges"><path fill="currentColor" d="' + GRAIN[i % 64] + '"/></svg>').join('');
+      grainSize(v.length);
+      A.grains(marks, [...v].length);
     } else {
       mirror.textContent = v;
     }

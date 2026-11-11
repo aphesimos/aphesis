@@ -4,7 +4,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { pbkdf2Sync } from 'node:crypto';
-import { readFileSync, existsSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { start, wrangler, sleep } from './dev.mjs';
 
 const SITE = 'http://localhost:8000';
@@ -12,12 +12,25 @@ const PASSWORD = 'salt sulphur mercury and a long walk';
 const salt = Buffer.from('00112233445566778899aabbccddeeff', 'hex');
 const HASH = `pbkdf2-sha256$25000$${salt.toString('base64')}$${pbkdf2Sync(PASSWORD, salt, 25000, 32, 'sha256').toString('base64')}`;
 
-let c;
+let c, resend;
+/* a stand-in for Resend's `POST /emails`, which the gate's mail goes through: it keeps every mail */
+function fakeResend() {
+  const sent = [];
+  const server = createServer((req, res) => {
+    let body = '';
+    req.on('data', (d) => { body += d; });
+    req.on('end', () => { try { sent.push(JSON.parse(body)); } catch (_) { /* not a mail */ } res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ id: 'm-' + sent.length })); });
+  });
+  return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve({ url: `http://127.0.0.1:${server.address().port}`, sent,
+    close: () => { server.closeAllConnections(); server.close(); } })));
+}
 before(async () => {
-  c = await start('content', { ALLOWED_ORIGINS: SITE, OWNER_PASSWORD_HASH: HASH, OWNER_EMAIL: 'owner@example.com', EMAIL_FROM: 'clavis@aphes.ist', AUTH_SALT: 'test-salt' },
+  resend = await fakeResend();
+  c = await start('content', { ALLOWED_ORIGINS: SITE, OWNER_PASSWORD_HASH: HASH, OWNER_EMAIL: 'owner@example.com', EMAIL_FROM: 'clavis@aphes.ist', AUTH_SALT: 'test-salt',
+    MAIL_API: resend.url, RESEND_API_KEY: 're_test_key' },
     { prepare: (state) => wrangler('content', ['d1', 'migrations', 'apply', 'aphesis-content', '--local', '--persist-to', state]), logLevel: 'info' });
 });
-after(async () => { if (process.env.E2E_LOG) console.error(c?.log()); await c?.stop(); });
+after(async () => { if (process.env.E2E_LOG) console.error(c?.log()); await c?.stop(); resend?.close(); });
 
 const send = (p, { method = 'GET', body, cookie, origin = SITE, headers = {} } = {}) => fetch(c.url + p, {
   method, headers: { 'CF-Connecting-IP': '10.1.0.1', ...(origin ? { Origin: origin } : {}), ...(cookie ? { Cookie: cookie } : {}),
@@ -25,19 +38,15 @@ const send = (p, { method = 'GET', body, cookie, origin = SITE, headers = {} } =
   body: body ? JSON.stringify(body) : undefined,
 });
 const cookieOf = (r) => r.headers.getSetCookie().map((sc) => sc.split(';')[0]).filter((kv) => kv.split('=')[1]).join('; ');
-function mails() {
-  return [...c.log().matchAll(/Email: (\S+\.eml)/g)].map((m) => m[1]).filter(existsSync).map((f) => readFileSync(f, 'utf8'));
-}
 async function login() {
-  const n = mails().length;
+  const n = resend.sent.length;
   let r = await send('/v1/auth/password', { method: 'POST', body: { password: PASSWORD } });
   assert.equal(r.status, 200, await r.clone().text());
   const pending = cookieOf(r);
-  let raw;
-  for (let i = 0; i < 50 && !raw; i++) { const m = mails(); if (m.length > n) raw = m[m.length - 1]; else await sleep(100); }
-  assert.ok(raw, 'the mail came');
-  const at = raw.slice(raw.indexOf('Content-Type: text/plain'));
-  const words = Buffer.from(at.slice(at.indexOf('\r\n\r\n') + 4, at.indexOf('\r\n--')).replace(/\s+/g, ''), 'base64').toString('utf8').trim().split('\r\n').pop();
+  let mail;
+  for (let i = 0; i < 50 && !mail; i++) { if (resend.sent.length > n) mail = resend.sent[resend.sent.length - 1]; else await sleep(100); }
+  assert.ok(mail, 'the mail came');
+  const words = mail.text.trim().split('\r\n').pop();
   r = await send('/v1/auth/code', { method: 'POST', body: { code: words }, cookie: pending });
   assert.equal(r.status, 200);
   return { cookie: cookieOf(r), csrf: (await r.json()).csrf };

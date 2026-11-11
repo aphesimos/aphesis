@@ -26,7 +26,7 @@ click away.
   so. `>>n` in a post is a link: hover or focus shows the quoted post beside it (sigil, number, its first words),
   following it brings the post to the reader with minimum jerk and its sigil turns rubedo for a moment.
 - **The owner's posts**: a post the server marks `owner` shows the owner's mark in place of the sigil: a small live
-  `Aphesis.Eye` in rubedo, the gate's eye drawn as a mark (56px wide, the runtime's `mark` preset: the gate's
+  `Aphesis.Eye` in rubedo, the gate's eye drawn as a mark (48px wide, the runtime's `mark` preset: the gate's
   construction and cells with a bolder brush and larger cells; trembling at 8 fps, blinking and glancing on its own,
   as the gate's does) and the name *aphesist* in
   Aphesis Script, in rubedo, like a capcode; for assistive technology, "aphesist, the owner". Nothing else about the

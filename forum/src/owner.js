@@ -10,9 +10,9 @@
    ownerIcon()       -> a still eye, for the quote preview */
 
 export const OWNER = 'aphesist';
-/* as much ink as a sigil (36px): the eye is wide and short, so its box is 56px wide. It is the runtime's mark preset:
+/* near a sigil's weight (36px): the eye is wide and short, so its box is 48px wide. It is the runtime's mark preset:
    the gate's eye in its construction and its cells, with a bolder brush and larger cells, so it reads as a mark */
-const EYE_PX = 56;
+const EYE_PX = 48;
 const live = new WeakMap();
 
 export function ownerMark() {

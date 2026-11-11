@@ -116,6 +116,11 @@ section's first writes (4 s at most), so nothing is seen filling in.
 `Aphesis.Sound` (design system) starts at load with a fade as long as the φ's drawing, or on the first gesture where
 the browser waits for one. The ear beside the eye mutes it, and the choice is remembered. Every route change crossfades
 to that screen's voice (`Sound.scene`); the descent (`experimental` voice) changes it per chamber and plays `door` when the door opens.
+Leaving the browser and coming back (iOS: the app switcher, the screen locked, a call, Siri, another app's audio), the
+sound fades back in on the route's voice, by itself where the browser allows it and otherwise at the first touch;
+the music player resumes a track the system paused the same way. `?sounddebug` in the address
+(`https://aphes.ist/?sounddebug`) logs every change of the audio's state to the console and to a small overlay, to
+check it on a phone.
 
 ## The inscription and its icons
 

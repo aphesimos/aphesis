@@ -188,7 +188,7 @@ The gate, as in the backlog (`docs/backlog.md` on `main`):
 
 1. `POST /v1/auth/password {password}`: the password is checked against `OWNER_PASSWORD_HASH`, a PBKDF2-SHA256 hash,
    with WebCrypto. On success the Worker mails three Latin words (from `content/src/words.txt`: 2048 words, 3 to 8
-   lowercase letters, about 33 bits) to `OWNER_EMAIL`, from `EMAIL_FROM`, through the `send_email` binding, and sets
+   lowercase letters, about 33 bits) to `OWNER_EMAIL`, from `EMAIL_FROM`, through Resend's HTTP API (below), and sets
    `aph_pending` (HttpOnly, Secure, SameSite=Strict, `Path=/v1/auth`, 10 minutes). A new password step replaces any
    earlier code.
 2. `POST /v1/auth/code {code}`: the words in any case with any separators, within 10 minutes, five tries, single
@@ -206,6 +206,14 @@ each one locks for 1, 2, 4... minutes up to 6 hours (forgotten after a quiet day
 in rubedo as stipple (`mail/phi.png`, made by `content/tools/make-mail-phi.mjs` from the design system's φ) and the
 three words in the typewriter face (`'Special Elite', 'Courier New', Courier, 'Lucida Console', monospace`); a
 plain-text part with the same words. No "verification code", nothing to explain it.
+
+**Sending it**: `POST {MAIL_API}/emails` (Resend, `https://api.resend.com`) with `Authorization: Bearer
+{RESEND_API_KEY}` and `{from, to, subject, html, text}`, given up after 8 seconds. If Resend refuses or does not
+answer, the words are thrown away and the visitor gets `503 {"error": "unavailable"}`, nothing more; the reason
+(Resend's status and message) goes to the Worker's log only. Cloudflare's own `send_email` is not used: it needs
+Email Routing on the apex, which would take over `aphes.ist`'s MX (the owner's mail is at Proton), or Workers Paid.
+`EMAIL_FROM` is a plain address, `clavis@aphes.ist`: Resend's documentation shows `Name <address>` but says
+nothing of names outside ASCII, so `aφesis` is left out until it is tried.
 
 **Hashing and the CPU limit.** Measured under workerd on a 2.1 GHz Xeon, PBKDF2-SHA256 costs about 0.17 ms per
 thousand iterations (10,000: 1.9 ms; 25,000: 4.4 ms; 50,000: 8.3 ms; 100,000: 17.9 ms). The Workers Free plan allows
@@ -236,10 +244,12 @@ branches read (`archive/content/<slug>.md`, `book/content/<NN>-<slug>.md`, `work
 this repository's `content` branch as the owner (`aphesimos`, the noreply address) through GitHub's git data API, only
 when something changed. It needs `EXPORT_GITHUB_TOKEN`; without it the cron does nothing.
 
-Vars: `ALLOWED_ORIGINS`, `EMAIL_FROM` (`clavis@post.aphes.ist`), `SESSION_SECONDS` (7200), `WALL_API`, `FORUM_API`,
-`EXPORT_REPO`, `EXPORT_BRANCH`, `PUBLIC_URL`. Secrets: `OWNER_PASSWORD_HASH`, `OWNER_EMAIL`, `AUTH_SALT`,
-`WALL_ADMIN_TOKEN`, `FORUM_ADMIN_SECRET`, `EXPORT_GITHUB_TOKEN`. Without `OWNER_PASSWORD_HASH`, `OWNER_EMAIL` or
-`AUTH_SALT` the gate refuses everything (the public API works).
+Vars: `ALLOWED_ORIGINS`, `EMAIL_FROM` (`clavis@aphes.ist`), `MAIL_API` (`https://api.resend.com`),
+`SESSION_SECONDS` (7200), `WALL_API`, `FORUM_API`, `EXPORT_REPO`, `EXPORT_BRANCH`, `PUBLIC_URL`. Secrets:
+`OWNER_PASSWORD_HASH`, `OWNER_EMAIL`, `AUTH_SALT`, `RESEND_API_KEY`, `WALL_ADMIN_TOKEN`, `FORUM_ADMIN_SECRET`,
+`EXPORT_GITHUB_TOKEN`. Without `OWNER_PASSWORD_HASH`, `OWNER_EMAIL`, `AUTH_SALT` or `RESEND_API_KEY` the gate
+refuses everything with the same `401` (a missing `OWNER_EMAIL` or `RESEND_API_KEY` is named in the log); the public
+API works.
 
 ### Tools
 
@@ -305,8 +315,10 @@ npx --yes wrangler@4.153.0 dev --port 8790 --var ALLOWED_ORIGINS:http://localhos
   --var WALL_API:http://127.0.0.1:8787 --var FORUM_API:http://127.0.0.1:8788 --var WALL_ADMIN_TOKEN:dev --var FORUM_ADMIN_SECRET:dev
 ```
 
-Locally the `send_email` binding writes each mail to a `.eml` file under `.wrangler/tmp/` and logs its path; the three
-words are in it. Serve the page on `localhost` too (not `127.0.0.1`), so the API is the same site and the Secure
+Locally the gate needs somewhere to post its mail: add `--var MAIL_API:http://127.0.0.1:8799 --var
+RESEND_API_KEY:dev` and run anything that prints what it receives on that port, for example
+`node -e "require('http').createServer((q,s)=>{q.pipe(process.stdout);s.end('{}')}).listen(8799)"`; the three words
+are in the JSON's `text`. (With a real key and no `MAIL_API` it would send through Resend for real.) Serve the page on `localhost` too (not `127.0.0.1`), so the API is the same site and the Secure
 cookies are kept.
 
 `wrangler dev` runs `worker-build --release` first. `ALLOW_NO_TURNSTILE` is for local runs only: it is never in
@@ -339,7 +351,8 @@ node --test e2e/*.test.mjs             # the Workers under wrangler dev, over HT
   the email (the backlog's rules, and its colours against the design system's tokens) and the export's files; end to
   end (`e2e/content.test.mjs`) with a local D1 and R2: the seed (from fixture commits the test makes, one entry of
   each kind marked example, which it skips), the public API and CORS, the gate step by step with
-  the mail read from the local `send_email` binding (its HTML checked), code expiry, replacement and single use,
+  the mail read from a local stand-in for Resend's API (the request, its key and its JSON, the HTML and text checked),
+  Resend failing or never answering (a bare 503, the words void), code expiry, replacement and single use,
   lockout on both steps, CSRF (token, origin), create, edit, preview, publish, rename and delete for each kind, uploads,
   moderation against local wall and forum Workers, and the nightly export against a stand-in for GitHub's API; and
   `e2e/prune.test.mjs`: the removal of the seeded examples from a database as the first seed left it, with the
@@ -376,8 +389,9 @@ node --test e2e/*.test.mjs             # the Workers under wrangler dev, over HT
    | `FORUM_POSTER_SALT` | `openssl rand -hex 32` |
    | `FORUM_ADMIN_SECRET` | `openssl rand -hex 32`, kept by the owner for moderation |
    | `CONTENT_OWNER_PASSWORD_HASH` | the line printed by `node backend/content/tools/hash-password.mjs` |
-   | `CONTENT_OWNER_EMAIL` | the owner's address, verified in Email Routing (below) |
+   | `CONTENT_OWNER_EMAIL` | the owner's address (at Proton), where the gate's words go |
    | `CONTENT_AUTH_SALT` | `openssl rand -hex 32` |
+   | `RESEND_API_KEY` | the Resend API key for the gate's mail (below) |
    | `CONTENT_EXPORT_GITHUB_TOKEN` | a fine-grained token for this repository with *Contents: read and write*, for the nightly export |
 
    The content service also gets `WALL_ADMIN_TOKEN` and `FORUM_ADMIN_SECRET`, for moderation.
@@ -386,13 +400,18 @@ node --test e2e/*.test.mjs             # the Workers under wrangler dev, over HT
    answers on its `aphes.ist` subdomain only, and its workers.dev address is switched off, since the account's
    workers.dev name belongs to the account, not to this site. Without it the Workers answer on workers.dev only.
 
-7. **Email Routing**, for the gate's mail, on the subdomain `post.aphes.ist` (the apex `aphes.ist` receives its mail
-   at Proton, and a domain has one set of MX records). In the Cloudflare dashboard, zone `aphes.ist` → Email → Email
-   Routing → Settings → add the subdomain `post.aphes.ist` and accept the records Cloudflare adds there (never enable
-   Email Routing on the apex, which would replace Proton's MX). Then Destination addresses → add the owner's address
-   and open the link Cloudflare mails to it, so it shows *Verified*. The `send_email` binding only delivers to verified
-   destinations, and `EMAIL_FROM` (`clavis@post.aphes.ist`) must be on a domain with Email Routing. The API token also
-   needs Account → *D1: Edit*.
+7. **Resend**, for the gate's mail (the free tier is enough). The Resend domain is `aphes.ist`; its records sit on
+   `resend._domainkey.aphes.ist` and `send.aphes.ist`, never on the root MX, which stays Proton's.
+   1. Create an account at resend.com.
+   2. Domains → Add domain → `aphes.ist`.
+   3. Resend shows a few DNS records. Add each one in Cloudflare (zone `aphes.ist` → DNS → Records), exactly as shown
+      and all **DNS only** (grey cloud, not proxied): the DKIM TXT on `resend._domainkey`, and the MX and SPF TXT on
+      `send` (the return path). Never change or add an MX on `aphes.ist` itself: those are Proton's.
+   4. Back in Resend, Verify; wait until the domain shows *Verified*.
+   5. API Keys → Create API key, permission *Sending access*, domain `aphes.ist` only.
+   6. Add it in GitHub as the repository secret `RESEND_API_KEY`. The next backend run pushes it to the Worker.
+
+   The D1 database also needs the API token to have Account → *D1: Edit*.
 8. **The first content.** After the first deploy, once: run the backend workflow by hand with **seed** ticked (see
    Tools above), or locally `node backend/content/tools/seed.mjs --remote` (with `CLOUDFLARE_API_TOKEN` and
    `CLOUDFLARE_ACCOUNT_ID` in the environment, and the section branches fetched).

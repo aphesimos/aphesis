@@ -29,9 +29,9 @@
 //! Every night (the cron in wrangler.toml) every entry is exported as markdown and committed to the repository's
 //! `content` branch as the owner (`export.rs`), when `EXPORT_GITHUB_TOKEN` is set.
 //!
-//! Bindings: `DB` (D1), `MEDIA` (R2, bucket aphesis-content), `MAIL` (send_email). Secrets: `OWNER_PASSWORD_HASH`,
-//! `OWNER_EMAIL`, `AUTH_SALT`, `WALL_ADMIN_TOKEN`, `FORUM_ADMIN_SECRET`. Vars: `ALLOWED_ORIGINS`, `EMAIL_FROM`,
-//! `SESSION_SECONDS`, `WALL_API`, `FORUM_API`.
+//! Bindings: `DB` (D1), `MEDIA` (R2, bucket aphesis-content). Secrets: `OWNER_PASSWORD_HASH`, `OWNER_EMAIL`,
+//! `AUTH_SALT`, `RESEND_API_KEY` (the gate's mail, through Resend), `WALL_ADMIN_TOKEN`, `FORUM_ADMIN_SECRET`. Vars:
+//! `ALLOWED_ORIGINS`, `EMAIL_FROM`, `MAIL_API`, `SESSION_SECONDS`, `WALL_API`, `FORUM_API`.
 
 pub mod code;
 pub mod cookie;
@@ -445,11 +445,16 @@ async fn password(c: &Ctx, req: &mut Request) -> Result<Response> {
         return c.fail(401, NO);
     }
     let Some(to) = c.var("OWNER_EMAIL") else {
+        worker::console_error!("content: OWNER_EMAIL is not set, so the gate sends nothing");
+        return c.fail(401, NO);
+    };
+    let Some(key) = c.var("RESEND_API_KEY") else {
+        worker::console_error!("content: RESEND_API_KEY is not set, so the gate sends nothing");
         return c.fail(401, NO);
     };
     let from = c
         .var("EMAIL_FROM")
-        .unwrap_or_else(|| "clavis@post.aphes.ist".into());
+        .unwrap_or_else(|| "clavis@aphes.ist".into());
     // one challenge at a time: a new password step replaces any earlier code
     let now = now_ms();
     c.run("DELETE FROM challenges", &[]).await?;
@@ -468,22 +473,19 @@ async fn password(c: &Ctx, req: &mut Request) -> Result<Response> {
     )
     .await?;
     let image = format!("{}/media/mail/phi.png", c.base);
-    let id = format!("{}@{}", hex(&random_bytes(12)), mail::domain(&from));
-    let boundary = format!("phi-{}", hex(&random_bytes(8)));
-    let date = mail::rfc5322(now);
-    let raw = mail::raw(&mail::Mail {
-        from: &from,
-        to: &to,
-        words,
-        image: &image,
-        date: &date,
-        message_id: &id,
-        boundary: &boundary,
-    });
-    let msg = worker::email::EmailMessage::new(&from, &to, &raw)
-        .map_err(|e| worker::Error::RustError(format!("{e:?}")))?;
-    if let Err(e) = c.env.send_email("MAIL")?.send(&msg).await {
-        worker::console_error!("content: the mail did not go: {e:?}");
+    let out = mail::request(
+        &c.var("MAIL_API").unwrap_or_default(),
+        &key,
+        &mail::Mail {
+            from: &from,
+            to: &to,
+            words,
+            image: &image,
+        },
+    );
+    if let Err(e) = send_mail(out).await {
+        // the reason stays in the log; the visitor gets the same answer whatever went wrong
+        worker::console_error!("content: the mail did not go: {e}");
         c.run("DELETE FROM challenges", &[]).await?;
         return c.fail(503, "unavailable");
     }
@@ -501,6 +503,38 @@ async fn password(c: &Ctx, req: &mut Request) -> Result<Response> {
             ),
         )],
     )
+}
+
+/// The gate's mail to Resend, given up after `mail::TIMEOUT_MS`. Any answer but 2xx is an error, with Resend's
+/// status and message for the log (never for the visitor).
+async fn send_mail(out: mail::Outgoing) -> std::result::Result<(), String> {
+    let go = async {
+        let h = worker::Headers::new();
+        for (k, v) in &out.headers {
+            h.set(k, v)?;
+        }
+        let mut init = RequestInit::new();
+        init.with_method(Method::Post)
+            .with_headers(h)
+            .with_body(Some(JsValue::from_str(&out.body)));
+        let signal = worker::AbortSignal::from(worker::web_sys::AbortSignal::timeout_with_u32(
+            mail::TIMEOUT_MS,
+        ));
+        let mut r = Fetch::Request(Request::new_with_init(&out.url, &init)?)
+            .send_with_signal(&signal)
+            .await?;
+        let status = r.status_code();
+        let text = r.text().await.unwrap_or_default();
+        Ok::<_, worker::Error>((status, text))
+    };
+    match go.await {
+        Ok((status, _)) if (200..300).contains(&status) => Ok(()),
+        Ok((status, text)) => Err(format!(
+            "{status} from the mail API: {}",
+            text.chars().take(300).collect::<String>()
+        )),
+        Err(e) => Err(format!("{e}")),
+    }
 }
 
 async fn code_step(c: &Ctx, req: &mut Request) -> Result<Response> {

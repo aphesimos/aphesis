@@ -1,10 +1,10 @@
 // The content service end to end, under wrangler dev with a local D1 and R2: the seed, the public API, the gate
-// (password, the email captured from the local send_email binding, the code, the session, CSRF, lockout), the
+// (password, the email captured by a local stand-in for Resend's API, the code, the session, CSRF, lockout), the
 // dashboard's writes for each kind of entry, uploads, and moderation against local wall and forum Workers.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { pbkdf2Sync } from 'node:crypto';
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -34,7 +34,27 @@ const BOOK = fixtureCommit({
   'book/content/03-a-shown-entry.md': '---\ntitle: a shown entry\nauthor: nobody\nyear: 2026\nmap: jerome.jpg\ncaption: a caption\nexample: true\n---\nshown.\n',
 });
 
-let c, wall, forum, gh, seeded = '';
+let c, wall, forum, gh, resend, seeded = '';
+/* a stand-in for Resend's `POST /emails`: keeps every request, answers as `mode` says (ok, fail, hang) */
+function fakeResend() {
+  const sent = [];
+  const state = { mode: 'ok' };
+  const server = createServer((req, res) => {
+    let body = '';
+    req.on('data', (d) => { body += d; });
+    req.on('end', () => {
+      let json = null;
+      try { json = JSON.parse(body); } catch (_) { /* kept as null */ }
+      sent.push({ method: req.method, url: req.url, auth: req.headers.authorization, type: req.headers['content-type'], ua: req.headers['user-agent'], json, ...json });
+      if (state.mode === 'hang') return; /* never answers: the Worker must give up on its own */
+      if (state.mode === 'fail') { res.writeHead(500, { 'content-type': 'application/json' }); return res.end('{"name":"internal_server_error","message":"resend is down"}'); }
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ id: `m-${sent.length}` }));
+    });
+  });
+  return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve({ url: `http://127.0.0.1:${server.address().port}`, sent, state,
+    close: () => { server.closeAllConnections(); server.close(); } })));
+}
 /* a stand-in for GitHub's git data API: refs, trees and commits in memory, as the export uses them */
 function fakeGitHub() {
   const refs = {}, trees = {}, commits = {}, calls = [];
@@ -67,16 +87,17 @@ function migrateAndSeed(state) {
   seeded = r.stdout;
 }
 before(async () => {
-  gh = await fakeGitHub();
+  [gh, resend] = await Promise.all([fakeGitHub(), fakeResend()]);
   [wall, forum] = await Promise.all([
     start('wall', { ALLOW_NO_TURNSTILE: '1', HASH_SALT: 'w', ADMIN_TOKEN: 'wall-admin', ALLOWED_ORIGINS: SITE }),
     start('forum', { ALLOW_NO_TURNSTILE: '1', IP_SALT: 'a', POSTER_SALT: 'b', ADMIN_SECRET: 'forum-admin', ALLOWED_ORIGINS: SITE }),
   ]);
   c = await start('content', { ...vars, WALL_API: wall.url, FORUM_API: forum.url, WALL_ADMIN_TOKEN: 'wall-admin', FORUM_ADMIN_SECRET: 'forum-admin',
-    GITHUB_API: gh.url, EXPORT_GITHUB_TOKEN: 'gh-token', EXPORT_REPO: 'o/r', EXPORT_BRANCH: 'content' },
+    GITHUB_API: gh.url, EXPORT_GITHUB_TOKEN: 'gh-token', EXPORT_REPO: 'o/r', EXPORT_BRANCH: 'content',
+    MAIL_API: resend.url, RESEND_API_KEY: 're_test_key' },
     { prepare: migrateAndSeed, logLevel: 'info' });
 });
-after(async () => { if (process.env.E2E_LOG) console.error(c?.log()); await Promise.all([c?.stop(), wall?.stop(), forum?.stop()]); gh?.close(); });
+after(async () => { if (process.env.E2E_LOG) console.error(c?.log()); await Promise.all([c?.stop(), wall?.stop(), forum?.stop()]); gh?.close(); resend?.close(); });
 
 /* a small cookie jar: the browser's part, done by hand */
 function jar() {
@@ -93,19 +114,13 @@ const send = (p, { method = 'GET', body, j, ip = '10.0.0.1', origin = SITE, head
   body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
 });
 
-/* the mails the local send_email binding wrote, newest last: wrangler logs the path of each .eml */
+/* the mails the Worker posted to the stand-in for Resend, newest last: {auth, json, from, to, subject, html, text} */
 function mails() {
-  return [...c.log().matchAll(/Email: (\S+\.eml)/g)].map((m) => m[1]).filter(existsSync).map((f) => readFileSync(f, 'utf8'));
+  return resend.sent;
 }
 async function nextMail(before) {
   for (let i = 0; i < 50; i++) { const m = mails(); if (m.length > before) return m[m.length - 1]; await sleep(100); }
   throw new Error('no mail:\n' + c.log());
-}
-function part(raw, type) {
-  const at = raw.indexOf(`Content-Type: ${type}`);
-  const rest = raw.slice(at);
-  const body = rest.slice(rest.indexOf('\r\n\r\n') + 4, rest.indexOf('\r\n--'));
-  return Buffer.from(body.replace(/\s+/g, ''), 'base64').toString('utf8');
 }
 async function login(ip = '10.0.0.9') {
   const j = jar();
@@ -113,13 +128,13 @@ async function login(ip = '10.0.0.9') {
   let r = await send('/v1/auth/password', { method: 'POST', body: { password: PASSWORD }, ip });
   assert.equal(r.status, 200, await r.clone().text());
   j.take(r);
-  const raw = await nextMail(n);
-  const words = part(raw, 'text/plain').trim().split('\r\n').pop();
+  const mail = await nextMail(n);
+  const words = mail.text.trim().split('\r\n').pop();
   r = await send('/v1/auth/code', { method: 'POST', body: { code: words }, j, ip });
   assert.equal(r.status, 200);
   j.take(r);
   const { csrf } = await r.json();
-  return { j, csrf, raw, words };
+  return { j, csrf, mail, words };
 }
 
 test('the seed: everything on the section branches but examples, published, with its pictures', async () => {
@@ -172,11 +187,17 @@ test('the gate: password, the mail, three words, a session; wrong answers all lo
   const pending = j.get('aph_pending');
   for (const a of ['HttpOnly', 'Secure', 'SameSite=Strict', 'Path=/v1/auth', 'Max-Age=600']) assert.ok(pending.attrs.includes(a), a);
 
-  const raw = await nextMail(n);
-  assert.match(raw, /^Subject: clavis\r?$/m);
-  assert.match(raw, /^From: clavis@aphes\.ist\r?$/m);
-  assert.match(raw, /^To: owner@example\.com\r?$/m);
-  const html = part(raw, 'text/html'), text = part(raw, 'text/plain');
+  const mail = await nextMail(n);
+  assert.equal(mail.method, 'POST');
+  assert.equal(mail.url, '/emails');
+  assert.equal(mail.auth, 'Bearer re_test_key');
+  assert.match(mail.type, /^application\/json/);
+  assert.ok(mail.ua, 'a User-Agent');
+  assert.deepEqual(Object.keys(mail.json), ['from', 'to', 'subject', 'html', 'text']);
+  assert.equal(mail.subject, 'clavis');
+  assert.equal(mail.from, 'clavis@aphes.ist');
+  assert.equal(mail.to, 'owner@example.com');
+  const { html, text } = mail;
   assert.match(html, /background:#050404/);
   assert.match(html, /<img src="http:\/\/127\.0\.0\.1:\d+\/media\/mail\/phi\.png"/);
   assert.match(html, /font-family:'Special Elite', 'Courier New', Courier, 'Lucida Console', monospace/);
@@ -220,7 +241,7 @@ test('a code is good for ten minutes, and a new password step replaces it', asyn
   let n = mails().length;
   let r = await send('/v1/auth/password', { method: 'POST', body: { password: PASSWORD }, ip: '10.2.0.1' });
   j.take(r);
-  const first = part(await nextMail(n), 'text/plain').trim().split('\r\n').pop();
+  const first = (await nextMail(n)).text.trim().split('\r\n').pop();
   /* age the challenge past its ten minutes, in the local D1 file */
   const { DatabaseSync } = await import('node:sqlite');
   const dir = path.join(c.state, 'v3', 'd1', 'miniflare-D1DatabaseObject');
@@ -234,13 +255,35 @@ test('a code is good for ten minutes, and a new password step replaces it', asyn
   const j2 = jar();
   r = await send('/v1/auth/password', { method: 'POST', body: { password: PASSWORD }, ip: '10.2.0.1' });
   j2.take(r);
-  const second = part(await nextMail(n), 'text/plain').trim().split('\r\n').pop();
+  const second = (await nextMail(n)).text.trim().split('\r\n').pop();
   n = mails().length;
   r = await send('/v1/auth/password', { method: 'POST', body: { password: PASSWORD }, ip: '10.2.0.1' });
   const j3 = jar(); j3.take(r);
-  const third = part(await nextMail(n), 'text/plain').trim().split('\r\n').pop();
+  const third = (await nextMail(n)).text.trim().split('\r\n').pop();
   assert.equal((await send('/v1/auth/code', { method: 'POST', body: { code: second }, j: j2, ip: '10.2.0.1' })).status, 401, 'replaced');
   assert.equal((await send('/v1/auth/code', { method: 'POST', body: { code: third }, j: j3, ip: '10.2.0.1' })).status, 200);
+});
+
+test('when Resend fails or does not answer, the gate says only "unavailable", and the words it tried are void', async () => {
+  for (const [mode, ip] of [['fail', '10.5.0.1'], ['hang', '10.5.0.2']]) {
+    resend.state.mode = mode;
+    try {
+      const n = mails().length;
+      const t = Date.now();
+      const r = await send('/v1/auth/password', { method: 'POST', body: { password: PASSWORD }, ip });
+      assert.equal(r.status, 503, mode);
+      assert.equal(await r.text(), '{"error":"unavailable"}', 'nothing about the mail API reaches the visitor');
+      assert.deepEqual(r.headers.getSetCookie(), [], 'no pending cookie');
+      if (mode === 'hang') assert.ok(Date.now() - t < 20_000, 'given up on its own');
+      const words = (await nextMail(n)).text.trim().split('\r\n').pop();
+      resend.state.mode = 'ok';
+      const j = jar();
+      j.take(await send('/v1/auth/password', { method: 'POST', body: { password: PASSWORD }, ip }));
+      /* the failed attempt's words never open the gate, even with a fresh pending cookie */
+      assert.equal((await send('/v1/auth/code', { method: 'POST', body: { code: words }, j, ip })).status, 401, mode);
+    } finally { resend.state.mode = 'ok'; }
+  }
+  assert.match(c.log(), /the mail did not go: 500 from the mail API/);
 });
 
 test('lockout: after a few failures even the right password is refused, the same way', async () => {
@@ -262,7 +305,7 @@ test('the code step counts toward the lockout too, and a challenge takes five tr
   const n = mails().length;
   let r = await send('/v1/auth/password', { method: 'POST', body: { password: PASSWORD }, ip });
   j.take(r);
-  const words = part(await nextMail(n), 'text/plain').trim().split('\r\n').pop();
+  const words = (await nextMail(n)).text.trim().split('\r\n').pop();
   for (let i = 0; i < 5; i++) assert.equal((await send('/v1/auth/code', { method: 'POST', body: { code: 'lux nox dies' }, j, ip })).status, 401);
   r = await send('/v1/auth/code', { method: 'POST', body: { code: words }, j, ip });
   assert.equal(r.status, 401, 'locked, and the challenge is spent');

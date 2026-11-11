@@ -1,4 +1,5 @@
-//! The gate's email: the second key, sent to the owner's verified address through the `send_email` binding.
+//! The gate's email: the second key, sent to the owner's address (`OWNER_EMAIL`) through Resend's HTTP API
+//! (`POST {MAIL_API}/emails`, with `RESEND_API_KEY`), from `EMAIL_FROM` on the domain `aphes.ist`.
 //!
 //! It follows the backlog: the subject is a gloss, *clavis*; the HTML is the dark ground with the φ in red as
 //! stipple (a PNG hosted in the content bucket, `mail/phi.png`, made by `tools/make-mail-phi.mjs` from the design
@@ -23,11 +24,45 @@ pub struct Mail<'a> {
     pub words: [&'a str; 3],
     /// absolute URL of the φ
     pub image: &'a str,
-    /// RFC 5322 date
-    pub date: &'a str,
-    /// unique, without the angle brackets
-    pub message_id: &'a str,
-    pub boundary: &'a str,
+}
+
+/// Resend's API, when `MAIL_API` is not set
+pub const DEFAULT_API: &str = "https://api.resend.com";
+/// how long the gate waits for Resend before it gives up, in ms
+pub const TIMEOUT_MS: u32 = 8000;
+
+/// One request to Resend, built apart from the fetch so the tests can read it.
+pub struct Outgoing {
+    pub url: String,
+    pub headers: Vec<(&'static str, String)>,
+    pub body: String,
+}
+
+/// The JSON `POST /emails` takes: `{from, to, subject, html, text}`.
+pub fn body(m: &Mail) -> serde_json::Value {
+    serde_json::json!({
+        "from": m.from,
+        "to": m.to,
+        "subject": SUBJECT,
+        "html": html(m),
+        "text": text(m),
+    })
+}
+
+/// `POST {api}/emails` with the key as a bearer token; an empty `api` means Resend's own.
+pub fn request(api: &str, key: &str, m: &Mail) -> Outgoing {
+    let api = api.trim().trim_end_matches('/');
+    let api = if api.is_empty() { DEFAULT_API } else { api };
+    Outgoing {
+        url: format!("{api}/emails"),
+        headers: vec![
+            ("Authorization", format!("Bearer {key}")),
+            ("Content-Type", "application/json".into()),
+            ("Accept", "application/json".into()),
+            ("User-Agent", "aphes.ist-content".into()),
+        ],
+        body: body(m).to_string(),
+    }
 }
 
 fn esc(s: &str) -> String {
@@ -61,67 +96,6 @@ pub fn text(m: &Mail) -> String {
     format!("φ\r\n\r\n{}\r\n", crate::code::display(&m.words))
 }
 
-/// base64 in lines of 76, as MIME wants
-fn b64_lines(s: &str) -> String {
-    let b = crate::pbkdf2::b64_encode(s.as_bytes());
-    b.as_bytes()
-        .chunks(76)
-        .map(|c| std::str::from_utf8(c).unwrap_or(""))
-        .collect::<Vec<_>>()
-        .join("\r\n")
-}
-
-/// The whole message, headers and both parts.
-pub fn raw(m: &Mail) -> String {
-    let b = m.boundary;
-    format!(
-        "From: {from}\r\nTo: {to}\r\nSubject: {SUBJECT}\r\nDate: {date}\r\nMessage-ID: <{id}>\r\n\
-MIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=\"{b}\"\r\n\r\n\
---{b}\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n{text}\r\n\
---{b}\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n{html}\r\n\
---{b}--\r\n",
-        from = m.from,
-        to = m.to,
-        date = m.date,
-        id = m.message_id,
-        text = b64_lines(&text(m)),
-        html = b64_lines(&html(m)),
-    )
-}
-
-/// RFC 5322 date from ms since the epoch, in UTC: `Tue, 10 Nov 2026 12:00:00 +0000`
-pub fn rfc5322(ms: i64) -> String {
-    const D: [&str; 7] = ["Thu", "Fri", "Sat", "Sun", "Mon", "Tue", "Wed"];
-    const M: [&str; 12] = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-    ];
-    let day = aphesis_common::time::iso_day(ms);
-    let (y, mo, d) = (
-        &day[0..4],
-        day[5..7].parse::<usize>().unwrap_or(1),
-        &day[8..10],
-    );
-    let days = ms.div_euclid(86_400_000);
-    let s = ms.div_euclid(1000).rem_euclid(86_400);
-    format!(
-        "{}, {} {} {} {:02}:{:02}:{:02} +0000",
-        D[days.rem_euclid(7) as usize],
-        d,
-        M[mo - 1],
-        y,
-        s / 3600,
-        s / 60 % 60,
-        s % 60
-    )
-}
-
-/// The envelope's domain, for the Message-ID: what follows the @ of the sender.
-pub fn domain(from: &str) -> &str {
-    from.rsplit_once('@')
-        .map(|(_, d)| d.trim_end_matches('>'))
-        .unwrap_or("aphes.ist")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -132,37 +106,27 @@ mod tests {
             to: "owner@example.com",
             words: ["ignis", "lapis", "aurum"],
             image: "https://content-api.aphes.ist/media/mail/phi.png",
-            date: "Tue, 10 Nov 2026 12:00:00 +0000",
-            message_id: "abc@aphes.ist",
-            boundary: "phi-boundary",
         }
-    }
-
-    fn decode_part(raw: &str, ctype: &str) -> String {
-        let at = raw.find(&format!("Content-Type: {ctype}")).unwrap();
-        let body = &raw[at..];
-        let start = body.find("\r\n\r\n").unwrap() + 4;
-        let end = body[start..].find("\r\n--").unwrap() + start;
-        let b64: String = body[start..end].split("\r\n").collect();
-        String::from_utf8(crate::pbkdf2::b64_decode(&b64).unwrap()).unwrap()
     }
 
     #[test]
     fn follows_the_backlog() {
-        let m = mail();
-        let raw = raw(&m);
-        assert!(raw.contains("Subject: clavis\r\n"));
-        assert!(raw.contains("Message-ID: <abc@aphes.ist>\r\n"));
-        assert!(raw.contains("From: clavis@aphes.ist\r\nTo: owner@example.com\r\n"));
-        assert!(raw.contains("multipart/alternative"));
-        assert!(raw.lines().all(|l| l.len() <= 998));
-        let html = decode_part(&raw, "text/html");
-        let text = decode_part(&raw, "text/plain");
+        let out = request("https://api.resend.com", "re_test", &mail());
+        let v: serde_json::Value = serde_json::from_str(&out.body).unwrap();
+        assert_eq!(
+            v.as_object().unwrap().keys().collect::<Vec<_>>(),
+            ["from", "to", "subject", "html", "text"]
+        );
+        assert_eq!(v["subject"], "clavis");
+        assert_eq!(v["from"], "clavis@aphes.ist");
+        assert_eq!(v["to"], "owner@example.com");
+        let html = v["html"].as_str().unwrap();
+        let text = v["text"].as_str().unwrap();
         assert!(html.contains(&format!("background:{BG}")));
         assert!(html.contains("src=\"https://content-api.aphes.ist/media/mail/phi.png\""));
         assert!(html.contains("ignis") && html.contains("lapis") && html.contains("aurum"));
         assert!(html.contains("'Special Elite', 'Courier New'") && html.contains("monospace"));
-        assert!(text.contains("ignis · lapis · aurum"));
+        assert_eq!(text, "φ\r\n\r\nignis · lapis · aurum\r\n");
         for said in [
             "verification",
             "code",
@@ -177,19 +141,44 @@ mod tests {
     }
 
     #[test]
-    fn dates_and_domains() {
-        // Date.UTC(2026, 10, 10, 12) is a Tuesday
+    fn the_request_to_resend() {
+        let out = request("https://api.resend.com", "re_test", &mail());
+        assert_eq!(out.url, "https://api.resend.com/emails");
+        let h: std::collections::HashMap<_, _> = out.headers.iter().cloned().collect();
+        assert_eq!(h["Authorization"], "Bearer re_test");
+        assert_eq!(h["Content-Type"], "application/json");
+        assert!(!h["User-Agent"].is_empty());
+        // a local stub, with or without the trailing slash; nothing set means Resend's own
         assert_eq!(
-            rfc5322(1_794_312_000_000),
-            "Tue, 10 Nov 2026 12:00:00 +0000"
+            request("http://127.0.0.1:9/", "k", &mail()).url,
+            "http://127.0.0.1:9/emails"
         );
-        assert_eq!(rfc5322(0), "Thu, 01 Jan 1970 00:00:00 +0000");
         assert_eq!(
-            rfc5322(951_782_400_000 + 3_723_000),
-            "Tue, 29 Feb 2000 01:02:03 +0000"
+            request(" ", "k", &mail()).url,
+            "https://api.resend.com/emails"
         );
-        assert_eq!(domain("clavis@aphes.ist"), "aphes.ist");
-        assert_eq!(domain("aφesis <clavis@aphes.ist>"), "aphes.ist");
+        // a display name outside ASCII goes through as it is, in UTF-8 JSON
+        let named = Mail {
+            from: "aφesis <clavis@aphes.ist>",
+            ..mail()
+        };
+        let v: serde_json::Value = serde_json::from_str(&request("", "k", &named).body).unwrap();
+        assert_eq!(v["from"], "aφesis <clavis@aphes.ist>");
+    }
+
+    #[test]
+    fn words_are_escaped_in_the_html() {
+        let odd = Mail {
+            words: ["<b>", "a&b", "\"q\""],
+            ..mail()
+        };
+        let html = html(&odd);
+        assert!(
+            html.contains("&lt;b&gt;")
+                && html.contains("a&amp;b")
+                && html.contains("&quot;q&quot;")
+        );
+        assert!(!html.contains("<b>"));
     }
 
     #[test]

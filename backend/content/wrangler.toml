@@ -1,6 +1,6 @@
 # content: the Rust Worker behind the archive, the book and works, and the owner's dashboard. See ../README.md.
-# Secrets are never kept here: OWNER_PASSWORD_HASH, OWNER_EMAIL, AUTH_SALT, WALL_ADMIN_TOKEN, FORUM_ADMIN_SECRET,
-# EXPORT_GITHUB_TOKEN (the deploy workflow pushes them).
+# Secrets are never kept here: OWNER_PASSWORD_HASH, OWNER_EMAIL, AUTH_SALT, RESEND_API_KEY, WALL_ADMIN_TOKEN,
+# FORUM_ADMIN_SECRET, EXPORT_GITHUB_TOKEN (the deploy workflow pushes them).
 name = "aphesis-content"
 main = "build/index.js"
 compatibility_date = "2025-09-01"
@@ -13,8 +13,10 @@ command = "worker-build --release"
 [vars]
 # the site's origins, comma-separated: CORS answers only these, and the gate takes requests only from them
 ALLOWED_ORIGINS = "https://aphes.ist,https://www.aphes.ist,https://aphesist.pages.dev"
-# the gate's email comes from this address (Email Routing must have the zone set up; see ../README.md)
-EMAIL_FROM = "clavis@post.aphes.ist"
+# the gate's email comes from this address, on the domain verified in Resend (see ../README.md)
+EMAIL_FROM = "clavis@aphes.ist"
+# the mail API the gate posts to (Resend's; the end-to-end tests point it at a local stand-in)
+MAIL_API = "https://api.resend.com"
 # the session lasts this long, in seconds (two hours)
 SESSION_SECONDS = "7200"
 # the APIs moderated from the dashboard, called server to server with their admin secrets
@@ -39,10 +41,6 @@ migrations_dir = "migrations"
 [[r2_buckets]]
 binding = "MEDIA"
 bucket_name = "aphesis-content"
-
-# the gate's email: to the owner's verified address (OWNER_EMAIL), never named here
-[[send_email]]
-name = "MAIL"
 
 # The custom domain is added by the deploy workflow when BACKEND_CUSTOM_DOMAINS = 1:
 # routes = [{ pattern = "content-api.aphes.ist", custom_domain = true }]

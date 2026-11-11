@@ -63,7 +63,7 @@ export function createLine(form, { secret }) {
   base.innerHTML = '<svg viewBox="0 0 240 14" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path fill="currentColor"/></svg>';
   const path = base.querySelector('path');
   /* grains: three or four cells of 2 CSS px on a 7 px square, fixed per position, so a character always lands as the
-     same grain; 7 px and a 2 px gap make an advance of 9 px, so 34 fit on the line of a 360 px phone and 37 at 390 px */
+     same grain; 7 px and a 2 px gap make an advance of 9 px, so 32 fit on the line of a 360 px phone, centred with the caret's room each side, and 35 at 390 px */
   const GRAIN = [], rand = A.rng(907);
   const SPOTS = [[0, 0], [2.5, 0], [5, 0], [0, 2.5], [2.5, 2.5], [5, 2.5], [0, 5], [2.5, 5], [5, 5]];
   for (let i = 0; i < 64; i++) {
@@ -81,7 +81,7 @@ export function createLine(form, { secret }) {
     return Math.max(g.measureText('m').width, g.measureText('w').width) + ls;
   }
   function measure() {
-    const w = form.getBoundingClientRect().width || 420, caretRoom = 14;
+    const w = form.getBoundingClientRect().width || 420, caretRoom = 28;   /* the group is centred: the caret's room on both sides */
     cap = Math.max(8, Math.floor((w - caretRoom) / advance()));
     input.maxLength = cap;
     form.dataset.cap = String(cap);
@@ -110,7 +110,8 @@ export function createLine(form, { secret }) {
   function place() {
     const end = secret ? marks : mirror;
     const fr = form.getBoundingClientRect(), er = end.getBoundingClientRect();
-    const x = Math.min(fr.width - 12, (er.width ? er.right - fr.left : 0) + 2);
+    /* what is typed sits centred on the line and grows outward from the middle; the caret follows its right end */
+    const x = Math.min(fr.width - 12, (er.width ? er.right - fr.left : fr.width / 2) + 2);
     caret.style.transform = 'translateX(' + x.toFixed(1) + 'px)';
     caret.classList.remove('blink'); void caret.offsetWidth; caret.classList.add('blink');
   }

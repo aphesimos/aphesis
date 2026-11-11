@@ -108,6 +108,17 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
 .aph-icon:hover .aph-st path, .aph-icon:focus-visible .aph-st path { animation: aph-stir 1.7s ease-in-out infinite alternate; }
 .aph-icon:hover .aph-st path + path, .aph-icon:focus-visible .aph-st path + path { animation-direction: alternate-reverse; animation-duration: 1.45s; }
 .aph-icon.aph-gather .aph-st { transform: scale(.8); }
+/* the forum's three eyes: each a film of six drawings 24 units apart (0 rest, 1 and 2 other gazes, 3 half, 4 closed,
+   5 on the centre). Hover runs the three films on their own rhythms at 8 fps in hard cuts (2s, 1.625s, 1.375s), so
+   they never blink together; the hover ending returns them to rest. Gathering closes them and opens them on the centre. */
+.aph-icon:hover .aph-film-a, .aph-icon:focus-visible .aph-film-a { animation: aph-eyes-a 2s step-end infinite; }
+.aph-icon:hover .aph-film-b, .aph-icon:focus-visible .aph-film-b { animation: aph-eyes-b 1.625s step-end infinite; }
+.aph-icon:hover .aph-film-c, .aph-icon:focus-visible .aph-film-c { animation: aph-eyes-c 1.375s step-end infinite; }
+.aph-icon.aph-gather .aph-film { animation: aph-eyes-look .375s step-end forwards; }
+@keyframes aph-eyes-a { 0% { transform: translateX(0); } 31.25% { transform: translateX(-24px); } 50% { transform: translateX(-72px); } 56.25% { transform: translateX(-96px); } 62.5% { transform: translateX(-72px); } 68.75% { transform: translateX(-24px); } 87.5% { transform: translateX(-48px); } 100% { transform: translateX(-48px); } }
+@keyframes aph-eyes-b { 0% { transform: translateX(0); } 23.08% { transform: translateX(-48px); } 46.15% { transform: translateX(-24px); } 69.23% { transform: translateX(-72px); } 76.92% { transform: translateX(-96px); } 84.62% { transform: translateX(-72px); } 92.31% { transform: translateX(0); } 100% { transform: translateX(0); } }
+@keyframes aph-eyes-c { 0% { transform: translateX(0); } 18.18% { transform: translateX(-72px); } 27.27% { transform: translateX(-96px); } 36.36% { transform: translateX(-72px); } 45.45% { transform: translateX(-24px); } 72.73% { transform: translateX(-48px); } 100% { transform: translateX(-48px); } }
+@keyframes aph-eyes-look { 0% { transform: translateX(-96px); } 66.67% { transform: translateX(-120px); } 100% { transform: translateX(-120px); } }
 
 /* ================= browser defaults =================
    Everything the browser would draw in its own colours is brought into the system here: selection, scrollbars,
@@ -321,10 +332,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   -webkit-text-fill-color: transparent; z-index: 1;
 }
 .gate-line input::selection { background: transparent; }
-.gate-line .marks { position: absolute; left: 0; bottom: 18px; display: flex; gap: 2px; color: var(--ink); pointer-events: none; }
+.gate-line .marks { position: absolute; left: 0; right: 0; margin: 0 auto; width: fit-content; bottom: 18px; display: flex; gap: 2px; color: var(--ink); pointer-events: none; }
 .gate-line .marks svg { width: 7px; height: 7px; display: block; }
 .gate-line .mirror {
-  position: absolute; left: 0; bottom: 14px; white-space: pre; pointer-events: none; color: var(--ink);
+  position: absolute; left: 0; right: 0; margin: 0 auto; width: fit-content; bottom: 14px; white-space: pre; pointer-events: none; color: var(--ink);
   font: 400 var(--type-lede-size)/1.2 var(--font-text); letter-spacing: .02em; max-width: 100%; overflow: hidden;
 }
 .gate-line .caret {
@@ -612,6 +623,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
      is the point the cells gather toward. */
   function icon(name, st) {
     var g = ICONS[name](st || 0), o = g.gather || [12, 12], a = '', b = '';
+    /* an icon that moves in drawings (the forum's eyes) brings its own film */
+    if (g.film) return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="overflow:visible">' + g.film() + '</svg>';
     if (g.dots) g.dots.split('M').slice(1).forEach(function (q, j) { if (j % 2) b += 'M' + q; else a += 'M' + q; });
     return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="overflow:visible"><path d="' + g.strokes + '" fill="currentColor"/>' +
       (g.dots ? '<g class="aph-st" opacity=".85" style="transform-origin:' + o[0] + 'px ' + o[1] + 'px"><path d="' + a + '" fill="currentColor"/>' + (b ? '<path d="' + b + '" fill="currentColor"/>' : '') + '</g>' : '') + '</svg>';
@@ -1590,17 +1603,18 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   }
   var SECTIONS = ['book', 'descent', 'archive', 'laboratory', 'works', 'wall', 'forum', 'music'];
 
-  /* book (liber): an open codex, two leaves bowing into the spine, a few lines of text in stipple on each */
+  /* book (liber): a closed grimoire, as an emblem book would engrave it: the cover, the band of the spine, two clasps
+     over the fore-edge, and an eight-rayed star on the cover in stipple */
   (function () {
-    var left = chain(bez([12, 7.6], [9.4, 5.4], [6, 5.3], [3.2, 6.4], 18), line(3.2, 6.4, 3.4, 17.6, 14), bez([3.4, 17.6], [6.2, 16.6], [9.6, 16.8], [12, 18.9], 18));
-    var right = chain(bez([12, 7.6], [14.6, 5.4], [18, 5.3], [20.8, 6.4], 18), line(20.8, 6.4, 20.6, 17.6, 14), bez([20.6, 17.6], [17.8, 16.6], [14.4, 16.8], [12, 18.9], 18));
-    var strokes = brush(left, 1.6, 201, 0.1) + brush(right, 1.6, 203, 0.1) + brush(line(12, 8.4, 12, 18.2, 16), 1.05, 205, 0.3, 0.05);
-    function text(x, y) {
-      var u = x < 12 ? (12 - x) / 8.8 : (x - 12) / 8.8; if (u < 0.12 || u > 0.86) return false;
-      var b = y - (1.5 * (1 - u) * (1 - u)); /* the lines bow down into the spine, as the leaves do */
-      return (b > 8.3 && b < 9.3) || (b > 10.7 && b < 11.7) || (b > 13.1 && b < 14.1 && u > 0.3);
+    var cover = chain(line(5, 3.6, 18.8, 3.8, 20), line(18.8, 3.8, 19, 20.4, 22), line(19, 20.4, 5.2, 20.6, 20), line(5.2, 20.6, 5, 3.6, 22));
+    var strokes = brush(cover, 1.6, 201, 0.04) + brush(line(7.6, 4.4, 7.7, 19.8, 20), 1.1, 203, 0.2, 0.05) +
+      brush(line(16.4, 7.4, 21, 7.3, 10), 1.35, 205, 0.3, 0.05) + brush(line(16.4, 16.8, 21, 16.9, 10), 1.35, 206, 0.3, 0.05);
+    /* the star: a four-pointed astroid and a smaller one turned 45 degrees */
+    function star(x, y) {
+      var dx = Math.abs(x - 13.2), dy = Math.abs(y - 12.1), u = Math.abs(dx - dy) / 1.414, v = (dx + dy) / 1.414;
+      return dx * dx + dy * dy < 1.4 || Math.sqrt(dx) + Math.sqrt(dy) < Math.sqrt(5.2) || Math.sqrt(u) + Math.sqrt(v) < Math.sqrt(3.2);
     }
-    ICONS.book = sectionIcon(strokes, [[text, 207, 2200, 0.52]], [12, 12]);
+    ICONS.book = sectionIcon(strokes, [[star, 207, 3200, 0.58]], [13.2, 12.1]);
   })();
 
   /* descent (κατάβασις): the threshold's arch with steps going down inside it, and the night thickening below them */
@@ -1659,21 +1673,68 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     ICONS.wall = sectionIcon(strokes, [[stones, 263, 1400, 0.62]], [12, 12], 0.94);
   })();
 
-  /* forum (ἀγορά): two voices, one speaking (three grains), one answering in stipple */
+  /* forum (ἀγορά): three eyes, the gate's eye simplified to icon size: many voices, watching. One larger above, two
+     smaller below, each looking its own way. Seeds 301 to 360. Each eye is a film of six drawings laid side by side 24 units apart and
+     seen through its own clip: 0 at rest, 1 and 2 two other gazes, 3 half shut, 4 closed, 5 looking at the centre of
+     the three. At rest the film shows drawing 0; hovering runs each film on its own rhythm at 8 fps in hard cuts
+     (CSS: aph-eyes-a, -b, -c), so they blink at different moments and look different ways; .aph-gather closes them
+     and opens them on the centre, together. icon('forum', 1) is that last drawing, still. */
   (function () {
-    var a = arc(9.4, 8.6, 6.6, 128, 458, 52, 4.6), b = arc(16, 16.6, 4.6, 75, 395, 44, 3.3);
-    var strokes = brush(a, 1.6, 271, 0.16) + brush(line(6.6, 12.6, 4.2, 16.4, 10), 1.35, 273, 0.36, 0.05) +
-      brush(b, 1.5, 275, 0.16) + brush(line(18.6, 19.2, 20.8, 22, 10), 1.2, 277, 0.4, 0.05);
-    function grains(x, y) { return inC(6.7, 8.6, 0.95)(x, y) || inC(9.4, 8.6, 0.95)(x, y) || inC(12.1, 8.6, 0.95)(x, y); }
-    ICONS.forum = sectionIcon(strokes, [[grains, 279, 1400, 0.62], [inE(16, 16.6, 3.3, 2.1), 281, 900, 0.55]], [12.4, 12.4]);
+    var C = [12, 12.4]; /* the centre they turn to */
+    /* x, y, scale (of the eye's own 24-unit drawing), lid width, gaze at rest, gazes 1 and 2 (in the eye's own units) */
+    var EYES = [
+      [12, 8, 0.7, 1.45, [-0.5, 0.5], [1.9, 0.1], [-1.6, -0.6]],
+      [6.6, 15.8, 0.55, 1.3, [0.9, -0.3], [-1.8, 0.4], [1.4, 1]],
+      [17.4, 15.8, 0.55, 1.3, [-0.2, 0.8], [1.8, -0.5], [-1.9, 0.2]]
+    ];
+    var W = 24;
+    function drawing(e, i, k, dx) {
+      var x = e[0], y = e[1], s = e[2], seed = 301 + i * 20 + k * 3, d = '', top, bot;
+      function lid(cy, ry, a0, a1, w, sd) { return brush(arc(x + dx, y + cy * s, 9 * s, a0, a1, 22, ry * s), w, sd, 0.22, 0.06); }
+      if (k === 4) { d = lid(-4, 6, 25, 155, e[3] * 1.05, seed); top = function () { return 99; }; bot = function () { return -99; }; }
+      else {
+        var ru = k === 3 ? 3.4 : 7;
+        d = lid(3.5, ru, -160, -20, e[3], seed) + lid(-3.5, 7, 20, 160, e[3] * 0.92, seed + 1);
+        top = function (X) { return y + 3.5 * s - ru * s * Math.sqrt(Math.max(0, 1 - Math.pow((X - x) / (9 * s), 2))); };
+        bot = function (X) { return y - 3.5 * s + 7 * s * Math.sqrt(Math.max(0, 1 - Math.pow((X - x) / (9 * s), 2))); };
+      }
+      var gz = k === 1 ? e[5] : k === 2 ? e[6] : k === 5 ? [clamp((C[0] - x) / 2.4, -2.1, 2.1), clamp((C[1] - y) / 2.6, -1.4, 1.4)] : e[4];
+      var cx = x + gz[0] * s, cy = y + (k === 3 ? Math.max(gz[1], 0.9) : gz[1]) * s, r = rng(seed + 7), ir = 3.1 * s, st = 0.7, cells = '';
+      if (k !== 4) for (var gy = -ir; gy <= ir; gy += st) for (var gx = -ir; gx <= ir; gx += st) {
+        var px = cx + gx + (r() - 0.5) * 0.22, py = cy + gy + (r() - 0.5) * 0.22, q = Math.hypot(gx, gy);
+        if (q > ir || py < top(px) + 0.55 || py > bot(px) - 0.55 || r() > (q < 1.3 * s ? 0.95 : 0.68)) continue;
+        var z = q < 1.3 * s ? 0.7 + r() * 0.15 : 0.5 + r() * 0.15; cells += 'M' + (px + dx - z / 2).toFixed(2) + ' ' + (py - z / 2).toFixed(2) + 'h' + z.toFixed(2) + 'v' + z.toFixed(2) + 'h' + (-z).toFixed(2) + 'z';
+      }
+      return { strokes: d, dots: cells };
+    }
+    /* six drawings per eye, drawn once: strip[e] holds them side by side, still[k] gathers one drawing of all three */
+    var films = EYES.map(function (e, i) { var f = []; for (var k = 0; k < 6; k++) f.push(drawing(e, i, k, k * W)); return f; });
+    var still = [0, 5].map(function (k) { var e3 = EYES.map(function (e, i) { return drawing(e, i, k, 0); }); return { strokes: e3.map(function (g) { return g.strokes; }).join(''), dots: e3.map(function (g) { return g.dots; }).join(''), gather: C }; });
+    var ids = 0;
+    ICONS.forum = function (st) {
+      var g = still[st ? 1 : 0];
+      if (st) return g;
+      return { strokes: g.strokes, dots: g.dots, gather: C, film: function () {
+        var id = 'aph-eyes-' + (++ids);
+        return EYES.map(function (e, i) {
+          var x0 = e[0] - 9 * e[2] - 1.2, y0 = e[1] - 6 * e[2] - 1.2;
+          return '<clipPath id="' + id + '-' + i + '"><rect x="' + x0.toFixed(2) + '" y="' + y0.toFixed(2) + '" width="' + (18 * e[2] + 2.4).toFixed(2) + '" height="' + (12 * e[2] + 2.4).toFixed(2) + '"/></clipPath>' +
+            '<g clip-path="url(#' + id + '-' + i + ')"><g class="aph-film aph-film-' + 'abc'[i] + '"><path d="' + films[i].map(function (f) { return f.strokes; }).join('') + '" fill="currentColor"/><path d="' + films[i].map(function (f) { return f.dots; }).join('') + '" fill="currentColor" opacity=".85"/></g></g>';
+        }).join('');
+      } };
+    };
   })();
 
-  /* music (phonotheca): the record ring as the deck draws it, grooves in stipple, a small centre, and the arm on it */
+  /* music (phonotheca): Apollo's lyre: the sounding bowl, two arms rising from it and curling out at the tips, the yoke
+     across them, and the strings in stipple, so a hover sets them trembling */
   (function () {
-    var strokes = brush(arc(12, 12.4, 8, -60, 290, 64), 1.8, 291) + brush(arc(12, 12.4, 1.5, 0, 360, 16), 1.05, 293, 0, 0.04) +
-      brush(chain(line(21.2, 2.6, 17.8, 9.8, 14), line(17.8, 9.8, 15.4, 11.6, 6)), 1.3, 295, 0.3, 0.05);
-    var grooves = function (x, y) { var r = Math.hypot(x - 12, y - 12.4); return (r > 3 && r < 4) || (r > 5 && r < 6.2); };
-    ICONS.music = sectionIcon(strokes, [[grooves, 297, 1500, 0.55]], [12, 12.4]);
+    var bowl = chain(arc(12, 18.2, 3.8, 0, 180, 24, 3), line(8.2, 18.2, 15.8, 18.2, 14));
+    var strokes = brush(bowl, 1.5, 291, 0.06) +
+      brush(chain(bez([8.6, 17.8], [6, 15.6], [4.6, 11.8], [6, 8.4], 22), bez([6, 8.4], [7.4, 6], [6.8, 3.4], [4.4, 2.6], 14)), 1.6, 293, 0.24) +
+      brush(chain(bez([15.4, 17.8], [18, 15.6], [19.4, 11.8], [18, 8.4], 22), bez([18, 8.4], [16.6, 6], [17.2, 3.4], [19.6, 2.6], 14)), 1.6, 294, 0.24) +
+      brush(line(3.6, 7.3, 20.4, 7.1, 26), 1.25, 295, 0.2, 0.05);
+    function strings(x, y) { return y > 7.9 && y < 17.6 && (Math.abs(x - 9.7) < 0.34 || Math.abs(x - 12) < 0.34 || Math.abs(x - 14.3) < 0.34); }
+    ICONS.music = sectionIcon(strokes, [[strings, 297, 3600, 0.44]], [12, 12.6], 0.9);
   })();
 
   function mountEar(el) {
@@ -2322,7 +2383,7 @@ return { createFigures };
 })();
 /* ---- archive/css.js ---- */
 M["archive/css.js"] = (function () {
-const ARCHIVE_CSS = ".gp-archive *{box-sizing: border-box;}\n.gp-archive a{color: inherit;}\n.gp-archive button{font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; border-radius: var(--radius-none);}\n.gp-archive .sr{position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;}\n.gp-archive [hidden]{display: none !important;}\n.gp-archive .views{position: relative; display: block; min-height: 100%;}\n.gp-archive .view{display: block;}\n.gp-archive .view.leaving{pointer-events: none;}\n.gp-archive .col{width: 100%; max-width: calc(33em + 2 * var(--space-4)); margin: 0 auto;\n  padding: var(--space-8) max(var(--space-4), calc(var(--space-4) + env(safe-area-inset-right, 0px))) var(--space-8) max(var(--space-4), calc(var(--space-4) + env(safe-area-inset-left, 0px)));\n  text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg);}\n.aph-shifting .gp-archive .col,.aph-shifting .gp-archive .col *{text-shadow: none;}\n.gp-archive :focus{outline: none;}\n.gp-archive :focus-visible{outline: 1px solid var(--accent); outline-offset: 4px;}\n.gp-archive .aph-gloss{font-size: var(--type-gloss-size); line-height: var(--type-gloss-line); padding-right: .2em;}\n.gp-archive .lede{font-size: var(--type-lede-size); line-height: var(--type-lede-line); color: var(--ink-soft); margin: var(--space-4) 0 0;}\n.gp-archive .stage-icon{display: inline-block; flex: none; width: 28px; height: 28px; color: var(--ink-soft);}\n.gp-archive .stage-icon svg{width: 100%; height: 100%; display: block;}\n.gp-archive .stage-icon[data-stage=\"rubedo\"]{color: var(--accent);}\n.gp-archive .stage-icon.small{width: 20px; height: 20px;}\n.gp-archive .head{margin-bottom: var(--space-6);}\n.gp-archive .gloss-title{font-size: var(--type-gloss-title-size); letter-spacing: var(--type-gloss-title-tracking); margin: 0 0 var(--space-3);}\n.gp-archive .title{font-size: clamp(44px, 8vw, 96px); margin: 0; font-weight: var(--type-title-weight);}\n.gp-archive .stages{list-style: none; margin: var(--space-5) 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4);}\n.gp-archive .stages li{display: flex; align-items: center; gap: var(--space-2);}\n.gp-archive .stages .aph-gloss{font-size: 17px;}\n.gp-archive .stages li:not(:last-child)::after{content: \"\u00b7\"; color: var(--ink-soft); margin-left: var(--space-2);}\n.gp-archive .entries{list-style: none; margin: 0; padding: 0;}\n.gp-archive .entry + .entry{margin-top: var(--space-2);}\n.gp-archive .entry-link{display: grid; grid-template-columns: 28px 1fr auto; column-gap: var(--space-4); align-items: start;\n  padding: var(--space-4) 0; text-decoration: none;}\n.gp-archive .entry-link .stage-icon{margin-top: -2px; transition: transform var(--duration-slow) var(--easing-settle);}\n.gp-archive .entry-main{display: block; min-width: 0;}\n.gp-archive .entry-title{position: relative; display: inline; font-size: var(--type-lede-size); line-height: 1.45; color: var(--ink);}\n.gp-archive .uline{position: absolute; left: 0; right: 0; bottom: -7px; height: 6px; color: var(--accent); pointer-events: none;\n  clip-path: inset(0 100% 0 0); transition: clip-path var(--duration-slow) var(--easing-settle);}\n.gp-archive .uline svg{width: 100%; height: 100%; display: block;}\n.gp-archive .entry-link:hover .uline,.gp-archive .entry-link:focus-visible .uline{clip-path: inset(0 0 0 0);}\n.gp-archive .entry-link:hover .stage-icon,.gp-archive .entry-link:focus-visible .stage-icon{transform: rotate(-12deg);}\n.gp-archive .entry-summary{display: block; margin-top: var(--space-2); color: var(--ink-soft);}\n.gp-archive .entry-meta{display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-1); text-align: right; white-space: nowrap; padding-top: 2px;}\n.gp-archive .entry-stage{font-size: 18px;}\n.gp-archive .entry[data-stage=\"rubedo\"] .entry-stage{color: var(--accent-text);}\n.gp-archive .entry-link:hover .entry-stage,.gp-archive .entry-link:focus-visible .entry-stage{color: var(--accent-text);}\n.gp-archive .foot{margin-top: var(--space-6); display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-3);}\n.gp-archive .foot .rule{display: block; flex: 0 0 100%; height: 6px; color: var(--line); margin-bottom: var(--space-4);}\n.gp-archive .foot .rule svg{width: 100%; height: 100%; display: block;}\n.gp-archive .feed{text-decoration: none; color: var(--accent-text);}\n.gp-archive .feed:hover{text-decoration: underline; text-underline-offset: 4px;}\n.gp-archive .back-row{margin-bottom: var(--space-5);}\n.gp-archive .back{display: inline-flex; align-items: center; gap: var(--space-2); text-decoration: none; color: var(--ink-soft); padding: var(--space-1) 0;}\n.gp-archive .back-mark{display: block; width: 28px; height: 28px; color: var(--accent); transition: transform var(--duration-slow) var(--easing-settle);}\n.gp-archive .back-mark svg{width: 100%; height: 100%; display: block;}\n.gp-archive .back:hover .back-mark,.gp-archive .back:focus-visible .back-mark{transform: translateX(-4px);}\n.gp-archive .back:hover,.gp-archive .back:focus-visible{color: var(--ink);}\n.gp-archive .post-foot{margin-top: var(--space-6);}\n.gp-archive .post-stage{display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-3); margin: 0 0 var(--space-4);}\n.gp-archive .post-stage .aph-gloss{font-size: 20px;}\n.gp-archive .post[data-slug] .post-stage .stage-icon[data-stage=\"rubedo\"] + .aph-gloss{color: var(--accent-text);}\n.gp-archive .post-title{font-size: clamp(40px, 7vw, 68px); line-height: 1; margin: 0; font-weight: var(--type-title-weight);}\n.gp-archive .post-head{margin-bottom: var(--space-6);}\n.gp-archive .prose{font-size: var(--type-body-size); line-height: var(--type-body-line);}\n.gp-archive .prose p,.gp-archive .prose ul,.gp-archive .prose ol{margin: 0 0 var(--space-4);}\n.gp-archive .prose h2,.gp-archive .prose h3{font-family: var(--font-display); font-weight: var(--type-heading-weight); font-variation-settings: \"wght\" 500, \"slnt\" -12;\n  line-height: var(--type-heading-line); text-transform: lowercase; margin: var(--space-6) 0 var(--space-4); padding-right: .2em;}\n.gp-archive .prose h2{font-size: clamp(30px, 6vw, var(--type-heading-size));}\n.gp-archive .prose h3{font-size: 28px;}\n.gp-archive .prose a{text-decoration-color: var(--accent); text-underline-offset: 4px;}\n.gp-archive .prose em{font-style: normal; font-family: var(--font-display); font-variation-settings: \"wght\" 400, \"slnt\" -12; font-size: 1.12em; padding-right: .08em;}\n.gp-archive .prose code{font-family: var(--font-text); color: var(--ink-soft);}\n.gp-archive .prose blockquote{position: relative; margin: var(--space-5) 0; padding: 0 0 0 var(--space-5); font-size: var(--type-lede-size); line-height: var(--type-lede-line);}\n.gp-archive .prose blockquote p{margin: 0 0 var(--space-3);}\n.gp-archive .prose blockquote .cite{font-size: var(--type-meta-size); letter-spacing: var(--type-meta-tracking); line-height: var(--type-meta-line); color: var(--ink-soft); margin: 0;}\n.gp-archive .q-rule{position: absolute; left: 0; top: 4px; bottom: 4px; width: 6px; color: var(--accent);}\n.gp-archive .q-rule svg{width: 100%; height: 100%; display: block;}\n.gp-archive .code{margin: var(--space-5) 0;}\n.gp-archive .s-rule{display: block; color: var(--fog); opacity: .62;}\n.gp-archive .s-rule svg{display: block; width: 100%; height: auto;}\n.gp-archive .prose pre{margin: var(--space-3) 0; padding: 0 0 0 var(--space-3); overflow-x: auto; font-size: 14px; line-height: 1.7;}\n.gp-archive .prose pre code{color: var(--ink); white-space: pre;}\n.gp-archive .fn{line-height: 0;}\n.gp-archive .fn-mark{font-size: 11px; letter-spacing: 0; color: var(--accent-text); padding: 0 2px; margin: 0 0 0 -2px; vertical-align: super; line-height: 1;}\n.gp-archive .fn-mark:hover{text-decoration: underline; text-underline-offset: 3px;}\n.gp-archive .fn-mark{position: relative;}\n.gp-archive .fn-mark::after{content: \"\"; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%);}\n.gp-archive .notes{margin-top: var(--space-6); font-size: var(--type-meta-size); line-height: var(--type-meta-line); letter-spacing: .06em; color: var(--ink-soft);}\n.gp-archive .notes ol{margin: 0; padding-left: var(--space-4);}\n.gp-archive .notes li{padding-left: var(--space-1);}\n.gp-archive .notes li::marker{color: var(--ink-soft);}\n.gp-archive .fn-back{text-decoration: none; color: var(--accent-text); padding: 0 var(--space-1);}\n.gp-archive .arc-tip.note{max-width: min(340px, calc(100vw - 32px));}\n.gp-archive .sim{margin: var(--space-6) 0;}\n.gp-archive .sim-box{position: relative; width: 100%; aspect-ratio: 1;}\n.gp-archive .sim-canvas{position: absolute; inset: -8%; width: 116%; height: 116%; display: block; pointer-events: none;\n  opacity: 0; transition: opacity var(--duration-scene) var(--easing-settle);}\n.gp-archive .sim-canvas.on{opacity: 1;}\n.gp-archive .sim figcaption{text-align: right; margin-top: var(--space-2);}\n.is-dark .gp-archive #bTheme .eye.open{opacity: 0; transform: scaleY(.08);}\n.is-dark .gp-archive #bTheme .eye.closed{opacity: 1; transform: none;}\n@media (max-width: 640px){.aph-shifting .gp-archive #scroller{-webkit-mask-image: none; mask-image: none;}\n.gp-archive .col{padding-top: 132px; padding-bottom: var(--space-7);}\n.gp-archive .entry-link{grid-template-columns: 28px 1fr;}\n.gp-archive .entry-meta{grid-column: 2; flex-direction: row; align-items: baseline; gap: var(--space-3); margin-top: var(--space-2); white-space: normal; text-align: left;}}";
+const ARCHIVE_CSS = ".gp-archive *{box-sizing: border-box;}\n.gp-archive a{color: inherit;}\n.gp-archive button{font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; border-radius: var(--radius-none);}\n.gp-archive .sr{position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;}\n.gp-archive [hidden]{display: none !important;}\n.gp-archive .views{position: relative; display: block; min-height: 100%;}\n.gp-archive .view{display: block;}\n.gp-archive .view.leaving{pointer-events: none;}\n.gp-archive .col{width: 100%; max-width: calc(33em + 2 * var(--space-4)); margin: 0 auto;\n  padding: var(--space-8) max(var(--space-4), calc(var(--space-4) + env(safe-area-inset-right, 0px))) var(--space-8) max(var(--space-4), calc(var(--space-4) + env(safe-area-inset-left, 0px)));\n  text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg);}\n.aph-shifting .gp-archive .col,.aph-shifting .gp-archive .col *{text-shadow: none;}\n.gp-archive :focus{outline: none;}\n.gp-archive :focus-visible{outline: 1px solid var(--accent); outline-offset: 4px;}\n.gp-archive .aph-gloss{font-size: var(--type-gloss-size); line-height: var(--type-gloss-line); padding-right: .2em;}\n.gp-archive .lede{font-size: var(--type-lede-size); line-height: var(--type-lede-line); color: var(--ink-soft); margin: var(--space-4) 0 0;}\n.gp-archive .stage-icon{display: inline-block; flex: none; width: 28px; height: 28px; color: var(--ink-soft);}\n.gp-archive .stage-icon svg{width: 100%; height: 100%; display: block;}\n.gp-archive .stage-icon[data-stage=\"rubedo\"]{color: var(--accent);}\n.gp-archive .stage-icon.small{width: 20px; height: 20px;}\n.gp-archive .head{margin-bottom: var(--space-6);}\n.gp-archive .gloss-title{font-size: var(--type-gloss-title-size); letter-spacing: var(--type-gloss-title-tracking); margin: 0 0 var(--space-3);}\n.gp-archive .title{font-size: clamp(44px, 8vw, 96px); margin: 0; font-weight: var(--type-title-weight);}\n.gp-archive .stages{list-style: none; margin: var(--space-5) 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4);}\n.gp-archive .stages li{display: flex; align-items: center; gap: var(--space-2);}\n.gp-archive .stages .aph-gloss{font-size: 17px;}\n.gp-archive .stages li:not(:last-child)::after{content: \"\u00b7\"; color: var(--ink-soft); margin-left: var(--space-2);}\n.gp-archive .entries{list-style: none; margin: 0; padding: 0;}\n.gp-archive .entry + .entry{margin-top: var(--space-2);}\n.gp-archive .entry-link{display: grid; grid-template-columns: 28px 1fr auto; column-gap: var(--space-4); align-items: start;\n  padding: var(--space-4) 0; text-decoration: none;}\n.gp-archive .entry-link .stage-icon{margin-top: -2px; transition: transform var(--duration-slow) var(--easing-settle);}\n.gp-archive .entry-main{display: block; min-width: 0;}\n.gp-archive .entry-title{position: relative; display: inline; font-size: var(--type-lede-size); line-height: 1.45; color: var(--ink);}\n.gp-archive .uline{position: absolute; left: 0; right: 0; bottom: -7px; height: 6px; color: var(--accent); pointer-events: none;\n  clip-path: inset(0 100% 0 0); transition: clip-path var(--duration-slow) var(--easing-settle);}\n.gp-archive .uline svg{width: 100%; height: 100%; display: block;}\n.gp-archive .entry-link:hover .uline,.gp-archive .entry-link:focus-visible .uline{clip-path: inset(0 0 0 0);}\n.gp-archive .entry-link:hover .stage-icon,.gp-archive .entry-link:focus-visible .stage-icon{transform: rotate(-12deg);}\n.gp-archive .entry-summary{display: block; margin-top: var(--space-2); color: var(--ink-soft);}\n.gp-archive .entry-meta{display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-1); text-align: right; white-space: nowrap; padding-top: 2px;}\n.gp-archive .entry-stage{font-size: 18px;}\n.gp-archive .entry[data-stage=\"rubedo\"] .entry-stage{color: var(--accent-text);}\n.gp-archive .entry-link:hover .entry-stage,.gp-archive .entry-link:focus-visible .entry-stage{color: var(--accent-text);}\n.gp-archive .foot{margin-top: var(--space-6); display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-3);}\n.gp-archive .foot .rule{display: block; flex: 0 0 100%; height: 6px; color: var(--line); margin-bottom: var(--space-4);}\n.gp-archive .foot .rule svg{width: 100%; height: 100%; display: block;}\n.gp-archive .feed{text-decoration: none; color: var(--accent-text);}\n.gp-archive .feed:hover{text-decoration: underline; text-underline-offset: 4px;}\n.gp-archive .back-row{margin-bottom: var(--space-5);}\n.gp-archive .back{display: inline-flex; align-items: center; gap: var(--space-2); text-decoration: none; color: var(--ink-soft); padding: var(--space-1) 0;}\n.gp-archive .back-mark{display: block; width: 28px; height: 28px; color: var(--accent); transition: transform var(--duration-slow) var(--easing-settle);}\n.gp-archive .back-mark svg{width: 100%; height: 100%; display: block;}\n.gp-archive .back:hover .back-mark,.gp-archive .back:focus-visible .back-mark{transform: translateX(-4px);}\n.gp-archive .back:hover,.gp-archive .back:focus-visible{color: var(--ink);}\n.gp-archive .post-foot{margin-top: var(--space-6);}\n.gp-archive .post-stage{display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-3); margin: 0 0 var(--space-4);}\n.gp-archive .post-stage .aph-gloss{font-size: 20px;}\n.gp-archive .post[data-slug] .post-stage .stage-icon[data-stage=\"rubedo\"] + .aph-gloss{color: var(--accent-text);}\n.gp-archive .post-title{font-size: clamp(40px, 7vw, 68px); line-height: 1; margin: 0; font-weight: var(--type-title-weight);}\n.gp-archive .post-head{margin-bottom: var(--space-6);}\n.gp-archive .prose{font-size: var(--type-body-size); line-height: var(--type-body-line);}\n.gp-archive .prose p,.gp-archive .prose ul,.gp-archive .prose ol{margin: 0 0 var(--space-4);}\n.gp-archive .prose h2,.gp-archive .prose h3{font-family: var(--font-display); font-weight: var(--type-heading-weight); font-variation-settings: \"wght\" 500, \"slnt\" -12;\n  line-height: var(--type-heading-line); text-transform: lowercase; margin: var(--space-6) 0 var(--space-4); padding-right: .2em;}\n.gp-archive .prose h2{font-size: clamp(30px, 6vw, var(--type-heading-size));}\n.gp-archive .prose h3{font-size: 28px;}\n.gp-archive .prose a{text-decoration-color: var(--accent); text-underline-offset: 4px;}\n.gp-archive .prose em{font-style: normal; font-family: var(--font-display); font-variation-settings: \"wght\" 400, \"slnt\" -12; font-size: 1.12em; padding-right: .08em;}\n.gp-archive .prose code{font-family: var(--font-text); color: var(--ink-soft);}\n.gp-archive .prose blockquote{position: relative; margin: var(--space-5) 0; padding: 0 0 0 var(--space-5); font-size: var(--type-lede-size); line-height: var(--type-lede-line);}\n.gp-archive .prose blockquote p{margin: 0 0 var(--space-3);}\n.gp-archive .prose blockquote .cite{font-size: var(--type-meta-size); letter-spacing: var(--type-meta-tracking); line-height: var(--type-meta-line); color: var(--ink-soft); margin: 0;}\n.gp-archive .q-rule{position: absolute; left: 0; top: 4px; bottom: 4px; width: 6px; color: var(--accent);}\n.gp-archive .q-rule svg{width: 100%; height: 100%; display: block;}\n.gp-archive .code{margin: var(--space-5) 0;}\n.gp-archive .s-rule{display: block; color: var(--fog); opacity: .62;}\n.gp-archive .s-rule svg{display: block; width: 100%; height: auto;}\n.gp-archive .prose pre{margin: var(--space-3) 0; padding: 0 0 0 var(--space-3); overflow-x: auto; font-size: 14px; line-height: 1.7;}\n.gp-archive .prose pre code{color: var(--ink); white-space: pre;}\n.gp-archive .fn{line-height: 0;}\n.gp-archive .fn-mark{font-size: 11px; letter-spacing: 0; color: var(--accent-text); padding: 0 2px; margin: 0 0 0 -2px; vertical-align: super; line-height: 1;}\n.gp-archive .fn-mark:hover{text-decoration: underline; text-underline-offset: 3px;}\n.gp-archive .fn-mark{position: relative;}\n.gp-archive .fn-mark::after{content: \"\"; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%);}\n.gp-archive .notes{margin-top: var(--space-6); font-size: var(--type-meta-size); line-height: var(--type-meta-line); letter-spacing: .06em; color: var(--ink-soft);}\n.gp-archive .notes ol{margin: 0; padding-left: var(--space-4);}\n.gp-archive .notes li{padding-left: var(--space-1);}\n.gp-archive .notes li::marker{color: var(--ink-soft);}\n.gp-archive .fn-back{text-decoration: none; color: var(--accent-text); padding: 0 var(--space-1);}\n.gp-archive .arc-tip.note{max-width: min(340px, calc(100vw - 32px));}\n.gp-archive .sim{margin: var(--space-6) 0;}\n.gp-archive .sim-box{position: relative; width: 100%; aspect-ratio: 1;}\n.gp-archive .sim-canvas{position: absolute; inset: -8%; width: 116%; height: 116%; display: block; pointer-events: none;\n  opacity: 0; transition: opacity var(--duration-scene) var(--easing-settle);}\n.gp-archive .sim-canvas.on{opacity: 1;}\n.gp-archive .sim figcaption{text-align: right; margin-top: var(--space-2);}\n.is-dark .gp-archive #bTheme .eye.open{opacity: 0; transform: scaleY(.08);}\n.is-dark .gp-archive #bTheme .eye.closed{opacity: 1; transform: none;}\n@media (max-width: 640px){.aph-shifting .gp-archive #scroller{-webkit-mask-image: none; mask-image: none;}\n.gp-archive .col{padding-top: 132px; padding-bottom: var(--space-7);}\n.gp-archive .entry-link{grid-template-columns: 28px 1fr;}\n.gp-archive .entry-meta{grid-column: 2; flex-direction: row; align-items: baseline; gap: var(--space-3); margin-top: var(--space-2); white-space: normal; text-align: left;}}\n@media (min-aspect-ratio: 1/1) and (max-height: 520px){.aph-shifting .gp-archive #scroller{-webkit-mask-image: none; mask-image: none;}\n.gp-archive .col{padding-top: calc(var(--space-7) + var(--space-4) + env(safe-area-inset-top, 0px)); padding-bottom: calc(var(--space-7) + env(safe-area-inset-bottom, 0px));}}";
 
 return { ARCHIVE_CSS };
 })();
@@ -2331,8 +2392,8 @@ M["forum/density.js"] = (function () {
 /* density: an uploaded picture becomes a density map in the browser, before anything is sent.
    Forum pictures carry information, so the map is prepared to stay legible (the owner's rule: only hermetic
    simulacra keep "never picture-perfect"; a forum picture must read at a glance, while staying stipple):
-   - grayscale, white = dense, 640px on the long side (the Worker's limit; never enlarged past the source, at
-     least 480), cut to no more than 2:1 either way so a screenshot keeps its edges;
+   - grayscale, white = dense, as long as the Worker takes on the long side (960px from a Worker that says so on its
+     board, 640px from an older one; never enlarged past the source, at least 480), cut to no more than 2:1 either way so a screenshot keeps its edges;
    - flat borders and frames are trimmed, at most 12% a side;
    - a light ground (a screenshot, a page, an engraving, a photo on white) is inverted, so the figure or the text
      becomes light on dark, the way a simulacrum draws it;
@@ -2342,6 +2403,8 @@ M["forum/density.js"] = (function () {
      levels and a contrast curve, when it uploads the map) so edges and letters survive the stipple; except for hatching (an
      engraving, a halftone: fine detail everywhere, mean high-frequency energy above .05), which is softened instead
      (a ~1.5px blur) so its lines become tone, as the design system says;
+   - on a light ground (a page, a screenshot), local normalization: each pixel against the brightest within a few
+     pixels, so letters thinned to grey by the scaling reach full density instead of stippling at a third;
    - a black margin of 5% around the picture, so the simulacrum's soft edge falls on the margin, not on the content.
    prepareMap(file, {mode: 'hermetic'}) gives the design system's original preparation instead (30th percentile,
    gamma 0.8, a 1px blur on light grounds), kept for comparison.
@@ -2349,7 +2412,7 @@ M["forum/density.js"] = (function () {
 
 const ACCEPT = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_BYTES = 4 * 1024 * 1024;
-const LONG = 640, MIN_LONG = 480, MAX_MAP = 380 * 1024;
+const LONG = 640, MIN_LONG = 480;
 
 function checkFile(file) {
   if (!file) return 'no file';
@@ -2386,6 +2449,21 @@ function trimBox(lum, w, h) {
   while (l < mw && flat((i) => lum[i * w + l], h)) l++;
   while (w - 1 - r < mw && flat((i) => lum[i * w + r], h)) r--;
   return [l, t, r - l + 1, b - t + 1];
+}
+
+/* local normalization: v / max(the brightest value within r, .3), so thin light strokes reach full density next to
+   their own ground; a large even area divides by itself and stays as it was */
+function localNormalize(lum, w, h, r) {
+  const rowMax = new Float32Array(lum.length), mx = new Float32Array(lum.length);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let m = 0; for (let k = Math.max(0, x - r); k <= Math.min(w - 1, x + r); k++) m = Math.max(m, lum[y * w + k]);
+    rowMax[y * w + x] = m;
+  }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let m = 0; for (let k = Math.max(0, y - r); k <= Math.min(h - 1, y + r); k++) m = Math.max(m, rowMax[k * w + x]);
+    mx[y * w + x] = m;
+  }
+  for (let i = 0; i < lum.length; i++) lum[i] = Math.min(1, lum[i] / Math.max(mx[i], 0.3));
 }
 
 /* soften: one 3×3 binomial blur in place */
@@ -2427,9 +2505,11 @@ function sharpen(lum, w, h, amount) {
 function percentile(sorted, p) { return sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(p * (sorted.length - 1))))]; }
 
 /* file -> {blob (image/jpeg), url (a data: URL of the map), width, height} */
-function toDensity(file) { return prepareMap(file, {}); }
+/* limits: {long, bytes}, what the board takes (api.densityLimits()); 640 px and 400 KB when not given */
+function toDensity(file, limits) { return prepareMap(file, { limits }); }
 
-async function prepareMap(file, { mode = 'legible' } = {}) {
+async function prepareMap(file, { mode = 'legible', limits } = {}) {
+  const maxLong = Math.min(960, (limits && limits.long) || LONG), maxBytes = Math.round(((limits && limits.bytes) || 400 * 1024) * 0.94);
   const hermetic = mode === 'hermetic';
   const src = await decode(file);
   const sw = src.width || src.naturalWidth, sh = src.height || src.naturalHeight;
@@ -2455,11 +2535,13 @@ async function prepareMap(file, { mode = 'legible' } = {}) {
   const maxR = hermetic ? 1.5 : 2;
   if (ratio > maxR) { const nw = ch * maxR; cx += (cw - nw) / 2; cw = nw; }
   if (ratio < 1 / maxR) { const nh = cw * maxR; cy += (ch - nh) / 2; ch = nh; }
-  const long = Math.min(hermetic ? 560 : LONG, Math.max(MIN_LONG, Math.max(cw, ch)));
+  const long = Math.min(hermetic ? 560 : maxLong, Math.max(MIN_LONG, Math.max(cw, ch)));
   const PAD = hermetic ? 0 : 0.05;
-  const s = long / (1 + 2 * PAD) / Math.max(cw, ch);
-  const IW = Math.max(1, Math.round(cw * s)), IH = Math.max(1, Math.round(ch * s));
-  const P = Math.round(Math.max(IW, IH) * PAD), W = IW + 2 * P, H = IH + 2 * P;
+  /* the margin first, so the whole map never passes `long` */
+  const P = Math.round(long * PAD / (1 + 2 * PAD));
+  const s = (long - 2 * P) / Math.max(cw, ch);
+  const IW = Math.max(1, Math.min(long - 2 * P, Math.round(cw * s))), IH = Math.max(1, Math.min(long - 2 * P, Math.round(ch * s)));
+  const W = IW + 2 * P, H = IH + 2 * P;
   const out = document.createElement('canvas'); out.width = W; out.height = H;
   const ox = out.getContext('2d', { willReadFrequently: true });
   ox.imageSmoothingQuality = 'high';
@@ -2477,6 +2559,9 @@ async function prepareMap(file, { mode = 'legible' } = {}) {
   if (lightGround) for (let i = 0; i < lum.length; i++) lum[i] = 1 - lum[i];
   if (!hermetic) {
     if (energy(lum, W, H) > 0.05) { for (let k = 0; k < 3; k++) soften(lum, W, H); } else sharpen(lum, W, H, 0.4);
+    /* a page or a screenshot: letters thinned to grey by the scaling would stipple at a third of their cells, so each
+       pixel is set against the brightest near it, and a stroke reads as full wherever it stands */
+    if (lightGround) localNormalize(lum, W, H, Math.max(3, Math.round(Math.max(W, H) / 160)));
   }
   const sorted = Float32Array.from(lum).sort();
   const lo = percentile(sorted, hermetic ? 0.30 : 0.01);
@@ -2491,11 +2576,11 @@ async function prepareMap(file, { mode = 'legible' } = {}) {
     img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = v; img.data[i * 4 + 3] = 255;
   }
   ox.putImageData(img, 0, 0);
-  /* the lightest JPEG that keeps the map under the Worker's limit */
+  /* the best JPEG quality that keeps the map under the Worker's byte limit (with a 6% margin) */
   let q = 0.88, blob = null;
   for (; q >= 0.5; q -= 0.08) {
     blob = await new Promise((resolve, reject) => out.toBlob((b) => (b ? resolve(b) : reject(new Error('encode'))), 'image/jpeg', q));
-    if (blob.size <= MAX_MAP) break;
+    if (blob.size <= maxBytes) break;
   }
   const url = out.toDataURL('image/jpeg', Math.max(0.5, q));
   return { blob, url, width: W, height: H, inverted: lightGround };
@@ -2752,7 +2837,7 @@ function createLine(form, { secret }) {
   base.innerHTML = '<svg viewBox="0 0 240 14" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path fill="currentColor"/></svg>';
   const path = base.querySelector('path');
   /* grains: three or four cells of 2 CSS px on a 7 px square, fixed per position, so a character always lands as the
-     same grain; 7 px and a 2 px gap make an advance of 9 px, so 34 fit on the line of a 360 px phone and 37 at 390 px */
+     same grain; 7 px and a 2 px gap make an advance of 9 px, so 32 fit on the line of a 360 px phone, centred with the caret's room each side, and 35 at 390 px */
   const GRAIN = [], rand = A.rng(907);
   const SPOTS = [[0, 0], [2.5, 0], [5, 0], [0, 2.5], [2.5, 2.5], [5, 2.5], [0, 5], [2.5, 5], [5, 5]];
   for (let i = 0; i < 64; i++) {
@@ -2770,7 +2855,7 @@ function createLine(form, { secret }) {
     return Math.max(g.measureText('m').width, g.measureText('w').width) + ls;
   }
   function measure() {
-    const w = form.getBoundingClientRect().width || 420, caretRoom = 14;
+    const w = form.getBoundingClientRect().width || 420, caretRoom = 28;   /* the group is centred: the caret's room on both sides */
     cap = Math.max(8, Math.floor((w - caretRoom) / advance()));
     input.maxLength = cap;
     form.dataset.cap = String(cap);
@@ -2799,7 +2884,8 @@ function createLine(form, { secret }) {
   function place() {
     const end = secret ? marks : mirror;
     const fr = form.getBoundingClientRect(), er = end.getBoundingClientRect();
-    const x = Math.min(fr.width - 12, (er.width ? er.right - fr.left : 0) + 2);
+    /* what is typed sits centred on the line and grows outward from the middle; the caret follows its right end */
+    const x = Math.min(fr.width - 12, (er.width ? er.right - fr.left : fr.width / 2) + 2);
     caret.style.transform = 'translateX(' + x.toFixed(1) + 'px)';
     caret.classList.remove('blink'); void caret.offsetWidth; caret.classList.add('blink');
   }

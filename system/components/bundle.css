@@ -54,6 +54,28 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
 /* text on fog keeps a halo of ground so it never sits on dots */
 .aph-on-fog { text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg); }
 
+/* bands: the seal holds the top-left corner and the eye, the ear and the passage the bottom, above whatever scrolls.
+   A scroller that covers the screen lets what scrolls under them recede instead of running into them: marked
+   .aph-bands (or given mask-image: var(--aph-bands) where only some widths need it), its content fades out at the
+   top through the seal's band and at the bottom through the corners', the safe-area insets included. A mask on the
+   scroller, so the fog behind stays crisp and nothing solid is laid over the page; it does not change with the
+   theme, and it holds through the eye's wave: a blend cannot reach the fog through a mask, so for the wave the
+   runtime puts a mirror of the fog at the scroller's back, and the text inside is painted cell by cell as anywhere
+   else. Content at rest starts below the top band and ends above the bottom one. */
+:root {
+  --aph-band-top: calc(env(safe-area-inset-top, 0px) + 80px); --aph-band-top-clear: calc(env(safe-area-inset-top, 0px) + 30px);
+  --aph-band-bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); --aph-band-bottom-clear: calc(env(safe-area-inset-bottom, 0px) + 34px);
+  /* eased in (the content stays faint under most of the corner and comes clear just past it) */
+  --aph-bands: linear-gradient(to bottom, transparent var(--aph-band-top-clear),
+    rgba(0, 0, 0, .12) calc(var(--aph-band-top-clear) + (var(--aph-band-top) - var(--aph-band-top-clear)) * .5),
+    rgba(0, 0, 0, .45) calc(var(--aph-band-top-clear) + (var(--aph-band-top) - var(--aph-band-top-clear)) * .8), #000 var(--aph-band-top),
+    #000 calc(100% - var(--aph-band-bottom)),
+    rgba(0, 0, 0, .45) calc(100% - var(--aph-band-bottom-clear) - (var(--aph-band-bottom) - var(--aph-band-bottom-clear)) * .8),
+    rgba(0, 0, 0, .12) calc(100% - var(--aph-band-bottom-clear) - (var(--aph-band-bottom) - var(--aph-band-bottom-clear)) * .5),
+    transparent calc(100% - var(--aph-band-bottom-clear)));
+}
+.aph-bands { -webkit-mask-image: var(--aph-bands); mask-image: var(--aph-bands); }
+
 
 /* theme shift: the ground changes behind the page, cell by cell from the eye, and nothing on top stops.
    Mark the containers of black-and-white text with .aph-ink (not ones holding the seal, accents or their own ground):

@@ -223,6 +223,21 @@
      their fog, and leaves a sparse residue (about 12%) drifting in the band. Every change of clear is eased with
      minimum jerk over 1.8s, never snapped. clearWidth: the band's width as a share of the screen's width; left out
      (or null), it follows the screen: .66 on a wide one, .94 on a phone. */
+  /* mirrors of the ground. While the eye's wave runs, a layer the blend cannot reach the fog through (a scroller with
+     bands: a mask makes it a stacking context) is given a canvas at its back that holds a copy of the fog (the fog's
+     canvas is one pixel per cell, so the copy is small), and the ink inside blends with the copy as it would with
+     the fog. Where the layer's mask fades, the copy fades into the fog it copies, so nothing shows. The ground
+     is the first fog made on the page (MIRROR.cv). The copy is made every other frame, the first one at once (the
+     fog drifts slowly and the wave turns a cell at a time: a frame's lag does not show under the text), as the copy
+     is the costly part where canvases are drawn without a GPU. */
+  var MIRROR = { cv: null, list: [], n: 0 };
+  function mirrorFrom(cv) {
+    for (var i = 0; i < MIRROR.list.length; i++) {
+      var m = MIRROR.list[i];
+      if (m.width !== cv.width || m.height !== cv.height) { m.width = cv.width; m.height = cv.height; }
+      m.getContext('2d').drawImage(cv, 0, 0);
+    }
+  }
   function Fog(cv, o) {
     o = o || {}; var P = glField(cv, 'precision highp float;uniform vec2 R;uniform float T,D,C,S,X;uniform vec3 F,N,F2,N2;uniform vec2 P,Q;uniform vec4 Z[12];' + NOISE + SWITCH_GLSL +
       'void main(){vec2 cel=floor(gl_FragCoord.xy/S);vec2 uv=(cel*S-R*.5)/min(R.x,R.y);' +
@@ -238,6 +253,7 @@
       'float s=sw(cel,uv,X);vec3 Fc=mix(F,F2,s),Nc=mix(N,N2,s);' +
       'gl_FragColor=vec4(mix(Fc,Nc,step(h(cel),dens)*.55),1.);}', ['R', 'T', 'D', 'C', 'S', 'X', 'F', 'N', 'F2', 'N2', 'P', 'Q', 'Z', 'SO', 'SF']);
     if (!P) return { zones: function () {}, set: function () {}, stop: function () {}, start: function () {}, destroy: function () {} };
+    if (!MIRROR.cv || !MIRROR.cv.isConnected) MIRROR.cv = cv;
     var gl = P.gl, U = P.U, colors = palette(cv, ['--bg', '--fog']);
     var ptr = null, sm = null, t = 0, last = performance.now(), zEls = [], ZB = new Float32Array(48);
     var dens = o.density === undefined ? 1 : o.density, light = o.light === undefined ? 1 : o.light, dpr = 1;
@@ -262,6 +278,7 @@
       var cw = clearW == null ? lerp(0.94, 0.66, clamp((R.width - 480) / 720)) : clamp(clearW, 0.05, 1);
       gl.uniform2f(U.Q, clearAt(now), Math.max(1e-3, cw * 0.5 * cv.width / Math.min(cv.width, cv.height)));
       gl.drawArrays(gl.TRIANGLES, 0, 3);
+      if (MIRROR.cv === cv && MIRROR.list.length && !(MIRROR.n++ & 1)) mirrorFrom(cv);
     });
     L.start();
     return {
@@ -619,15 +636,19 @@
   }
   function set(v) { return !!v && v !== 'none' && v !== 'auto' && v !== 'normal'; }
   /* a box that makes a stacking context: blending inside it never reaches the fog */
-  function isolates(cs, pd) {
+  function isolates(cs, pd) { return masked(cs) || isolatesBut(cs, pd); }
+  function masked(cs) { return set(cs.maskImage) || set(cs.webkitMaskImage); }
+  function isolatesBut(cs, pd) {
     var p = cs.position;
     return p === 'fixed' || p === 'sticky' || (cs.zIndex !== 'auto' && (p !== 'static' || /flex|grid/.test(pd))) || +cs.opacity < 1 ||
       set(cs.transform) || set(cs.translate) || set(cs.rotate) || set(cs.scale) || set(cs.filter) || set(cs.backdropFilter) ||
-      set(cs.webkitBackdropFilter) || cs.mixBlendMode !== 'normal' || cs.isolation === 'isolate' || set(cs.maskImage) ||
-      set(cs.webkitMaskImage) || set(cs.clipPath) || set(cs.perspective) || set(cs.containerType) || cs.contentVisibility === 'auto' ||
+      set(cs.webkitBackdropFilter) || cs.mixBlendMode !== 'normal' || cs.isolation === 'isolate' ||
+      set(cs.clipPath) || set(cs.perspective) || set(cs.containerType) || cs.contentVisibility === 'auto' ||
       /transform|opacity|filter|mask|clip-path|isolation|mix-blend-mode|perspective|translate|rotate|scale|z-index/.test(cs.willChange) ||
       /paint|layout|strict|content/.test(cs.contain);
   }
+  /* a layer that is one only by its mask (a scroller with bands) can be given a mirror of the fog (MIRROR) */
+  function mirrorable(cs, pd) { return MIRROR.cv && MIRROR.cv.isConnected && masked(cs) && !isolatesBut(cs, pd); }
   /* a layer of its own: blending a subtree that holds one would pull it into the subtree's stacking context */
   function layered(cs, pd) { var p = cs.position; return p === 'fixed' || p === 'sticky' || (cs.zIndex !== 'auto' && (p !== 'static' || /flex|grid/.test(pd))); }
   function edges(cs) {
@@ -720,14 +741,17 @@
       if (cut) Array.prototype.forEach.call(el.querySelectorAll('.aph-ink'), function (x) { acts.push([x, 3]); });
       return;
     }
-    /* (whether it is a layer is asked only of the boxes the reading goes through) */
-    var below = cut || (isolates(i.cs, i.pd) ? el : null);
+    /* (whether it is a layer is asked only of the boxes the reading goes through; a layer by its mask alone gets a
+       mirror of the fog at its back, and what is in it blends as anywhere else) */
+    var below = cut;
+    if (!below && isolates(i.cs, i.pd)) { if (mirrorable(i.cs, i.pd)) acts.push([el, 4]); else below = el; }
     for (var c = el.firstElementChild; c; c = c.nextElementSibling) decide(c, below, info, acts);
   }
   /* the plan for one wave: what blends, what turns and when, and how to give it all back. Everything is read before
      anything is written, so the page's style is worked out once for the reading. */
   function wavePlan(org, far, dur, A, B, dark, inks) {
     var blended = [], turned = [], suspended = [], pinned = [], mo = null, wo = null, watched = new Map(), reds = new Set(), greys = new Map(), acts = null, frames = 0;
+    var mirrors = [], mirrored = new Set();
     /* under the blend an element's own colour is the white ink, which is right for ink but reads black or white for a
        grey: a box that blends with a grey of its own keeps it as the grey that reads as that grey on both grounds (the
        theme's ink-soft and line as the system's shift greys, any other as its negative on a light ground). T: the
@@ -750,7 +774,10 @@
     inks.forEach(function (x) { if (hueOf(x[1]) === RED) reds.add(x[0]); else { var g = greyOf(x[1], A, dark); if (g) greys.set(x[0], g); } });
     function display(el) { return el ? getComputedStyle(el).display : 'block'; }
     function cutOf(el) {
-      for (var a = el.parentElement; a && a !== document.body; a = a.parentElement) if (isolates(getComputedStyle(a), display(a.parentElement))) return a;
+      for (var a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+        var cs = getComputedStyle(a), pd = display(a.parentElement);
+        if (mirrored.has(a) ? isolatesBut(cs, pd) : isolates(cs, pd)) return a;
+      }
       return null;
     }
     /* an .aph-ink container turned because a layer kept it from the fog blends again once the layer steps aside (the
@@ -773,12 +800,12 @@
       watched.get(cut).push(el);
     }
     /* what to do, from reading alone: [element, 0 blend | 1 turn | 2 turn a marked container | 3 lift a marked container
-       inside a turn, the layer that cuts it, the colour to give it] */
+       inside a turn | 4 give a layer a mirror of the fog, the layer that cuts it, the colour to give it] */
     function read(els) {
       var info = new Map(), bg = B['--bg'], out = [];
       info.reds = reds; info.bg = bg;
       els.forEach(function (el) {
-        if (!el.isConnected || !document.body.contains(el) || el.closest('.aph-ink, .aph-turn, .aph-red')) return;
+        if (!el.isConnected || !document.body.contains(el) || el.closest('.aph-ink, .aph-turn, .aph-red') || el.classList.contains('aph-mirror')) return;
         var p = el.parentElement;
         survey(el, display(p), p ? getComputedStyle(p).color : '', bg, info); decide(el, cutOf(el), info, out);
       });
@@ -792,6 +819,14 @@
     function write(out, first) {
       out.forEach(function (x) {
         var el = x[0];
+        if (x[1] === 4) {
+          if (mirrored.has(el)) return;
+          var m = document.createElement('canvas');
+          m.className = 'aph-mirror'; m.setAttribute('aria-hidden', 'true');
+          m.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;z-index:-1;pointer-events:none;image-rendering:pixelated';
+          el.insertBefore(m, el.firstChild); MIRROR.list.push(m); MIRROR.n = 0; mirrors.push(m); mirrored.add(el);
+          return;
+        }
         if (x[1] === 0) { el.classList.add('aph-ink'); blended.push(el); if (x[3]) pinColor(el, x[3]); return; }
         if (x[1] >= 2) { el.classList.remove('aph-ink'); suspended.push(el); }
         if (x[1] === 2 && x[2]) watch(el, x[2]);
@@ -853,7 +888,8 @@
         blended.forEach(function (el) { el.classList.remove('aph-ink'); });
         turned.forEach(function (x) { x.el.classList.remove('aph-turn'); x.el.style.removeProperty('--aph-red-k'); });
         suspended.forEach(function (el) { el.classList.add('aph-ink'); });
-        blended = []; turned = []; suspended = [];
+        mirrors.forEach(function (m) { m.remove(); var j = MIRROR.list.indexOf(m); if (j >= 0) MIRROR.list.splice(j, 1); });
+        blended = []; turned = []; suspended = []; mirrors = []; mirrored.clear();
       },
     };
     return plan;

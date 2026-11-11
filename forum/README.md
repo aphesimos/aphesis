@@ -26,7 +26,8 @@ click away.
   so. `>>n` in a post is a link: hover or focus shows the quoted post beside it (sigil, number, its first words),
   following it brings the post to the reader with minimum jerk and its sigil turns rubedo for a moment.
 - **The owner's posts**: a post the server marks `owner` shows the owner's mark in place of the sigil: a small live
-  `Aphesis.Eye` in rubedo (40px wide, trembling at 8 fps, blinking and glancing on its own) and the name *aphesist* in
+  `Aphesis.Eye` in rubedo, the gate's eye in miniature (56px wide, drawn as the gate draws it at 240px and scaled down
+  whole; trembling at 8 fps, blinking and glancing on its own, as the gate's does) and the name *aphesist* in
   Aphesis Script, in rubedo, like a capcode; for assistive technology, "aphesist, the owner". Nothing else about the
   post changes. A quote leading to it opens the eye wide for a moment (the eye is rubedo already), and its quote
   preview carries a still eye and the name. On the board a thread the owner opened says *aphesist* before its replies,

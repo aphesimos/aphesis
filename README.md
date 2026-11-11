@@ -49,3 +49,10 @@ The alternate cycle runs by position in the word, not per letter. The Black clos
 eye of e, upper counter of 8). Slanted styles lean out of their boxes: give clipping containers padding. At 28 px on
 a 1× screen the kind of breathing is hard to tell apart; browsers do not kern across Latin, Greek and Han, so keep a
 space between a word and 色即是空 in slanted styles. Full list in `RATIONALE.md`.
+
+## Licence
+
+Aphesis Script is licensed under the [SIL Open Font License 1.1](OFL.txt), with Reserved Font Name "Aphesis Script":
+use it, embed it, bundle it and modify it freely, but a modified version must not be called "Aphesis Script". The φ
+mark and the wordmark `aφesis` are trademarks and are not covered by this licence; see `TRADEMARKS.md` on the `mark`
+branch.

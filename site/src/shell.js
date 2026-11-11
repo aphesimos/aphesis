@@ -254,9 +254,12 @@ const Typist = (function () {
     return ops;
   }
   return class {
-    constructor(el, caret) { this.el = el; this.caret = caret; this.t = null; this.buf = []; }
+    /* the caret rides at the end of the text, held to the last character (one unbroken piece), so wherever the
+       passage wraps, aligns or reflows it stands right after what was typed, never alone on a line of its own */
+    constructor(el, caret) { this.el = el; this.caret = caret; this.t = null; this.buf = [];
+      this.tail = caret.parentNode; this.last = document.createTextNode(''); this.tail.insertBefore(this.last, caret); }
     stop() { clearTimeout(this.t); }
-    _show() { this.el.textContent = this.buf.join(''); }
+    _show() { const b = this.buf; this.el.textContent = b.slice(0, -1).join(''); this.last.data = b.length ? b[b.length - 1] : ''; this.el.appendChild(this.tail); }
     type(text, done) {
       this.stop(); const ca = this.caret; this.buf = []; this._show(); ca.classList.remove('gone');
       const ops = plan(text, 44 + Math.random() * 26); let i = 0;
@@ -286,7 +289,7 @@ const Typist = (function () {
   };
 })();
 const PASSAGES = /*__PASSAGES__*/;
-const typist = new Typist($('aph-ptext'), document.querySelector('#aph-passage .caret'));
+const typist = new Typist($('aph-ptext'), $('aph-caret'));
 let pIdx = -1, pLoop = null;
 function pick() { let i; do { i = Math.floor(Math.random() * PASSAGES.length); } while (PASSAGES.length > 1 && i === pIdx); pIdx = i; return PASSAGES[i]; }
 function newPassage() {

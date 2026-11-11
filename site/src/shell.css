@@ -85,9 +85,12 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--font-tex
   font:400 11px/1.7 var(--font-text);letter-spacing:.14em;color:var(--accent-text);
   text-shadow:0 0 4px var(--bg),0 0 10px var(--bg),0 0 18px var(--bg)}
 #aph-passage .pre{letter-spacing:0;margin-right:.5em;opacity:.8}
-#aph-passage .caret{display:inline-block;width:.55em;height:1.05em;margin-left:.12em;vertical-align:-.18em;background:currentColor;opacity:.75}
-#aph-passage .caret.blink{animation:aph-shell-blink 1.06s steps(1,end) infinite}
-#aph-passage .caret.gone{opacity:0;transition:opacity 1.2s ease}
+/* the caret by id, so no section's own .caret (the wall and the forum place theirs absolutely) ever reaches it; it
+   rides with the last character, the two unbroken, so it always stands right after what was typed */
+#aph-ptail{white-space:nowrap}
+#aph-caret{display:inline-block;width:.55em;height:1.05em;margin-left:.12em;vertical-align:-.18em;background:currentColor;opacity:.75}
+#aph-caret.blink{animation:aph-shell-blink 1.06s steps(1,end) infinite}
+#aph-caret.gone{opacity:0;transition:opacity 1.2s ease}
 @keyframes aph-shell-blink{50%{opacity:0}}
 
 /* the eye, bottom-left */

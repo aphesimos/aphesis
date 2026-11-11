@@ -1055,6 +1055,10 @@
   };
   /* then(value, seconds, at): a later move, after the one under way */
   Lane.prototype.then = function (v, sec, t) { this._push(v, sec, t); };
+  /* set(value): hold value from now on, at once; only while the context is not running, where no step is heard */
+  Lane.prototype.set = function (v, t) {
+    t = t === undefined ? this.c.currentTime : t; this.p.cancelScheduledValues(t); this.p.setValueAtTime(v, t); this.s = [{ t0: t, v0: v, v1: v, tau: 0 }];
+  };
 
   function noiseBuffer(ctx) {
     /* pinkish noise (Kellet's filter), 6.18 s, looped */
@@ -1230,43 +1234,130 @@
     var s = 0, p = 0; for (var i = 0; i < d.length; i++) { s += d[i] * d[i]; p = Math.max(p, Math.abs(d[i])); } return { rms: Math.sqrt(s / d.length), peak: p };
   };
 
-  /* the live sound: autoplay, the first gesture, mute, visibility, the pointer, the ear */
+  /* the live sound: autoplay, the first gesture, mute, visibility, interruptions, the pointer, the ear */
   var Sound = (function () {
     var AC = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext);
     var E = null, started = false, want = { name: 'home', o: null }, timer = 0, sleepT = 0, armed = false, ears = [], fadeMs = 7000, lastPtr = 0, media = 0;
+    /* what the page asked of the master besides the voice (the duck), carried onto a context made again */
+    var duckTo = 1;
+    /* the context's health. sleeping: we put it to sleep ourselves (hidden or muted). stale: it says it runs but its
+       clock stands still, or a gesture's resume never came: only a new context, made inside a gesture, sounds again.
+       gone: between pagehide and the page being shown again. */
+    var sleeping = false, stale = false, gone = false, kicked = null, checkT = 0, settleT = 0, rebuiltAt = 0, lastState = 'none';
+    /* ?sounddebug in the address: every change of the audio's state is logged to the console and to a small overlay */
+    var DEBUG = false, dbgEl = null, dbgLines = [];
+    try { DEBUG = /[?&]sounddebug(=|&|$)/.test(location.search); } catch (e) {}
+    function log(msg) {
+      if (!DEBUG) return;
+      var c = E && E.ctx, s = 'sound · ' + msg + ' · ctx ' + (c ? c.state + ' t ' + c.currentTime.toFixed(2) : 'none') +
+        (navigator.audioSession ? ' · session ' + navigator.audioSession.state : '') + ' · ' + (document.hidden ? 'hidden' : 'visible') +
+        (muted ? ' · muted' : '') + (stale ? ' · stale' : '') + (armed ? ' · armed' : '');
+      try { console.log('[' + (performance.now() / 1000).toFixed(2) + '] ' + s); } catch (e) {}
+      try {
+        if (!dbgEl && document.body) {
+          dbgEl = document.createElement('pre'); dbgEl.id = 'aph-sounddebug'; dbgEl.setAttribute('aria-hidden', 'true');
+          dbgEl.style.cssText = 'position:fixed;left:50%;top:max(4px,env(safe-area-inset-top));transform:translateX(-50%);z-index:2147483647;margin:0;padding:4px 6px;max-width:calc(100vw - 16px);white-space:pre-wrap;font:10px/1.3 ui-monospace,monospace;color:#fff;background:rgba(0,0,0,.72);pointer-events:none';
+          document.body.appendChild(dbgEl);
+        }
+        if (dbgEl) { dbgLines.push((performance.now() / 1000).toFixed(1) + ' ' + s); if (dbgLines.length > 9) dbgLines.shift(); dbgEl.textContent = dbgLines.join('\n'); }
+      } catch (e) {}
+    }
     function stored() { try { return localStorage.getItem(SOUND_KEY) === 'off'; } catch (e) { return false; } }
     var muted = stored();
     function store() { try { localStorage.setItem(SOUND_KEY, muted ? 'off' : 'on'); } catch (e) {} }
     function running() { return E && E.ctx.state === 'running'; }
-    function ensure() {
-      if (E || !AC) return E;
+    /* the sound is wanted: made, not muted, the page shown */
+    function wanted() { return !!E && !muted && !document.hidden && !gone; }
+    function build() {
       /* heard on iPhone: a playback session plays through the silent switch (the owner's decision); iOS pauses other
          apps' audio while it plays */
       try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
       var ctx; try { ctx = new AC({ latencyHint: 'playback' }); } catch (e) { try { ctx = new AC(); } catch (e2) { return null; } }
-      E = new SoundEngine(ctx);
+      E = new SoundEngine(ctx); stale = false; kicked = null; sleeping = false;
       E.scene(voiceOf(want.name, want.o), 0.05, ctx.currentTime); E.name = want.name;
-      ctx.addEventListener ? ctx.addEventListener('statechange', onState) : (ctx.onstatechange = onState);
-      timer = setInterval(function () { if (running()) E.tick(); }, 250);
+      if (duckTo !== 1) E.duck.go(duckTo, 0.05, ctx.currentTime);
+      var f = function () { onState(ctx); };
+      ctx.addEventListener ? ctx.addEventListener('statechange', f) : (ctx.onstatechange = f);
+      if (!timer) timer = setInterval(function () { if (running()) E.tick(); }, 250);
+      lastState = ctx.state; log('context made');
       return E;
     }
-    /* the context is running: the first time, creep in (the φ draws itself meanwhile) */
-    function onState() {
-      if (!running()) return;
-      disarm(); E.ignite(); E.tick();
-      if (!started) { started = true; var t = E.ctx.currentTime, s = fadeMs / 1000; E.st1.go(1, s * 4 / 3, t); E.st2.go(1, s * 4 / 3, t); }
+    function ensure() { return E || !AC ? E : build(); }
+    /* a context that is closed, or stale, is let go and made again, at most every four seconds; it creeps back in from
+       silence on the current route's voice and the duck it had */
+    function rebuild(why) {
+      if (Date.now() - rebuiltAt < 4000) return false;
+      rebuiltAt = Date.now(); log('make the context again: ' + why);
+      var prev = E; E = null;
+      if (!build()) { E = prev; return false; }
+      if (prev && prev.ctx.state !== 'closed') try { var p = prev.ctx.close(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+      started = false; fadeMs = 2400;
+      return true;
+    }
+    /* every change of the context's state: the first run creeps in (the φ draws itself meanwhile); a stop we did not
+       ask for (iOS: the page left, a call, Siri, another app's audio, the screen locked) holds the sound at silence and
+       tries to wake it, so it always fades back in and never jumps */
+    function onState(c) {
+      if (!E || (c && c !== E.ctx)) return;
+      var st = E.ctx.state;
+      if (st !== lastState) { log('state ' + lastState + ' → ' + st); lastState = st; }
+      if (st === 'closed') { if (wanted()) kick('closed'); return; }
+      if (st !== 'running') {
+        if (started && !sleeping) E.vis.set(0);
+        if (wanted() && !sleeping) kick('state ' + st);
+        return;
+      }
+      sleeping = false; disarm(); E.ignite(); E.tick();
+      if (!started) { started = true; var t = E.ctx.currentTime, s = fadeMs / 1000; E.st1.go(1, s * 4 / 3, t); E.st2.go(1, s * 4 / 3, t); log('creep in'); }
+      else if (wanted() && E.vis.target() < 1) { E.vis.go(1, 2.4); log('fade back in'); }
+      if (!wanted() && !muted) awake(false);
+      else if (wanted()) watch();
     }
     function resume() {
       if (!E) return;
-      try { var p = E.ctx.resume(); if (p && p.then) p.then(onState, function () {}); } catch (e) {}
-      setTimeout(onState, 300);
+      var c = E.ctx;
+      try { var p = c.resume(); if (p && p.then) p.then(function () { onState(c); }, function (e) { log('resume refused: ' + (e && e.name)); }); } catch (e) {}
+      setTimeout(function () { onState(c); }, 300);
+    }
+    /* wake what is wanted: a closed or stale context is made again (it may need the next gesture to sound), a stopped
+       one is asked to resume and the next gesture is armed in case the browser waits for one, a running one is
+       watched for a clock that stands still */
+    function kick(why) {
+      if (!E || muted) return;
+      log('wake: ' + why);
+      if (E.ctx.state === 'closed' && !rebuild('closed')) { arm(); return; }
+      if (stale) { arm(); return; }
+      if (E.ctx.state !== 'running') { resume(); arm(); } else watch();
+    }
+    /* the zombie: iOS can hand back a context that says it runs while its clock stands still and nothing is heard.
+       Suspend and resume it once; if that does not move it, the next gesture makes a new one */
+    function watch() {
+      clearTimeout(checkT);
+      if (!E || !wanted()) return;
+      var c = E.ctx, t0 = c.currentTime, p0 = performance.now();
+      checkT = setTimeout(function () {
+        if (!E || E.ctx !== c || !wanted() || c.state !== 'running') return;
+        var moved = c.currentTime - t0, el = (performance.now() - p0) / 1000;
+        if (moved > el * 0.25) return;
+        if (kicked !== c) {
+          kicked = c; log('clock stands still: suspend and resume');
+          try { c.suspend().then(function () { return c.resume(); }).then(function () { onState(c); }, function () {}); } catch (e) {}
+          watch();
+        } else { stale = true; log('clock still stands: the next gesture makes a new context'); arm(); }
+      }, 900);
     }
     /* the first gesture of any kind wakes it; no prompt, nothing to click on purpose */
-    function gesture() {
+    function gesture(ev) {
       if (muted || !E) return disarm();
+      log('gesture ' + (ev && ev.type));
+      /* inside the gesture a new context may start, where a stale or closed one never will */
+      if (stale || E.ctx.state === 'closed') rebuild(stale ? 'stale' : 'closed');
       /* iOS unlocks on a sound started inside the gesture: a silent one */
       try { var b = E.ctx.createBufferSource(); b.buffer = E.ctx.createBuffer(1, 1, E.ctx.sampleRate); b.connect(E.ctx.destination); b.start(0); } catch (e) {}
       resume(); if (!document.hidden) awake(true);
+      /* a resume asked inside a gesture that never comes: the context is stale, the next gesture makes a new one */
+      clearTimeout(settleT); var c = E.ctx;
+      settleT = setTimeout(function () { if (E && E.ctx === c && wanted() && c.state !== 'running' && c.state !== 'closed') { stale = true; log('the gesture did not wake it'); arm(); } }, 1500);
     }
     var GESTURES = ['pointerdown', 'keydown', 'touchend', 'click', 'mousedown'];
     function arm() { if (armed) return; armed = true; GESTURES.forEach(function (k) { addEventListener(k, gesture, { capture: true, passive: true }); }); }
@@ -1274,10 +1365,22 @@
     /* hidden pages and muted ones fade out, then the context sleeps; shown again, it wakes and fades back in */
     function awake(on) {
       if (!E) return; clearTimeout(sleepT);
-      if (on) { E.vis.go(1, 2.4); if (E.ctx.state !== 'running') { resume(); if (E.ctx.state !== 'running') arm(); } }
-      else { E.vis.go(0, 1.6); sleepT = setTimeout(function () { if (E && (document.hidden || muted)) try { E.ctx.suspend(); } catch (e) {} }, 2200); }
+      if (on) { E.vis.go(1, 2.4); if (E.ctx.state !== 'running' || stale) kick('shown'); else watch(); }
+      else {
+        clearTimeout(checkT); E.vis.go(0, 1.6);
+        sleepT = setTimeout(function () { if (E && (document.hidden || gone || muted) && E.ctx.state === 'running') { sleeping = true; log('sleep'); try { var p = E.ctx.suspend(); if (p && p.catch) p.catch(function () {}); } catch (e) {} } }, 2200);
+      }
     }
-    function onVis() { if (!E || muted) return; awake(!document.hidden); }
+    function onVis() {
+      if (!document.hidden) gone = false;
+      log(document.hidden ? 'page hidden' : 'page shown');
+      if (!E || muted) return; awake(!document.hidden);
+    }
+    /* bfcache and the ways iOS leaves a page: pagehide, then pageshow (persisted when it comes back from the cache) */
+    function onPageHide() { gone = true; log('pagehide'); if (E && !muted) awake(false); }
+    function onPageShow(e) { gone = false; log('pageshow' + (e && e.persisted ? ' (from the cache)' : '')); if (E && !muted && !document.hidden) awake(true); }
+    /* back from Siri, a call's banner or the control centre the page may never have been hidden, only unfocused */
+    function onFocus() { if (!document.hidden) gone = false; if (!wanted()) return; log('focus'); if (E.ctx.state !== 'running' || stale) awake(true); else watch(); }
     function onPointer(e) {
       if (!E || !running()) return; var n = performance.now(); if (n - lastPtr < 80) return; lastPtr = n;
       var x = e.clientX / Math.max(1, innerWidth), y = e.clientY / Math.max(1, innerHeight);
@@ -1293,6 +1396,8 @@
     function hook() {
       if (hooked || typeof document === 'undefined') return; hooked = true;
       document.addEventListener('visibilitychange', onVis);
+      addEventListener('pagehide', onPageHide); addEventListener('pageshow', onPageShow); addEventListener('focus', onFocus);
+      try { if (navigator.audioSession && navigator.audioSession.addEventListener) navigator.audioSession.addEventListener('statechange', function () { log('session ' + navigator.audioSession.state); if (wanted() && navigator.audioSession.state !== 'interrupted' && (E.ctx.state !== 'running' || stale)) kick('session ' + navigator.audioSession.state); }); } catch (e) {}
       addEventListener('pointermove', onPointer, { passive: true });
       ['play', 'pause', 'ended'].forEach(function (k) { document.addEventListener(k, onMedia, true); });
     }
@@ -1304,7 +1409,7 @@
       /* start({fade, scene, chamber}): call once at load. Muted visitors stay silent and nothing is created. */
       start: function (o) {
         o = o || {}; if (o.fade) fadeMs = o.fade; if (o.scene) { want.name = o.scene; want.o = o; }
-        hook(); announce(); if (muted || !AC) return api;
+        hook(); announce(); log('start' + (muted ? ' (muted: nothing made)' : '')); if (muted || !AC) return api;
         if (!ensure()) return api;
         if (document.hidden) { arm(); return api; }
         resume(); if (!running()) arm();
@@ -1319,12 +1424,13 @@
       /* event(kind): a swell or an impact: swell, door, coalesce, dissolve, impact, turn, shift, passage */
       event: function (kind) { if (running() && !muted) E.event(kind); return api; },
       /* duck(level, ms): lower everything to level (0..1) over ms; duck(1) restores */
-      duck: function (level, ms) { if (E) E.duck.go(clamp(level === undefined ? 0.2 : level), (ms || 1500) / 1000); return api; },
+      duck: function (level, ms) { duckTo = clamp(level === undefined ? 0.2 : level); if (E) E.duck.go(duckTo, (ms || 1500) / 1000); return api; },
       /* mute(true|false): a slow fade (1.2 s), remembered for the next visit */
       mute: function (m) {
         m = m === undefined ? !muted : !!m; var changed = m !== muted; muted = m; store(); paintEars(); if (changed) announce();
+        if (changed) log(m ? 'ear closed' : 'ear opened');
         var hush = cssMs('--duration-hush', 1200) / 1000;
-        if (m) { if (E) { E.mute.go(0, hush); disarm(); clearTimeout(sleepT); sleepT = setTimeout(function () { if (E && muted) try { E.ctx.suspend(); } catch (e) {} }, 1800); } }
+        if (m) { if (E) { E.mute.go(0, hush); disarm(); clearTimeout(sleepT); clearTimeout(checkT); clearTimeout(settleT); sleepT = setTimeout(function () { if (E && muted && E.ctx.state === 'running') { sleeping = true; log('sleep: muted'); try { var p = E.ctx.suspend(); if (p && p.catch) p.catch(function () {}); } catch (e) {} } }, 1800); } }
         else {
           hook(); var first = !E; if (!ensure()) return api;
           clearTimeout(sleepT);
@@ -1334,6 +1440,9 @@
         return api;
       },
       get muted() { return muted; },
+      /* log(message): with ?sounddebug in the address, a line in the console and the overlay; otherwise nothing */
+      log: function (msg) { log(msg); return api; },
+      get debug() { return DEBUG; },
       get state() { return E ? E.ctx.state : 'none'; },
       get context() { return E ? E.ctx : null; },
       /* level(): {rms, peak} of what is playing now, for a meter */

@@ -54,6 +54,10 @@ interface Sound {
   mute(muted?: boolean): Sound;
   /** true while the ear is closed; the stored choice from an earlier visit counts from the first moment */
   readonly muted: boolean;
+  /** with ?sounddebug in the address, a line in the console and the debug overlay; otherwise nothing */
+  log(message: string): Sound;
+  /** true when the address carries ?sounddebug */
+  readonly debug: boolean;
   /** 'none' before anything was created, then the AudioContext's state */
   readonly state: 'none' | AudioContextState | 'interrupted';
   readonly context: AudioContext | null;

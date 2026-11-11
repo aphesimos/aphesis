@@ -12,14 +12,19 @@ The sound of aphes.ist: one ambient, generative voice per screen, synthesized in
 
 1. `start()` creates the context and asks it to `resume()`. Where the browser allows it (Chrome, for a site the visitor has played media on), it runs at once and fades in over `fade`.
 2. Otherwise it stays suspended, and the first gesture of any kind wakes it and fades it in: `pointerdown`, `mousedown`, `keydown`, `touchend` or `click`, anywhere, the inscription's links included. There is no prompt and no "click to enable".
-3. When the page is hidden, the sound fades out over about 1.6 s and the context sleeps. When it is shown again, the context wakes and fades back in over about 2.4 s. If the browser will not wake it without a gesture, the next gesture does.
+3. When the page is hidden (or left: `pagehide`), the sound fades out over about 1.6 s and the context sleeps. When it is shown again (`visibilitychange`, `pageshow` from the back-forward cache, or `focus`), the context wakes and fades back in over about 2.4 s, on the current route's voice. If the browser will not wake it without a gesture, the next gesture does.
 4. Muted, the sound fades out and the context sleeps, and no gesture wakes it. A muted visitor's first click on the ear creates the context, inside that click.
 
 ## Mobile Safari
 
 - The context unlocks inside `touchend`, `click` and `pointerdown`, and a silent one-sample buffer is played inside the gesture, which older iOS versions need.
 - **It plays despite the silent switch.** Where Safari supports `navigator.audioSession`, the session type is set to `playback`, so the ringer switch does not mute the sound, and iOS pauses other apps' audio (music, podcasts) while it plays. This is the owner's decision: the sound is part of the work. The ear is the way to silence it. Where Safari does not support `navigator.audioSession` (before iOS 17), Web Audio still follows the switch.
-- iOS suspends or interrupts the context when the tab goes to the background or a call comes in. On return, the sound tries to resume; if iOS refuses, the next touch resumes it.
+- **Interruptions.** iOS stops the context when Safari goes to the background, the screen locks, a call or Siri comes in, or another app takes the audio: its state turns `interrupted` or `suspended`, and sometimes it comes back `running` with its clock standing still and nothing heard. The runtime follows the context's `statechange`, `navigator.audioSession`'s `statechange`, `visibilitychange`, `pagehide`, `pageshow` and `focus`:
+  - a stop it did not ask for holds the sound at silence (the visibility gain set to 0 while nothing renders), so every return is a fade, never a jump, and no voice is started twice;
+  - when the page is shown, focused, or the interruption ends, it asks the context to `resume()` and arms the next `pointerdown`, `touchend`, `keydown`, `click` or `mousedown` anywhere, in case iOS wants a gesture; nothing visible changes;
+  - a context whose clock stands still while it says it runs is suspended and resumed once; if it still stands, or a resume asked inside a gesture never comes (1.5 s), it is stale, and the next gesture makes a new context inside that gesture. A context found `closed` is made again too. A new context carries the current route's voice and the duck, and creeps in over 2.4 s. At most one is made every four seconds, and the old one is closed;
+  - muted, none of this happens: the ear stays closed and the context asleep.
+- **Debugging on a phone.** Add `?sounddebug` to the address (`https://aphes.ist/?sounddebug`): every change of the audio's state (the context, the audio session, the page hidden or shown, gestures, the music player's pauses and resumes) is logged to the console as `sound · …` and shown in a small overlay at the top of the page. Without the flag nothing is logged or shown. Anything else that sounds can add its own lines with `Aphesis.Sound.log(message)`.
 
 ## The voices
 

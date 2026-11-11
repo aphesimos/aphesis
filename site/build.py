@@ -305,7 +305,8 @@ def build(fragment, refs):
              .replace('/*__PASSAGES__*/', json.dumps(PASSAGES, ensure_ascii=False))
              .replace('/*__FAVICON__*/', open(os.path.join(D, 'src', 'favicon.js'), encoding='utf-8').read())
              .replace('/*__ICONRED__*/', json.dumps(red))
-             .replace('/*__CONTENTAPI__*/', json.dumps(os.environ.get('APHESIS_CONTENT_API', '').strip().rstrip('/'))))
+             .replace('/*__CONTENTAPI__*/', json.dumps(os.environ.get('APHESIS_CONTENT_API', '').strip().rstrip('/')))
+             .replace('/*__MUSICINDEX__*/', json.dumps(MUSIC_INDEX)))
     page = open(os.path.join(D, 'src', 'shell.html'), encoding='utf-8').read()
     # the static icons and the manifest are files in site/public (tools/make_icons.py); the artifact page has none
     links = '' if fragment else ('<link rel="icon" href="/favicon.ico" sizes="32x32">\n<link rel="apple-touch-icon" href="/apple-touch-icon.png">\n'

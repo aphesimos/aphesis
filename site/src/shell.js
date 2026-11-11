@@ -394,14 +394,65 @@ const KEEP_CLASSES = ['aph-shifting', 'aph-still', 'aph-has-cursor', 'is-dark'];
 /* a section that waits for data from elsewhere (music: its library on R2). Until the data is there and not empty,
    the section shows only `keep` (its title and gloss) in the fog, with no word about it; the section's request
    simply has not answered yet. The shell asks again, more slowly each time, while the section is on screen, and
-   the moment the data is there the request answers and the section fills in, with no rebuild. */
+   the moment the data is there the request answers and the section fills in, with no rebuild. `url` is what the
+   section will ask for, so it can be asked for early (EARLY). */
 const WAITS = {
   music: {
+    url: /*__MUSICINDEX__*/,
     match: (u) => /\/index\.json(\?|$)/.test(String(u && u.url !== undefined ? u.url : u)),
     ready: (doc) => !!(doc && Array.isArray(doc.tracks) && doc.tracks.length),
     keep: '.m-gloss, .m-title',
   },
 };
+/* one try at a waiting section's data: a response of it where it is there, null where it is not (yet) or the request
+   failed. The request goes out from the page (its bytes cost the page nothing) and a worker says whether the data is
+   there, so no decoding or parsing holds the page up (the music library is about two megabytes); the section gets
+   the bytes back as a response of its own. Where no worker can be made, or it fails, the page parses the data, and
+   the section reads the document the shell has just parsed instead of parsing it again. */
+function ask(input, init, WT) {
+  const onPage = () => W.fetch(input, init).then((res) => (res.ok ? res.clone().json().then((doc) => (WT.ready(doc)
+    ? new Proxy(res, { get(t, k) { if (k === 'json') return () => Promise.resolve(doc); const v = Reflect.get(t, k); return typeof v === 'function' ? v.bind(t) : v; } })
+    : null)) : null)).catch(() => null);
+  const w = waitWorker();
+  if (!w) return onPage();
+  return W.fetch(input, init).then((res) => {
+    if (!res.ok) { w.end(); return null; }
+    return res.arrayBuffer().then((buf) => w.check(buf, WT.ready)).then((r) => (r === null ? onPage()
+      : r.ok ? new Response(r.buf, { status: res.status, statusText: res.statusText, headers: res.headers }) : null));
+  }).catch(() => { w.end(); return null; });
+}
+/* a worker made when the request goes out, so it has started by the time the answer is in: it decodes and parses the
+   answer's bytes and asks `ready` of the data; the bytes come back as they were (transferred, not copied). null where
+   no worker can be made; check() gives null where it fails. */
+const WAIT_WORKER = 'self.onmessage=(e)=>{const{buf,ready}=e.data;let ok=false;' +
+  'try{ok=!!Function("return "+ready)()(JSON.parse(new TextDecoder().decode(buf)));}catch(_){}postMessage({ok,buf},[buf]);};';
+let waitWorkers = typeof Worker === 'function';
+function waitWorker() {
+  if (!waitWorkers) return null;
+  let w, src, dead = false, pending = null;
+  try { src = URL.createObjectURL(new Blob([WAIT_WORKER], { type: 'text/javascript' })); w = new Worker(src); } catch (_) { waitWorkers = false; return null; }
+  const end = (r) => { if (!dead) { dead = true; w.terminate(); URL.revokeObjectURL(src); } if (pending) { pending(r); pending = null; } };
+  w.onmessage = (e) => end(e.data);
+  w.onerror = (e) => { e.preventDefault(); waitWorkers = false; end(null); };
+  return {
+    end: () => end(null),
+    check: (buf, ready) => new Promise((resolve) => { if (dead) return resolve(null); pending = resolve; w.postMessage({ buf, ready: String(ready) }, [buf]); }),
+  };
+}
+/* a waiting section's data is asked for as soon as the visitor reaches for its name in the inscription (a hover, a
+   focus, a press, the first tap that names it), so it is often in before the section comes in; the section's first
+   request takes that answer. Not taken within a minute, it is let go. */
+const EARLY = {};
+function early(name) {
+  const WT = WAITS[name];
+  if (!WT || !WT.url || DORMANT[name] || EARLY[name]) return;
+  const e = EARLY[name] = { answer: ask(WT.url, { cache: 'no-cache' }, WT) };
+  setTimeout(() => { if (EARLY[name] === e) delete EARLY[name]; }, 60000);
+}
+['pointerover', 'focusin', 'pointerdown'].forEach((t) => ring.addEventListener(t, (e) => {
+  const a = e.target.closest && e.target.closest('a[href^="#"]');
+  if (a) early(sectionOf(a.getAttribute('href')));
+}, { passive: true }));
 function makeSandbox(name) {
   const X = xl(name);
   const ctx = { name, active: true, dormant: false, timers: new Map(), intervals: new Map(), rafs: new Map(), listeners: [],
@@ -536,13 +587,13 @@ function makeSandbox(name) {
       let n = 0;
       const again = () => sT(attempt, Math.min(120000, 15000 * ++n));
       function attempt() {
-        W.fetch(input, init).then((res) => (res.ok ? res.clone().json().then((doc) => {
-          if (!WT.ready(doc)) return again();
+        const e = n === 0 && EARLY[name] ? EARLY[name].answer : null;
+        delete EARLY[name];
+        (e ? e.then((res) => res || ask(input, init, WT)) : ask(input, init, WT)).then((res) => {
+          if (!res) return again();
           ctx.waiting = false; if (cur === ctx) lift(ctx);
-          /* the section reads the document the shell has just parsed, instead of decoding and parsing it again (the
-             music library is about two megabytes); everything else about the response is its own */
-          resolve(new Proxy(res, { get(t, k) { if (k === 'json') return () => Promise.resolve(doc); const v = Reflect.get(t, k); return typeof v === 'function' ? v.bind(t) : v; } }));
-        }) : again())).catch(again);
+          resolve(res);
+        });
       }
       attempt();
     });
@@ -626,8 +677,9 @@ function wait(ctx) {
   ctx.zones = keep.map((el) => ({ el, pad: 16 }));
   condense(keep);
 }
-/* the answer is there, but the section still has to read it and write it in: the wait stays until its first writes
-   land (or 1.5 s at most), and goes in the frame that shows them, so no count or list is ever seen filling in */
+/* the answer is there, but the section still has to read it and write it in (music works its library out in a worker
+   first): the wait stays until its first writes land (or 4 s at most), and goes in the frame that shows them, so no
+   count or list is ever seen filling in */
 function lift(ctx) {
   let done = false;
   const go = () => {
@@ -636,7 +688,7 @@ function lift(ctx) {
   };
   const mo = new MutationObserver(go);
   mo.observe(host, { subtree: true, childList: true, characterData: true });
-  const cap = setTimeout(go, 1500);
+  const cap = setTimeout(go, 4000);
 }
 function condense(els) {
   els.forEach((el) => { el.style.setProperty('opacity', '0'); el.style.setProperty('filter', 'blur(10px)'); el.style.setProperty('translate', '0 14px'); });

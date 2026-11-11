@@ -102,7 +102,11 @@ goes on across every route and through the section resting and waking.
 While the index is missing, unreachable or empty, the section shows only its title and gloss in the fog: its request
 for the index simply has not answered. The shell asks again, more slowly each time, while the section is on screen,
 and the section fills in the moment the index is there, with no rebuild (`WAITS` in `site/src/shell.js`).
-The index is decoded and parsed once: the section reads the document the shell parsed for that check.
+The index is asked for as soon as the visitor reaches for music in the inscription (a hover, a focus, a press, the
+first tap that names it), so it is often in before the section comes in. None of it holds the page up: the request
+goes out from the page, a worker made meanwhile decodes and parses the answer for that check and hands the bytes
+back, and the section works them into its library in a worker of its own. The wait goes in the frame that shows the
+section's first writes (4 s at most), so nothing is seen filling in.
 
 ## Sound
 

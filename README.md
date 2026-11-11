@@ -58,7 +58,8 @@ concatenated). Its fonts, tokens and runtime are dropped, since the page carries
 Inside the sandbox the section's runtime calls go to a scoped `Aphesis`: `Fog` hands back the shared fog (its
 `zones` and `set({density, light})` drive the one fog), `seal`, `cursor` and `tooltip` are the shell's own,
 `Simulacrum` is tracked, and `Sound.scene` and `Sound.event` reach the shared sound only while the section is on
-screen. The section's own `#fog`, `#seal` and `#controls` stay in its markup, so its script finds them, but never show.
+screen, and `text(key, own)` gives the site's texts (below). The section's own `#fog`, `#seal` and `#controls` stay in
+its markup, so its script finds them, but never show.
 
 A section's script runs once, on its first visit; after that the section rests and wakes.
 
@@ -130,10 +131,25 @@ PBKDF2 hashes (section/gate's own build, `--entrances`). Without them those two 
 the door still open the gate. The desk talks to the content service (`--content-api`), whose session cookie needs the
 real domain (`aphes.ist`), not `aphesist.pages.dev`.
 
+## The site's texts
+
+The short lines the owner changes from the desk without a rebuild: the home's line for each section (the tooltip of
+its name, `desc` in `SECTIONS`), the ledes, the helper lines, the empty states. The shell asks the content service
+for `/v1/texts` once, at load, which answers only the keys the owner changed (`backend/content/src/texts.rs` lists
+every key and its default). The page always carries its own strings and keeps them when the service is absent, slow
+or says nothing for a key.
+
+- In markup a line names its key: `data-text="music.lede"` (its words), `data-text-tip` (its tooltip),
+  `data-text-placeholder`. The shell writes the texts into a section's markup before it enters the page.
+- In a section's script: `Aphesis.text('forum.empty', 'no threads yet.')`, through the scoped runtime; a section
+  built alone has no `text` and keeps its own string.
+- A section's first visit waits for the answer (1.2 s at most, `TEXTS_WAIT` in `site/src/shell.js`), so it enters
+  with its words already set and no line is ever seen changing.
+
 ## Backends
 
 - **Content** (`https://content-api.aphes.ist`): archive, book and works read their entries from it and fall back
-  to what they carry when it does not answer; the gate signs in through it.
+  to what they carry when it does not answer; the shell reads the site's texts from it; the gate signs in through it.
 - **Wall and forum** (`https://wall-api.aphes.ist`, `https://forum-api.aphes.ist`): they go live only with a
   Turnstile site key, which the build writes into the page's head with both backends' addresses. Without one they
   stay in preview mode (empty, a visitor's posts kept in their browser), and the build log says so.

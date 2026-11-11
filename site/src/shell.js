@@ -75,6 +75,42 @@ function cornerBox() { const sa = safeArea(); return { x: 18 + sa.l, y: 16 + sa.
 let sealBox = { ...centerBox() }, u = 0;
 function placeSeal(c) { sealBox = c; const e = $('aph-seal'); e.style.width = e.style.height = c.s.toFixed(2) + 'px'; e.style.transform = `translate(${c.x.toFixed(2)}px,${c.y.toFixed(2)}px)`; }
 
+/* ---------- the site's texts ----------
+   The short lines the owner changes from the desk (the home's line for each section, the ledes, the helper lines,
+   the empty states) come from the content service's /v1/texts, which answers only the keys that were changed. The
+   page always carries its own strings and keeps them when the service is absent, slow or silent.
+   - markup names its key: data-text (the words), data-text-tip (the tooltip), data-text-placeholder;
+   - a section's script asks Aphesis.text(key, its own string), through its scoped runtime.
+   A section is first mounted only once the texts have answered (or after TEXTS_WAIT), and the texts are written
+   into its markup before it enters the page, so no line is ever seen changing. */
+const CONTENT_API = /*__CONTENTAPI__*/;
+const TEXTS = Object.create(null), TEXTS_WAIT = 1200;
+let textsSettled = !CONTENT_API;
+const textsQueue = [];
+const text = (key, own) => (key in TEXTS ? TEXTS[key] : own);
+function applyTexts(root) {
+  root.querySelectorAll('[data-text],[data-text-tip],[data-text-placeholder]').forEach((el) => {
+    const d = el.dataset;
+    if (d.text && d.text in TEXTS && el.textContent !== TEXTS[d.text]) el.textContent = TEXTS[d.text];
+    if (d.textTip && d.textTip in TEXTS) d.tip = TEXTS[d.textTip];
+    if (d.textPlaceholder && d.textPlaceholder in TEXTS) el.placeholder = TEXTS[d.textPlaceholder];
+  });
+}
+function settleTexts() { if (textsSettled) return; textsSettled = true; textsQueue.splice(0).forEach((f) => f()); }
+if (CONTENT_API) {
+  const late = setTimeout(settleTexts, TEXTS_WAIT);
+  fetch(CONTENT_API + '/v1/texts', { cache: 'no-cache' })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((doc) => {
+      const t = doc && doc.texts;
+      if (t && typeof t === 'object') for (const k of Object.keys(t)) if (typeof t[k] === 'string' && t[k]) TEXTS[k] = t[k];
+      /* the home's lines are tooltips, never on screen until asked for: they take the texts whenever they come */
+      applyTexts($('aph-ring'));
+    })
+    .catch(() => { /* the page's own strings stay */ })
+    .finally(() => { clearTimeout(late); settleTexts(); });
+}
+
 /* ---------- the inscription ---------- */
 const links = [...document.querySelectorAll('#aph-ring a')];
 let spin = 0;
@@ -232,7 +268,7 @@ function pick() { let i; do { i = Math.floor(Math.random() * PASSAGES.length); }
 function newPassage() {
   clearTimeout(pLoop);
   const f = pick();
-  $('aph-ptext').lang = f.l; $('aph-passage').dataset.tip = (f.t && f.t !== '—' ? f.t + '  — ' : '') + f.a;
+  $('aph-ptext').lang = f.l; $('aph-passage').dataset.tip = (f.t && f.t !== '—' ? f.t + ' · ' : '') + f.a;
   $('aph-psr').textContent = f.o + (f.t && f.t !== '—' ? ' (' + f.t + ')' : '') + ', ' + f.a;
   typist.type(f.o, () => {
     pLoop = setTimeout(() => typist.erase(() => { pLoop = setTimeout(newPassage, 900 + Math.random() * 900); }), 6500 + Math.random() * 3500);
@@ -277,7 +313,7 @@ $('aph-eye').addEventListener('click', () => {
 A.cursor();
 A.tooltip();
 /* the ear, beside the eye: it silences the sound and opens it again */
-if (A.Sound) A.Sound.ear($('aph-ear')); else $('aph-ear').remove();
+if (A.Sound) { A.Sound.ear($('aph-ear')); $('aph-ear').setAttribute('aria-label', 'sound'); } else $('aph-ear').remove();
 
 /* ================= routes ================= */
 /* a hidden section (the gate) has no name in the inscription and no route: the shell opens it on `aph:entrance` */
@@ -411,6 +447,8 @@ function makeSandbox(name) {
   }
   SA.cursor = () => {};
   SA.tooltip = () => {};
+  /* the site's texts: the owner's version of a line, or the section's own */
+  SA.text = text;
   /* a simulacrum, with what it was doing: running or rested, gathered or dissolved */
   SA.Simulacrum = Object.assign(function (canvas, o) {
     RUNTIME = true; let s; try { s = A.Simulacrum(canvas, o); } finally { RUNTIME = false; }
@@ -526,7 +564,9 @@ function enter(name) {
   ctx.rootData = Object.keys(ROOT.dataset);
   cur = ctx; DORMANT[name] = ctx;
   show(name);
-  host.appendChild(tplOf(name).content.cloneNode(true));
+  const markup = tplOf(name).content.cloneNode(true);
+  applyTexts(markup);
+  host.appendChild(markup);
   /* the section's links to its own routes point at the global hash */
   const X = xl(name);
   host.querySelectorAll('a[href^="#"]').forEach((a) => { const h = a.getAttribute('href'); if (h.length > 1) a.setAttribute('href', X.toGlobal(h)); });
@@ -635,6 +675,8 @@ function wake(ctx) {
 function requestMount(name, delay) { pendingMount = name; clearTimeout(mountTimer); mountTimer = setTimeout(tryMount, delay); }
 function tryMount() {
   if (leaving || !pendingMount) return;
+  /* a first visit waits for the texts (TEXTS_WAIT at most), so the section enters with its words already set */
+  if (!textsSettled && !DORMANT[pendingMount]) { textsQueue.push(tryMount); return; }
   const n = pendingMount; pendingMount = null;
   if (route === n && !cur) enter(n);
 }

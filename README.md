@@ -133,14 +133,26 @@ system's `themeShift`), so the reds change in step with the ground.
 
 ## The gate
 
-The owner's gate and desk (`section/gate`) is a hidden section: no name in the inscription, no route. The shell opens
-it over wherever the visitor is when an entrance dispatches `aph:entrance`, with one history entry, so Back closes it;
-the seal, the gate's own Escape and any new address close it too. The entrances:
+The owner's gate and desk (`section/gate`) is a hidden section: no name in the inscription, no route. The shell
+opens it over wherever the visitor is when an entrance dispatches `aph:entrance`. The entrances:
 
 - **the ritual**: three taps on the passage, then the φ held for seven seconds;
 - **the phrase**, typed anywhere outside a field;
-- **the secret route**, `#<route>`, taken out of the address bar;
+- **the secret route**, `#<route>`, typed into the address bar;
 - **the tenth door** in the descent (a circle drawn around the door).
+
+Its address never names it. Opening the gate adds one history entry that keeps the address of the screen it opened
+over (`#book/faust`, `#home`) and carries `{ aphGate: 1 }` in its state, so:
+
+- **Back** closes it, onto that screen; **Forward** opens it again; **Escape** at the gate is Back.
+- **The seal** goes home with an entry of its own (Back from there finds the gate again), and **a new address** goes
+  where it says.
+- **A reload** keeps the entry, so it opens the gate again, at the same address; the screen beneath is never lost.
+- **The secret route** is put back to the address of the screen on show the moment it is typed, before it is even
+  checked (any hash that names no screen is: one that is not the route then goes home, `#home`). If it is the route,
+  the entry it made becomes the gate's, so the gate still costs one entry; taken at load, it opens over the home.
+  The shell asks the entrances' script (`__aphEntrances.isRoute`), so the route is never in the address, the
+  history or the page.
 
 The phrase and the route come from `APHESIS_GATE_PHRASE` and `APHESIS_GATE_ROUTE` and reach the page only as salted
 PBKDF2 hashes (section/gate's own build, `--entrances`). Without them those two entrances do not exist; the ritual and
@@ -204,6 +216,13 @@ new query (`aphes.ist/?v=2`) is a new link to every app.
 
 Escape goes up: from a section's own page to its index, from an index to the home, whenever the section itself
 did not use the key. The seal always leads home.
+
+The address always names the screen on show, and Back and Forward walk the screens seen, one entry each: a name in
+the inscription, the seal, a post, a thread, a folder, a work. Turning the book's leaves rewrites its entry instead
+(`#book/<slug>`), as scrolling writes nothing. The screen follows from the address alone (and the gate's entry, above):
+the shell listens to `hashchange` and `popstate` and follows any `history.replaceState` a section makes, so a change
+made while the φ travels or a section dissolves, rests or wakes lands where the last one says. A hash that names
+nothing never stays: it goes home as `#home`.
 
 ## Refreshing a section
 

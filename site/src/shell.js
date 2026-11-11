@@ -345,7 +345,7 @@ if (A.Sound) A.Sound.ear($('aph-ear')); else $('aph-ear').remove();
 /* a hidden section (the gate) has no name in the inscription and no route: the shell opens it on `aph:entrance` */
 const NAMES = SECTIONS.filter((s) => !s.hidden).map((s) => s.id);
 const HIDDEN = new Set(SECTIONS.filter((s) => s.hidden).map((s) => s.id));
-let gateOpen = false;
+let gateBare = false;   /* the gate open where the address could not take an entry for it (a sandbox refused) */
 /* a section's name in the address, where it differs from its branch (experimental is the descent, at #descent) */
 const ROUTE = Object.fromEntries(SECTIONS.map((s) => [s.id, s.route || s.id]));
 const routeOf = (id) => '#' + ROUTE[id];
@@ -365,7 +365,7 @@ const norm = (h) => '#' + String(h == null ? '' : h).replace(/^#/, '');
 const XLATE = {
   archive: {
     toLocal(g) { const h = norm(g); return h.startsWith('#archive/') ? '#' + h.slice(9) : h; },
-    toGlobal(l) { const h = norm(l); if (h === '#') return '#archive'; return (h === '#archive' || h === '#home' || h.startsWith('#archive/')) ? h : '#archive/' + h.slice(1); },
+    toGlobal(l) { const h = norm(l), o = sectionOf(h); if (h === '#') return '#archive'; return (h === '#archive' || h === '#home' || h.startsWith('#archive/') || (o && o !== 'archive')) ? h : '#archive/' + h.slice(1); },
   },
 };
 const IDENT = { toLocal: (g) => norm(g) === '#' ? '' : norm(g), toGlobal: (l) => norm(l) };
@@ -446,8 +446,8 @@ function makeSandbox(name) {
     assign(v) { if (ctx.active) L.assign(fix(v)); }, replace(v) { if (ctx.active) L.replace(fix(v)); }, reload() {}, toString() { return this.href; },
   };
   const hist = {
-    pushState(s, t, v) { if (ctx.active) H.pushState(s, t, v == null ? v : fix(String(v))); },
-    replaceState(s, t, v) { if (ctx.active) H.replaceState(s, t, v == null ? v : fix(String(v))); },
+    pushState(s, t, v) { if (ctx.active) { H.pushState(s, t, v == null ? v : fix(String(v))); silent(); } },
+    replaceState(s, t, v) { if (ctx.active) { H.replaceState(s, t, v == null ? v : fix(String(v))); silent(); } },
     back() { if (ctx.active) H.back(); }, forward() { if (ctx.active) H.forward(); }, go(n) { if (ctx.active) H.go(n); },
     get state() { return H.state; }, get length() { return H.length; },
     get scrollRestoration() { return H.scrollRestoration; }, set scrollRestoration(v) { H.scrollRestoration = v; },
@@ -717,11 +717,10 @@ function wake(ctx) {
   /* a hidden section follows no address */
   if (HIDDEN.has(ctx.name)) { dispatchEvent(new Event('resize')); focusIn(ctx); return; }
   /* coming back by the section's own name lands where it was left; a sub-route in the address is followed */
-  if (location.hash === routeOf(ctx.name) && ctx.leftAt !== location.hash) { try { history.replaceState(null, '', ctx.leftAt); } catch (_) { /* fine */ } }
-  const here = location.hash;
-  if (redraw) { const back = here; try { history.replaceState(null, '', routeOf(ctx.name)); } catch (_) { /* fine */ } dispatchEvent(new HashChangeEvent('hashchange'));
-    try { history.replaceState(null, '', back); } catch (_) { /* fine */ } dispatchEvent(new HashChangeEvent('hashchange')); }
-  else if (here !== ctx.leftAt) dispatchEvent(new HashChangeEvent('hashchange'));
+  if (location.hash === routeOf(ctx.name) && ctx.leftAt !== location.hash) rewrite(ctx.leftAt);
+  const now = location.hash;
+  if (redraw) { rewrite(routeOf(ctx.name)); dispatchEvent(new HashChangeEvent('hashchange')); rewrite(now); dispatchEvent(new HashChangeEvent('hashchange')); }
+  else if (now !== ctx.leftAt) dispatchEvent(new HashChangeEvent('hashchange'));
   dispatchEvent(new Event('resize'));
   focusIn(ctx);
 }
@@ -811,29 +810,77 @@ function goTo(next, first) {
     requestMount(next, first ? 0 : (prev === '' ? 700 : 0));
   }
 }
+/* the address and the screen. The screen always follows from the address and its history entry: an entry the gate
+   opened is the gate (it carries { aphGate } and keeps the address of the screen it was opened over, so nothing in
+   the address names it); any other entry is the section its hash names, or the home. `here` is the address as the
+   shell last saw it, kept through the silent rewrites (a section's replaceState, the book's leaves), so a section
+   that leaves knows where it was. A hash that names nothing never stays in the address: it is put back to the
+   screen on show at once, then, if it is not the secret route, the visitor goes home (#home). */
+const isGate = () => !!(APH_SECTIONS.gate && (gateBare || (history.state && history.state.aphGate)));
+function rewrite(h, state = null) { try { history.replaceState(state, '', h); } catch (_) { /* a sandbox may refuse */ } here = location.hash; }
+function known(hash) { let h; try { h = decodeURIComponent((hash || '').replace(/^#/, '')); } catch (_) { return false; } return !h || h === 'home' || sectionOf(hash) !== ''; }
 function readRoute() {
-  if (gateOpen) return 'gate';
+  if (isGate()) return 'gate';
   const s = sectionOf(location.hash);
   const h = decodeURIComponent(location.hash.replace(/^#/, ''));
-  if (s === 'archive' && ARCHIVE_SLUGS.includes(h)) { try { history.replaceState(null, '', '#archive/' + h); } catch (_) { /* a sandbox may refuse */ } }
+  if (s === 'archive' && ARCHIVE_SLUGS.includes(h)) rewrite('#archive/' + h);
   /* a section's old name (#experimental) is rewritten to its name now (#descent), so old links keep working */
-  for (const [old, now] of Object.entries(RENAMED)) if (h === old || h.startsWith(old + '/')) { try { history.replaceState(null, '', '#' + now + h.slice(old.length)); } catch (_) { /* fine */ } }
+  for (const [old, now] of Object.entries(RENAMED)) if (h === old || h.startsWith(old + '/')) rewrite('#' + now + h.slice(old.length));
   return s;
 }
+let here = location.hash;       /* the address as the shell last saw it */
 let prevHash = location.hash;   /* the address just before a route change: where a leaving section was */
-addEventListener('hashchange', (e) => { if (!e.isTrusted && gateOpen) return; gateOpen = false; try { prevHash = new URL(e.oldURL).hash; } catch (_) { prevHash = ''; } goTo(readRoute()); });
+let stray = null;               /* a hash that named nothing, put back while the gate's entrance reads it */
+function sync() {
+  if (stray) {
+    /* the echo of putting a stray hash back (popstate and hashchange both come for one change) */
+    if (location.hash === stray.back && !history.state) return;
+    stray = null;
+  }
+  if (!isGate() && !known(location.hash)) { strayHash(location.hash); return; }
+  prevHash = here;
+  const next = readRoute();
+  here = location.hash;
+  goTo(next);
+}
+function strayHash(h) {
+  const back = route === null || !here ? '#home' : here, gateWas = route === 'gate';
+  const me = stray = { back };
+  rewrite(back);
+  const E = window.__aphEntrances;
+  const verdict = E && E.isRoute ? E.isRoute(h).catch(() => false) : Promise.resolve(false);
+  verdict.then((yes) => {
+    if (stray !== me) return;   /* the visitor moved on meanwhile */
+    stray = null;
+    if (yes) { openGate(gateWas ? 'keep' : 'replace'); return; }
+    prevHash = here; rewrite('#home'); goTo('');
+  });
+}
+/* a section rewrote the address on its own (replaceState): the shell follows if it now names another screen */
+function silent() { here = location.hash; if (!isGate() && route !== null && sectionOf(here) !== route && known(here)) sync(); }
+addEventListener('hashchange', (e) => { if (e.isTrusted) { gateBare = false; sync(); } });   /* the shell's own (wake) are for sections */
+addEventListener('popstate', () => { gateBare = false; sync(); });
 /* the gate: any entrance opens it over wherever the visitor is (the ritual, the phrase, the secret route, the descent's
-   tenth door), with one history entry, so Back closes it; the seal, its own Escape and a new address close it too */
-addEventListener('aph:entrance', () => {
-  if (!APH_SECTIONS.gate || gateOpen) return;
-  gateOpen = true; prevHash = location.hash;
-  try { history.pushState({ aphGate: 1 }, '', location.href); } catch (_) { /* a sandbox may refuse */ }
+   tenth door), with one history entry that keeps the address as it was, so Back closes it and a reload finds it
+   again; the seal, its own Escape and a new address close it too. The secret route, typed into the address, takes
+   the place of the entry it made (that entry already holds the address put back). */
+function openGate(how) {
+  if (!APH_SECTIONS.gate) return;
+  if (how === 'keep') { rewrite(here, { aphGate: 1 }); return; }
+  prevHash = here;
+  try { if (how === 'replace') history.replaceState({ aphGate: 1 }, '', location.href); else history.pushState({ aphGate: 1 }, '', location.href); gateBare = !(history.state && history.state.aphGate); }
+  catch (_) { gateBare = true; }
+  here = location.hash;
   goTo('gate');
+}
+addEventListener('aph:entrance', () => { if (route !== 'gate') openGate('push'); });
+addEventListener('aph:gate-close', () => {
+  if (route !== 'gate') return;
+  if (!gateBare && history.state && history.state.aphGate) { history.back(); return; }   /* Escape is Back */
+  gateBare = false; sync();
 });
-addEventListener('popstate', () => { if (gateOpen && !(history.state && history.state.aphGate)) { gateOpen = false; goTo(readRoute()); } });
-addEventListener('aph:gate-close', () => { if (!gateOpen) return; gateOpen = false; goTo(readRoute()); });
 /* the seal always leads home, without relying on the hash */
-$('aph-seal').addEventListener('click', (e) => { e.preventDefault(); gateOpen = false; if (route === '') return; prevHash = location.hash; try { history.pushState(null, '', '#home'); } catch (_) { /* fine */ } goTo(''); });
+$('aph-seal').addEventListener('click', (e) => { e.preventDefault(); stray = null; if (route === '') return; gateBare = false; prevHash = here; try { history.pushState(null, '', '#home'); } catch (_) { /* fine */ } here = location.hash; goTo(''); });
 /* a section link written as a local hash (made after the mount) is sent to the section's global hash */
 document.addEventListener('click', (e) => {
   if (e.defaultPrevented || !cur || e.button) return;
@@ -849,6 +896,7 @@ addEventListener('keydown', (e) => {
   setTimeout(() => {
     if (e.defaultPrevented || open || route !== name) return;
     if (t && t.closest && t.closest('input,textarea,select,[contenteditable="true"]')) return;
+    if (HIDDEN.has(name)) { dispatchEvent(new CustomEvent('aph:gate-close')); return; }   /* the gate closes, as Back would */
     const idx = INDEX[name], h = location.hash;
     if (idx && h !== idx && h !== routeOf(name)) location.hash = idx.slice(1); else location.hash = 'home';
   }, 0);
@@ -872,7 +920,14 @@ Object.defineProperty(window, 'aphesis', { value: Object.freeze({ get route() { 
 
 /* ---------- opening ---------- */
 addEventListener('resize', () => { if (route === '') placeSeal(centerBox()); else placeSeal(cornerBox()); });
+/* a hash that names nothing at load is the home's (#home); the secret route is read once the entrances are there */
+const strayAtLoad = !isGate() && !known(location.hash) ? location.hash : null;
+if (strayAtLoad) rewrite('#home');
 const initial = readRoute();
+here = prevHash = location.hash;
+/* the entrances' script comes after this one: ask it once the document is parsed */
+const atParsed = (fn) => (document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', fn, { once: true }) : setTimeout(fn, 0));
+if (strayAtLoad) atParsed(() => { const E = window.__aphEntrances; if (E && E.isRoute) E.isRoute(strayAtLoad).then((yes) => { if (yes && route === '' && location.hash === '#home') openGate('push'); }, () => {}); });
 /* the sound creeps in under the φ as it is drawn (or starts on the first gesture, where the browser waits for one) */
 try { if (A.Sound) A.Sound.start({ fade: Math.round(relPhi.seg / VEL * 1000) + 700, scene: initial || 'home' }); } catch (err) { console.error(err); }
 if (initial) { placeSeal(cornerBox()); u = 1; paint(estadoT(1)); target.d = 0.62; target.l = 0.4; goTo(initial, true); newPassage(); }

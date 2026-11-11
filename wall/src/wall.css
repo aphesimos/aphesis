@@ -87,7 +87,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 .line-owner .owner-eye { display: block; flex: none; color: var(--accent); }
 .line-owner .owner-eye svg { display: block; }
-.line-owner .owner-name { color: var(--accent-text); font-size: calc(var(--size) * 1.05); line-height: 1; letter-spacing: .02em; }
+/* the name in the eye's own red (accent), turning with it in the theme wave (.aph-red) */
+.line-owner .owner-name { color: var(--accent); font-size: calc(var(--size) * 1.05); line-height: 1; letter-spacing: .02em; }
 .line.fwd .line-owner { opacity: 1; filter: none; transform: scale(min(var(--lift), 1.18)); }
 
 /* ---------- the line to write in ---------- */

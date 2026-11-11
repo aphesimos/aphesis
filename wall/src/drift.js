@@ -9,7 +9,7 @@
 
    The owner's lines (`owner: true`, which only the server gives: the owner writes from the desk, and the content
    service passes it on with the wall's admin token) carry the owner's mark above the words: a small live
-   Aphesis.Eye in rubedo and the name, aphesist, in Aphesis Script, at the line's depth. The eyes are `shared`: one
+   Aphesis.Eye in rubedo and the name as the wordmark writes it, aφesist, in the eye's red, at the line's depth. The eyes are `shared`: one
    tick for the page, still while off screen, gone with their line. */
 
 import { clamp } from './motion.js';
@@ -19,6 +19,8 @@ const IN = 2600;   /* condense */
 const OUT = 1800;  /* thin out */
 const GAP = 18;                  /* the clearing kept between two lines, px */
 export const OWNER = 'aphesist';
+/* the name as the wordmark writes it (aφesis in Aphesis Script, with a t); the line's accessible name says "aphesist" */
+const OWNER_WORD = 'aφesist';
 
 export function createDrift(list, { rect, describe }) {
   let pool = [], queue = [], items = [], field = rect(), last = performance.now(), nextSpawn = 0, seed = 1;
@@ -68,7 +70,7 @@ export function createDrift(list, { rect, describe }) {
       const mark = document.createElement('span');
       mark.className = 'line-owner aph-on-fog';
       mark.setAttribute('aria-hidden', 'true');
-      mark.innerHTML = '<span class="owner-eye aph-red"></span><span class="owner-name aph-display">' + OWNER + '</span>';
+      mark.innerHTML = '<span class="owner-eye aph-red"></span><span class="owner-name aph-display aph-red">' + OWNER_WORD + '</span>';
       el.appendChild(mark);
       eye = mark.firstChild;
     }

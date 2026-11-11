@@ -210,17 +210,20 @@ def size(b):
 
 # ---------- modules ----------
 ORDER = ['config.js', 'archive/assets.js', 'archive/render.js', 'archive/stage-icon.js', 'archive/marks.js', 'archive/figure.js',
-         'archive/css.js', 'forum/density.js', 'mockdata.js', 'mock.js', 'ui.js', 'api.js', 'eye.js', 'line.js',
+         'archive/css.js', 'forum/refusal.js', 'forum/density.js', 'mockdata.js', 'mock.js', 'ui.js', 'api.js', 'eye.js', 'line.js',
          'ed-archive.js', 'ed-entries.js', 'moderation.js', 'ed-texts.js', 'dash.js', 'main.js']
 
 
 def scope_module(name, src):
-    """One module as a function scope: its imports read from the registry, its exports return to it."""
+    """One module as a function scope: its imports read from the registry, its exports return to it. An import of a
+    module that is not in ORDER before it stops the build: the page would only fail when the gate opens."""
     base = os.path.dirname(name)
 
     def imp(m):
         names, path = m.group(1), m.group(2)
         key = os.path.normpath(os.path.join(base, path)).replace(os.sep, '/')
+        if key not in ORDER[:ORDER.index(name)]:
+            sys.exit(f'gate: {name} imports {key}, which is not in ORDER before it')
         return 'const {' + names + '} = M[' + json.dumps(key) + '];'
     src = re.sub(r'^import\s*\{([^}]*)\}\s*from\s*[\'"]([^\'"]+)[\'"];\s*$', imp, src, flags=re.M)
     exports = re.findall(r'^export\s+(?:async\s+)?(?:function|const|let|class)\s+([A-Za-z_$][\w$]*)', src, flags=re.M)
@@ -239,8 +242,8 @@ def module_source(f, opts):
         return 'export const ARCHIVE_CSS = ' + json.dumps(scope_css(show(AR, 'archive/src/archive.css'), '.gp-archive')) + ';\n'
     if f.startswith('archive/'):
         return show(AR, 'archive/src/' + f[8:])
-    if f == 'forum/density.js':
-        return show(FR, 'forum/src/density.js')
+    if f.startswith('forum/'):
+        return show(FR, 'forum/src/' + f[6:])
     if f == 'mockdata.js':
         return mock_data() if opts['mock'] else 'export const MOCK = null;\n'
     if f == 'mock.js' and not opts['mock']:

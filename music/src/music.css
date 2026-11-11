@@ -71,11 +71,9 @@ button:disabled { cursor: default; opacity: .45; }
 .m-views button:hover { color: var(--ink); }
 .m-search { position: relative; display: block; width: min(280px, 100%); padding-bottom: 6px; }
 .m-search input {
-  width: 100%; font: var(--type-body-weight) 15px/1.4 var(--font-text); color: var(--ink); background: transparent;
+  width: 100%; font: var(--type-body-weight) var(--type-body-size)/1.4 var(--font-text); color: var(--ink); background: transparent;
   border: 0; border-radius: var(--radius-none); padding: var(--space-1) 0; outline: none; -webkit-appearance: none; appearance: none;
 }
-.m-search input::placeholder { color: var(--ink-soft); opacity: 1; }
-.m-search input::-webkit-search-cancel-button { -webkit-appearance: none; }
 .m-search:focus-within { outline: 1px solid var(--accent); outline-offset: 4px; }
 .m-search-line { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; color: var(--line); }
 .m-search-line svg { width: 100%; height: 100%; display: block; }

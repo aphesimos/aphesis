@@ -46,7 +46,8 @@ jobs:
           APHESIS_GATE_PHRASE: ${{ secrets.GATE_PHRASE }}
           APHESIS_GATE_ROUTE: ${{ secrets.GATE_ROUTE }}
           APHESIS_GATE_SALT: ${{ secrets.GATE_SALT }}
-          TURNSTILE_SITEKEY: ${{ vars.TURNSTILE_SITEKEY }}
+          # a site key is public: a repository variable, or a secret if it was saved there
+          TURNSTILE_SITEKEY: ${{ vars.TURNSTILE_SITEKEY || secrets.TURNSTILE_SITEKEY }}
         run: |
           mkdir -p dist
           python3 site/build.py --require-gate --out dist/index.html

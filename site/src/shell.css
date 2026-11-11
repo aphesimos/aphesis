@@ -40,7 +40,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--font-tex
    the name and its gloss. On a phone the icon alone stands for the section (40 px, a 44 px target); its name and
    gloss condense beside it on the first tap, or on keyboard focus, and dissolve on a tap elsewhere. */
 #aph-ring a{display:flex;align-items:center;gap:10px}
-#aph-ring a .ico{flex:none;width:22px;height:22px;color:var(--accent)}
+#aph-ring a{gap:12px}
+#aph-ring a .ico{flex:none;width:34px;height:34px;color:var(--accent)}
 #aph-ring a .ico svg{width:100%;height:100%;display:block}
 #aph-ring a .tx,#aph-ring a .nm{display:block}
 #aph-ring.phone a{padding:2px;gap:0}
@@ -49,6 +50,13 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--font-tex
   opacity:0;filter:blur(6px);transition:opacity .9s ease,filter .9s ease}
 #aph-ring.phone a.left .tx{left:auto;right:calc(100% + 6px);text-align:right}
 #aph-ring.phone a.named .tx,#aph-ring.phone a:focus-visible .tx{opacity:1;filter:none}
+/* a touch has no hover that lasts: the named icon keeps stirring (and the forum's eyes keep looking) until it is
+   entered or dismissed */
+#aph-ring a.named:not(.aph-gather) .aph-st path{animation:aph-stir 1.7s ease-in-out infinite alternate}
+#aph-ring a.named:not(.aph-gather) .aph-st path + path{animation-direction:alternate-reverse;animation-duration:1.45s}
+#aph-ring a.named:not(.aph-gather) .aph-film-a{animation:aph-eyes-a 2s step-end infinite}
+#aph-ring a.named:not(.aph-gather) .aph-film-b{animation:aph-eyes-b 1.625s step-end infinite}
+#aph-ring a.named:not(.aph-gather) .aph-film-c{animation:aph-eyes-c 1.375s step-end infinite}
 #aph-ray{position:fixed;inset:0;z-index:var(--z-ray);pointer-events:none;width:100%;height:100%}
 #aph-ray line{stroke:var(--ink-soft);stroke-width:1;stroke-dasharray:2 6;opacity:0;transition:opacity .4s ease}
 /* text hovers: each letter lifts a hair, in a slow wave from the first; nothing around it moves */

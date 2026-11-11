@@ -132,15 +132,16 @@ function ray(a, show) {
   if (!show) { l.style.opacity = 0; return; }
   const c = sealBox; l.setAttribute('x1', c.x + c.s / 2); l.setAttribute('y1', c.y + c.s / 2); l.setAttribute('x2', a._x); l.setAttribute('y2', a._y); l.style.opacity = 0.6;
 }
-function nameIt(a) { if (named && named !== a) named.classList.remove('named', 'on', 'aph-gather'); named = a; a.classList.add('named', 'on', 'aph-gather'); ring.classList.add('focus'); ray(a, true); }
+function nameIt(a) { if (named && named !== a) named.classList.remove('named', 'on', 'aph-gather'); named = a; a.classList.add('named', 'on'); ring.classList.add('focus'); ray(a, true); }
 function unname() { if (!named) return; named.classList.remove('named', 'on', 'aph-gather'); named = null; ring.classList.remove('focus'); ray(null, false); }
 links.forEach((a) => {
   const on = () => { if (a._x === undefined || named) return; ring.classList.add('focus'); a.classList.add('on'); ray(a, true); };
   const off = () => { if (named) return; ring.classList.remove('focus'); a.classList.remove('on'); ray(null, false); };
   a.addEventListener('pointerenter', on); a.addEventListener('focus', on); a.addEventListener('pointerleave', off); a.addEventListener('blur', off);
   /* a wide screen: the icon gathers as the press begins, so it is seen before the section comes in */
-  a.addEventListener('pointerdown', () => { if (!ring.classList.contains('phone')) a.classList.add('aph-gather'); });
-  /* a phone: the first tap gathers the icon and shows its name and gloss; the second enters. A key enters at once. */
+  a.addEventListener('pointerdown', () => { if (!ring.classList.contains('phone') || named === a) a.classList.add('aph-gather'); });
+  /* a phone: the first tap names the icon (it keeps stirring, as a hover would) and shows its name and gloss; the
+     second gathers it and enters. A key enters at once. */
   a.addEventListener('click', (e) => {
     if (!ring.classList.contains('phone') || e.detail === 0 || named === a) return;
     e.preventDefault(); nameIt(a);

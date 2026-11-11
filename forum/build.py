@@ -63,7 +63,7 @@ def tokens_css(tok):
 
 
 # ---------- modules ----------
-ORDER = ['hash.js', 'store.js', 'motion.js', 'text.js', 'sigil.js', 'legible.js', 'thumb.js', 'density.js',
+ORDER = ['hash.js', 'store.js', 'motion.js', 'text.js', 'sigil.js', 'owner.js', 'legible.js', 'thumb.js', 'density.js',
          'mock.js', 'api.js', 'ground.js', 'composer.js', 'viewer.js', 'views.js', 'main.js']
 
 def scope_module(name, src):

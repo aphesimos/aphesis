@@ -120,6 +120,13 @@ h1 .w { display: inline-block; }
 .pm button { color: var(--ink-soft); }
 .pm button:hover, .pm .num:hover { color: var(--accent-text); }
 .pm .op { color: var(--ink-soft); }
+/* the owner's post: a small live eye in rubedo where the sigil would be (as tall a row: 40 wide, 14/24 of that high,
+   the rest as margin), and the name in Aphesis Script. Nothing else changes: no box, no rule, the words as anyone's */
+.pm .owner-eye { display: inline-block; width: 40px; color: var(--accent); margin: calc((36px - 40px * 14 / 24) / 2) var(--space-1) calc((36px - 40px * 14 / 24) / 2) 0; }
+.pm .owner-eye svg { display: block; }
+.owner-name { color: var(--accent-text); font-size: var(--type-gloss-size); line-height: var(--type-gloss-line); letter-spacing: .02em; }
+.pm .owner-name { padding-right: .2em; }
+.row .meta .owner-name { font-size: var(--type-gloss-title-size); line-height: 1; padding-right: .25em; }
 .body { margin: var(--space-2) 0 0; overflow-wrap: anywhere; max-width: 62ch; }
 .body .q { color: var(--ink-soft); }
 a.ref { color: var(--ink-soft); text-decoration: none; padding: 2px 0; }
@@ -186,6 +193,8 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
 .quote-tip { max-width: min(340px, calc(100vw - 32px)); }
 .quote-tip .qs { display: inline-block; width: 18px; height: 18px; vertical-align: -4px; margin-right: var(--space-2); color: var(--ink-soft); }
 .quote-tip .qs svg { width: 100%; height: 100%; display: block; }
+.quote-tip .qo { width: 22px; height: 22px; vertical-align: -6px; color: var(--accent); }
+.quote-tip .owner-name { font-size: var(--type-gloss-title-size); }
 
 /* ---------- corners ---------- */
 #controls {

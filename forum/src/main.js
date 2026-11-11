@@ -9,6 +9,7 @@ import { boardView, threadView, enter } from './views.js';
 import { scrollToEl } from './motion.js';
 import { esc, firstLine } from './text.js';
 import { sigilSVG } from './sigil.js';
+import { ownerEye, ownerIcon, OWNER } from './owner.js';
 import { load, save } from './store.js';
 
 const A = window.Aphesis;
@@ -93,6 +94,9 @@ function highlight(n, focus) {
   scrollToEl(scroller, post);
   post.classList.add('hit');
   setTimeout(() => post.classList.remove('hit'), 2400);
+  /* the owner's eye is rubedo already: reached, it opens wide for a moment instead */
+  const eye = ownerEye(post);
+  if (eye) eye.wide(10);
   if (focus) post.focus({ preventScroll: true });
 }
 
@@ -191,7 +195,9 @@ function showQuote(a) {
   else if (p.removed) qtip.textContent = p.n + ' · removed';
   else {
     const words = firstLine(p.text.replace(/^>(?!>).*$/gm, ''), 220) || 'a picture';
-    qtip.innerHTML = '<span class="qs" aria-hidden="true">' + sigilSVG(p.poster) + '</span>' + p.n + ' · ' + esc(words);
+    qtip.innerHTML = p.owner === true
+      ? '<span class="qs qo aph-red" aria-hidden="true">' + ownerIcon() + '</span><span class="owner-name aph-display">' + OWNER + '</span> · ' + p.n + ' · ' + esc(words)
+      : '<span class="qs" aria-hidden="true">' + sigilSVG(p.poster) + '</span>' + p.n + ' · ' + esc(words);
   }
   const r = a.getBoundingClientRect();
   qtip.classList.add('on');

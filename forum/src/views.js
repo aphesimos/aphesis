@@ -4,6 +4,7 @@
 
 import { esc, render, firstLine, age } from './text.js';
 import { sigilSVG, sigilLabel } from './sigil.js';
+import { ownerMark, wakeOwners, OWNER } from './owner.js';
 import { image, stillSimulacrum } from './thumb.js';
 import { createComposer, T } from './composer.js';
 import { stillOptions } from './legible.js';
@@ -35,10 +36,12 @@ const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
 function row(t, now) {
   const li = document.createElement('li');
   const meta = [plural(t.replies, 'reply', 'replies'), age(t.bumped, now)];
+  /* a thread the owner opened says so by name, in rubedo: no eye on the board, where there can be many */
+  const by = t.owner ? '<span class="owner-name aph-display">' + OWNER + '</span><span class="sr">, the owner,</span> ' : '';
   li.innerHTML = '<a class="row" href="#forum/' + esc(t.id) + '">' +
     '<span class="thumb" aria-hidden="true"></span>' +
     '<span class="txt"><span class="first">' + esc(firstLine(t.first) || 'a picture') + '</span>' +
-    '<span class="meta aph-meta">' + esc(meta.join(' · ')) + (t.image ? '<span class="sr"> · with a picture</span>' : '') + '</span></span></a>';
+    '<span class="meta aph-meta">' + by + esc(meta.join(' · ')) + (t.image ? '<span class="sr"> · with a picture</span>' : '') + '</span></span></a>';
   return li;
 }
 
@@ -179,9 +182,11 @@ export function threadView(t, ctx) {
     const li = document.createElement('li');
     const removed = !!p.removed;
     const isOp = p.n > 1 && p.poster === op;
-    li.innerHTML = '<article class="post' + (removed ? ' removed' : '') + '" id="p-' + p.n + '" tabindex="-1" aria-label="post ' + p.n + '">' +
+    /* the owner's post: the eye and the name in place of the sigil (the server says so; the page never guesses) */
+    const owner = !removed && p.owner === true;
+    li.innerHTML = '<article class="post' + (removed ? ' removed' : '') + (owner ? ' owner' : '') + '" id="p-' + p.n + '" tabindex="-1" aria-label="post ' + p.n + (owner ? ', by ' + OWNER + ', the owner' : '') + '">' +
       '<p class="pm aph-meta">' +
-        (removed ? '' : '<span class="sigil" role="img" aria-label="' + esc(sigilLabel(p.poster)) + '">' + sigilSVG(p.poster) + '</span>') +
+        (removed ? '' : owner ? ownerMark() : '<span class="sigil" role="img" aria-label="' + esc(sigilLabel(p.poster)) + '">' + sigilSVG(p.poster) + '</span>') +
         '<a class="num" href="#forum/' + esc(t.id) + '/' + p.n + '" aria-label="post ' + p.n + '">' + p.n + '</a>' +
         (isOp ? '<span class="op">· the opener</span>' : '') +
         '<span aria-hidden="true">·</span><span>' + esc(age(p.created, now)) + '</span>' +
@@ -197,6 +202,7 @@ export function threadView(t, ctx) {
     list.appendChild(li);
   });
   root.appendChild(list);
+  wakeOwners(list);
 
   const comp = createComposer({ api: ctx.api, thread: t.id, label: 'reply to this thread', onPosted: ctx.onPosted });
   const h = document.createElement('h2');

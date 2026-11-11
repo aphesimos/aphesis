@@ -5,10 +5,11 @@
    <meta name="forum-turnstile" content="SITE KEY">, or with window.AphesisForum = {api, turnstile} before the script.
 
    Every client answers:
-     board(cursor?)                  -> {threads: [{id, first, replies, created, bumped, image?}], next}
+     board(cursor?)                  -> {threads: [{id, first, replies, created, bumped, image?, owner?}], next}
                                         one page, newest activity first; next is the cursor of the page after it,
                                         null at the end. The board keeps every thread, so pages go back to the first.
-     thread(id)                      -> {id, created, posts: [{n, poster, text, created, image?, removed?, reported?}]}
+     thread(id)                      -> {id, created, posts: [{n, poster, text, created, owner?, image?, removed?, reported?}]}
+                                        owner: true only for the owner's posts (the server says so; the mock has none)
      post({thread?, text, image?, turnstile?}) -> {thread, n}   image: {original: File, density: {blob, url, width, height}}
      report(thread, n)               -> {ok}
      densityLimits()                 -> {long, bytes}: the density maps the board takes (640 px from an older Worker)

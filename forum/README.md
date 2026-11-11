@@ -25,6 +25,15 @@ click away.
   age, `reply` (adds `>>n` to the form and moves the keyboard there) and `report`. A reply by the thread's opener says
   so. `>>n` in a post is a link: hover or focus shows the quoted post beside it (sigil, number, its first words),
   following it brings the post to the reader with minimum jerk and its sigil turns rubedo for a moment.
+- **The owner's posts**: a post the server marks `owner` shows the owner's mark in place of the sigil: a small live
+  `Aphesis.Eye` in rubedo (40px wide, trembling at 8 fps, blinking and glancing on its own) and the name *aphesist* in
+  Aphesis Script, in rubedo, like a capcode; for assistive technology, "aphesist, the owner". Nothing else about the
+  post changes. A quote leading to it opens the eye wide for a moment (the eye is rubedo already), and its quote
+  preview carries a still eye and the name. On the board a thread the owner opened says *aphesist* before its replies,
+  without an eye. Only the owner's desk can make such a post: the content service passes it on with the forum's admin
+  secret (`backend/README.md`, *The owner's posts*); the page never guesses, and nothing a visitor sends can claim it.
+  Many of them stay light: the eyes are `shared` (one tick for the page, still while off screen, one set of drawings
+  for the size, SVG only), so a thread full of the owner's posts runs a few live eyes at most.
 - **Pictures**: still simulacra in the column (SVGs of square cells, rendered once, legibly). Opening one fades the thread
   into the fog and the picture coalesces as a live `Aphesis.Simulacrum` on the one canvas kept for it, caption and
   `original` in the top-right corner, `close` or Escape to return. With `images · off`, or without WebGL, the page
@@ -48,6 +57,7 @@ click away.
 | --- | --- |
 | `hash.js` | deterministic string hashes (FNV-1a + murmur3 finish) and a bit reader, for drawing only |
 | `sigil.js` | the sigil generator (below) |
+| `owner.js` | the owner's mark: the eye and the name, in place of the sigil, for a post the server marks `owner` |
 | `legible.js` | the legible look for forum pictures, on the design system's preset |
 | `thumb.js` | still simulacra: a density map rendered once into an SVG of square cells |
 | `density.js` | an uploaded picture → a density map, by the design system's rules |

@@ -825,7 +825,9 @@ if (initial) { placeSeal(cornerBox()); u = 1; paint(estadoT(1)); target.d = 0.62
 else {
   route = ''; placeSeal(centerBox());
   paint(drawState(0));
-  setTimeout(() => { const dur = relPhi.seg / VEL * 1000;
+  /* an entrance taken at load (the gate's secret route) may have left the home already: the φ is then the seal in
+     the corner, and the home's drawing and its names must not come back over the gate */
+  setTimeout(() => { if (route !== '') { newPassage(); return; } const dur = relPhi.seg / VEL * 1000;
     tween(dur, (k) => paint(drawState(k)), () => { paint({ ...BASE, ...posicao(0, ANC) }); $('aph-ring').classList.add('visible'); }); newPassage(); }, 700);
 }
 requestAnimationFrame(loop);

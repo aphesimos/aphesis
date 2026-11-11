@@ -552,7 +552,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .mod-owner { white-space: nowrap; }
 .mod-eye { display: inline-block; width: 20px; height: 20px; vertical-align: -5px; margin-right: var(--space-1); color: var(--accent); }
 .mod-eye svg { display: block; width: 100%; height: 100%; }
-.mod-owner .owner-name { color: var(--accent-text); font-size: var(--type-gloss-size); line-height: 1; letter-spacing: .02em; }
+.mod-owner .owner-name { color: var(--accent); font-size: var(--type-gloss-size); line-height: 1; letter-spacing: .02em; }
 /* writing as the owner: a field and its button, above each column's list and under the open thread */
 .mod-write { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0 var(--space-4); margin: 0 0 var(--space-4); }
 .mod-write .field { flex: 1 1 16em; margin-bottom: var(--space-2); }
@@ -1875,8 +1875,18 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
      boil and stipple cells tuned to it, cells of about 3 CSS px), and made again when that size changes.
      opts: size (CSS px of the box's width; else the element's), gaze ('auto' saccades that sometimes follow the
      pointer and `follow`; 'pointer' follows the pointer; an Element follows it), follow (an Element or a function
-     returning [x, y]: something 'auto' glances at, a caret say), blink (true: blinks on its own), drawIn (true), start (true: begins at once; false waits for start()).
-     The box's height is 14/24 of its width: the eye's own band of the icon grid. */
+     returning [x, y]: something 'auto' glances at, a caret say), blink (true: blinks on its own), drawIn (true), start (true: begins at once; false waits for start()),
+     shared (false; true: one of many small eyes, as the owner's mark beside each of the owner's posts: every shared eye
+     steps on one page-wide tick of 125 ms, holds still while it is off screen (one IntersectionObserver for them all),
+     and reads the pointer from one listener; the tick stops while no shared eye is on screen).
+     drawAt (CSS px: the eye is drawn as it is at that size and scaled to its box, lids, boil and stipple cells together,
+     so a small eye is a miniature of a large one, not a drawing of its own; else it is drawn at the size it is shown).
+     weight (1: the lids' brush weight), grain (1: the size of each iris cell, the pupil's growing about half as much;
+     their number and places stay), and mark (true: the owner's mark, the preset EYE_MARK: drawn at 240px, a brush
+     1.4 times as bold and cells 2.2 times as large at 56px, both following the size so they keep their CSS px, shared),
+     for a small eye that should read as a mark.
+     The box's height is 14/24 of its width: the eye's own band of the icon grid. The drawings for a size are made once
+     and kept for every eye of that size. */
   var EYE_BLINKS = ['open', 'half', 'closed', 'squint', 'wide'];
   var EYE_GAZES = ['centre', 'left', 'right', 'up', 'down', 'up-left', 'up-right', 'down-left', 'down-right', 'narrow', 'dilated'];
   var EYE_DIR = { centre: [0, 0], left: [-2.3, 0], right: [2.3, 0], up: [0, -1.5], down: [0, 1.5], 'up-left': [-1.75, -1.15], 'up-right': [1.75, -1.15],
@@ -1898,30 +1908,88 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       return { strokes: s, top: function () { return 99; }, bottom: function () { return -99; } };
     }
   };
-  function eyeIris(blink, gaze, v, u) {
+  function eyeIris(blink, gaze, v, u, gk) {
     var L = EYE_LIDS[blink](), d0 = EYE_DIR[gaze], pr = EYE_PUPIL[gaze] || EYE_PUPIL_R, cx = 12 + d0[0], cy = 12 + d0[1];
     var r = rng(1000 + EYE_BLINKS.indexOf(blink) * 97 + EYE_GAZES.indexOf(gaze) * 13 + v * 7919);
     var cell = Math.max(2, Math.round(u * 24 / 150)), step = cell * 1.5 / u, c = cell / u, iris = '', pupil = '';
-    function sq(x, y, k) { var S = c * k * u, X = x * u - S / 2, Y = y * u - S / 2; return 'M' + X.toFixed(1) + ' ' + Y.toFixed(1) + 'h' + S.toFixed(1) + 'v' + S.toFixed(1) + 'h' + (-S).toFixed(1) + 'z'; }
+    /* larger cells (a mark's): the pupil's grow less than the iris's, so its dense cells stay cells, not a blot */
+    gk = gk || 1; var pg = 1 + (gk - 1) * 0.55;
+    function sq(x, y, k, g) { var S = c * k * u * (g || 1), X = x * u - S / 2, Y = y * u - S / 2; return 'M' + X.toFixed(1) + ' ' + Y.toFixed(1) + 'h' + S.toFixed(1) + 'v' + S.toFixed(1) + 'h' + (-S).toFixed(1) + 'z'; }
     for (var gy = -EYE_IRIS; gy <= EYE_IRIS; gy += step) for (var gx = -EYE_IRIS; gx <= EYE_IRIS; gx += step) {
       var x = cx + gx + (r() - 0.5) * step * 0.3, y = cy + gy + (r() - 0.5) * step * 0.3, d = Math.hypot(gx, gy);
       if (d > EYE_IRIS || !(y > L.top(x) + 0.45 && y < L.bottom(x) - 0.45)) continue;
-      if (d < pr) { if (r() < 0.86) pupil += sq(x, y, 0.9 + r() * 0.25); } else if (r() < 0.5 - 0.22 * (d / EYE_IRIS)) iris += sq(x, y, 0.75 + r() * 0.3);
+      if (d < pr) { if (r() < 0.86) pupil += sq(x, y, 0.9 + r() * 0.25, pg); } else if (r() < 0.5 - 0.22 * (d / EYE_IRIS)) iris += sq(x, y, 0.75 + r() * 0.3, gk);
     }
     return { iris: iris, pupil: pupil };
   }
   function eyeScaled(pts, u) { return pts.map(function (p) { return [p[0] * u, p[1] * u]; }); }
-  function eyeDrawings(u) {
-    var lids = {}, irises = {};
+  /* wk: the lids' brush weight, gk: the size of each iris and pupil cell (their number and places stay), both 1 but
+     for a mark */
+  function eyeDrawings(u, wk, gk) {
+    var lids = {}, irises = {}; wk = wk || 1; gk = gk || 1;
     EYE_BLINKS.forEach(function (b) {
       var L = EYE_LIDS[b](); lids[b] = []; irises[b] = {};
-      for (var v = 0; v < EYE_VARIANTS; v++) lids[b].push(L.strokes.map(function (s) { return brush(eyeScaled(s[0], u), s[1] * u, s[2] + v * 211, s[3], s[4]); }).join(''));
-      EYE_GAZES.forEach(function (g) { irises[b][g] = []; for (var v = 0; v < EYE_VARIANTS; v++) irises[b][g].push(eyeIris(b, g, v, u)); });
+      for (var v = 0; v < EYE_VARIANTS; v++) lids[b].push(L.strokes.map(function (s) { return brush(eyeScaled(s[0], u), s[1] * u * wk, s[2] + v * 211, s[3], s[4]); }).join(''));
+      EYE_GAZES.forEach(function (g) { irises[b][g] = []; for (var v = 0; v < EYE_VARIANTS; v++) irises[b][g].push(eyeIris(b, g, v, u, gk)); });
     });
-    return { lids: lids, irises: irises, u: u };
+    return { lids: lids, irises: irises, u: u, wk: wk, gk: gk };
   }
+  /* the drawings depend only on the size (every seed is fixed), so eyes of one size share them; a few sizes are kept */
+  var EYE_MADE = [];
+  function eyeDrawingsAt(u, wk, gk) {
+    wk = wk || 1; gk = gk || 1;
+    for (var i = 0; i < EYE_MADE.length; i++) if (EYE_MADE[i].u === u && EYE_MADE[i].wk === wk && EYE_MADE[i].gk === gk) return EYE_MADE[i];
+    var d = eyeDrawings(u, wk, gk); EYE_MADE.unshift(d); if (EYE_MADE.length > 10) EYE_MADE.pop();
+    return d;
+  }
+  /* shared eyes: one tick for all of them, run only while one is on screen; one observer says which are */
+  var EYE_SH = { eyes: [], byEl: new Map(), timer: 0, io: null, pointer: null, pointerAt: 0, listening: false, resizeT: 0 };
+  function eyeShTick() {
+    var live = false;
+    EYE_SH.eyes = EYE_SH.eyes.filter(function (e) {
+      if (!e.el.isConnected) { if (EYE_SH.io) EYE_SH.io.unobserve(e.el); EYE_SH.byEl.delete(e.el); return false; }   /* gone with its post */
+      if (e.visible) { live = true; e.step(); }
+      return true;
+    });
+    if (!live) { clearInterval(EYE_SH.timer); EYE_SH.timer = 0; }
+  }
+  function eyeShWake() { if (!EYE_SH.timer && EYE_SH.eyes.some(function (e) { return e.visible; })) EYE_SH.timer = setInterval(eyeShTick, 125); }
+  function eyeShare(e) {
+    if (!EYE_SH.listening) {
+      EYE_SH.listening = true;
+      addEventListener('pointermove', function (ev) { EYE_SH.pointer = [ev.clientX, ev.clientY]; EYE_SH.pointerAt++; }, { passive: true });
+      addEventListener('resize', function () { clearTimeout(EYE_SH.resizeT); EYE_SH.resizeT = setTimeout(function () { EYE_SH.eyes.forEach(function (x) { if (x.el.isConnected) x.size(); }); }, 200); });
+    }
+    if (!EYE_SH.io && typeof IntersectionObserver === 'function') {
+      EYE_SH.io = new IntersectionObserver(function (es) {
+        es.forEach(function (en) { var x = EYE_SH.byEl.get(en.target); if (x) { x.visible = en.isIntersecting; if (x.visible) x.size(); } });
+        eyeShWake();
+      }, { rootMargin: '64px' });
+    }
+    e.visible = !EYE_SH.io;   /* without an observer every shared eye counts as on screen */
+    EYE_SH.eyes.push(e); EYE_SH.byEl.set(e.el, e);
+    if (EYE_SH.io) EYE_SH.io.observe(e.el);
+    eyeShWake();
+  }
+  function eyeUnshare(e) {
+    EYE_SH.eyes = EYE_SH.eyes.filter(function (x) { return x !== e; });
+    if (EYE_SH.byEl.get(e.el) === e) EYE_SH.byEl.delete(e.el);
+    if (EYE_SH.io) EYE_SH.io.unobserve(e.el);
+    if (!EYE_SH.eyes.length) { clearInterval(EYE_SH.timer); EYE_SH.timer = 0; }
+  }
+  /* the owner's mark: the gate's eye at 56px or so, with its construction and its cells counted as the gate draws its
+     eye at 240px, but a bolder brush and larger cells, so it reads as a mark and not as a far-away eye */
+  var EYE_MARK = { drawAt: 240, weight: 1.4, grain: 2.2, shared: true }, EYE_MARK_AT = 56;
   function Eye(el, o) {
     o = o || {};
+    if (o.mark) {
+      /* the weight and grain are measured at 56px: at another size they follow it, so the lids (about 2 CSS px) and the
+         cells (about 1 CSS px) keep their weight on screen; the factor goes in tenths, so near sizes share drawings */
+      var m = {}, f = o.size ? Math.round(EYE_MARK_AT / o.size * 10) / 10 : 1;
+      for (var k in EYE_MARK) m[k] = EYE_MARK[k];
+      m.weight = Math.round(EYE_MARK.weight * f * 100) / 100; m.grain = Math.round(EYE_MARK.grain * f * 100) / 100;
+      for (var k2 in o) m[k2] = o[k2]; o = m;
+    }
     var id = 'aph-eye-boil-' + (++eyeCount);
     if (o.size) el.style.width = o.size + 'px';
     if (!el.style.aspectRatio) el.style.aspectRatio = '24 / 14';
@@ -1934,15 +2002,16 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     var D = null, rnd = Math.random, tick = 0, frame = 0, timer = 0, drawn = false, drawing = false, dead = false;
     var blinkQ = [], blinkState = 'open', rest = 'open', gaze = 'centre', gazeUntil = 0, forced = null;
     var pointer = null, pointerAt = -1e9, typedAt = -1e9, listeners = [], resizeT = 0;
-    var auto = o.blink !== false, mode = o.gaze || 'auto';
+    var auto = o.blink !== false, mode = o.gaze || 'auto', shared = !!o.shared, shEntry = null, shSeen = 0;
     function hold(median, spread) { return Math.max(1, Math.round(median * Math.exp((rnd() + rnd() + rnd() - 1.5) * spread))); }
     var nextBlink = hold(26, 0.55);
     function size() {
-      var w = Math.max(48, o.size || el.getBoundingClientRect().width || 240), u = w / 24;
+      /* drawAt: drawn at that size whatever the box, and the SVG scales it down (a miniature); else at the shown size */
+      var w = o.drawAt || Math.max(48, o.size || el.getBoundingClientRect().width || 240), u = w / 24;
       if (D && Math.abs(D.u - u) / D.u < 0.1) return;
       svg.setAttribute('viewBox', '0 ' + (5 * u).toFixed(1) + ' ' + w.toFixed(1) + ' ' + (14 * u).toFixed(1));
       disp.setAttribute('scale', (w * 0.0095).toFixed(2));
-      D = eyeDrawings(u); api.drawings = D;
+      D = eyeDrawingsAt(u, o.weight, o.grain); api.drawings = D;
       if (drawn) render();
     }
     function render() {
@@ -1990,6 +2059,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     function step() {
       if (!el.isConnected) return;   /* a detached eye (a section at rest) holds still */
       tick++;
+      if (shared && EYE_SH.pointerAt !== shSeen) { shSeen = EYE_SH.pointerAt; pointer = EYE_SH.pointer; pointerAt = tick; }
       frame = (frame + 1 + Math.floor(rnd() * (EYE_VARIANTS - 1))) % EYE_VARIANTS;   /* never the same drawing twice in a row */
       turb.setAttribute('seed', String(1 + Math.floor(rnd() * 997)));
       stepBlink(); stepGaze(); render();
@@ -2002,8 +2072,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       (function f(now) {
         if (dead) return;
         var t = Math.min(1, (now - t0) / DUR), a = MJ(t / 0.42), b = MJ((t - 0.34) / 0.4), c = clamp((t - 0.7) / 0.3);
-        var d = a > 0 ? brush(eyeScaled(part(open.strokes[0][0], a), u), EYE_W * u, 31) : '';
-        if (b > 0) d += brush(eyeScaled(part(open.strokes[1][0], b), u), EYE_W * u, 33);
+        var d = a > 0 ? brush(eyeScaled(part(open.strokes[0][0], a), u), EYE_W * u * (o.weight || 1), 31) : '';
+        if (b > 0) d += brush(eyeScaled(part(open.strokes[1][0], b), u), EYE_W * u * (o.weight || 1), 33);
         P.lids.setAttribute('d', d);
         P.iris.setAttribute('d', iris.slice(0, Math.round(iris.length * c)).join(''));
         P.pupil.setAttribute('d', pupil.slice(0, Math.round(pupil.length * Math.min(1, c * 1.6))).join(''));
@@ -2013,9 +2083,12 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     function onMove(e) { pointer = [e.clientX, e.clientY]; pointerAt = tick; }
     function onResize() { clearTimeout(resizeT); resizeT = setTimeout(size, 200); }
     function start() {
-      if (timer || drawing || dead) return;
+      if (timer || shEntry || drawing || dead) return;
       size();
-      function go() { drawing = false; drawn = true; render(); timer = setInterval(step, 125); }
+      function go() {
+        drawing = false; drawn = true; render();
+        if (shared) { shEntry = { el: el, step: step, size: size, visible: false }; eyeShare(shEntry); } else timer = setInterval(step, 125);
+      }
       if (o.drawIn === false) go(); else { drawing = true; el.dataset.blink = 'drawing'; drawIn(go); }
     }
     var api = {
@@ -2036,11 +2109,11 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       get state() { return { blink: blinkState, gaze: gaze, frame: frame, tick: tick }; },
       get drawn() { return drawn; },
       start: start,
-      stop: function () { clearInterval(timer); timer = 0; },
-      destroy: function () { dead = true; clearInterval(timer); timer = 0; removeEventListener('pointermove', onMove); removeEventListener('resize', onResize); el.innerHTML = ''; }
+      stop: function () { clearInterval(timer); timer = 0; if (shEntry) { eyeUnshare(shEntry); shEntry = null; } },
+      destroy: function () { dead = true; api.stop(); removeEventListener('pointermove', onMove); removeEventListener('resize', onResize); el.innerHTML = ''; }
     };
-    addEventListener('pointermove', onMove, { passive: true });
-    addEventListener('resize', onResize);
+    /* a shared eye reads the pointer and the window's size from the listeners all shared eyes have in common */
+    if (!shared) { addEventListener('pointermove', onMove, { passive: true }); addEventListener('resize', onResize); }
     if (o.start !== false) start();
     return api;
   }
@@ -3718,12 +3791,14 @@ M["moderation.js"] = (function () {
 const { h, act, sure, status, field, text, area } = M["ui.js"];
 const A = window.Aphesis;
 const OWNER = 'aphesist';
+/* the name as the wordmark writes it (aφesis in Aphesis Script, with a t), read aloud as "aphesist" */
+const OWNER_WORD = 'aφesist';
 /* the owner's mark in a list: a still eye and the name (the live eyes are the site's; here a list stays quiet) */
 function mark(owner) {
   if (!owner) return null;
   const eye = h('span', { class: 'mod-eye aph-red', 'aria-hidden': 'true' });
   if (A && A.icon) eye.innerHTML = A.icon('eye', 0);
-  return h('span', { class: 'mod-owner' }, eye, h('span', { class: 'owner-name aph-display', text: OWNER }), h('span', { class: 'sr', text: ', the owner:' }), ' ');
+  return h('span', { class: 'mod-owner' }, eye, h('span', { class: 'owner-name aph-display aph-red', 'aria-hidden': 'true', text: OWNER_WORD }), h('span', { class: 'sr', text: OWNER + ', the owner:' }), ' ');
 }
 /* the wall's and the forum's refusals, in the desk's words */
 const WALL_NO = { empty: 'a line needs words', long: 'at most 140 characters', word: 'the wall refuses a word in it', link: 'no links on the wall', bad: 'no' };

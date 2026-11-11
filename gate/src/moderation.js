@@ -11,12 +11,14 @@ import { h, act, sure, status, field, text, area } from './ui.js';
 
 const A = window.Aphesis;
 const OWNER = 'aphesist';
+/* the name as the wordmark writes it (aφesis in Aphesis Script, with a t), read aloud as "aphesist" */
+const OWNER_WORD = 'aφesist';
 /* the owner's mark in a list: a still eye and the name (the live eyes are the site's; here a list stays quiet) */
 function mark(owner) {
   if (!owner) return null;
   const eye = h('span', { class: 'mod-eye aph-red', 'aria-hidden': 'true' });
   if (A && A.icon) eye.innerHTML = A.icon('eye', 0);
-  return h('span', { class: 'mod-owner' }, eye, h('span', { class: 'owner-name aph-display', text: OWNER }), h('span', { class: 'sr', text: ', the owner:' }), ' ');
+  return h('span', { class: 'mod-owner' }, eye, h('span', { class: 'owner-name aph-display aph-red', 'aria-hidden': 'true', text: OWNER_WORD }), h('span', { class: 'sr', text: OWNER + ', the owner:' }), ' ');
 }
 /* the wall's and the forum's refusals, in the desk's words */
 const WALL_NO = { empty: 'a line needs words', long: 'at most 140 characters', word: 'the wall refuses a word in it', link: 'no links on the wall', bad: 'no' };

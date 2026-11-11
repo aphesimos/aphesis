@@ -96,7 +96,9 @@ h1 .w { display: inline-block; }
 .row:hover .first, .row:focus-visible .first { color: var(--accent-text); }
 .row .meta { display: block; margin-top: var(--space-1); }
 .row .noimg { color: var(--ink-soft); font-size: var(--type-meta-size); letter-spacing: var(--type-meta-tracking); }
-.empty { color: var(--ink-soft); }
+.empty { color: var(--ink-soft); padding: var(--space-5) 0 var(--space-3); }
+.empty .aph-gloss { display: block; font-size: var(--type-gloss-size); line-height: 1.4; padding-right: .2em; }
+.empty .aph-meta { display: block; margin-top: var(--space-2); }
 /* the end of the list: older threads gathered here, then the board's beginning */
 .board-end { margin: var(--space-4) 0 0; color: var(--ink-soft); min-height: 1lh; }
 

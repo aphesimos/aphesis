@@ -1,7 +1,7 @@
 """Build forum/index.html: the forum section (forum · ἀγορά) as one self-contained page.
 
 Everything the page needs is inlined: tokens.css (generated from the design system's tokens.json),
-bundle.css and bundle.js, the two faces, the density maps and the section's own modules.
+bundle.css and bundle.js, the two faces and the section's own modules.
 The design system is read from the `design-system` branch with `git show`, so this branch never copies it.
 Special Elite (Astigmatic, Apache License 2.0, vendor/SpecialElite-LICENSE.txt) is not in the design system, which
 loads it from Google Fonts; it is vendored here so the page carries both faces.
@@ -10,12 +10,11 @@ loads it from Google Fonts; it is vendored here so the page carries both faces.
   python3 forum/build.py --fragment OUT  # writes the same page without <!doctype>/<html>/<head>/<body>
 
 The page talks to the Worker in forum/worker when <meta name="forum-api"> carries its URL; built as it is, it runs on
-the local mock (four example threads and an archive of older ones, paged like the Worker; new posts kept in this
-browser only). The example pictures are density maps from the design system.
+the local mock (an empty board, paged like the Worker; new posts kept in this browser only).
 
 The modules in src/ are plain ES modules with named exports. For this page they are concatenated in
 dependency order into one script, each in its own function scope (imports read from a registry); in the Astro site they can be
-imported as they are, with src/assets.js generated or replaced by asset imports.
+imported as they are.
 """
 import base64, json, os, re, subprocess, sys
 
@@ -64,23 +63,8 @@ def tokens_css(tok):
 
 
 # ---------- modules ----------
-ORDER = ['assets.js', 'hash.js', 'store.js', 'motion.js', 'text.js', 'sigil.js', 'legible.js', 'thumb.js', 'density.js',
+ORDER = ['hash.js', 'store.js', 'motion.js', 'text.js', 'sigil.js', 'legible.js', 'thumb.js', 'density.js',
          'mock.js', 'api.js', 'ground.js', 'composer.js', 'viewer.js', 'views.js', 'main.js']
-
-MAPS = {  # density maps from system/assets/Simulacra, for the example threads of the local mock
-    'trismegistus': 'trismegistus.png', 'jerome': 'jerome.jpg', 'cagnacci': 'cagnacci.jpg',
-    'alchemist': 'alchemist.jpg', 'magdalen': 'magdalen.jpg',
-}
-
-
-def assets_module():
-    lines = ['export const MAPS = {']
-    for k, f in MAPS.items():
-        mime = 'image/png' if f.endswith('.png') else 'image/jpeg'
-        lines.append(f'  {k}: "data:{mime};base64,{b64(ds("assets/Simulacra/" + f, True))}",')
-    lines.append('};')
-    return '\n'.join(lines)
-
 
 def scope_module(name, src):
     """One module as a function scope: its imports read from the registry, its exports return to it."""
@@ -99,7 +83,7 @@ def scope_module(name, src):
 def script():
     parts = []
     for f in ORDER:
-        src = assets_module() if f == 'assets.js' else open(os.path.join(D, 'src', f), encoding='utf-8').read()
+        src = open(os.path.join(D, 'src', f), encoding='utf-8').read()
         parts.append(f'/* ---- {f} ---- */\n' + scope_module(f, src))
     return '(function () {\n"use strict";\nconst M = {};\n' + '\n'.join(parts) + '\n})();'
 

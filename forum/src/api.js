@@ -1,11 +1,11 @@
 /* api: where the board lives. With an API base URL configured, the Cloudflare Worker in forum/worker answers;
    without one (the artifact preview, a local file) the local mock in mock.js does, and says so.
 
-   Configure with <meta name="forum-api" content="https://forum.example.workers.dev"> and, when Turnstile is on,
+   Configure with <meta name="forum-api" content="https://forum-api.aphes.ist"> and, when Turnstile is on,
    <meta name="forum-turnstile" content="SITE KEY">, or with window.AphesisForum = {api, turnstile} before the script.
 
    Every client answers:
-     board(cursor?)                  -> {threads: [{id, first, replies, created, bumped, example?, image?}], next}
+     board(cursor?)                  -> {threads: [{id, first, replies, created, bumped, image?}], next}
                                         one page, newest activity first; next is the cursor of the page after it,
                                         null at the end. The board keeps every thread, so pages go back to the first.
      thread(id)                      -> {id, created, posts: [{n, poster, text, created, image?, removed?, reported?}]}

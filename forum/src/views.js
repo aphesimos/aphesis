@@ -34,7 +34,7 @@ const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
    browser (content-visibility). data is kept and grown in place, so a redraw (images on or off) keeps every page. */
 function row(t, now) {
   const li = document.createElement('li');
-  const meta = [plural(t.replies, 'reply', 'replies'), age(t.bumped, now)].concat(t.example ? ['example'] : []);
+  const meta = [plural(t.replies, 'reply', 'replies'), age(t.bumped, now)];
   li.innerHTML = '<a class="row" href="#forum/' + esc(t.id) + '">' +
     '<span class="thumb" aria-hidden="true"></span>' +
     '<span class="txt"><span class="first">' + esc(firstLine(t.first) || 'a picture') + '</span>' +
@@ -65,7 +65,8 @@ export function boardView(data, ctx) {
 
   const list = document.createElement('ol');
   list.className = 'threads';
-  if (!data.threads.length) list.innerHTML = '<li class="empty">no threads yet. the first line is yours.</li>';
+  /* an empty board: one gloss and one line where the threads would be, and the form above, ready */
+  if (!data.threads.length) list.innerHTML = '<li class="empty"><span class="aph-gloss" lang="grc" data-tip="silence">σιγή</span><span class="aph-meta">the agora is quiet. start a thread, and the first word is yours.</span></li>';
   root.appendChild(list);
 
   /* still simulacra, drawn when their row nears the screen */
@@ -168,7 +169,7 @@ export function threadView(t, ctx) {
   root.setAttribute('aria-label', 'thread');
   const crumbs = document.createElement('p');
   crumbs.className = 'crumbs';
-  crumbs.innerHTML = '<a class="act" href="#forum">back to the board</a>' + (t.example ? ' <span class="aph-meta">· an example thread</span>' : '');
+  crumbs.innerHTML = '<a class="act" href="#forum">back to the board</a>';
   root.appendChild(crumbs);
 
   const list = document.createElement('ol');

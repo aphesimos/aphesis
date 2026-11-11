@@ -43,6 +43,14 @@ def show(r, path, binary=False):
     return git('show', f'{r}:{path}', binary=binary)
 
 
+def names(r, path):
+    """The file names in a folder of a ref, or none when the ref has no such folder (a section with no content)."""
+    try:
+        return git('ls-tree', '--full-tree', '--name-only', f'{r}:{path}').split()
+    except subprocess.CalledProcessError:
+        return []
+
+
 def ds(path, binary=False):
     return show(ref('design-system', 'DS_REF'), 'system/' + path, binary)
 
@@ -146,7 +154,7 @@ def mock_data():
     maps = {'trismegistus': 'trismegistus.png', 'jerome': 'jerome.jpg', 'alchemist': 'alchemist.jpg', 'flammarion': 'flammarion.png',
             'cagnacci': 'cagnacci.jpg', 'magdalen': 'magdalen.jpg', 'newton': 'newton.jpg', 'paradiso': 'paradiso.jpg', 'faust': 'faust.jpg'}
     posts = []
-    for f in sorted(git('ls-tree', '--full-tree', '--name-only', f'{AR}:archive/content').split()):
+    for f in sorted(names(AR, 'archive/content')):
         if not f.endswith('.md'):
             continue
         meta, body = front(show(AR, f'archive/content/{f}'))
@@ -164,7 +172,7 @@ def mock_data():
                       'example': meta.get('example', '').lower() == 'true', 'body': body, 'notes': notes, 'figures': figs})
     posts.sort(key=lambda p: (p['date'], p['slug']), reverse=True)
     books = []
-    for i, f in enumerate(sorted(x for x in git('ls-tree', '--full-tree', '--name-only', f'{BR}:book/content').split() if x.endswith('.md'))[:3]):
+    for i, f in enumerate(sorted(x for x in names(BR, 'book/content') if x.endswith('.md'))[:3]):
         meta, body = front(show(BR, f'book/content/{f}'))
         adjust = {k: float(meta[k]) for k in ('gain', 'scatter', 'erosion', 'ceiling', 'blur', 'contrast', 'brightness') if k in meta}
         if 'crop' in meta:

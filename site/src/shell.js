@@ -45,6 +45,9 @@ setInterval(() => { if (!document.hidden) $('aph-turb').setAttribute('seed', 1 +
 
 /* ---------- the fog: the runtime's, one for the whole page. density 1 and light 1 at home; a section sets its own ---------- */
 const fog = A.Fog($('aph-fog'), { density: 0, light: 1 });
+/* the shell's frame (loop, below) runs right after the fog's, before the cursor's and the ear's, which write styles:
+   its reads (the rectangles of the calm zones) then find style and layout clean and cost nothing */
+requestAnimationFrame((t) => loop(t));
 let dens = 0, light = 1;
 const target = { d: 1, l: 1 };
 /* density and light travel to their targets in minimum-jerk segments of 1.8 s: a new target starts a new segment
@@ -123,13 +126,16 @@ if (document.fonts) document.fonts.ready.then(() => { measured = false; });
 function glyphBox(c) { return { l: c.x + 0.20 * c.s - GAP, r: c.x + 0.80 * c.s + GAP, t: c.y + 0.124 * c.s - GAP, b: c.y + 0.959 * c.s + GAP }; }
 const hit = (g, x, y, w, h) => x + w / 2 > g.l && x - w / 2 < g.r && y + h / 2 > g.t && y - h / 2 < g.b;
 function placeInscription() {
-  if (!measured) { sizes = links.map((a) => ({ w: a.offsetWidth || 120, h: a.offsetHeight || 40, pw: (a.querySelector('.tx').offsetWidth || 0) })); measured = true; placed = ''; }
-  const at = spin + ' ' + innerWidth + ' ' + innerHeight; if (at === placed) return; placed = at;
+  if (!measured) { sizes = links.map((a) => { const b = a.getBoundingClientRect(); return { w: a.offsetWidth || 120, h: a.offsetHeight || 40, pw: (a.querySelector('.tx').offsetWidth || 0), bw: b.width, bh: b.height }; }); measured = true; placed = ''; }
+  /* the screen's size is read once, before anything is written: on a phone (a page with a viewport) reading
+     innerWidth after a style write makes the browser recompute style and layout on the spot, once per name */
+  const vw = innerWidth, vh = innerHeight;
+  const at = spin + ' ' + vw + ' ' + vh + ' ' + blending; if (at === placed) return; placed = at;
   const c = centerBox(), cxp = c.x + c.s / 2, cyp = c.y + c.s / 2, R = c.s * 0.62, g = glyphBox(c);
   const n = links.length, wMin = Math.min(...sizes.map((z) => z.w));
-  const emPe = innerHeight > innerWidth * 1.15;
+  const emPe = vh > vw * 1.15;
   /* the ellipse is as wide as the narrowest name allows; a wider name is held inside the screen on its own */
-  const Rx = Math.min(R * 1.18, innerWidth / 2 - 16 - wMin / 2), Ry = Math.min(R * 0.98 * (emPe ? 1.9 : 1), innerHeight / 2 - 70);
+  const Rx = Math.min(R * 1.18, vw / 2 - 16 - wMin / 2), Ry = Math.min(R * 0.98 * (emPe ? 1.9 : 1), vh / 2 - 70);
   const pt = (t) => [Rx * Math.cos(t), Ry * Math.sin(t)];
   ARC[0] = 0; for (let k = 1; k <= 256; k++) { const p0 = pt((k - 1) / 256 * 2 * Math.PI), p1 = pt(k / 256 * 2 * Math.PI); ARC[k] = ARC[k - 1] + Math.hypot(p1[0] - p0[0], p1[1] - p0[1]); }
   const L = ARC[256], ang = (s) => { s = ((s % L) + L) % L; let lo = 0, hi = 256; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (ARC[m] <= s) lo = m; else hi = m; } return (lo + (s - ARC[lo]) / (ARC[hi] - ARC[lo])) / 256 * 2 * Math.PI; };
@@ -138,12 +144,15 @@ function placeInscription() {
     const t = ang(s0 + L * ((spin / (2 * Math.PI)) + (0.5 + i) / n)), z = sizes[i];
     let ox = Rx * Math.cos(t), oy = Ry * Math.sin(t);
     for (let k = 0; k < 40 && hit(g, cxp + ox, cyp + oy, z.w, z.h); k++) { ox *= 1.04; oy *= 1.04; }
-    const x = Math.max(16 + z.w / 2, Math.min(innerWidth - 16 - z.w / 2, cxp + ox)), y = Math.max(16 + z.h / 2, Math.min(innerHeight - 56, cyp + oy));
+    const x = Math.max(16 + z.w / 2, Math.min(vw - 16 - z.w / 2, cxp + ox)), y = Math.max(16 + z.h / 2, Math.min(vh - 56, cyp + oy));
     const tr = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) translate(-50%,-50%)`;
-    if (a._tr !== tr) { a.style.transform = tr; a._tr = tr; }
+    /* during the eye's wave the same place by left and top, so the link forms no stacking context (shell.css) */
+    if (blending) { const l = (+x.toFixed(1) - z.bw / 2) + 'px', t = (+y.toFixed(1) - z.bh / 2) + 'px';
+      if (a._tr !== l + t) { a.style.transform = ''; a.style.left = l; a.style.top = t; a._tr = l + t; } }
+    else if (a._tr !== tr) { if (a.style.left) { a.style.left = ''; a.style.top = ''; } a.style.transform = tr; a._tr = tr; }
     a._x = x; a._y = y;
     /* on a phone the name shows beside its icon, on the side away from the screen's edge */
-    const left = x > innerWidth / 2; if (a._left !== left) { a.classList.toggle('left', left); a._left = left; }
+    const left = x > vw / 2; if (a._left !== left) { a.classList.toggle('left', left); a._left = left; }
   });
 }
 /* each name carries its section's icon (the design system's, drawn with the brush): beside the name on a wide
@@ -151,11 +160,29 @@ function placeInscription() {
    letter wave on hover and focus (.aph-icon) and gathers (.aph-gather) as the section is chosen. */
 links.forEach((a) => {
   const name = a.firstChild, w = document.createElement('span'); w.className = 'nm'; w.textContent = name.textContent;
-  const tx = document.createElement('span'); tx.className = 'tx'; a.replaceChild(tx, name); tx.appendChild(w); tx.appendChild(a.querySelector('.gl')); A.letters(w);
-  const ic = document.createElement('span'); ic.className = 'ico'; ic.setAttribute('aria-hidden', 'true'); ic.innerHTML = A.icon(a.getAttribute('href').slice(1));
+  const tx = document.createElement('span'); tx.className = 'tx aph-ink'; a.replaceChild(tx, name); tx.appendChild(w); tx.appendChild(a.querySelector('.gl')); A.letters(w);
+  const ic = document.createElement('span'); ic.className = 'ico aph-red'; ic.setAttribute('aria-hidden', 'true'); ic.innerHTML = A.icon(a.getAttribute('href').slice(1));
   a.insertBefore(ic, tx); a.classList.add('aph-icon');
 });
 const ring = $('aph-ring');
+/* the eye's wave: while it runs the ring is laid out so that its names blend with the fog and its icons stay red
+   (.aph-blend, see shell.css). The ring changes layout only between its fades (.9 s): a wave that starts while the
+   names appear or leave takes them over once that fade is done, and the ring goes back once the wave is over and no
+   name is dimmed or coming back from it. */
+let shifting = false, blending = false, shownAt = -1e9, undimAt = -1e9;
+new MutationObserver((recs) => {
+  const now = performance.now(), had = (c, s) => (' ' + (s || '') + ' ').includes(' ' + c + ' ');
+  for (const r of recs) {
+    if (had('visible', r.oldValue) !== ring.classList.contains('visible')) shownAt = now;
+    if (had('focus', r.oldValue) && !ring.classList.contains('focus')) undimAt = now;
+  }
+}).observe(ring, { attributes: true, attributeFilter: ['class'], attributeOldValue: true });
+function blend() {
+  if (shifting === blending) return;
+  const now = performance.now();
+  if (now - shownAt < 950 || (!shifting && (ring.classList.contains('focus') || now - undimAt < 950))) return;
+  blending = shifting; ring.classList.toggle('aph-blend', blending); placeInscription();
+}
 /* a phone: narrow, or a small touch screen in landscape; there the ring is icons, and a name shows on the first tap */
 const phoneQ = matchMedia('(max-width: 600px), (pointer: coarse) and (max-height: 600px)');
 function phoneMode() { ring.classList.toggle('phone', phoneQ.matches); if (!phoneQ.matches) unname(); measured = false; }
@@ -304,7 +331,9 @@ addEventListener('blur', () => favicon(false));
 addEventListener('focus', () => favicon(!document.hidden));
 $('aph-eye').addEventListener('click', () => {
   const e = $('aph-eye').getBoundingClientRect(), dark = isDark();
-  A.themeShift(() => { ROOT.dataset.theme = dark ? 'light' : 'dark'; themeIcon(); }, { origin: [e.left + e.width / 2, e.top + e.height / 2] });
+  const on = A.themeShift(() => { ROOT.dataset.theme = dark ? 'light' : 'dark'; themeIcon(); },
+    { origin: [e.left + e.width / 2, e.top + e.height / 2], done: () => { shifting = false; blend(); } });
+  if (on) { shifting = true; blend(); }
 });
 
 A.cursor();
@@ -496,7 +525,9 @@ function makeSandbox(name) {
         W.fetch(input, init).then((res) => (res.ok ? res.clone().json().then((doc) => {
           if (!WT.ready(doc)) return again();
           ctx.waiting = false; if (cur === ctx) lift(ctx);
-          resolve(res);
+          /* the section reads the document the shell has just parsed, instead of decoding and parsing it again (the
+             music library is about two megabytes); everything else about the response is its own */
+          resolve(new Proxy(res, { get(t, k) { if (k === 'json') return () => Promise.resolve(doc); const v = Reflect.get(t, k); return typeof v === 'function' ? v.bind(t) : v; } }));
         }) : again())).catch(again);
       }
       attempt();
@@ -567,6 +598,7 @@ function enter(name) {
   /* the section's links to its own routes point at the global hash */
   const X = xl(name);
   host.querySelectorAll('a[href^="#"]').forEach((a) => { const h = a.getAttribute('href'); if (h.length > 1) a.setAttribute('href', X.toGlobal(h)); });
+  makeRoom(ctx);
   OWNER = ctx;
   if (ctx.waiting) wait(ctx);
   try { APH_SECTIONS[name].run.apply(undefined, ctx.args); } catch (err) { console.error(err); }
@@ -624,12 +656,22 @@ function leave() {
   }));
   setTimeout(() => { rest(ctx); if (leaving === ctx) leaving = null; tryMount(); }, 1000);
 }
+/* WebGL. A resting section keeps its contexts (they draw nothing) until another section is about to make or wake its
+   own, or the page is hidden: then they are given back to the browser (WEBGL_lose_context), so the page never holds
+   more than the fog and one section's contexts. Coming straight back to the section that rests finds them as they
+   were, with nothing to compile, upload or redraw; giving them back costs a pause that no longer falls inside the
+   way home. */
+function giveBack(ctx) {
+  GL.forEach((g) => { if (g.owner === ctx && !g.held && !g.c.isContextLost()) { g.ext = g.c.getExtension('WEBGL_lose_context'); if (g.ext) { g.ext.loseContext(); g.held = true; } } });
+}
+function makeRoom(ctx) { Object.values(DORMANT).forEach((d) => { if (d !== ctx && d.dormant) giveBack(d); }); }
+document.addEventListener('visibilitychange', () => { if (document.hidden) makeRoom(cur); });
 /* dormant: nothing of the section runs, draws or shows; it keeps its state */
 function rest(ctx) {
   if (ctx.dormant) return;
   ctx.hold();
   ctx.sims.forEach((st) => st.s.stop());
-  GL.forEach((g) => { if (g.owner === ctx && !g.c.isContextLost()) { g.ext = g.c.getExtension('WEBGL_lose_context'); if (g.ext) { g.ext.loseContext(); g.held = true; } } });
+  /* its WebGL contexts stay as they are until another section needs room (makeRoom) */
   /* scroll positions are lost when the markup leaves the page: keep them */
   ctx.scrolls = [...host.querySelectorAll('*')].filter((el) => el.scrollTop || el.scrollLeft).map((el) => [el, el.scrollTop, el.scrollLeft]);
   ctx.pageScroll = [scrollX, scrollY];
@@ -648,6 +690,7 @@ function rest(ctx) {
 }
 /* back from rest: everything put back as it was, then the pieces condense in */
 function wake(ctx) {
+  makeRoom(ctx);
   cur = ctx; OWNER = ctx;
   show(ctx.name);
   if (ctx.waiting) host.dataset.wait = '';
@@ -660,8 +703,9 @@ function wake(ctx) {
   if (ctx.title) document.title = ctx.title;
   ctx.release();
   ctx.active = true;
-  /* WebGL: the runtime's fields rebuild themselves when their context comes back; a context the section drew on
-     by itself does not, so that section is routed to where it was again and redraws */
+  /* WebGL: contexts that were given back while it rested come back. The runtime's fields rebuild themselves when
+     their context returns; a context the section drew on by itself does not, so that section is routed to where it
+     was again and redraws. Contexts it kept need nothing. */
   let redraw = false;
   GL.forEach((g) => { if (g.owner === ctx && g.held) { g.held = false; if (g.c.canvas && g.c.canvas.isConnected) { g.ext.restoreContext(); if (!g.runtime) redraw = true; } } });
   ctx.sims.forEach((st) => { if (st.wasRunning || st.wasShown) st.s.start(); if (st.wasShown) st.s.show(); });
@@ -818,6 +862,7 @@ function loop(now) {
   fog.set({ density: dens, light });
   fog.zones(zones(dt));
   if (route === '' && !$('aph-ring').classList.contains('focus')) spin += dt * 0.012;
+  if (shifting !== blending) blend();
   placeInscription();
   requestAnimationFrame(loop);
 }
@@ -839,4 +884,3 @@ else {
   setTimeout(() => { if (route !== '') { newPassage(); return; } const dur = relPhi.seg / VEL * 1000;
     tween(dur, (k) => paint(drawState(k)), () => { paint({ ...BASE, ...posicao(0, ANC) }); $('aph-ring').classList.add('visible'); }); newPassage(); }, 700);
 }
-requestAnimationFrame(loop);

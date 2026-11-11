@@ -67,16 +67,20 @@ A section's script runs once, on its first visit; after that the section rests a
   enter, so no ancestor is faded or filtered and the theme wave's blend stays intact) and its simulacra dissolve
   into the fog.
 - **Resting**, a second later: its pending timers are held with the time they had left, its animation frames and
-  intervals are held, its listeners and observers are taken off, its simulacra stop and their WebGL contexts are
-  given back to the browser (`WEBGL_lose_context`). Its markup, anything it added to the page, its scroll positions,
-  its title and the classes it put on `<html>` are put aside, and its stylesheet is switched off.
-- **Waking**, everything is put back, the contexts are restored (the runtime's fields rebuild themselves; a canvas the
-  section drew on by itself is redrawn by routing the section to where it was), its pictures coalesce again and its
-  pieces condense in. Coming back by the section's own name (`#book`, `#works`) lands where it was left; an address
-  that names another sub-route (`#book/faust`) is followed.
+  intervals are held, its listeners and observers are taken off and its simulacra stop. Its markup, anything it added
+  to the page, its scroll positions, its title and the classes it put on `<html>` are put aside, and its stylesheet is
+  switched off. Its WebGL contexts stay as they are, drawing nothing, until another section is about to make or wake
+  its own, or the page is hidden: only then are they given back to the browser (`WEBGL_lose_context`).
+- **Waking**, everything is put back; contexts that were given back are restored (the runtime's fields rebuild
+  themselves; a canvas the section drew on by itself is redrawn by routing the section to where it was), while
+  contexts it kept need nothing. Its pictures coalesce again and its pieces condense in. Coming back by the section's
+  own name (`#book`, `#works`) lands where it was left; an address that names another sub-route (`#book/faust`) is
+  followed.
 
 So book returns to its leaf, the archive to its post and scroll, works to its work, the descent to its chamber.
-Only the mounted section draws or listens, and the page never holds more than the fog and two simulacrum canvases.
+Only the mounted section draws or listens, and the page never holds more than the fog and one section's contexts
+(two simulacrum canvases at most). Going home and straight back into the same section costs no context, shader or
+picture upload at all; giving the contexts back is done on the way into the next section, not on the way home.
 
 ## The clearing
 
@@ -96,6 +100,7 @@ goes on across every route and through the section resting and waking.
 While the index is missing, unreachable or empty, the section shows only its title and gloss in the fog: its request
 for the index simply has not answered. The shell asks again, more slowly each time, while the section is on screen,
 and the section fills in the moment the index is there, with no rebuild (`WAITS` in `site/src/shell.js`).
+The index is decoded and parsed once: the section reads the document the shell parsed for that check.
 
 ## Sound
 
@@ -114,6 +119,15 @@ dismisses the name. A key enters at once, and keyboard focus shows the name. The
 named by its words. The names sit on an ellipse, spaced along its length, each pushed out until it clears the φ;
 their sizes are measured once (again on resize, when the fonts arrive or the ring turns from names to icons), and
 nothing is written when nothing moved.
+
+In the eye's wave the names and glosses (`.tx`, each `.aph-ink`) blend by difference with the fog, cell by cell,
+while the icons keep their red. A blend reaches no further than the nearest stacking context, so while the wave runs
+the ring is laid out without one between a name and the fog (`.aph-blend` in `shell.css`): the ring gives up its fixed
+position and z-index, each link is placed by `left` and `top` instead of a transform, and each icon and name carries
+the ring's place in the stack, its fade and its dimming itself. The ring changes layout only between its fades, and
+outside the wave it is exactly as described above. The seal, the icons, the eye, the ear and the passage are
+`.aph-red`: each keeps the old theme's red until the wave reaches it, then turns over half a second (the design
+system's `themeShift`), so the reds change in step with the ground.
 
 ## The gate
 

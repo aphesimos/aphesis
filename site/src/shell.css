@@ -25,14 +25,15 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--font-tex
 #aph-seal.in-corner{pointer-events:auto}
 #aph-seal svg{width:100%;height:100%;display:block;overflow:visible}
 #aph-seal path{fill:currentColor;transition:fill var(--duration-theme) ease}
+/* in the eye's wave the seal's red turns when the wave reaches it (.aph-red), with no transition of its own trailing it */
+.aph-shifting #aph-seal path{transition:none}
 
 /* the inscription: sections around the seal */
 #aph-ring{position:fixed;inset:0;z-index:var(--z-nav);pointer-events:none}
 #aph-ring a{position:absolute;left:0;top:0;pointer-events:auto;text-decoration:none;white-space:nowrap;
   font:400 14px/1 var(--font-text);letter-spacing:.22em;text-transform:lowercase;color:var(--ink);
   opacity:0;filter:blur(6px);padding:10px 8px;visibility:hidden;
-  transition:opacity .9s ease,color .4s ease,filter .9s ease,visibility 0s linear .9s;
-  text-shadow:0 0 4px var(--bg),0 0 10px var(--bg),0 0 18px var(--bg)}
+  transition:opacity .9s ease,color .4s ease,filter .9s ease,visibility 0s linear .9s}
 #aph-ring a .gl{display:block;margin-top:8px;font:400 20px/1 var(--font-display);font-variation-settings:"wght" 400,"slnt" -12;letter-spacing:.02em;color:var(--ink-soft);text-transform:lowercase;transition:transform .6s var(--easing-settle),color .6s ease}
 #aph-ring.visible a{opacity:1;filter:none;visibility:visible;transition-delay:0s}
 #aph-ring.focus a:not(.on){opacity:.28}
@@ -44,6 +45,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--font-tex
 #aph-ring a .ico{flex:none;width:34px;height:34px;color:var(--accent)}
 #aph-ring a .ico svg{width:100%;height:100%;display:block}
 #aph-ring a .tx,#aph-ring a .nm{display:block}
+/* the halo of ground around the words (only words cast it) */
+#aph-ring a .tx{text-shadow:0 0 4px var(--bg),0 0 10px var(--bg),0 0 18px var(--bg)}
 #aph-ring.phone a{padding:2px;gap:0}
 #aph-ring.phone a .ico{width:40px;height:40px}
 #aph-ring.phone a .tx{position:absolute;top:50%;left:calc(100% + 6px);transform:translateY(-50%);text-align:left;pointer-events:none;
@@ -64,6 +67,17 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--font-tex
 #aph-ring a:hover .ltr,#aph-ring a:focus-visible .ltr{transform:translateY(-2px)}
 #aph-ring a:hover .gl,#aph-ring a:focus-visible .gl{transform:translateY(-1px);color:var(--accent-text)}
 :focus-visible{outline:1px solid var(--accent);outline-offset:4px}
+/* the eye's wave. Each name and gloss (.tx) is .aph-ink and blends by difference with the fog; each icon keeps its red,
+   unblended. A blend reaches no further than the nearest stacking context, so while the wave runs (.aph-blend, set by
+   the script) nothing between a name and the fog forms one: the ring gives up its fixed position and z-index, the
+   links their transform (the script places them by left and top), opacity and filter, and each icon and name carries
+   the ring's place in the stack and the ring's fade and dimming itself. Outside the wave the ring is as above. */
+#aph-ring.aph-blend{position:absolute;z-index:auto}
+#aph-ring.aph-blend a,#aph-ring.aph-blend.focus a:not(.on){opacity:1;filter:none}
+#aph-ring.aph-blend a>.ico,#aph-ring.aph-blend a>.tx{z-index:var(--z-nav);opacity:0;filter:blur(6px);transition:opacity .9s ease,filter .9s ease}
+#aph-ring.aph-blend.visible a>.ico,#aph-ring.aph-blend.visible:not(.phone) a>.tx{opacity:1;filter:none}
+#aph-ring.aph-blend.visible.focus a:not(.on)>.ico,#aph-ring.aph-blend.visible.focus:not(.phone) a:not(.on)>.tx{opacity:.28}
+#aph-ring.aph-blend.phone a.named>.tx,#aph-ring.aph-blend.phone a:focus-visible>.tx{opacity:1;filter:none}
 
 /* the passage: one line, small, bottom-right, typed by a person who is not in a hurry */
 #aph-passage{position:fixed;z-index:var(--z-corner);right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));

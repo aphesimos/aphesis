@@ -1244,8 +1244,8 @@
        clock stands still, or a gesture's resume never came: only a new context, made inside a gesture, sounds again.
        gone: between pagehide and the page being shown again. */
     var sleeping = false, stale = false, gone = false, kicked = null, checkT = 0, settleT = 0, rebuiltAt = 0, lastState = 'none';
-    /* ?sounddebug in the address: every change of the audio's state is logged to the console and to a small overlay */
-    var DEBUG = false, dbgEl = null, dbgLines = [];
+    /* ?sounddebug in the address: every change of the audio's state is logged to the console */
+    var DEBUG = false;
     try { DEBUG = /[?&]sounddebug(=|&|$)/.test(location.search); } catch (e) {}
     function log(msg) {
       if (!DEBUG) return;
@@ -1253,14 +1253,6 @@
         (navigator.audioSession ? ' · session ' + navigator.audioSession.state : '') + ' · ' + (document.hidden ? 'hidden' : 'visible') +
         (muted ? ' · muted' : '') + (stale ? ' · stale' : '') + (armed ? ' · armed' : '');
       try { console.log('[' + (performance.now() / 1000).toFixed(2) + '] ' + s); } catch (e) {}
-      try {
-        if (!dbgEl && document.body) {
-          dbgEl = document.createElement('pre'); dbgEl.id = 'aph-sounddebug'; dbgEl.setAttribute('aria-hidden', 'true');
-          dbgEl.style.cssText = 'position:fixed;left:50%;top:max(4px,env(safe-area-inset-top));transform:translateX(-50%);z-index:2147483647;margin:0;padding:4px 6px;max-width:calc(100vw - 16px);white-space:pre-wrap;font:10px/1.3 ui-monospace,monospace;color:#fff;background:rgba(0,0,0,.72);pointer-events:none';
-          document.body.appendChild(dbgEl);
-        }
-        if (dbgEl) { dbgLines.push((performance.now() / 1000).toFixed(1) + ' ' + s); if (dbgLines.length > 9) dbgLines.shift(); dbgEl.textContent = dbgLines.join('\n'); }
-      } catch (e) {}
     }
     function stored() { try { return localStorage.getItem(SOUND_KEY) === 'off'; } catch (e) { return false; } }
     var muted = stored();
@@ -1440,7 +1432,7 @@
         return api;
       },
       get muted() { return muted; },
-      /* log(message): with ?sounddebug in the address, a line in the console and the overlay; otherwise nothing */
+      /* log(message): with ?sounddebug in the address, a line in the console; otherwise nothing */
       log: function (msg) { log(msg); return api; },
       get debug() { return DEBUG; },
       get state() { return E ? E.ctx.state : 'none'; },

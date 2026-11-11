@@ -54,7 +54,7 @@ interface Sound {
   mute(muted?: boolean): Sound;
   /** true while the ear is closed; the stored choice from an earlier visit counts from the first moment */
   readonly muted: boolean;
-  /** with ?sounddebug in the address, a line in the console and the debug overlay; otherwise nothing */
+  /** with ?sounddebug in the address, a line in the console; otherwise nothing */
   log(message: string): Sound;
   /** true when the address carries ?sounddebug */
   readonly debug: boolean;

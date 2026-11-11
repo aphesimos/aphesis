@@ -69,11 +69,35 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
 /* text on fog keeps a halo of ground so it never sits on dots */
 .aph-on-fog { text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg); }
 
+/* bands: the seal holds the top-left corner and the eye, the ear and the passage the bottom, above whatever scrolls.
+   A scroller that covers the screen lets what scrolls under them recede instead of running into them: marked
+   .aph-bands (or given mask-image: var(--aph-bands) where only some widths need it), its content fades out at the
+   top through the seal's band and at the bottom through the corners', the safe-area insets included. A mask on the
+   scroller, so the fog behind stays crisp and nothing solid is laid over the page; it does not change with the
+   theme, and it holds through the eye's wave: a blend cannot reach the fog through a mask, so for the wave the
+   runtime puts a mirror of the fog at the scroller's back, and the text inside is painted cell by cell as anywhere
+   else. Content at rest starts below the top band and ends above the bottom one. */
+:root {
+  --aph-band-top: calc(env(safe-area-inset-top, 0px) + 80px); --aph-band-top-clear: calc(env(safe-area-inset-top, 0px) + 30px);
+  --aph-band-bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); --aph-band-bottom-clear: calc(env(safe-area-inset-bottom, 0px) + 34px);
+  /* eased in (the content stays faint under most of the corner and comes clear just past it) */
+  --aph-bands: linear-gradient(to bottom, transparent var(--aph-band-top-clear),
+    rgba(0, 0, 0, .12) calc(var(--aph-band-top-clear) + (var(--aph-band-top) - var(--aph-band-top-clear)) * .5),
+    rgba(0, 0, 0, .45) calc(var(--aph-band-top-clear) + (var(--aph-band-top) - var(--aph-band-top-clear)) * .8), #000 var(--aph-band-top),
+    #000 calc(100% - var(--aph-band-bottom)),
+    rgba(0, 0, 0, .45) calc(100% - var(--aph-band-bottom-clear) - (var(--aph-band-bottom) - var(--aph-band-bottom-clear)) * .8),
+    rgba(0, 0, 0, .12) calc(100% - var(--aph-band-bottom-clear) - (var(--aph-band-bottom) - var(--aph-band-bottom-clear)) * .5),
+    transparent calc(100% - var(--aph-band-bottom-clear)));
+}
+.aph-bands { -webkit-mask-image: var(--aph-bands); mask-image: var(--aph-bands); }
+
 
 /* theme shift: the ground changes behind the page, cell by cell from the eye, and nothing on top stops.
    Mark the containers of black-and-white text with .aph-ink (not ones holding the seal, accents or their own ground):
    while the wave runs they blend by difference with white ink, so every glyph is the negative of the cell beneath it,
-   old theme or new. Greys and hairlines get the one grey that reads right on both grounds. */
+   old theme or new. Greys and hairlines get the one grey that reads right on both grounds (a container whose own
+   colour is a grey keeps it: the runtime gives it inline at the click). What is not marked, the runtime reads at the
+   click and treats the same way where it can (themeShift; .aph-turn below where it cannot). */
 .aph-shifting .aph-ink {
   mix-blend-mode: difference; color: #fff;
   --ink: #fff; --fog: #fff; --ink-soft: var(--shift-soft); --line: var(--shift-line); --bg: #000;
@@ -82,25 +106,38 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
 /* the two frames around each switch: colours change without a transition (movement keeps its own) */
 .aph-still body, .aph-still .aph-ink, .aph-still .aph-ink * { transition-property: opacity, filter, transform !important; }
 /* the reds. Mark with .aph-red each red mark that is not text in an .aph-ink container: the seal, an icon, the eye, the
-   ear, red words. While the wave runs it keeps the old theme's reds until the wave reaches where it stands, then turns
-   to the new ones over half a second with minimum jerk (the keyframes are the curve). The runtime gives each its
-   moment (--aph-red-at) and both themes' reds (--shift-accent-a, -b and the same for accent-text and seal). An element
+   ear, red words. While the wave runs it keeps the old theme's colours (its reds, and the ink and ground it draws
+   with, such as the halo of ground behind the passage) until the wave reaches where it stands, then turns to the new
+   ones over half a second with minimum jerk (the keyframes are the curve). The runtime gives each its moment
+   (--aph-red-at) and both themes' colours (--shift-accent-a, -b and the same for each colour below). An element
    marked .aph-red carries no CSS animation of its own (mark its box), and a colour transition inside it is turned
    off while the wave runs (.aph-shifting), or it would trail the turn. */
 @property --aph-red-k { syntax: '<number>'; inherits: false; initial-value: 1; }
-/* the old reds are the rule's own value (k 0), not the animation's: before its turn the animation does nothing, so the
-   element is left alone, and after it the end holds */
-.aph-shifting .aph-red {
-  --aph-red-k: 0;
-  --accent: color-mix(in oklab, var(--shift-accent-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-accent-b));
-  --accent-text: color-mix(in oklab, var(--shift-accent-text-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-accent-text-b));
-  --seal: color-mix(in oklab, var(--shift-seal-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-seal-b));
-  animation: aph-red .5s linear var(--aph-red-at, 0ms) forwards;
-}
+/* the old colours are the rule's own value (k 0), not the animation's: before its turn the animation does nothing, so
+   the element is left alone, and after it the end holds */
+.aph-shifting .aph-red { animation: aph-red .5s linear var(--aph-red-at, 0ms) forwards; }
 @keyframes aph-red {
   0% { --aph-red-k: 0; } 10% { --aph-red-k: .00856; } 20% { --aph-red-k: .05792; } 30% { --aph-red-k: .16308; }
   40% { --aph-red-k: .31744; } 50% { --aph-red-k: .5; } 60% { --aph-red-k: .68256; } 70% { --aph-red-k: .83692; }
   80% { --aph-red-k: .94208; } 90% { --aph-red-k: .99144; } 100% { --aph-red-k: 1; }
+}
+/* what the runtime turns. At the click the runtime reads what nobody marked: ink that reaches the fog blends as if it
+   were in an .aph-ink container, and what cannot blend (a red it was not told about, ink inside a layer of its own, a
+   box whose text shares it with a red or sits on its own ground) is marked .aph-turn and turns like the reds. The
+   runtime moves --aph-red-k itself, frame by frame, so the box keeps any animation it has. */
+/* both keep every colour of the old theme (k 0) until their moment, and have the new ones when it has passed (k 1) */
+.aph-shifting .aph-red, .aph-shifting .aph-turn {
+  --aph-red-k: 0;
+  --accent: color-mix(in oklab, var(--shift-accent-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-accent-b));
+  --accent-text: color-mix(in oklab, var(--shift-accent-text-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-accent-text-b));
+  --seal: color-mix(in oklab, var(--shift-seal-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-seal-b));
+  --rubedo: color-mix(in oklab, var(--shift-rubedo-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-rubedo-b));
+  --rubedo-text: color-mix(in oklab, var(--shift-rubedo-text-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-rubedo-text-b));
+  --ink: color-mix(in oklab, var(--shift-ink-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-ink-b));
+  --ink-soft: color-mix(in oklab, var(--shift-ink-soft-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-ink-soft-b));
+  --line: color-mix(in oklab, var(--shift-line-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-line-b));
+  --fog: color-mix(in oklab, var(--shift-fog-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-fog-b));
+  --bg: color-mix(in oklab, var(--shift-bg-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-bg-b));
 }
 
 /* the ear: the sound's switch, beside the eye. Listening, three arcs of stipple arrive at the ear and breathe with
@@ -522,6 +559,9 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
 .count { color: var(--ink-soft); }
 .status { min-height: 1.7em; margin: var(--space-2) 0 0; }
 .status.err { color: var(--accent-text); }
+.status .retry { margin-left: var(--space-3); padding: var(--space-1) 0; vertical-align: baseline; }
+/* the image limits, said before a picture is picked: quiet, under the row that offers it */
+.hint { margin: var(--space-2) 0 0; color: var(--ink-soft); }
 .ts { margin-top: var(--space-3); }
 
 /* ---------- the viewer: one live simulacrum over the fog ---------- */
@@ -834,6 +874,21 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
      their fog, and leaves a sparse residue (about 12%) drifting in the band. Every change of clear is eased with
      minimum jerk over 1.8s, never snapped. clearWidth: the band's width as a share of the screen's width; left out
      (or null), it follows the screen: .66 on a wide one, .94 on a phone. */
+  /* mirrors of the ground. While the eye's wave runs, a layer the blend cannot reach the fog through (a scroller with
+     bands: a mask makes it a stacking context) is given a canvas at its back that holds a copy of the fog (the fog's
+     canvas is one pixel per cell, so the copy is small), and the ink inside blends with the copy as it would with
+     the fog. Where the layer's mask fades, the copy fades into the fog it copies, so nothing shows. The ground
+     is the first fog made on the page (MIRROR.cv). The copy is made every other frame, the first one at once (the
+     fog drifts slowly and the wave turns a cell at a time: a frame's lag does not show under the text), as the copy
+     is the costly part where canvases are drawn without a GPU. */
+  var MIRROR = { cv: null, list: [], n: 0 };
+  function mirrorFrom(cv) {
+    for (var i = 0; i < MIRROR.list.length; i++) {
+      var m = MIRROR.list[i];
+      if (m.width !== cv.width || m.height !== cv.height) { m.width = cv.width; m.height = cv.height; }
+      m.getContext('2d').drawImage(cv, 0, 0);
+    }
+  }
   function Fog(cv, o) {
     o = o || {}; var P = glField(cv, 'precision highp float;uniform vec2 R;uniform float T,D,C,S,X;uniform vec3 F,N,F2,N2;uniform vec2 P,Q;uniform vec4 Z[12];' + NOISE + SWITCH_GLSL +
       'void main(){vec2 cel=floor(gl_FragCoord.xy/S);vec2 uv=(cel*S-R*.5)/min(R.x,R.y);' +
@@ -849,6 +904,7 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
       'float s=sw(cel,uv,X);vec3 Fc=mix(F,F2,s),Nc=mix(N,N2,s);' +
       'gl_FragColor=vec4(mix(Fc,Nc,step(h(cel),dens)*.55),1.);}', ['R', 'T', 'D', 'C', 'S', 'X', 'F', 'N', 'F2', 'N2', 'P', 'Q', 'Z', 'SO', 'SF']);
     if (!P) return { zones: function () {}, set: function () {}, stop: function () {}, start: function () {}, destroy: function () {} };
+    if (!MIRROR.cv || !MIRROR.cv.isConnected) MIRROR.cv = cv;
     var gl = P.gl, U = P.U, colors = palette(cv, ['--bg', '--fog']);
     var ptr = null, sm = null, t = 0, last = performance.now(), zEls = [], ZB = new Float32Array(48);
     var dens = o.density === undefined ? 1 : o.density, light = o.light === undefined ? 1 : o.light, dpr = 1;
@@ -873,6 +929,7 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
       var cw = clearW == null ? lerp(0.94, 0.66, clamp((R.width - 480) / 720)) : clamp(clearW, 0.05, 1);
       gl.uniform2f(U.Q, clearAt(now), Math.max(1e-3, cw * 0.5 * cv.width / Math.min(cv.width, cv.height)));
       gl.drawArrays(gl.TRIANGLES, 0, 3);
+      if (MIRROR.cv === cv && MIRROR.list.length && !(MIRROR.n++ & 1)) mirrorFrom(cv);
     });
     L.start();
     return {
@@ -1182,7 +1239,7 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
      jerk (bundle.css: .aph-red). Its moment comes from the fields' own model of the wave: a cell turns once
      MJ(t / duration) passes .76 times its distance from the origin over the farthest corner, plus a hash (.14) and the
      fog's noise (.1), .12 on average; the turn is centred on that moment. */
-  var RED_TURN = 500, REDS = ['--accent', '--accent-text', '--seal'];
+  var RED_TURN = 500;
   function rootValue(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
   function mjInverse(y) { var lo = 0, hi = 1; for (var i = 0; i < 24; i++) { var m = (lo + hi) / 2; if (MJ(m) < y) lo = m; else hi = m; } return (lo + hi) / 2; }
   function redsAt(org, far, dur) {
@@ -1191,33 +1248,343 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
       el.style.setProperty('--aph-red-at', Math.max(0, Math.round(dur * mjInverse(Math.min(1, 0.76 * d / far + 0.12)) - RED_TURN / 2)) + 'ms');
     });
   }
+  /* the rest of the page. Right after the click (once its handler has run, so a section that takes a mask off under
+     .aph-shifting, or the shell stepping its inscription aside, already has) the runtime reads the page once and gives
+     every piece of ink that is in no .aph-ink container and no .aph-red mark the treatment it can take:
+     - a subtree whose paint is only ink (text, drawn marks, borders, fields in black, white or a grey: no red, no other
+       colour, no picture or canvas, no ground and no layer of its own) and that reaches the fog (no stacking context
+       between it and the page) blends like .aph-ink. The highest such subtree is taken, so the blend groups stay few;
+     - what cannot blend turns at the wave's moment where it stands, like the reds: a red mark, ink inside a layer of
+       its own (an opacity, a transform, a fixed, sticky or z-indexed box), a box whose own text shares it with a red or
+       sits on a ground of its own, and an .aph-ink container that cannot reach the fog, where its white ink would show
+       over the old ground (it blends again if the layer steps aside later). Such a box (.aph-turn) keeps every colour of the old theme until then and turns over RED_TURN ms; a box
+       whose colour it only inherits is given it, so the turn reaches it. A canvas is never inside a turn, since its
+       field reads the theme's colours from the page.
+     A box that blends keeps its own grey (the blend's white ink would show it as full ink), and an .aph-ink container
+     whose own colour is red turns instead of blending.
+     What is added or shown while the wave runs is read the same way. When the wave has covered the screen every class
+     and colour the runtime set is taken back, in the frames that hold transitions (.aph-still). */
+  var INK = 1, RED = 2, OTHER = 4, GROUND = 8, MEDIA = 16, LAYER = 32;
+  var TURN = ['--ink', '--ink-soft', '--line', '--accent-text', '--accent', '--seal', '--rubedo-text', '--rubedo', '--fog', '--bg'];
+  var SKIP = /^(SCRIPT|STYLE|TEMPLATE|NOSCRIPT|LINK|META|TITLE|BR|WBR|AUDIO|SOURCE|TRACK|DATALIST|OPTION|OPTGROUP)$/;
+  var PICTURE = /^(CANVAS|IMG|VIDEO|PICTURE|IFRAME|OBJECT|EMBED)$/;
+  var hues = {};
+  function rgba(s) {
+    var c = hues[s]; if (c) return c;
+    if (!probe) probe = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+    probe.clearRect(0, 0, 1, 1); probe.fillStyle = 'rgba(0,0,0,0)'; probe.fillStyle = s; probe.fillRect(0, 0, 1, 1);
+    var d = probe.getImageData(0, 0, 1, 1).data; return (hues[s] = [d[0], d[1], d[2], d[3]]);
+  }
+  function sameColor(a, b) { var x = rgba(a), y = rgba(b); return Math.abs(x[0] - y[0]) + Math.abs(x[1] - y[1]) + Math.abs(x[2] - y[2]) + Math.abs(x[3] - y[3]) < 8; }
+  /* black, white and the greys are ink; a colour leaning to red is a red; any other is a colour of its own */
+  function hueOf(s) {
+    if (!s || s === 'none' || s === 'transparent') return 0;
+    if (/url\(|gradient/.test(s)) return OTHER;
+    var c = rgba(s); if (c[3] < 8) return 0;
+    var mx = Math.max(c[0], c[1], c[2]), mn = Math.min(c[0], c[1], c[2]);
+    if (mx - mn < 28) return INK;
+    return c[0] === mx && c[0] - Math.max(c[1], c[2]) > 40 ? RED : OTHER;
+  }
+  function set(v) { return !!v && v !== 'none' && v !== 'auto' && v !== 'normal'; }
+  /* a box that makes a stacking context: blending inside it never reaches the fog */
+  function isolates(cs, pd) { return masked(cs) || isolatesBut(cs, pd); }
+  function masked(cs) { return set(cs.maskImage) || set(cs.webkitMaskImage); }
+  function isolatesBut(cs, pd) {
+    var p = cs.position;
+    return p === 'fixed' || p === 'sticky' || (cs.zIndex !== 'auto' && (p !== 'static' || /flex|grid/.test(pd))) || +cs.opacity < 1 ||
+      set(cs.transform) || set(cs.translate) || set(cs.rotate) || set(cs.scale) || set(cs.filter) || set(cs.backdropFilter) ||
+      set(cs.webkitBackdropFilter) || cs.mixBlendMode !== 'normal' || cs.isolation === 'isolate' ||
+      set(cs.clipPath) || set(cs.perspective) || set(cs.containerType) || cs.contentVisibility === 'auto' ||
+      /transform|opacity|filter|mask|clip-path|isolation|mix-blend-mode|perspective|translate|rotate|scale|z-index/.test(cs.willChange) ||
+      /paint|layout|strict|content/.test(cs.contain);
+  }
+  /* a layer that is one only by its mask (a scroller with bands) can be given a mirror of the fog (MIRROR) */
+  function mirrorable(cs, pd) { return MIRROR.cv && MIRROR.cv.isConnected && masked(cs) && !isolatesBut(cs, pd); }
+  /* a layer of its own: blending a subtree that holds one would pull it into the subtree's stacking context */
+  function layered(cs, pd) { var p = cs.position; return p === 'fixed' || p === 'sticky' || (cs.zIndex !== 'auto' && (p !== 'static' || /flex|grid/.test(pd))); }
+  function edges(cs) {
+    var b = 0;
+    ['Top', 'Right', 'Bottom', 'Left'].forEach(function (s) { if (parseFloat(cs['border' + s + 'Width']) > 0 && !/none|hidden/.test(cs['border' + s + 'Style'])) b |= hueOf(cs['border' + s + 'Color']); });
+    if (set(cs.borderImageSource)) b |= OTHER;
+    return b;
+  }
+  /* a ground of its own: the page's ground, or a veil of it */
+  function ground(cs, bg) {
+    var h = hueOf(cs.backgroundColor), c = rgba(cs.backgroundColor), g = bg && rgba(bg);
+    return (set(cs.backgroundImage) ? OTHER : 0) | (h === INK && g && Math.abs(c[0] - g[0]) + Math.abs(c[1] - g[1]) + Math.abs(c[2] - g[2]) < 12 ? GROUND : h);
+  }
+  /* the drawn marks inside an svg, by their fill and stroke */
+  function marks(svg) {
+    var b = 0, s = svg.querySelectorAll('path,circle,ellipse,rect,line,polyline,polygon,text,use,image,foreignObject');
+    for (var i = 0; i < s.length && i < 48; i++) {
+      if (/^(image|foreignObject)$/.test(s[i].tagName)) return OTHER;
+      var c = getComputedStyle(s[i]); if (c.display !== 'none' && c.visibility !== 'hidden') b |= hueOf(c.fill) | hueOf(c.stroke);
+    }
+    return b;
+  }
+  /* what an element paints itself: its text, an svg's marks, its borders and decoration, its ground */
+  function paintOf(el, cs, bg) {
+    var b = 0, tag = el.tagName, text = false, n;
+    if (cs.visibility !== 'hidden') {
+      for (n = el.firstChild; n; n = n.nextSibling) if (n.nodeType === 3 && /\S/.test(n.data)) { text = true; break; }
+      if (tag === 'TEXTAREA' || tag === 'SELECT' || (tag === 'INPUT' && /^(text|password|search|email|url|tel|number)$/.test(el.type))) text = true;
+      else if (tag === 'INPUT' && !/^(hidden|file)$/.test(el.type)) b |= OTHER;   /* a native control draws its own colours */
+      if (text) {
+        var f = cs.webkitTextFillColor; b |= hueOf(f && !sameColor(f, cs.color) ? f : cs.color);
+        if (set(cs.textDecorationLine)) b |= hueOf(cs.textDecorationColor);
+      }
+      if (tag === 'svg') b |= marks(el);
+      b |= edges(cs) | ground(cs, bg);
+    }
+    return b;
+  }
+  /* what the ::before and ::after of a subtree paint (asked only of a subtree about to blend: reading them for the
+     whole page would cost more than everything else) */
+  function pseudos(root, bg) {
+    var b = 0, els = [root].concat(Array.prototype.slice.call(root.querySelectorAll('*')));
+    for (var i = 0; i < els.length && !(b & (RED | OTHER | GROUND)); i++) {
+      if (els[i].closest('svg') && els[i].tagName !== 'svg') continue;
+      ['::before', '::after'].forEach(function (w) {
+        var p = getComputedStyle(els[i], w), c = p.content;
+        if (!set(c) || p.display === 'none' || p.visibility === 'hidden') return;
+        if (/^["'].*\S.*["']$/.test(c) || /counter|attr\(/.test(c)) b |= hueOf(p.color);
+        if (/url\(/.test(c)) b |= OTHER;
+        b |= edges(p) | ground(p, bg);
+      });
+    }
+    return b;
+  }
+  /* bottom up: what each subtree paints (info: element -> {b: the subtree, o: its own paint, its style, box, and
+     whether its colour is its parent's}) */
+  function survey(el, pd, pc, bg, info) {
+    var tag = el.tagName;
+    if (SKIP.test(tag) || el.classList.contains('aph-cursor')) return 0;
+    var cs = getComputedStyle(el);
+    if (cs.display === 'none') return 0;
+    if (el.classList.contains('aph-red')) return RED;
+    if (PICTURE.test(tag)) return MEDIA;
+    if (el.classList.contains('aph-ink')) {
+      if (cs.visibility === 'hidden') return 0;
+      info.set(el, { b: INK | (el.querySelector('canvas,img,video,picture,iframe,object,embed') ? MEDIA : 0), o: INK, box: true, color: cs.color, inherits: sameColor(cs.color, pc) });
+      return INK | (layered(cs, pd) ? LAYER : 0);
+    }
+    var o = paintOf(el, cs, bg), b = o, d = cs.display;
+    if (cs.mixBlendMode !== 'normal') b |= OTHER;
+    if (tag !== 'svg') for (var c = el.firstElementChild; c; c = c.nextElementSibling) b |= survey(c, d, cs.color, bg, info);
+    info.set(el, { b: b, o: o, cs: cs, pd: pd, box: d !== 'contents', color: cs.color, inherits: sameColor(cs.color, pc) });
+    return b | (layered(cs, pd) ? LAYER : 0);
+  }
+  /* top down: the highest subtree of ink that reaches the fog blends; what cannot, turns, at the first box that paints
+     (so a layer full of text turns piece by piece as the wave crosses it). cut: the layer that keeps el from the fog */
+  function decide(el, cut, info, acts) {
+    var i = info.get(el); if (!i) return;
+    var b = i.b;
+    if (!(b & (INK | RED | GROUND))) return;
+    if (el.classList.contains('aph-ink')) { if ((cut || info.reds.has(el)) && !(b & MEDIA)) acts.push([el, 2, cut]); return; }
+    if (!cut && i.box && !(b & (RED | OTHER | MEDIA | GROUND | LAYER))) {
+      var pb = pseudos(el, info.bg);
+      if (!(pb & (RED | OTHER | GROUND))) { acts.push([el, 0]); return; }
+      b = i.b = b | pb;
+    }
+    if ((i.o & (INK | RED | GROUND)) && !(b & MEDIA)) {
+      acts.push([el, 1]);
+      /* inside a layer, an .aph-ink container in the turn would blend there: it takes the turn's colours instead */
+      if (cut) Array.prototype.forEach.call(el.querySelectorAll('.aph-ink'), function (x) { acts.push([x, 3]); });
+      return;
+    }
+    /* (whether it is a layer is asked only of the boxes the reading goes through; a layer by its mask alone gets a
+       mirror of the fog at its back, and what is in it blends as anywhere else) */
+    var below = cut;
+    if (!below && isolates(i.cs, i.pd)) { if (mirrorable(i.cs, i.pd)) acts.push([el, 4]); else below = el; }
+    for (var c = el.firstElementChild; c; c = c.nextElementSibling) decide(c, below, info, acts);
+  }
+  /* the plan for one wave: what blends, what turns and when, and how to give it all back. Everything is read before
+     anything is written, so the page's style is worked out once for the reading. */
+  function wavePlan(org, far, dur, A, B, dark, inks) {
+    var blended = [], turned = [], suspended = [], pinned = [], mo = null, wo = null, watched = new Map(), reds = new Set(), greys = new Map(), acts = null, frames = 0;
+    var mirrors = [], mirrored = new Set();
+    /* under the blend an element's own colour is the white ink, which is right for ink but reads black or white for a
+       grey: a box that blends with a grey of its own keeps it as the grey that reads as that grey on both grounds (the
+       theme's ink-soft and line as the system's shift greys, any other as its negative on a light ground). T: the
+       theme the colour was read in */
+    function greyOf(c, T, tDark) {
+      function is(n) { return sameColor(c, T[n]) || sameColor(c, (T === A ? B : A)[n]); }
+      if (hueOf(c) !== INK || is('--ink')) return '';
+      if (is('--ink-soft')) return 'var(--ink-soft)';
+      if (is('--line')) return 'var(--line)';
+      var v = rgba(c); return 'rgb(' + [0, 1, 2].map(function (j) { return tDark ? v[j] : 255 - v[j]; }).join(',') + ')';
+    }
+    function pinColor(el, v) {
+      var p = [el, el.style.getPropertyValue('color'), el.style.getPropertyPriority('color')];
+      el.style.setProperty('color', v); p.push(el.style.getPropertyValue('color')); pinned.push(p);
+    }
+    /* a turn whose colour is only inherited would not follow its own colours: it is given the one it shows (which may
+       still be the old one, on its way to the new over a transition of its parent's) */
+    function pinOf(c) { var n = ''; [B, A].some(function (T) { return TURN.some(function (m) { if (B[m] && T[m] && sameColor(c, T[m])) { n = m; return true; } }); }); return n; }
+    /* the containers the page marked, read before the theme changed: a red one turns, a grey one keeps its grey */
+    inks.forEach(function (x) { if (hueOf(x[1]) === RED) reds.add(x[0]); else { var g = greyOf(x[1], A, dark); if (g) greys.set(x[0], g); } });
+    function display(el) { return el ? getComputedStyle(el).display : 'block'; }
+    function cutOf(el) {
+      for (var a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+        var cs = getComputedStyle(a), pd = display(a.parentElement);
+        if (mirrored.has(a) ? isolatesBut(cs, pd) : isolates(cs, pd)) return a;
+      }
+      return null;
+    }
+    /* an .aph-ink container turned because a layer kept it from the fog blends again once the layer steps aside (the
+       shell's inscription does a moment later when the eye is pressed just as it comes in) */
+    function watch(el, cut) {
+      if (!wo) wo = new MutationObserver(function (list) {
+        list.forEach(function (m) {
+          var els = watched.get(m.target); if (!els) return;
+          watched.delete(m.target);
+          els.forEach(function (x) {
+            var c = cutOf(x); if (c) { watch(x, c); return; }
+            var j = turned.findIndex(function (t) { return t.el === x; }); if (j >= 0) turned.splice(j, 1);
+            x.classList.remove('aph-turn'); x.style.removeProperty('--aph-red-k'); x.classList.add('aph-ink');
+            suspended.splice(suspended.indexOf(x), 1);
+            if (greys.has(x)) pinColor(x, greys.get(x));
+          });
+        });
+      });
+      if (!watched.has(cut)) { watched.set(cut, []); wo.observe(cut, { attributes: true, attributeFilter: ['class', 'style'] }); }
+      watched.get(cut).push(el);
+    }
+    /* what to do, from reading alone: [element, 0 blend | 1 turn | 2 turn a marked container | 3 lift a marked container
+       inside a turn | 4 give a layer a mirror of the fog, the layer that cuts it, the colour to give it] */
+    function read(els) {
+      var info = new Map(), bg = B['--bg'], out = [];
+      info.reds = reds; info.bg = bg;
+      els.forEach(function (el) {
+        if (!el.isConnected || !document.body.contains(el) || el.closest('.aph-ink, .aph-turn, .aph-red') || el.classList.contains('aph-mirror')) return;
+        var p = el.parentElement;
+        survey(el, display(p), p ? getComputedStyle(p).color : '', bg, info); decide(el, cutOf(el), info, out);
+      });
+      out.forEach(function (x) {
+        var i = info.get(x[0]);
+        if (x[1] === 0) x[3] = greyOf(i.color, B, !dark);
+        else if (x[1] < 3 && i && i.inherits) { var n = pinOf(i.color); if (n) x[3] = 'var(' + n + ')'; }
+      });
+      return out;
+    }
+    function write(out, first) {
+      out.forEach(function (x) {
+        var el = x[0];
+        if (x[1] === 4) {
+          if (mirrored.has(el)) return;
+          var m = document.createElement('canvas');
+          m.className = 'aph-mirror'; m.setAttribute('aria-hidden', 'true');
+          m.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;z-index:-1;pointer-events:none;image-rendering:pixelated';
+          el.insertBefore(m, el.firstChild); MIRROR.list.push(m); MIRROR.n = 0; mirrors.push(m); mirrored.add(el);
+          return;
+        }
+        if (x[1] === 0) { el.classList.add('aph-ink'); blended.push(el); if (x[3]) pinColor(el, x[3]); return; }
+        if (x[1] >= 2) { el.classList.remove('aph-ink'); suspended.push(el); }
+        if (x[1] === 2 && x[2]) watch(el, x[2]);
+        if (x[1] === 3) return;
+        el.classList.add('aph-turn'); if (x[3]) pinColor(el, x[3]);
+        /* its moment is read at the next frame; k starts at the rule's own 0, so nothing is written until it comes */
+        turned.push({ el: el, at: null, k: 0 });
+      });
+      if (first) greys.forEach(function (g, el) { if (el.isConnected && el.classList.contains('aph-ink')) pinColor(el, g); });
+      /* a marked container read under the blend showed its white ink: its own colour is known only now */
+      out.forEach(function (x) {
+        if (x[1] !== 2 || x[3]) return;
+        var c = getComputedStyle(x[0]).color, p = x[0].parentElement, n;
+        if (p && sameColor(c, getComputedStyle(p).color) && (n = pinOf(c))) pinColor(x[0], 'var(' + n + ')');
+      });
+    }
+    var plan = {
+      /* the page as it stands at the click, read; then written */
+      read: function () { acts = read(Array.prototype.slice.call(document.body.children)); },
+      write: function () {
+        write(acts || [], true); acts = null;
+        /* what is added or shown while the wave runs (read and written at once: the page has changed anyway) */
+        mo = new MutationObserver(function (list) {
+          var els = [];
+          list.forEach(function (m) {
+            if (m.type === 'attributes') { if (!m.target.hidden) els.push(m.target); }
+            else m.addedNodes.forEach(function (n) { if (n.nodeType === 1) els.push(n); });
+          });
+          if (els.length) write(read(els));
+        });
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
+      },
+      /* each frame: a turn runs over RED_TURN ms from its moment, with minimum jerk (the moments are read first, then
+         the turns written) */
+      tick: function (t) {
+        var j, x;
+        /* (from the second frame, when the first has laid the page out) */
+        if (++frames > 1) for (j = 0; j < turned.length; j++) {
+          x = turned[j]; if (x.at !== null) continue;
+          var r = x.el.getBoundingClientRect(), d = Math.hypot(r.left + r.width / 2 - org[0], r.top + r.height / 2 - org[1]);
+          x.at = dur * mjInverse(Math.min(1, 0.76 * d / far + 0.12)) - RED_TURN / 2;
+        }
+        for (j = 0; j < turned.length; j++) {
+          x = turned[j]; if (x.at === null) continue;
+          var k = MJ((t - x.at) / RED_TURN);
+          if (k !== x.k) { x.k = k; x.el.style.setProperty('--aph-red-k', String(Math.round(k * 1e4) / 1e4)); }
+        }
+      },
+      stop: function () { if (mo) { mo.disconnect(); mo = null; } if (wo) { wo.disconnect(); wo = null; } watched.clear(); },
+      /* the colours go back with the blend, in the same frame (a grey given for the blend is wrong without it); a colour
+         the page set meanwhile is left as it is */
+      unpin: function () {
+        pinned.reverse().forEach(function (p) { if (p[0].style.getPropertyValue('color') !== p[3]) return; if (p[1]) p[0].style.setProperty('color', p[1], p[2]); else p[0].style.removeProperty('color'); });
+        pinned = [];
+      },
+      /* the classes two frames later, once transitions are held no more */
+      end: function () {
+        plan.stop(); plan.unpin();
+        blended.forEach(function (el) { el.classList.remove('aph-ink'); });
+        turned.forEach(function (x) { x.el.classList.remove('aph-turn'); x.el.style.removeProperty('--aph-red-k'); });
+        suspended.forEach(function (el) { el.classList.add('aph-ink'); });
+        mirrors.forEach(function (m) { m.remove(); var j = MIRROR.list.indexOf(m); if (j >= 0) MIRROR.list.splice(j, 1); });
+        blended = []; turned = []; suspended = []; mirrors = []; mirrored.clear();
+      },
+    };
+    return plan;
+  }
+  var PLAN = null;
   function themeShift(apply, o) {
     o = o || {};
     if (SHIFT) return false;
+    if (PLAN) { PLAN.end(); PLAN = null; }
     var root = document.documentElement, before = root.getAttribute('data-theme');
     var dark = before ? before === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
-    var softA = cssColor('--ink-soft'), lineA = cssColor('--line'), redA = REDS.map(rootValue);
+    var softA = cssColor('--ink-soft'), lineA = cssColor('--line'), A = {};
+    TURN.forEach(function (n) { A[n] = rootValue(n); });
+    var inks = Array.prototype.map.call(document.querySelectorAll('.aph-ink'), function (el) { return [el, getComputedStyle(el).color]; });
     var org = o.origin || [24, innerHeight - 24], W = innerWidth, H = innerHeight;
     var far = Math.max(Math.hypot(org[0], org[1]), Math.hypot(W - org[0], org[1]), Math.hypot(org[0], H - org[1]), Math.hypot(W - org[0], H - org[1]));
     SHIFT = { o: org, far: far, p: 0 };
     /* colour transitions would smear the switch into and out of difference: hold them off for two frames at each end */
-    function still() { root.classList.add('aph-still'); requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.remove('aph-still'); }); }); }
+    function still(after) { root.classList.add('aph-still'); requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.remove('aph-still'); if (after) after(); }); }); }
     still(); apply(); Sound.event('shift');
-    var softB = cssColor('--ink-soft'), lineB = cssColor('--line'), redB = REDS.map(rootValue);
+    var softB = cssColor('--ink-soft'), lineB = cssColor('--line'), B = {};
+    TURN.forEach(function (n) { B[n] = rootValue(n); });
     /* a grey under difference shows as itself on a dark ground and as its negative on a light one:
        take the grey that reads as each theme's own grey on its own ground */
     function grey(a, b) { var dk = dark ? a : b, lt = dark ? b : a; return 'rgb(' + [0, 1, 2].map(function (i) { return Math.round((dk[i] + 1 - lt[i]) / 2 * 255); }).join(',') + ')'; }
     root.style.setProperty('--shift-soft', grey(softA, softB)); root.style.setProperty('--shift-line', grey(lineA, lineB));
-    REDS.forEach(function (n, i) { root.style.setProperty('--shift-' + n.slice(2) + '-a', redA[i]); root.style.setProperty('--shift-' + n.slice(2) + '-b', redB[i]); });
+    /* both themes' colours, for the reds and the turns */
+    TURN.forEach(function (n) { root.style.setProperty('--shift-' + n.slice(2) + '-a', A[n]); root.style.setProperty('--shift-' + n.slice(2) + '-b', B[n]); });
     var dur = o.duration || cssMs('--duration-shift', 5200), t = 0, last = null;
     redsAt(org, far, dur);
     root.classList.add('aph-shifting');
+    /* the rest of the page is read once the click's handler has run (a section may take a mask off under .aph-shifting,
+       the shell steps its inscription aside), still before the frame */
+    var plan = PLAN = wavePlan(org, far, dur, A, B, dark, inks);
+    (window.queueMicrotask || function (f) { Promise.resolve().then(f); })(function () { if (PLAN === plan && SHIFT) { plan.read(); plan.write(); } });
     /* time advances at most 100 ms a frame, like tween(): a stalled frame pauses the wave instead of jumping it */
     function tick(now) {
       if (last !== null) t += Math.min(100, Math.max(0, now - last)); last = now;
       var k = clamp(t / dur); SHIFT.p = MJ(k);
+      if (PLAN === plan) plan.tick(t);
       if (k < 1) { requestAnimationFrame(tick); return; }
-      still(); root.classList.remove('aph-shifting'); SHIFT = null; themeColor(); if (o.done) o.done();
+      plan.stop(); plan.unpin();
+      still(function () { if (PLAN === plan) { plan.end(); PLAN = null; } });
+      root.classList.remove('aph-shifting'); SHIFT = null; themeColor(); if (o.done) o.done();
       Array.prototype.forEach.call(document.querySelectorAll('.aph-red'), function (el) { el.style.removeProperty('--aph-red-at'); });
     }
     requestAnimationFrame(tick);
@@ -2621,7 +2988,7 @@ return { sigilSpec, sigilLabel, sigilSVG };
 M["owner.js"] = (function () {
 /* owner: the owner's mark, in place of a sigil. A post the server marked `owner` (only the owner's desk can make one:
    the content service passes it on with the forum's admin secret; nothing a visitor sends can claim it) shows a small
-   Aphesis.Eye in rubedo, alive (the gate's eye, drawn as a mark), and the name, aphesist, in Aphesis Script, like a capcode.
+   Aphesis.Eye in rubedo, alive (the gate's eye, drawn as a mark), and the name as the wordmark writes it, aφesist, in the eye's red, like a capcode.
 
    ownerMark()       -> the markup for a post's header: the eye's place, the name, and words for assistive technology
    wakeOwners(root)  -> brings every eye under root to life, once: shared eyes (one tick for the page, still while off
@@ -2819,6 +3186,126 @@ function stillSimulacrum(img, box, o = {}) {
 
 return { image, stillSimulacrum };
 })();
+/* ---- refusal.js ---- */
+M["refusal.js"] = (function () {
+/* refusal: why a post did not go, as a code the page acts on and words that say it.
+
+   The Worker answers every refusal with {error, code, limit?, retryAfter?}: the words as before, a code that never
+   changes, the limit that was passed (bytes, characters, lines or pixels) and, for the rate limit, the seconds to
+   wait (in the body: a page on another origin cannot read Retry-After). The page makes the same refusals itself
+   before sending what it can already judge (the words, the image), and for what only happens on the way (no
+   network, a check that never finished). explain() turns any of them into one line in the form's own voice.
+
+   LIMITS: what the board takes, as its pages say (`limits` on GET /api/board); these are the current backend's,
+   kept for a Worker that says nothing. */
+
+const LIMITS = {
+  request: 6 * 1024 * 1024,
+  original: { bytes: 4 * 1024 * 1024, pixels: 40e6 },
+  density: { long: 960, bytes: 900 * 1024 },
+  text: { chars: 2000, lines: 60 },
+};
+
+/* a board's own limits over the defaults, each read only when it is a sensible number */
+function boardLimits(l) {
+  const n = (v, min, d) => (Number.isFinite(+v) && +v >= min ? +v : d);
+  const o = (l && l.original) || {}, d = (l && l.density) || {}, t = (l && l.text) || {};
+  return {
+    request: n(l && l.request, 1024 * 1024, LIMITS.request),
+    original: { bytes: n(o.bytes, 256 * 1024, LIMITS.original.bytes), pixels: n(o.pixels, 1e6, LIMITS.original.pixels) },
+    density: { long: Math.min(n(d.long, 480, LIMITS.density.long), 2048), bytes: n(d.bytes, 100 * 1024, LIMITS.density.bytes) },
+    text: { chars: n(t.chars, 1, LIMITS.text.chars), lines: n(t.lines, 1, LIMITS.text.lines) },
+  };
+}
+
+/* an Error that carries its code (and whatever else explains it: limit, retryAfter, status, kind, n) */
+function refusal(code, more = {}, words = '') {
+  return Object.assign(new Error(words || code), { code }, more);
+}
+
+/* a refusal from the Worker's answer; an answer from before the codes is read by its status and words */
+function fromAnswer(status, body) {
+  const b = body && typeof body === 'object' ? body : {};
+  let code = typeof b.code === 'string' ? b.code : '';
+  let retryAfter = Number.isFinite(+b.retryAfter) ? +b.retryAfter : null;
+  if (!code) {
+    const w = String(b.error || '');
+    if (status === 429) { code = 'rate'; const m = w.match(/(\d+)\s*s\b/); if (m) retryAfter = +m[1]; }
+    else if (status === 413) code = 'too_large';
+    else if (status === 403 && /check/.test(w)) code = 'turnstile';
+    else if (status === 404) code = 'thread_gone';
+    else if (status === 409 && /full/.test(w)) code = 'thread_full';
+    else if (status >= 500) code = 'stumbled';
+    else if (/up to \d+ mb/.test(w)) code = 'image_too_large';
+    else if (/only jpeg/.test(w)) code = 'image_type';
+    else if (/could not be read/.test(w)) code = 'image_unreadable';
+    else if (/needs words/.test(w)) code = 'text_required';
+    else if (/characters/.test(w)) code = 'text_long';
+    else if (/lines/.test(w)) code = 'text_lines';
+    else code = 'refused';
+  }
+  return refusal(code, { status, limit: Number.isFinite(+b.limit) ? +b.limit : undefined, retryAfter }, String(b.error || code));
+}
+
+/* 4194304 -> "4 mb", 921600 -> "900 kb" */
+function size(bytes) {
+  if (bytes >= 1024 * 1024) { const m = bytes / (1024 * 1024); return (m >= 10 || Number.isInteger(m) ? Math.round(m) : m.toFixed(1)) + ' mb'; }
+  return Math.max(1, Math.round(bytes / 1024)) + ' kb';
+}
+const mp = (px) => Math.round(px / 1e6) + ' megapixels';
+
+/* the words, and what the form offers with them: retry (send again as it is) or nothing */
+function explain(err, limits = LIMITS, { thread = null } = {}) {
+  const e = err || {}, L = limits, code = e.code || (e.name === 'TypeError' ? 'network' : 'refused');
+  const lim = (d) => (Number.isFinite(e.limit) ? e.limit : d);
+  switch (code) {
+    case 'too_large':
+      return { text: 'too large to send: the board takes ' + size(lim(L.request)) + ' at most for a post, the image and its fog together.' };
+    case 'image_too_large':
+      return { text: 'this image is over ' + size(lim(L.original.bytes)) + ', the most the board takes, and it could not be made smaller here. try a smaller one.' };
+    case 'image_pixels':
+      return { text: 'this image is over ' + mp(lim(L.original.pixels)) + ', the most the board takes, and it could not be made smaller here. try a smaller one.' };
+    case 'image_type':
+      return { text: (e.kind ? e.kind + ' images cannot be opened here' : 'this kind of image cannot be opened here') + '. the board takes jpeg, png, webp or gif.' };
+    case 'image_unreadable':
+      return { text: 'this image could not be read. it may be damaged, or only partly downloaded. try another.' };
+    case 'map_missing': case 'map_too_large': case 'map_type': case 'map_unreadable': case 'map_size': case 'map_orphan':
+      return { text: 'the fog for this image could not be made to fit' + (code === 'map_too_large' ? ' (' + size(lim(L.density.bytes)) + ' at most)' : '') + '. remove the image and add it again, or try another.' };
+    case 'text_required':
+      return { text: thread ? 'write something, or add an image.' : 'a thread begins with words.' };
+    case 'text_long':
+      return { text: 'too long: ' + lim(L.text.chars) + ' characters at most' + (e.n ? ', and this has ' + e.n : '') + '.' };
+    case 'text_lines':
+      return { text: 'too long: ' + lim(L.text.lines) + ' lines at most' + (e.n ? ', and this has ' + e.n : '') + '.' };
+    case 'turnstile':
+      return { text: 'the check that keeps robots out did not pass, or it ran out of time.', retry: true };
+    case 'turnstile_load':
+      return { text: 'the check that keeps robots out did not load, so nothing was sent.', retry: true };
+    case 'rate': {
+      const s = Math.max(1, Math.ceil(e.retryAfter || 30));
+      return { text: 'too fast: the board takes a few posts at a time. try again in ' + s + ' s.', wait: s };
+    }
+    case 'word':
+      return { text: 'the board will not carry that word.' };
+    case 'thread_full':
+      return { text: 'this thread is full at ' + lim(500) + ' posts. start a new one from the board.' };
+    case 'thread_gone':
+      return { text: 'this thread is gone.' };
+    case 'not_open':
+      return { text: 'the board is not open yet. try again later.' };
+    case 'origin':
+      return { text: 'the board does not answer this page. open aphes.ist and post from there.' };
+    case 'network':
+      return { text: 'the board could not be reached, so nothing was sent. check the connection, then try again.', retry: true };
+    case 'stumbled':
+      return { text: 'the board stumbled on its side, and the post did not go. try again in a moment.', retry: true };
+    default:
+      return { text: (e.status >= 500 ? 'the board stumbled on its side, and the post did not go. try again in a moment.' : String(e.message || 'the post did not go.').toLowerCase()), retry: e.status >= 500 };
+  }
+}
+
+return { LIMITS, boardLimits, refusal, fromAnswer, size, explain };
+})();
 /* ---- density.js ---- */
 M["density.js"] = (function () {
 /* density: an uploaded picture becomes a density map in the browser, before anything is sent.
@@ -2840,17 +3327,23 @@ M["density.js"] = (function () {
    - a black margin of 5% around the picture, so the simulacrum's soft edge falls on the margin, not on the content.
    prepareMap(file, {mode: 'hermetic'}) gives the design system's original preparation instead (30th percentile,
    gamma 0.8, a 1px blur on light grounds), kept for comparison.
-   The original file goes up beside the map, untouched, so it stays a click away. */
+   The original file goes up beside the map, untouched, so it stays a click away, when the board takes it as it is
+   (jpeg, png, webp or gif, within the board's bytes and pixels). Otherwise prepareUpload() makes a copy that fits:
+   a jpeg of the whole picture, as large as fits (at most 4096px on the long side), so a phone's 12 MB photo or a
+   heic that this browser can open still goes, as a picture a little smaller than it was. */
 
+const { refusal, LIMITS } = M["refusal.js"];
+/* the types the board stores as they are; the picker offers any image, and the rest are converted when this browser
+   can open them */
 const ACCEPT = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-const MAX_BYTES = 4 * 1024 * 1024;
 const LONG = 640, MIN_LONG = 480;
 
-function checkFile(file) {
-  if (!file) return 'no file';
-  if (!ACCEPT.includes(file.type)) return 'only jpeg, png, webp or gif';
-  if (file.size > MAX_BYTES) return 'images up to 4 mb';
-  return '';
+/* "heic" for photo.HEIC (the name says it as people know it), else from the type, for the words that say it cannot
+   be opened */
+function kindOf(file) {
+  const t = String(file.type || '').toLowerCase().replace(/^image\//, '').replace(/^x-/, '');
+  const ext = (String(file.name || '').match(/\.([a-z0-9]{2,5})$/i) || [])[1];
+  return (ext || '').toLowerCase() || (t && t.length <= 12 ? t : '');
 }
 
 async function decode(file) {
@@ -2940,10 +3433,10 @@ function percentile(sorted, p) { return sorted[Math.min(sorted.length - 1, Math.
 /* limits: {long, bytes}, what the board takes (api.densityLimits()); 640 px and 400 KB when not given */
 function toDensity(file, limits) { return prepareMap(file, { limits }); }
 
-async function prepareMap(file, { mode = 'legible', limits } = {}) {
+async function prepareMap(file, { mode = 'legible', limits, source } = {}) {
   const maxLong = Math.min(960, (limits && limits.long) || LONG), maxBytes = Math.round(((limits && limits.bytes) || 400 * 1024) * 0.94);
   const hermetic = mode === 'hermetic';
-  const src = await decode(file);
+  const src = source || await decode(file);
   const sw = src.width || src.naturalWidth, sh = src.height || src.naturalHeight;
   if (!sw || !sh) throw new Error('decode');
   /* a small working copy to find the borders and the ground */
@@ -2985,7 +3478,7 @@ async function prepareMap(file, { mode = 'legible', limits } = {}) {
   ox.drawImage(src, cx, cy, cw, ch, P, P, IW, IH);
   if (soft && !viaFilter) window.Aphesis.blur2d(ox, 1);
   ox.filter = 'none';
-  if (src.close) src.close();
+  if (src.close && !source) src.close();
   const img = ox.getImageData(0, 0, W, H);
   const lum = luminance(img.data);
   if (lightGround) for (let i = 0; i < lum.length; i++) lum[i] = 1 - lum[i];
@@ -3018,7 +3511,55 @@ async function prepareMap(file, { mode = 'legible', limits } = {}) {
   return { blob, url, width: W, height: H, inverted: lightGround };
 }
 
-return { ACCEPT, MAX_BYTES, checkFile, toDensity, prepareMap };
+/* the original as the board takes it: the file itself when it fits, else a jpeg copy of the whole picture that does
+   (white under any transparency, as large as fits, quality .9 down to .74, then smaller by a fifth at a time) */
+async function fitOriginal(file, src, sw, sh, lim) {
+  if (ACCEPT.includes(file.type) && file.size <= lim.bytes && sw * sh <= lim.pixels) return file;
+  const budget = lim.bytes * 0.97;
+  let long = Math.min(Math.max(sw, sh), 4096, Math.floor(Math.sqrt(lim.pixels * Math.max(sw, sh) / Math.min(sw, sh))));
+  const c = document.createElement('canvas'), x = c.getContext('2d');
+  for (; long >= 640; long = Math.round(long * 0.8)) {
+    const s = long / Math.max(sw, sh);
+    c.width = Math.max(1, Math.round(sw * s)); c.height = Math.max(1, Math.round(sh * s));
+    x.imageSmoothingQuality = 'high';
+    x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+    x.drawImage(src, 0, 0, c.width, c.height);
+    for (const q of [0.9, 0.82, 0.74]) {
+      const blob = await new Promise((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('encode'))), 'image/jpeg', q));
+      if (blob.size <= budget) {
+        c.width = c.height = 0;
+        return new File([blob], String(file.name || 'image').replace(/\.[a-z0-9]{2,5}$/i, '') + '.jpg', { type: 'image/jpeg' });
+      }
+    }
+  }
+  c.width = c.height = 0;
+  throw refusal(file.size > lim.bytes ? 'image_too_large' : 'image_pixels', { limit: file.size > lim.bytes ? lim.bytes : lim.pixels });
+}
+
+/* a picked file -> {density, original, resized, why, kind, from}: the map, and the original that goes beside it (the file, or a
+   copy that fits the board). Refusals carry their code: image_type (this browser cannot open that kind: a heic on
+   most browsers), image_unreadable (a damaged or partial file), image_too_large / image_pixels (no copy fits). */
+async function prepareUpload(file, limits = LIMITS) {
+  if (!file || !file.size) throw refusal('image_unreadable');
+  let src;
+  try { src = await decode(file); } catch (_) {
+    throw ACCEPT.includes(file.type) ? refusal('image_unreadable') : refusal('image_type', { kind: kindOf(file) });
+  }
+  try {
+    const sw = src.width || src.naturalWidth, sh = src.height || src.naturalHeight;
+    if (!sw || !sh) throw refusal('image_unreadable');
+    const density = await prepareMap(file, { limits: limits.density, source: src });
+    const original = await fitOriginal(file, src, sw, sh, limits.original);
+    const resized = original !== file;
+    /* why a copy goes: a kind the board does not keep, too many bytes, or too many pixels */
+    const why = !resized ? '' : !ACCEPT.includes(file.type) ? 'kind' : file.size > limits.original.bytes ? 'bytes' : 'pixels';
+    return { density, original, resized, why, kind: kindOf(file), from: file.size };
+  } catch (e) {
+    throw e && e.code ? e : refusal('image_unreadable');
+  } finally { if (src.close) src.close(); }
+}
+
+return { ACCEPT, decode, toDensity, prepareMap, prepareUpload };
 })();
 /* ---- mock.js ---- */
 M["mock.js"] = (function () {
@@ -3030,6 +3571,7 @@ M["mock.js"] = (function () {
 
 const { load, save } = M["store.js"];
 const { hex } = M["hash.js"];
+const { refusal, LIMITS } = M["refusal.js"];
 const KEY = 'aphesis.forum.preview.v1';
 const PAGE = 40;
 
@@ -3064,6 +3606,7 @@ function createMock() {
     get persisted() { return persisted; },
     /* the same limits as the Worker */
     densityLimits() { return Promise.resolve({ long: 960, bytes: 900 * 1024 }); },
+    limits() { return Promise.resolve(LIMITS); },
     /* one page below cursor ("<bumped>-<id>", the last thread of the page before), newest activity first */
     board(cursor) {
       const sorted = all().map((t) => {
@@ -3089,7 +3632,7 @@ function createMock() {
     },
     thread(id) {
       const t = all().find((x) => x.id === id);
-      if (!t) return Promise.reject(Object.assign(new Error('this thread is gone'), { status: 404 }));
+      if (!t) return Promise.reject(refusal('thread_gone', { status: 404 }, 'this thread is gone'));
       const reported = local().reports;
       t.posts.forEach((p) => {
         if (p.image && p.image.originalKey) p.image.original = originals.get(p.image.originalKey) || null;
@@ -3098,6 +3641,11 @@ function createMock() {
       return wait(t);
     },
     async post({ thread, text, image }) {
+      /* the words as the Worker checks them */
+      const words = String(text || '').replace(/\r\n?/g, '\n').replace(/\n{4,}/g, '\n\n\n').replace(/\s+$/, '');
+      if ((!thread || !image) && !words.trim()) throw refusal('text_required', { status: 400 });
+      if (Array.from(words).length > LIMITS.text.chars) throw refusal('text_long', { status: 400, limit: LIMITS.text.chars });
+      if (words.split('\n').length > LIMITS.text.lines) throw refusal('text_lines', { status: 400, limit: LIMITS.text.lines });
       const s = local(), now = Date.now();
       const id = thread || hex('t:' + s.device + now, 10);
       const post = { poster: hex(s.device + ':' + id, 12), text, created: now, image: null };
@@ -3117,7 +3665,7 @@ function createMock() {
         n = s.threads[thread].posts.length + 1;
         s.threads[thread].posts.push(Object.assign({ n }, post));
       } else {
-        throw Object.assign(new Error('this thread is gone'), { status: 404 });
+        throw refusal('thread_gone', { status: 404 }, 'this thread is gone');
       }
       keep();
       if (!persisted && post.image && post.image.original && post.image.original.length > 200000) {
@@ -3154,9 +3702,13 @@ M["api.js"] = (function () {
      post({thread?, text, image?, turnstile?}) -> {thread, n}   image: {original: File, density: {blob, url, width, height}}
      report(thread, n)               -> {ok}
      densityLimits()                 -> {long, bytes}: the density maps the board takes (640 px from an older Worker)
-   image (as returned): {density: URL, original: URL | null, caption, w, h} */
+     limits()                        -> {request, original: {bytes, pixels}, density: {long, bytes}, text: {chars, lines}}
+   image (as returned): {density: URL, original: URL | null, caption, w, h}
+   A refusal rejects with an Error carrying its code (refusal.js): the Worker's own, or `network` when the board could
+   not be reached at all. */
 
 const { createMock } = M["mock.js"];
+const { fromAnswer, refusal, boardLimits } = M["refusal.js"];
 function config() {
   const meta = (n) => { const m = document.querySelector('meta[name="' + n + '"]'); return m ? m.content.trim() : ''; };
   const w = window.AphesisForum || {};
@@ -3166,8 +3718,14 @@ function config() {
 async function json(res) {
   let body = null;
   try { body = await res.json(); } catch (_) { /* not json */ }
-  if (!res.ok) throw Object.assign(new Error((body && body.error) || 'the board did not answer'), { status: res.status });
+  if (!res.ok) throw fromAnswer(res.status, body || { error: 'the board did not answer' });
   return body;
+}
+
+/* fetch, with a board that cannot be reached (offline, refused on the way, an answer the browser may not read)
+   said as such */
+async function call(url, init) {
+  try { return await fetch(url, init); } catch (e) { throw refusal('network', { cause: e }, 'the board could not be reached'); }
 }
 
 /* the density map's limits: what a Worker says it takes on its board's pages ({density: {long, bytes}}); a Worker
@@ -3179,7 +3737,7 @@ function readLimits(b) {
 }
 
 function createRemote(base, turnstile) {
-  let limits = null;
+  let limits = null, all = null;
   const abs = (u) => (u && !/^(https?:|data:|blob:)/.test(u) ? base + u : u);
   const fixImage = (im) => (im ? Object.assign({}, im, { density: abs(im.density), original: abs(im.original) }) : null);
   return {
@@ -3187,21 +3745,27 @@ function createRemote(base, turnstile) {
     turnstile,
     persisted: true,
     async board(cursor) {
-      const b = await json(await fetch(base + '/api/board' + (cursor ? '?cursor=' + encodeURIComponent(cursor) : '')));
+      const b = await json(await call(base + '/api/board' + (cursor ? '?cursor=' + encodeURIComponent(cursor) : '')));
       b.threads.forEach((t) => { t.image = fixImage(t.image); });
       limits = readLimits(b);
+      all = Object.assign(boardLimits(b.limits), { density: limits });
       /* a Worker from before pages answers threads alone: one page, the last */
       return { threads: b.threads, next: b.next || null };
     },
     /* the limits, asked once of the board (one thread is enough) when the page opened on a thread */
     async densityLimits() {
       if (!limits) {
-        try { limits = readLimits(await json(await fetch(base + '/api/board?limit=1'))); } catch (_) { return OLD_LIMITS; }
+        try { const b = await json(await call(base + '/api/board?limit=1')); limits = readLimits(b); all = Object.assign(boardLimits(b.limits), { density: limits }); } catch (_) { return OLD_LIMITS; }
       }
       return limits;
     },
+    /* every limit the board says (the current backend's for any it leaves out; the old map size from an old Worker) */
+    async limits() {
+      if (!all) await this.densityLimits();
+      return all || Object.assign(boardLimits(null), { density: OLD_LIMITS });
+    },
     async thread(id) {
-      const t = await json(await fetch(base + '/api/threads/' + encodeURIComponent(id)));
+      const t = await json(await call(base + '/api/threads/' + encodeURIComponent(id)));
       t.posts.forEach((p) => { p.image = fixImage(p.image); });
       return t;
     },
@@ -3216,10 +3780,10 @@ function createRemote(base, turnstile) {
         f.append('h', String(image.density.height));
       }
       const url = thread ? base + '/api/threads/' + encodeURIComponent(thread) + '/posts' : base + '/api/threads';
-      return json(await fetch(url, { method: 'POST', body: f }));
+      return json(await call(url, { method: 'POST', body: f }));
     },
     async report(thread, n) {
-      return json(await fetch(base + '/api/threads/' + encodeURIComponent(thread) + '/posts/' + n + '/report', { method: 'POST' }));
+      return json(await call(base + '/api/threads/' + encodeURIComponent(thread) + '/posts/' + n + '/report', { method: 'POST' }));
     },
   };
 }
@@ -3296,10 +3860,16 @@ return { createGround };
 /* ---- composer.js ---- */
 M["composer.js"] = (function () {
 /* composer: the quiet form. A text area whose only line is a brush stroke beneath it, an optional picture (made into
-   a density map here, before it is sent, and shown as it will look), Turnstile when the server asks for it, and one
-   word to send. Ctrl or Cmd + Enter sends too. Errors are said in words under the form, never in a box. */
+   a density map here, before it is sent, and shown as it will look; made smaller first when the board would not take
+   it as it is), Turnstile when the server asks for it, and one word to send. Ctrl or Cmd + Enter sends too.
 
-const { checkFile, toDensity, ACCEPT } = M["density.js"];
+   Whatever stops a post is said in words under the form, in the accent, never in a box: in one live region, with
+   `try again` beside it when sending again as it is may work (the check, the network, the board's own stumble).
+   What was written and the picture chosen stay until a post goes. The image limits are said under `add an image`
+   before anyone picks one, from the board's own pages. */
+
+const { prepareUpload } = M["density.js"];
+const { explain, refusal, size, LIMITS } = M["refusal.js"];
 const { image, stillSimulacrum } = M["thumb.js"];
 const { esc } = M["text.js"];
 const { stillOptions } = M["legible.js"];
@@ -3309,14 +3879,15 @@ const T = (key, own) => (A.text ? A.text(key, own) : own);
 const MAX_TEXT = 2000;
 let formN = 0;
 
-/* Turnstile: its script is loaded only when a site key is configured */
+/* Turnstile: its script is loaded only when a site key is configured (and asked for again after a failed load) */
 let tsLoad = null;
 function turnstileReady() {
   if (!tsLoad) {
     tsLoad = new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
-      s.async = true; s.onload = () => resolve(window.turnstile); s.onerror = reject;
+      s.async = true; s.onload = () => resolve(window.turnstile);
+      s.onerror = () => { tsLoad = null; s.remove(); reject(new Error('turnstile')); };
       document.head.appendChild(s);
     });
   }
@@ -3329,6 +3900,18 @@ function baseline(seed) {
   return '<svg class="baseline" viewBox="0 0 600 8" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="' + d + '"/></svg>';
 }
 
+/* the words as the Worker will count them: line ends normalized, four or more blank lines kept to three, the end
+   trimmed */
+function normalized(t) {
+  return String(t).replace(/\r\n?/g, '\n').replace(/\n{4,}/g, '\n\n\n').replace(/\s+$/, '');
+}
+
+/* "jpeg, png, webp or gif, up to 4 mb and 40 megapixels; a larger one is made smaller here before it goes" */
+function imageHint(L) {
+  return 'images: jpeg, png, webp or gif, up to ' + size(L.original.bytes) + ' and ' + Math.round(L.original.pixels / 1e6) +
+    ' megapixels. a larger one, or a heic this browser opens, is made smaller here before it goes.';
+}
+
 /* api: the client; thread: the thread id (a reply) or null (a new thread); onPosted({thread, n}) */
 function createComposer({ api, thread, onPosted, label }) {
   const id = 'c' + (++formN);
@@ -3338,23 +3921,28 @@ function createComposer({ api, thread, onPosted, label }) {
   form.setAttribute('aria-label', label);
   form.innerHTML =
     '<label class="sr" for="' + id + 't">' + esc(label) + '</label>' +
-    '<textarea id="' + id + 't" name="text" rows="4" maxlength="' + MAX_TEXT + '" placeholder="' +
+    '<textarea id="' + id + 't" name="text" rows="4" maxlength="' + MAX_TEXT + '" aria-describedby="' + id + 's" placeholder="' +
       esc(thread ? T('forum.placeholder.reply', 'say it plainly. >>n quotes a post') : T('forum.placeholder.thread', 'begin with a first line worth reading')) + '"></textarea>' +
     baseline(thread ? 811 : 523) +
     '<div class="chosen" hidden><span class="pv"></span><button type="button" class="act rm" data-cursor=".55">remove the image</button></div>' +
     '<div class="ts" hidden></div>' +
     '<div class="crow">' +
-      '<input class="file" id="' + id + 'f" type="file" accept="' + ACCEPT.join(',') + '">' +
+      '<input class="file" id="' + id + 'f" type="file" accept="image/*" aria-describedby="' + id + 'h">' +
       '<label class="act attach" for="' + id + 'f" data-cursor=".55">add an image</label>' +
       '<span class="grow"></span>' +
       '<span class="count aph-meta" aria-hidden="true">0 / ' + MAX_TEXT + '</span>' +
       '<button type="submit" class="act send" data-cursor=".55">' + (thread ? 'reply' : 'post') + '</button>' +
     '</div>' +
-    '<p class="status aph-meta" role="status" aria-live="polite"></p>';
+    '<p class="hint aph-meta" id="' + id + 'h">' + esc(imageHint(LIMITS)) + '</p>' +
+    '<p class="status aph-meta"><span class="say" id="' + id + 's" role="status" aria-live="polite"></span>' +
+      '<button type="button" class="act retry" data-cursor=".55" hidden>try again</button></p>';
   const ta = form.querySelector('textarea'), file = form.querySelector('.file'), chosen = form.querySelector('.chosen');
   const pv = form.querySelector('.pv'), count = form.querySelector('.count'), status = form.querySelector('.status');
+  const line = form.querySelector('.say'), retry = form.querySelector('.retry'), hint = form.querySelector('.hint');
   const send = form.querySelector('.send'), tsBox = form.querySelector('.ts');
-  let picked = null, busy = false, tsWidget = null;
+  let picked = null, preparing = null, busy = false, tsWidget = null;
+  let limits = LIMITS;
+  if (api.limits) api.limits().then((l) => { limits = l; hint.textContent = imageHint(l); }).catch(() => {});
 
   if (api.preview) {
     send.dataset.tip = 'this preview keeps your posts on this device only';
@@ -3362,7 +3950,16 @@ function createComposer({ api, thread, onPosted, label }) {
     form.insertAdjacentHTML('beforeend', '<span class="sr" id="' + id + 'n">this preview keeps your posts on this device only</span>');
   }
 
-  const say = (t, err) => { status.textContent = t; status.classList.toggle('err', !!err); };
+  /* one line under the form: what is happening, or why the post did not go (in the accent), with `try again` when
+     sending again as it is may work */
+  const say = (t, err, again) => {
+    line.textContent = t;
+    status.classList.toggle('err', !!err);
+    retry.hidden = !again;
+  };
+  const refuse = (e) => { const x = explain(e, limits, { thread }); say(x.text, true, !!x.retry); return x; };
+  retry.addEventListener('click', () => { retry.hidden = true; form.requestSubmit(); });
+
   /* the area grows with its words (no resize grip: it would be the one solid mark on the form) */
   const counted = () => {
     count.textContent = ta.value.length + ' / ' + MAX_TEXT;
@@ -3371,56 +3968,105 @@ function createComposer({ api, thread, onPosted, label }) {
   ta.addEventListener('input', counted);
   ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); form.requestSubmit(); } });
 
+  /* ---------- Turnstile ----------
+     The widget is drawn into the form's box. It can vanish under the form: Turnstile forgets a widget whose box leaves
+     the page, which happens whenever the site puts the section aside and brings it back, and asking a forgotten
+     widget for its answer throws. So the widget is checked, and drawn again when it is gone, before every send and
+     whenever the words are touched; and its answer, good for one post, is renewed after every try. */
+  const tsAlive = () => {
+    if (tsWidget === null || !window.turnstile) return false;
+    try { window.turnstile.getResponse(tsWidget); return tsBox.isConnected; } catch (_) { return false; }
+  };
+  async function tsDraw() {
+    const ts = await turnstileReady();
+    if (tsAlive()) return;
+    if (tsWidget !== null) { try { ts.remove(tsWidget); } catch (_) { /* already forgotten */ } }
+    tsWidget = null; tsBox.replaceChildren();
+    if (!tsBox.isConnected) return;   /* drawn once the form is on the page (its words touched, or a send) */
+    tsWidget = ts.render(tsBox, { sitekey: api.turnstile, appearance: 'interaction-only' });
+  }
+  /* the answer, waiting up to 25 s for the check to finish (it asks for a click only when it must) */
+  async function tsToken() {
+    try { await tsDraw(); } catch (_) { throw refusal('turnstile_load'); }
+    /* never ask without a widget of this form's own: Turnstile would answer with another form's */
+    if (tsWidget === null) throw refusal('turnstile_load');
+    for (let i = 0; i < 100; i++) {
+      let t = '';
+      try { t = window.turnstile.getResponse(tsWidget) || ''; } catch (_) {
+        try { await tsDraw(); } catch (e) { throw refusal('turnstile_load'); }
+        if (tsWidget === null) throw refusal('turnstile_load');
+      }
+      if (t) return t;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    throw refusal('turnstile');
+  }
+  const tsRenew = () => { try { if (tsWidget !== null) window.turnstile.reset(tsWidget); } catch (_) { tsWidget = null; } };
   if (api.turnstile) {
     tsBox.hidden = false;
-    turnstileReady().then((ts) => { tsWidget = ts.render(tsBox, { sitekey: api.turnstile, appearance: 'interaction-only' }); })
-      .catch(() => say('the check that keeps robots out did not load', true));
+    /* drawn as soon as the form is on the page, so the answer is usually ready before the words are */
+    requestAnimationFrame(() => tsDraw().catch(() => {}));
+    ta.addEventListener('focus', () => { if (!tsAlive()) tsDraw().catch(() => {}); });
   }
 
-  file.addEventListener('change', async () => {
+  /* ---------- the image ---------- */
+  file.addEventListener('change', () => {
     const f = file.files && file.files[0];
-    if (!f) return;
-    const bad = checkFile(f);
-    if (bad) { say(bad, true); file.value = ''; return; }
-    say('turning the picture into fog…');
-    try {
-      const density = await toDensity(f, api.densityLimits ? await api.densityLimits() : null);
-      picked = { original: f, density };
-      const im = await image(density.url);
-      pv.innerHTML = stillSimulacrum(im, [160, 160], Object.assign(stillOptions(), { seed: 5 })).svg;
-      chosen.hidden = false;
-      say('this is how it will appear. the original goes with it, a click away.');
-    } catch (_) {
-      picked = null; chosen.hidden = true;
-      say('this picture could not be read', true);
-    }
     file.value = '';
+    if (!f) return;
+    say('turning the picture into fog…');
+    const mine = preparing = (async () => {
+      try {
+        const up = await prepareUpload(f, limits);
+        if (preparing !== mine) return;
+        picked = { original: up.original, density: up.density };
+        const im = await image(up.density.url);
+        pv.innerHTML = stillSimulacrum(im, [160, 160], Object.assign(stillOptions(), { seed: 5 })).svg;
+        chosen.hidden = false;
+        const copy = 'a jpeg copy of ' + size(up.original.size) + ' goes in its place.';
+        say('this is how it will appear. the original goes with it, a click away' + (!up.resized ? '.'
+          : up.why === 'kind' ? ': the board does not keep ' + (up.kind || 'this kind of image') + ', so ' + copy
+          : up.why === 'bytes' ? ': at ' + size(up.from) + ' it is more than the board takes (' + size(limits.original.bytes) + '), so ' + copy
+          : ': it has more than ' + Math.round(limits.original.pixels / 1e6) + ' megapixels, so ' + copy));
+      } catch (e) {
+        if (preparing !== mine) return;
+        /* a picture chosen before stays chosen; the words say why this one could not be */
+        refuse(e && e.code ? e : refusal('image_unreadable'));
+      } finally { if (preparing === mine) preparing = null; }
+    })();
   });
   form.querySelector('.rm').addEventListener('click', () => {
-    picked = null; chosen.hidden = true; pv.innerHTML = ''; say('');
+    picked = null; preparing = null; chosen.hidden = true; pv.innerHTML = ''; say('');
     form.querySelector('.attach').focus();
   });
 
+  /* ---------- sending ---------- */
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (busy) return;
-    const text = ta.value.replace(/\s+$/, '');
-    if (!text.trim() && !(thread && picked)) { say(thread ? 'write something, or add an image' : 'a thread begins with words', true); ta.focus(); return; }
-    let token = '';
-    if (api.turnstile) {
-      token = (window.turnstile && tsWidget !== null) ? window.turnstile.getResponse(tsWidget) : '';
-      if (!token) { say('one moment: the check is not finished', true); return; }
-    }
-    busy = true; send.disabled = true; say('sending…');
+    busy = true; send.disabled = true; retry.hidden = true;
     try {
-      const r = await api.post({ thread, text, image: picked, turnstile: token });
+      if (preparing) { say('one moment: the picture is still turning into fog…'); await preparing; }
+      const words = normalized(ta.value);
+      const n = Array.from(words).length, lines = words ? words.split('\n').length : 0;
+      if (!words.trim() && !(thread && picked)) throw refusal('text_required');
+      if (n > limits.text.chars) throw refusal('text_long', { n, limit: limits.text.chars });
+      if (lines > limits.text.lines) throw refusal('text_lines', { n: lines, limit: limits.text.lines });
+      let token = '';
+      if (api.turnstile) { say('a quick check that keeps robots out…'); token = await tsToken(); }
+      say('sending…');
+      const r = await api.post({ thread, text: ta.value.replace(/\s+$/, ''), image: picked, turnstile: token });
       ta.value = ''; counted(); picked = null; chosen.hidden = true; pv.innerHTML = '';
       say(api.preview ? (api.persisted ? 'kept on this device.' : 'kept for this visit only: this browser will not store it.') : 'posted.');
-      if (api.turnstile && window.turnstile && tsWidget !== null) window.turnstile.reset(tsWidget);
       onPosted(r);
     } catch (err) {
-      say(err.message || 'the board did not answer', true);
-    } finally { busy = false; send.disabled = false; }
+      /* the words and the picture stay where they are */
+      refuse(err);
+      if (err && /^text_/.test(err.code)) ta.focus();
+    } finally {
+      busy = false; send.disabled = false;
+      if (api.turnstile) tsRenew();
+    }
   });
 
   return {
@@ -3820,10 +4466,12 @@ const ctx = {
   images: () => imagesOn,
   onPosted: (r) => {
     const h = '#forum/' + r.thread + '/' + r.n;
-    if (location.hash === h) show(route(), { force: true }); else { forceNext = true; location.hash = h; }
+    postedNext = r;
+    if (location.hash === h) show(route(), { force: true, posted: takePosted() }); else { forceNext = true; location.hash = h; }
   },
 };
-let forceNext = false;
+let forceNext = false, postedNext = null;
+const takePosted = () => { const r = postedNext; postedNext = null; return r; };
 
 function highlight(n, focus) {
   const post = $('p-' + n);
@@ -3846,6 +4494,12 @@ async function show(r, opts = {}) {
     if (r.n) highlight(r.n, true);
     return;
   }
+  /* a reply just posted to the thread on screen: the thread stays as it is, where it is, and only the new post rises
+     into it (no leaving, no jump to the top and back down to it) */
+  const inPlace = !!(opts.posted && r.thread && r.thread === current.thread && current.data);
+  /* the posts already on screen (read from the page: the thread's data may already hold the new one) */
+  const had = inPlace ? Math.max(0, ...Array.from(view.querySelectorAll('article[id^="p-"]'), (el) => +el.id.slice(2))) : 0;
+  if (inPlace) opts = Object.assign({}, opts, { keepScroll: true, quiet: true });
   const keep = opts.keepScroll ? scroller.scrollTop : 0;
   if (!first && !opts.quiet) view.classList.add('leaving');
   /* between the board and a thread the head changes shape (the lede goes, the title gets smaller): it leaves with
@@ -3885,18 +4539,22 @@ async function show(r, opts = {}) {
   view.classList.remove('leaving');
   forum.classList.remove('turning');
   if (!opts.quiet) enter(v.items);
+  else if (inPlace && !err) enter(v.items.filter((el) => { const a = el.querySelector && el.querySelector('article[id^="p-"]'); return a && +a.id.slice(2) > had; }));
   scroller.scrollTop = keep;
   document.title = (r.thread ? 'a thread · ' : '') + 'forum · aphes.ist';
   if (!opts.quiet) {
     announce(err ? 'not found' : r.thread ? 'thread, ' + data.posts.length + ' posts' : 'board, ' + data.threads.length + ' threads');
     if (r.thread && r.n) setTimeout(() => highlight(r.n, !first), 450);
     else if (!first) document.querySelector('h1').focus({ preventScroll: true });
+  } else if (inPlace && !err) {
+    announce('posted, post ' + r.n);
+    setTimeout(() => { if (my === seq) highlight(r.n, true); }, 120);
   }
   ground.refresh();
   first = false;
 }
 
-addEventListener('hashchange', () => { const f = forceNext; forceNext = false; show(route(), { force: f }); });
+addEventListener('hashchange', () => { const f = forceNext; forceNext = false; show(route(), { force: f, posted: f ? takePosted() : null }); });
 
 /* ---------- inside a thread: reply, report, open a picture ---------- */
 view.addEventListener('click', (e) => {

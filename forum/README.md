@@ -42,8 +42,20 @@ click away.
   `original` in the top-right corner, `close` or Escape to return. With `images · off`, or without WebGL, the page
   is words only (a `[picture: caption]` line with the original's link) or the still simulacrum, large.
 - **Posting**: a text area whose only line is a brushed baseline (rubedo while it has focus), `add an image`,
-  a count, `post` / `reply`, Ctrl or Cmd + Enter. A chosen picture is turned into its density map at once and shown as
-  it will appear. Turnstile renders only when a site key is configured.
+  a count, `post` / `reply`, Ctrl or Cmd + Enter. Under them, before anything is picked, the image limits as the board
+  states them ("images: jpeg, png, webp or gif, up to 4 mb and 40 megapixels. a larger one, or a heic this browser
+  opens, is made smaller here before it goes."). A chosen picture is turned into its density map at once and shown as
+  it will appear; an original the board would not take as it is (over its bytes or pixels, or a kind it does not
+  keep) goes as a jpeg copy that fits, and the line under the form says so. Turnstile renders only when a site key is
+  configured; its widget is drawn again whenever it has been lost (Turnstile forgets a widget whose box leaves the
+  page, as it does each time the site puts the section aside), and its answer is renewed after every try.
+- **When a post does not go**: one line under the form, in the accent and the text face, in a live region, says why,
+  and what was written and the picture chosen stay. Each refusal has its words, from the Worker's code (or the page's
+  own check before sending): too large (with the limit), a kind of image this browser cannot open, an image that could
+  not be read, too long (characters or lines, with the limit and the count), the check failed or ran out of time,
+  too fast (with the seconds to wait), a filtered word (the forum has no filter today; the code is answered if it
+  comes), the thread full or gone, the board not reached, the board's own stumble. `try again` follows the line when
+  sending the same post again may work (the check, the network, a stumble). `refusal.js` holds the codes and words.
 - **The preview**: with no API configured the page runs on a local mock, for working on the section: it starts as an
   empty board (the same quiet), pages like the real one, and holds whatever is posted, kept in this browser's storage
   only; `preview` under the lede and the send button say so in a tooltip.
@@ -65,7 +77,8 @@ click away.
 | `owner.js` | the owner's mark: the eye and the name, in place of the sigil, for a post the server marks `owner` |
 | `legible.js` | the legible look for forum pictures, on the design system's preset |
 | `thumb.js` | still simulacra: a density map rendered once into an SVG of square cells |
-| `density.js` | an uploaded picture → a density map, by the design system's rules |
+| `refusal.js` | why a post did not go: the board's limits, its refusal codes, and the words for each |
+| `density.js` | an uploaded picture → a density map, by the design system's rules, and an original the board takes |
 | `text.js` | escaping, `>>n` references, quoted lines, first lines, ages |
 | `store.js` | localStorage wrapped in try/catch, with a memory fallback |
 | `mock.js` | the local mock: an empty board that keeps what is posted here, paged like the Worker |
@@ -101,7 +114,9 @@ coalesces out of the fog, keeps a little erosion and a few lost points, and its 
     tone; everything else sharpened (unsharp mask, radius 1px, amount .4);
   - auto levels from the 1st to the 99.5th percentile, with a gamma that puts the median near .42;
   - a grayscale JPEG at the best quality under the Worker's byte limit (with a 6% margin). The original goes up
-    untouched beside it.
+    untouched beside it when the board takes it as it is; otherwise `prepareUpload` sends a jpeg copy of the whole
+    picture that fits (at most 4096 px on the long side and the board's pixels, quality .9 to .74, then a fifth
+    smaller at a time), so a phone's 12 MB photo, a 15 MB PNG or a HEIC Safari opens still goes.
   `prepareMap(file, {mode: 'hermetic'})` gives the system's hermetic preparation, for comparison.
 
 ## The sigil
@@ -142,4 +157,7 @@ variants, give thousands of distinct marks; 400 tokens give more than 390 differ
 Playwright with SwiftShader WebGL, served over http, at 1280×800 and 390×844, dark and light: every thread opened
 and left, a reply with a `>>` quote written by keyboard, the quote preview on hover and on focus, a picture attached
 through the file chooser and opened as a simulacrum, a new thread with an engraving, reload for persistence, images
-off, reports, frame captures checked for white or garbled frames, and page errors.
+off, reports, frame captures checked for white or garbled frames, and page errors. Posting with pictures of every
+kind (jpeg and png photos of 1 to 21 MB, a wide screenshot, webp, an animated gif, a heic, a damaged file), after
+leaving the section and coming back, and every refusal under the forms of a thread, a reply and the wall's line,
+against local Workers.

@@ -172,6 +172,9 @@ a.ref:hover, a.ref:focus-visible { color: var(--accent-text); }
 .count { color: var(--ink-soft); }
 .status { min-height: 1.7em; margin: var(--space-2) 0 0; }
 .status.err { color: var(--accent-text); }
+.status .retry { margin-left: var(--space-3); padding: var(--space-1) 0; vertical-align: baseline; }
+/* the image limits, said before a picture is picked: quiet, under the row that offers it */
+.hint { margin: var(--space-2) 0 0; color: var(--ink-soft); }
 .ts { margin-top: var(--space-3); }
 
 /* ---------- the viewer: one live simulacrum over the fog ---------- */

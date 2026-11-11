@@ -6,6 +6,7 @@
 
 import { load, save } from './store.js';
 import { hex } from './hash.js';
+import { refusal, LIMITS } from './refusal.js';
 
 const KEY = 'aphesis.forum.preview.v1';
 const PAGE = 40;
@@ -41,6 +42,7 @@ export function createMock() {
     get persisted() { return persisted; },
     /* the same limits as the Worker */
     densityLimits() { return Promise.resolve({ long: 960, bytes: 900 * 1024 }); },
+    limits() { return Promise.resolve(LIMITS); },
     /* one page below cursor ("<bumped>-<id>", the last thread of the page before), newest activity first */
     board(cursor) {
       const sorted = all().map((t) => {
@@ -66,7 +68,7 @@ export function createMock() {
     },
     thread(id) {
       const t = all().find((x) => x.id === id);
-      if (!t) return Promise.reject(Object.assign(new Error('this thread is gone'), { status: 404 }));
+      if (!t) return Promise.reject(refusal('thread_gone', { status: 404 }, 'this thread is gone'));
       const reported = local().reports;
       t.posts.forEach((p) => {
         if (p.image && p.image.originalKey) p.image.original = originals.get(p.image.originalKey) || null;
@@ -75,6 +77,11 @@ export function createMock() {
       return wait(t);
     },
     async post({ thread, text, image }) {
+      /* the words as the Worker checks them */
+      const words = String(text || '').replace(/\r\n?/g, '\n').replace(/\n{4,}/g, '\n\n\n').replace(/\s+$/, '');
+      if ((!thread || !image) && !words.trim()) throw refusal('text_required', { status: 400 });
+      if (Array.from(words).length > LIMITS.text.chars) throw refusal('text_long', { status: 400, limit: LIMITS.text.chars });
+      if (words.split('\n').length > LIMITS.text.lines) throw refusal('text_lines', { status: 400, limit: LIMITS.text.lines });
       const s = local(), now = Date.now();
       const id = thread || hex('t:' + s.device + now, 10);
       const post = { poster: hex(s.device + ':' + id, 12), text, created: now, image: null };
@@ -94,7 +101,7 @@ export function createMock() {
         n = s.threads[thread].posts.length + 1;
         s.threads[thread].posts.push(Object.assign({ n }, post));
       } else {
-        throw Object.assign(new Error('this thread is gone'), { status: 404 });
+        throw refusal('thread_gone', { status: 404 }, 'this thread is gone');
       }
       keep();
       if (!persisted && post.image && post.image.original && post.image.original.length > 200000) {

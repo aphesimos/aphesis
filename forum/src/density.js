@@ -17,20 +17,27 @@
    - a black margin of 5% around the picture, so the simulacrum's soft edge falls on the margin, not on the content.
    prepareMap(file, {mode: 'hermetic'}) gives the design system's original preparation instead (30th percentile,
    gamma 0.8, a 1px blur on light grounds), kept for comparison.
-   The original file goes up beside the map, untouched, so it stays a click away. */
+   The original file goes up beside the map, untouched, so it stays a click away, when the board takes it as it is
+   (jpeg, png, webp or gif, within the board's bytes and pixels). Otherwise prepareUpload() makes a copy that fits:
+   a jpeg of the whole picture, as large as fits (at most 4096px on the long side), so a phone's 12 MB photo or a
+   heic that this browser can open still goes, as a picture a little smaller than it was. */
 
+import { refusal, LIMITS } from './refusal.js';
+
+/* the types the board stores as they are; the picker offers any image, and the rest are converted when this browser
+   can open them */
 export const ACCEPT = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-export const MAX_BYTES = 4 * 1024 * 1024;
 const LONG = 640, MIN_LONG = 480;
 
-export function checkFile(file) {
-  if (!file) return 'no file';
-  if (!ACCEPT.includes(file.type)) return 'only jpeg, png, webp or gif';
-  if (file.size > MAX_BYTES) return 'images up to 4 mb';
-  return '';
+/* "heic" for photo.HEIC (the name says it as people know it), else from the type, for the words that say it cannot
+   be opened */
+function kindOf(file) {
+  const t = String(file.type || '').toLowerCase().replace(/^image\//, '').replace(/^x-/, '');
+  const ext = (String(file.name || '').match(/\.([a-z0-9]{2,5})$/i) || [])[1];
+  return (ext || '').toLowerCase() || (t && t.length <= 12 ? t : '');
 }
 
-async function decode(file) {
+export async function decode(file) {
   if (typeof createImageBitmap === 'function') {
     try { return await createImageBitmap(file); } catch (_) { /* fall through to <img> */ }
   }
@@ -117,10 +124,10 @@ function percentile(sorted, p) { return sorted[Math.min(sorted.length - 1, Math.
 /* limits: {long, bytes}, what the board takes (api.densityLimits()); 640 px and 400 KB when not given */
 export function toDensity(file, limits) { return prepareMap(file, { limits }); }
 
-export async function prepareMap(file, { mode = 'legible', limits } = {}) {
+export async function prepareMap(file, { mode = 'legible', limits, source } = {}) {
   const maxLong = Math.min(960, (limits && limits.long) || LONG), maxBytes = Math.round(((limits && limits.bytes) || 400 * 1024) * 0.94);
   const hermetic = mode === 'hermetic';
-  const src = await decode(file);
+  const src = source || await decode(file);
   const sw = src.width || src.naturalWidth, sh = src.height || src.naturalHeight;
   if (!sw || !sh) throw new Error('decode');
   /* a small working copy to find the borders and the ground */
@@ -162,7 +169,7 @@ export async function prepareMap(file, { mode = 'legible', limits } = {}) {
   ox.drawImage(src, cx, cy, cw, ch, P, P, IW, IH);
   if (soft && !viaFilter) window.Aphesis.blur2d(ox, 1);
   ox.filter = 'none';
-  if (src.close) src.close();
+  if (src.close && !source) src.close();
   const img = ox.getImageData(0, 0, W, H);
   const lum = luminance(img.data);
   if (lightGround) for (let i = 0; i < lum.length; i++) lum[i] = 1 - lum[i];
@@ -193,4 +200,52 @@ export async function prepareMap(file, { mode = 'legible', limits } = {}) {
   }
   const url = out.toDataURL('image/jpeg', Math.max(0.5, q));
   return { blob, url, width: W, height: H, inverted: lightGround };
+}
+
+/* the original as the board takes it: the file itself when it fits, else a jpeg copy of the whole picture that does
+   (white under any transparency, as large as fits, quality .9 down to .74, then smaller by a fifth at a time) */
+async function fitOriginal(file, src, sw, sh, lim) {
+  if (ACCEPT.includes(file.type) && file.size <= lim.bytes && sw * sh <= lim.pixels) return file;
+  const budget = lim.bytes * 0.97;
+  let long = Math.min(Math.max(sw, sh), 4096, Math.floor(Math.sqrt(lim.pixels * Math.max(sw, sh) / Math.min(sw, sh))));
+  const c = document.createElement('canvas'), x = c.getContext('2d');
+  for (; long >= 640; long = Math.round(long * 0.8)) {
+    const s = long / Math.max(sw, sh);
+    c.width = Math.max(1, Math.round(sw * s)); c.height = Math.max(1, Math.round(sh * s));
+    x.imageSmoothingQuality = 'high';
+    x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+    x.drawImage(src, 0, 0, c.width, c.height);
+    for (const q of [0.9, 0.82, 0.74]) {
+      const blob = await new Promise((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('encode'))), 'image/jpeg', q));
+      if (blob.size <= budget) {
+        c.width = c.height = 0;
+        return new File([blob], String(file.name || 'image').replace(/\.[a-z0-9]{2,5}$/i, '') + '.jpg', { type: 'image/jpeg' });
+      }
+    }
+  }
+  c.width = c.height = 0;
+  throw refusal(file.size > lim.bytes ? 'image_too_large' : 'image_pixels', { limit: file.size > lim.bytes ? lim.bytes : lim.pixels });
+}
+
+/* a picked file -> {density, original, resized, why, kind, from}: the map, and the original that goes beside it (the file, or a
+   copy that fits the board). Refusals carry their code: image_type (this browser cannot open that kind: a heic on
+   most browsers), image_unreadable (a damaged or partial file), image_too_large / image_pixels (no copy fits). */
+export async function prepareUpload(file, limits = LIMITS) {
+  if (!file || !file.size) throw refusal('image_unreadable');
+  let src;
+  try { src = await decode(file); } catch (_) {
+    throw ACCEPT.includes(file.type) ? refusal('image_unreadable') : refusal('image_type', { kind: kindOf(file) });
+  }
+  try {
+    const sw = src.width || src.naturalWidth, sh = src.height || src.naturalHeight;
+    if (!sw || !sh) throw refusal('image_unreadable');
+    const density = await prepareMap(file, { limits: limits.density, source: src });
+    const original = await fitOriginal(file, src, sw, sh, limits.original);
+    const resized = original !== file;
+    /* why a copy goes: a kind the board does not keep, too many bytes, or too many pixels */
+    const why = !resized ? '' : !ACCEPT.includes(file.type) ? 'kind' : file.size > limits.original.bytes ? 'bytes' : 'pixels';
+    return { density, original, resized, why, kind: kindOf(file), from: file.size };
+  } catch (e) {
+    throw e && e.code ? e : refusal('image_unreadable');
+  } finally { if (src.close) src.close(); }
 }

@@ -13,9 +13,13 @@
      post({thread?, text, image?, turnstile?}) -> {thread, n}   image: {original: File, density: {blob, url, width, height}}
      report(thread, n)               -> {ok}
      densityLimits()                 -> {long, bytes}: the density maps the board takes (640 px from an older Worker)
-   image (as returned): {density: URL, original: URL | null, caption, w, h} */
+     limits()                        -> {request, original: {bytes, pixels}, density: {long, bytes}, text: {chars, lines}}
+   image (as returned): {density: URL, original: URL | null, caption, w, h}
+   A refusal rejects with an Error carrying its code (refusal.js): the Worker's own, or `network` when the board could
+   not be reached at all. */
 
 import { createMock } from './mock.js';
+import { fromAnswer, refusal, boardLimits } from './refusal.js';
 
 function config() {
   const meta = (n) => { const m = document.querySelector('meta[name="' + n + '"]'); return m ? m.content.trim() : ''; };
@@ -26,8 +30,14 @@ function config() {
 async function json(res) {
   let body = null;
   try { body = await res.json(); } catch (_) { /* not json */ }
-  if (!res.ok) throw Object.assign(new Error((body && body.error) || 'the board did not answer'), { status: res.status });
+  if (!res.ok) throw fromAnswer(res.status, body || { error: 'the board did not answer' });
   return body;
+}
+
+/* fetch, with a board that cannot be reached (offline, refused on the way, an answer the browser may not read)
+   said as such */
+async function call(url, init) {
+  try { return await fetch(url, init); } catch (e) { throw refusal('network', { cause: e }, 'the board could not be reached'); }
 }
 
 /* the density map's limits: what a Worker says it takes on its board's pages ({density: {long, bytes}}); a Worker
@@ -39,7 +49,7 @@ function readLimits(b) {
 }
 
 function createRemote(base, turnstile) {
-  let limits = null;
+  let limits = null, all = null;
   const abs = (u) => (u && !/^(https?:|data:|blob:)/.test(u) ? base + u : u);
   const fixImage = (im) => (im ? Object.assign({}, im, { density: abs(im.density), original: abs(im.original) }) : null);
   return {
@@ -47,21 +57,27 @@ function createRemote(base, turnstile) {
     turnstile,
     persisted: true,
     async board(cursor) {
-      const b = await json(await fetch(base + '/api/board' + (cursor ? '?cursor=' + encodeURIComponent(cursor) : '')));
+      const b = await json(await call(base + '/api/board' + (cursor ? '?cursor=' + encodeURIComponent(cursor) : '')));
       b.threads.forEach((t) => { t.image = fixImage(t.image); });
       limits = readLimits(b);
+      all = Object.assign(boardLimits(b.limits), { density: limits });
       /* a Worker from before pages answers threads alone: one page, the last */
       return { threads: b.threads, next: b.next || null };
     },
     /* the limits, asked once of the board (one thread is enough) when the page opened on a thread */
     async densityLimits() {
       if (!limits) {
-        try { limits = readLimits(await json(await fetch(base + '/api/board?limit=1'))); } catch (_) { return OLD_LIMITS; }
+        try { const b = await json(await call(base + '/api/board?limit=1')); limits = readLimits(b); all = Object.assign(boardLimits(b.limits), { density: limits }); } catch (_) { return OLD_LIMITS; }
       }
       return limits;
     },
+    /* every limit the board says (the current backend's for any it leaves out; the old map size from an old Worker) */
+    async limits() {
+      if (!all) await this.densityLimits();
+      return all || Object.assign(boardLimits(null), { density: OLD_LIMITS });
+    },
     async thread(id) {
-      const t = await json(await fetch(base + '/api/threads/' + encodeURIComponent(id)));
+      const t = await json(await call(base + '/api/threads/' + encodeURIComponent(id)));
       t.posts.forEach((p) => { p.image = fixImage(p.image); });
       return t;
     },
@@ -76,10 +92,10 @@ function createRemote(base, turnstile) {
         f.append('h', String(image.density.height));
       }
       const url = thread ? base + '/api/threads/' + encodeURIComponent(thread) + '/posts' : base + '/api/threads';
-      return json(await fetch(url, { method: 'POST', body: f }));
+      return json(await call(url, { method: 'POST', body: f }));
     },
     async report(thread, n) {
-      return json(await fetch(base + '/api/threads/' + encodeURIComponent(thread) + '/posts/' + n + '/report', { method: 'POST' }));
+      return json(await call(base + '/api/threads/' + encodeURIComponent(thread) + '/posts/' + n + '/report', { method: 'POST' }));
     },
   };
 }

@@ -1,6 +1,6 @@
 <title>aphes.ist wall</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="wall · paries: anonymous lines. each one fades after thirty days.">
+<meta name="description" content="wall · paries: anonymous lines drifting in the fog. leave one.">
 <!--__CONFIG__-->
 <style>
 /*__CSS__*/
@@ -13,18 +13,18 @@
 <main id="wall">
   <header id="wallHead" class="aph-ink">
     <p class="gloss-title aph-gloss aph-on-fog" lang="la" aria-hidden="true">paries</p>
-    <h1 class="title aph-display aph-on-fog">wall <span class="sr">· <span lang="la">paries</span>: anonymous lines</span></h1>
+    <h1 class="title aph-display aph-on-fog">wall <span class="sr">· <span lang="la">paries</span>: anonymous lines in the fog</span></h1>
   </header>
 
   <form id="composer" autocomplete="off" novalidate>
     <label class="sr" for="line">a line for the wall, 140 characters at most, no names</label>
     <div class="write">
       <input id="line" name="line" type="text" maxlength="140" enterkeyhint="send" spellcheck="false" autocomplete="off"
-        autocapitalize="none" placeholder="write a line" data-text-placeholder="wall.placeholder" class="aph-on-fog aph-ink" data-cursor=".55"
-        data-tip="one line · no names · gone after thirty days" data-text-tip="wall.helper" aria-describedby="status">
+        autocapitalize="none" placeholder="leave a line in the fog" data-text-placeholder="wall.placeholder" class="aph-on-fog aph-ink" data-cursor=".55"
+        data-tip="one line · no names · it fades after thirty days" data-text-tip="wall.helper" aria-describedby="status">
       <span class="mirror" aria-hidden="true"></span>
       <span class="caret blink" aria-hidden="true">_</span>
-      <button id="send" type="submit" class="aph-label aph-on-fog" data-cursor=".55" data-tip="send · enter">send</button>
+      <button id="send" type="submit" class="aph-label aph-on-fog" data-cursor=".55" data-tip="or press enter">send</button>
     </div>
     <svg class="baseline" aria-hidden="true" focusable="false" preserveAspectRatio="none"></svg>
     <p class="under"><span id="status" class="aph-meta aph-on-fog aph-ink" role="status" aria-live="polite"></span><span id="count" class="aph-meta aph-on-fog aph-ink" aria-hidden="true"></span></p>
@@ -32,7 +32,7 @@
   </form>
 
   <ul id="lines" class="aph-ink" aria-label="lines on the wall"></ul>
-  <p id="hush" class="aph-ink" aria-hidden="true"><span class="aph-gloss aph-on-fog" lang="la" data-tip="silence">silentium</span><span class="aph-meta aph-on-fog" data-text="wall.empty">no lines yet.</span></p>
+  <p id="hush" class="aph-ink" aria-hidden="true"><span class="aph-gloss aph-on-fog" lang="la" data-tip="silence">silentium</span><span class="aph-meta aph-on-fog" data-text="wall.empty">the wall is quiet. the first line is yours.</span></p>
 </main>
 
 <div class="corner" id="controls">

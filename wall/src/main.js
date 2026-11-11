@@ -71,7 +71,7 @@ function say(text, refused) {
   quiet = setTimeout(() => { status.textContent = IDLE; status.classList.remove('refused'); status.classList.add('aph-ink'); }, refused ? 6000 : 4200);
 }
 status.textContent = IDLE;
-if (!api.live) $('line').dataset.tip = 'one line · no names · preview: it stays on this device';
+if (!api.live) $('line').dataset.tip = 'one line · no names · this preview keeps it on this device only';
 
 /* an empty wall is quiet, not broken: one gloss and one line in the middle of the field, until a line arrives */
 const hush = $('hush');

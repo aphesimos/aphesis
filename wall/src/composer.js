@@ -15,8 +15,8 @@ const A = window.Aphesis;
 const T = (key, own) => (A.text ? A.text(key, own) : own);
 
 const WORDS = {
-  word: "that word isn't allowed.",
-  link: 'no links.',
+  word: 'the fog will not carry that word.',
+  link: 'no links on the wall.',
   long: 'one line, ' + MAX_LENGTH + ' characters at most.',
   empty: 'write a line first.',
   turnstile: 'the check did not pass. try once more.',
@@ -150,7 +150,7 @@ export function createComposer(form, { api, onSent, say }) {
     }
     busy = true;
     form.classList.add('busy');
-    say('sending…');
+    say('condensing…');
     const res = await api.post(v.text, await token());
     if (useTurnstile && widget !== null) try { window.turnstile.reset(widget); } catch (_) { /* nothing to reset */ }
     busy = false;
@@ -160,7 +160,7 @@ export function createComposer(form, { api, onSent, say }) {
       return;
     }
     release(v.text);
-    say(api.live ? T('wall.sent', 'posted.') : 'saved on this device.');
+    say(api.live ? T('wall.sent', 'it is in the fog now.') : 'it is in the fog now, on this device.');
     setTimeout(() => onSent(res.message), 520);
   });
 

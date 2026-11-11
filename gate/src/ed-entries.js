@@ -68,7 +68,7 @@ export function createEntriesEditor({ api, root, kind }) {
 
   async function load() {
     const r = await api.list(kind);
-    if (r.status !== 200) { status(say, r.data.error || "couldn't load them", true); return; }
+    if (r.status !== 200) { status(say, r.data.error || 'they did not come', true); return; }
     items = r.data[kind];
     listEl.replaceChildren(...items.map((e) => h('li', { class: 'entry' },
       h('button', { type: 'button', class: 'entry-link', 'data-cursor': '.55', onclick: () => open(e[K.key]), 'data-slug': e[K.key] },
@@ -134,9 +134,9 @@ export function createEntriesEditor({ api, root, kind }) {
       try {
         const d = await toDensity(fl);
         const r = await api.upload(d.blob);
-        if (r.status !== 201) { status(say, r.data.error || "the picture didn't upload", true); return; }
+        if (r.status !== 201) { status(say, r.data.error || 'the picture did not go', true); return; }
         pic = { key: r.data.key, w: r.data.w, h: r.data.h, url: r.data.url };
-        showPic(); status(say, 'picture uploaded'); refresh();
+        showPic(); status(say, 'the picture is up'); refresh();
       } catch (_) { status(say, 'this picture could not be read', true); }
     });
 
@@ -160,7 +160,7 @@ export function createEntriesEditor({ api, root, kind }) {
     async function save() {
       const o = entry();
       const r = await api.save(kind, saved || o[K.key], o);
-      if (r.status !== 200 && r.status !== 201) { status(say, r.data.error || 'not saved', true); return false; }
+      if (r.status !== 200 && r.status !== 201) { status(say, r.data.error || 'it did not save', true); return false; }
       const back = r.data[K.one]; saved = back[K.key]; e.published = back.published; dirty = false; state(); status(say, 'saved');
       return true;
     }
@@ -169,9 +169,9 @@ export function createEntriesEditor({ api, root, kind }) {
       if (!saved) { status(say, 'save it first', true); return; }
       if (dirty && !(await save())) return;
       const r = await api.publish(kind, saved, !e.published);
-      if (r.status !== 200) { status(say, r.data.error || "that didn't work", true); return; }
+      if (r.status !== 200) { status(say, r.data.error || 'no', true); return; }
       e.published = r.data[K.one].published; setLabel(pub, pubLabel()); state();
-      status(say, e.published ? 'published' : 'unpublished');
+      status(say, e.published ? 'published: it is on the site now' : 'back to a draft');
     });
     const stateEl = h('span', { class: 'aph-meta aph-ink state' });
     const state = () => { stateEl.textContent = (saved ? (e.published ? 'published' : 'draft') : 'not saved yet') + (dirty ? ' · changed' : ''); };
@@ -234,7 +234,7 @@ export function createEntriesEditor({ api, root, kind }) {
           h('div', { class: 'acts' }, act('save', save), pub, sure('delete', async () => {
             if (!saved) { close(); return; }
             const r = await api.remove(kind, saved);
-            if (r.status !== 200) { status(say, r.data.error || "that didn't work", true); return; }
+            if (r.status !== 200) { status(say, r.data.error || 'no', true); return; }
             close();
           })),
           say),

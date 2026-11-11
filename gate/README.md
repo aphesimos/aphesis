@@ -9,7 +9,7 @@ dashboard and its gate").
 ## The gate
 
 **Step 1.** The eye, the design system's `Aphesis.Eye` (components/Eye on `design-system`): the theme switch's eye (the shell's `EYE` and `Aphesis.ICONS.eye`: two brushed lids and a
-stippled iris; closed, one lid and three lashes), stands above a single brushed baseline. No label, no word (a screen reader hears `password`, and on the second line `the code from the email`). The
+stippled iris; closed, one lid and three lashes), stands above a single brushed baseline. No label, no word. The
 typewriter's underscore blinks on the line as the caret; each character of the password lands on it as a grain of
 stipple (three or four 2 px cells on 7 px, 9 px apart), the group centred on the line and growing outward from
 the middle, the caret at its right end; Enter sends it. Nothing can leave the line: each line holds

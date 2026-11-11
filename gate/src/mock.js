@@ -32,10 +32,9 @@ export function createMockApi() {
   };
   /* a few of the site's texts (the real list is the content service's, backend/content/src/texts.rs) */
   const texts = [
-    ['home.sections.music.description', 'home', 'music: its line on the home', 'my music folder. mostly lossless.'],
     ['music.lede', 'music', 'lede', 'my music folder. mostly lossless.'],
-    ['wall.placeholder', 'wall', 'the empty line', 'write a line'],
-    ['forum.empty', 'forum', 'the board with no threads', 'no threads yet.'],
+    ['wall.placeholder', 'wall', 'the empty line', 'leave a line in the fog'],
+    ['forum.empty', 'forum', 'the board with no threads', 'the agora is quiet. start a thread, and the first word is yours.'],
   ].map(([key, screen, label, d]) => ({ key, screen, label, default: d, value: d, overridden: false, version: 0, updated: null }));
   let reports = [{ thread: 'k3m9p2x7aa', n: 3, count: 2, at: Date.now() - 2e6 }];
   let session = false, pending = false, tries = 0, fails = 0, lockedUntil = 0;
@@ -92,7 +91,7 @@ export function createMockApi() {
     },
     thread(id) { if (!session) return no(); return threads[id] ? ok(structuredClone(threads[id])) : no(404); },
     reports() { if (!session) return no(); return ok({ reports: reports.slice() }); },
-    texts() { if (!session) return no(); return ok({ screens: ['home', 'archive', 'laboratory', 'wall', 'forum', 'music'], texts: structuredClone(texts) }); },
+    texts() { if (!session) return no(); return ok({ screens: ['archive', 'laboratory', 'wall', 'forum', 'music'], texts: structuredClone(texts) }); },
     textSave(k, value, version) {
       if (!session) return no();
       const t = texts.find((x) => x.key === k); if (!t) return no(404);

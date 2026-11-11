@@ -22,7 +22,7 @@ export function createArchiveEditor({ api, root, onDirty }) {
 
   async function load() {
     const r = await api.list('posts');
-    if (r.status !== 200) { status(say, r.data.error || "couldn't load the posts", true); return; }
+    if (r.status !== 200) { status(say, r.data.error || 'the posts did not come', true); return; }
     posts = r.data.posts;
     listEl.replaceChildren(...posts.map((p) => h('li', { class: 'entry' },
       h('button', { type: 'button', class: 'entry-link', 'data-cursor': '.55', onclick: () => open(p.slug), 'data-slug': p.slug },
@@ -95,12 +95,12 @@ export function createArchiveEditor({ api, root, onDirty }) {
       try {
         const d = await toDensity(file);
         const r = await api.upload(d.blob);
-        if (r.status !== 201) { status(say, r.data.error || "the picture didn't upload", true); return; }
+        if (r.status !== 201) { status(say, r.data.error || 'the picture did not go', true); return; }
         figs = figs.filter((x) => x.name !== name).concat([{ name, key: r.data.key, w: r.data.w, h: r.data.h, url: r.data.url }]);
         drawFigs();
         if (!f.body.value.includes(`simulacrum:${name})`)) f.body.value += `\n\n![caption · artist, year](simulacrum:${name})\n`;
         figName.value = '';
-        status(say, 'picture uploaded: ' + name);
+        status(say, 'the picture is up: ' + name);
         refresh();
       } catch (_) { status(say, 'this picture could not be read', true); }
     });
@@ -110,9 +110,9 @@ export function createArchiveEditor({ api, root, onDirty }) {
       if (!saved) { status(say, 'save it first', true); return; }
       if (dirty) await save();
       const r = await api.publish('posts', saved, !p.published);
-      if (r.status !== 200) { status(say, r.data.error || "that didn't work", true); return; }
+      if (r.status !== 200) { status(say, r.data.error || 'no', true); return; }
       p.published = r.data.post.published; pub.querySelector('.act-t').textContent = pubLabel(); state();
-      status(say, p.published ? 'published' : 'unpublished');
+      status(say, p.published ? 'published: it is on the site now' : 'back to a draft');
     });
     const stateEl = h('span', { class: 'aph-meta aph-ink state' });
     const state = () => { stateEl.textContent = (saved ? (p.published ? 'published' : 'draft') : 'not saved yet') + (dirty ? ' · changed' : ''); };
@@ -126,7 +126,7 @@ export function createArchiveEditor({ api, root, onDirty }) {
     async function save() {
       const e = entry();
       const r = await api.save('posts', saved || e.slug, e);
-      if (r.status !== 200 && r.status !== 201) { status(say, r.data.error || 'not saved', true); return false; }
+      if (r.status !== 200 && r.status !== 201) { status(say, r.data.error || 'it did not save', true); return false; }
       saved = r.data.post.slug; p.published = r.data.post.published; dirty = false; state(); onDirty && onDirty(false);
       status(say, 'saved');
       return true;
@@ -174,7 +174,7 @@ export function createArchiveEditor({ api, root, onDirty }) {
           h('div', { class: 'acts' }, act('save', save), pub, sure('delete', async () => {
             if (!saved) { close(); return; }
             const r = await api.remove('posts', saved);
-            if (r.status !== 200) { status(say, r.data.error || "that didn't work", true); return; }
+            if (r.status !== 200) { status(say, r.data.error || 'no', true); return; }
             close();
           })),
           say, errs),

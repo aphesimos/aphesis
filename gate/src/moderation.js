@@ -18,7 +18,7 @@ export function createModeration({ api, root }) {
   const boardEl = h('ol', { class: 'mod-list', 'aria-label': 'threads' });
   const threadEl = h('div', { class: 'mod-thread' });
   const pane = h('section', { class: 'pane mod' },
-    h('div', { class: 'pane-head' }, act('reload', () => load()), say),
+    h('div', { class: 'pane-head' }, act('again', () => load()), say),
     h('div', { class: 'mod-cols' },
       h('div', {}, h('h2', { class: 'mod-h aph-display aph-ink' }, 'wall ', h('span', { class: 'aph-gloss', lang: 'la', text: 'paries' })), wallEl),
       h('div', {}, h('h2', { class: 'mod-h aph-display aph-ink' }, 'forum ', h('span', { class: 'aph-gloss', lang: 'grc', text: 'ἀγορά' })),
@@ -27,11 +27,11 @@ export function createModeration({ api, root }) {
 
   async function loadWall() {
     const r = await api.wall();
-    if (r.status !== 200) { wallEl.replaceChildren(h('li', { class: 'aph-meta aph-ink', text: r.data.error || "the wall didn't answer" })); return; }
+    if (r.status !== 200) { wallEl.replaceChildren(h('li', { class: 'aph-meta aph-ink', text: r.data.error || 'the wall did not answer' })); return; }
     const lines = r.data.messages || [];
     wallEl.replaceChildren(...lines.map((m) => h('li', { 'data-id': m.id },
       h('span', { class: 'mod-text aph-ink', text: m.text }), h('span', { class: 'aph-meta aph-ink', text: ago(m.at) }),
-      sure('remove', async () => { const x = await api.wallRemove(m.id); if (x.status === 200) { status(say, 'line removed'); loadWall(); } else status(say, x.data.error || "that didn't work", true); }))));
+      sure('remove', async () => { const x = await api.wallRemove(m.id); if (x.status === 200) { status(say, 'the line is gone'); loadWall(); } else status(say, x.data.error || 'no', true); }))));
     if (!lines.length) wallEl.append(h('li', { class: 'aph-meta aph-ink', text: 'the wall is empty.' }));
   }
   async function loadForum() {
@@ -42,7 +42,7 @@ export function createModeration({ api, root }) {
         h('span', { class: 'aph-ink', text: `thread ${x.thread} · post ${x.n}` }), h('span', { class: 'aph-meta aph-ink', text: `${x.count} ${x.count === 1 ? 'report' : 'reports'} · ${ago(x.at)}` }),
         act('read', () => openThread(x.thread, x.n)))));
       if (!list.length) reportsEl.append(h('li', { class: 'aph-meta aph-ink', text: 'no reports.' }));
-    } else reportsEl.replaceChildren(h('li', { class: 'aph-meta aph-ink', text: rep.data.error || "the forum didn't answer" }));
+    } else reportsEl.replaceChildren(h('li', { class: 'aph-meta aph-ink', text: rep.data.error || 'the forum did not answer' }));
     if (board.status === 200) {
       boardEl.replaceChildren();
       page(board.data);
@@ -59,15 +59,15 @@ export function createModeration({ api, root }) {
   }
   async function openThread(id, mark) {
     const r = await api.thread(id);
-    if (r.status !== 200) { status(say, r.data.error || 'that thread is gone', true); loadForum(); return; }
+    if (r.status !== 200) { status(say, r.data.error || 'the thread is gone', true); loadForum(); return; }
     threadEl.replaceChildren(h('h3', { class: 'aph-label aph-ink', text: 'thread ' + id }),
       h('ol', { class: 'mod-list' }, ...r.data.posts.map((p) => h('li', { class: p.n === mark ? 'marked' : null, 'data-n': p.n },
         h('span', { class: 'aph-meta aph-ink', text: '#' + p.n }),
         h('span', { class: 'mod-text aph-ink', text: p.removed ? '(removed)' : (p.text || '(a picture)') }),
         p.removed ? null : sure(p.n === 1 ? 'remove the thread' : 'remove', async () => {
           const x = await api.forumRemove(id, p.n);
-          if (x.status !== 200) { status(say, x.data.error || "that didn't work", true); return; }
-          status(say, x.data.thread === 'removed' ? 'thread removed' : 'post removed');
+          if (x.status !== 200) { status(say, x.data.error || 'no', true); return; }
+          status(say, x.data.thread === 'removed' ? 'the thread is gone' : 'the post is gone');
           if (x.data.thread === 'removed') threadEl.replaceChildren(); else openThread(id);
           loadForum();
         })))));

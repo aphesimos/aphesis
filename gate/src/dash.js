@@ -19,7 +19,7 @@ export function createDash({ api, root, onLeave }) {
   const panes = {}, made = {};
   const nav = h('nav', { class: 'places', 'aria-label': 'the desk' });
   const body = h('div', { class: 'desk-body' });
-  const leave = act('leave', async () => { await api.logout(); onLeave(); }, { class: 'act aph-label leave', 'data-tip': 'sign out' });
+  const leave = act('leave', async () => { await api.logout(); onLeave(); }, { class: 'act aph-label leave', 'data-tip': 'close the desk and the session' });
   const tabs = PLACES.map((p) => {
     const b = h('button', { type: 'button', class: 'place', role: 'tab', 'aria-selected': 'false', 'data-cursor': '.55', 'data-place': p.id, onclick: () => show(p.id) },
       h('span', { class: 'aph-label', text: p.name }), h('span', { class: 'aph-gloss', lang: p.lang, text: p.gl }));

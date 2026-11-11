@@ -12,7 +12,7 @@ export function createApi(base) {
     else if (body !== undefined) { init.body = JSON.stringify(body); init.headers['Content-Type'] = 'application/json'; }
     if (method !== 'GET' && csrf) init.headers['X-CSRF-Token'] = csrf;
     let r;
-    try { r = await fetch(root + path, init); } catch (_) { return { status: 0, data: { error: "the service didn't answer" } }; }
+    try { r = await fetch(root + path, init); } catch (_) { return { status: 0, data: { error: 'the service did not answer' } }; }
     let data = null;
     try { data = await r.json(); } catch (_) { data = {}; }
     return { status: r.status, data };

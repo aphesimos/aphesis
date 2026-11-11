@@ -8,9 +8,9 @@ loads it from Google Fonts; it is vendored here so the page carries both faces.
 
   python3 wall/build.py                 # writes wall/index.html (a full document)
   python3 wall/build.py --fragment OUT  # writes the same page without <!doctype>/<html>/<head>/<body>
-  python3 wall/build.py --api https://wall-api.example.com --sitekey 0x4AAA...   # a page wired to a live wall
+  python3 wall/build.py --api https://wall-api.aphes.ist --sitekey 0x4AAA...   # a page wired to a live wall
 
-Without --api the page runs the local preview (example lines, the visitor's own lines kept in local storage).
+Without --api the page runs the local preview (no lines but the visitor's own, kept in local storage).
 
 The modules in src/ are plain ES modules with named exports. For this page they are concatenated in
 dependency order into one script, each in its own function scope (imports read from a registry); in the Astro site they can be
@@ -63,7 +63,7 @@ def tokens_css(tok):
 
 
 # ---------- modules ----------
-ORDER = ['motion.js', 'filter.js', 'seeds.js', 'api.js', 'drift.js', 'composer.js', 'main.js']
+ORDER = ['motion.js', 'filter.js', 'api.js', 'drift.js', 'composer.js', 'main.js']
 SOURCES = {'filter.js': os.path.join(D, 'worker', 'src', 'filter.js')}
 
 

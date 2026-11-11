@@ -50,6 +50,15 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 .title { margin: 0; font-size: clamp(44px, 8vw, 96px); line-height: var(--type-title-line); padding: 0 .2em; }
 
+/* ---------- the quiet: an empty wall, one gloss and one line in the middle of the field ---------- */
+#hush {
+  position: absolute; left: 0; right: 0; top: 50%; margin: 0; text-align: center; pointer-events: none;
+  opacity: 0; transition: opacity var(--duration-scene) var(--easing-settle);
+}
+#hush.on { opacity: 1; pointer-events: auto; }
+#hush .aph-gloss { display: block; font-size: var(--type-gloss-size); line-height: 1.4; padding: 0 .2em; }
+#hush .aph-meta { display: block; margin-top: var(--space-2); color: var(--ink-soft); padding: 0 var(--space-4); }
+
 /* ---------- the lines ---------- */
 #lines { list-style: none; margin: 0; padding: 0; position: absolute; inset: 0; pointer-events: none; }
 .line {

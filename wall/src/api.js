@@ -1,16 +1,15 @@
 /* api: the wall's lines, from the Worker when one is configured, otherwise from a local preview.
 
    The base URL comes from <meta name="aphesis:wall-api" content="https://..."> (build.py --api) or
-   window.APHESIS_WALL_API. Without one the wall is a preview: the seed lines, marked as examples, and whatever this
-   visitor writes, kept in this browser's local storage only. The preview runs the same filter and a gentle limit,
-   so it behaves like the real wall without pretending to be it.
+   window.APHESIS_WALL_API. Without one the wall is a preview for local work: it starts empty, as a new wall does,
+   and holds only what this visitor writes, kept in this browser's local storage. The preview runs the same filter
+   and a gentle limit, so it behaves like the real wall without pretending to be it.
 
    createApi() -> { live, sitekey, list(), post(text, token) }
-   list() -> [{ id, text, at, example?, tip?, mine? }]
+   list() -> [{ id, text, at, mine? }]
    post() -> { ok: true, message } | { ok: false, reason: 'empty'|'long'|'word'|'link'|'rate'|'turnstile'|'offline', retryAfter? } */
 
 import { check } from './filter.js';
-import { SEEDS } from './seeds.js';
 
 const meta = (name) => {
   const el = document.querySelector(`meta[name="${name}"]`);
@@ -41,7 +40,7 @@ function mock() {
     async list() {
       const mine = readMine();
       if (mine.length) memory = mine;
-      return memory.slice().reverse().map((m) => Object.assign({ mine: true }, m)).concat(SEEDS);
+      return memory.slice().reverse().map((m) => Object.assign({ mine: true }, m));
     },
     async post(text) {
       const v = check(text);

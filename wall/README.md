@@ -18,6 +18,9 @@ Anonymous lines drifting in the fog. A visitor reads them, holds one still, and 
   the typewriter's own underscore as the caret. Enter or `send` sends it. The page checks the filter first and answers
   a refused word quietly under the baseline; the server decides. Once taken, the line lifts off the baseline and blurs
   into the fog, and condenses again among the others, near and held longer.
+- **The quiet:** while the wall holds no line, the middle of the field holds the gloss *silentium* ("silence" in its
+  tooltip) and one line, "the wall is quiet. the first line is yours.", on a calm zone; it fades as the first line
+  condenses.
 - **No names, replies or likes.**
 
 ## Data
@@ -26,10 +29,9 @@ Anonymous lines drifting in the fog. A visitor reads them, holds one still, and 
 `<meta name="aphesis:wall-api">`; or `window.APHESIS_WALL_API`). Turnstile renders only when a site key is configured
 (`--sitekey`), loads when someone starts to write, and stays invisible unless Cloudflare has to ask.
 
-Without an API the page is a **local preview**: twelve seed lines, each marked as an example (tooltip and accessible
-name; Latin ones carry their English), and the visitor's own lines kept in this browser's local storage only. The
-preview says so under the line and in the field's tooltip. It runs the same filter and a gentle limit (one line every
-20 seconds).
+Without an API the page is a **local preview**, for working on the section: it starts empty, as a new wall does
+(the same quiet), and holds only the visitor's own lines, kept in this browser's local storage. The preview says so
+under the line and in the field's tooltip. It runs the same filter and a gentle limit (one line every 20 seconds).
 
 The backend is in [`worker/`](worker/README.md): a Cloudflare Worker and a Durable Object, with the filter, the rate
 limit per IP hash, Turnstile, expiry after 30 days and an admin removal endpoint.
@@ -40,7 +42,7 @@ limit per IP hash, Turnstile, expiry after 30 days and an admin removal endpoint
   `design-system` branch with `git show`; Special Elite vendored in `vendor/` (Apache 2.0).
   `--fragment OUT` writes the page without the document shell; `--api` and `--sitekey` wire it to a live wall.
 - `src/`: `main.js` (shell, theme, calm zones), `drift.js` (the lines), `composer.js` (the line to write in),
-  `api.js` and `seeds.js` (data), `motion.js`, `wall.css`, `template.html`. `filter.js` is taken from
+  `api.js` (data), `motion.js`, `wall.css`, `template.html`. `filter.js` is taken from
   `worker/src/filter.js`, so page and server share one filter.
 - `worker/`: the backend and its tests (`npm test`).
 

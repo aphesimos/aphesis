@@ -53,12 +53,6 @@ function rect() {
 }
 
 function describe(m) {
-  if (m.example) {
-    return {
-      tip: (m.tip ? m.tip + ' · ' : '') + 'an example line',
-      label: m.text + (m.tip ? ' (' + m.tip + ')' : '') + ', an example line',
-    };
-  }
   if (m.mine && !api.live) return { tip: 'your line · kept on this device', label: m.text + ', your line, kept on this device' };
   return { tip: '', label: '' };
 }
@@ -66,7 +60,7 @@ function describe(m) {
 const drift = createDrift($('lines'), { rect, describe });
 
 /* the quiet voice under the line: what just happened, then back to what is always true */
-const IDLE = api.live ? '' : 'a preview: example lines, and yours kept on this device only.';
+const IDLE = api.live ? '' : 'a preview: your lines stay on this device.';
 let quiet = null;
 function say(text, refused) {
   clearTimeout(quiet);
@@ -79,13 +73,23 @@ function say(text, refused) {
 status.textContent = IDLE;
 if (!api.live) $('line').dataset.tip = 'one line · no names · this preview keeps it on this device only';
 
+/* an empty wall is quiet, not broken: one gloss and one line in the middle of the field, until a line arrives */
+const hush = $('hush');
+let lines = 0;
+function quietState() {
+  const r = rect();
+  hush.style.top = Math.round(r.top + r.height / 2 - hush.offsetHeight / 2) + 'px';
+  hush.classList.toggle('on', lines === 0);
+  hush.setAttribute('aria-hidden', String(lines > 0));
+}
+
 createComposer(form, {
   api, say,
-  onSent: (m) => { drift.push(m); $('announce').textContent = 'your line is on the wall: ' + m.text; },
+  onSent: (m) => { lines++; quietState(); drift.push(m); $('announce').textContent = 'your line is on the wall: ' + m.text; },
 });
 
-api.list().then((ms) => drift.set(ms));
-addEventListener('resize', () => drift.resize());
+api.list().then((ms) => { lines = ms.length; quietState(); drift.set(ms); });
+addEventListener('resize', () => { drift.resize(); quietState(); });
 
 /* ---------- calm zones in the fog ---------- */
 const fixed = [
@@ -93,6 +97,6 @@ const fixed = [
   { el: header, pad: 16 }, { el: form, pad: 14 },
 ];
 (function zones() {
-  fog.zones(fixed.concat(drift.zones()).slice(0, 12));
+  fog.zones(fixed.concat(lines ? [] : [{ el: hush, pad: 18 }], drift.zones()).slice(0, 12));
   requestAnimationFrame(zones);
 })();

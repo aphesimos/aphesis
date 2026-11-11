@@ -60,6 +60,10 @@ choice is in [`tools/simulacra/research.md`](tools/simulacra/research.md).
 - `system/components/bundle.js`, `bundle.css`: the runtime every screen loads (`window.Aphesis`): brush, stipple, icons, seal, Fog, Simulacrum, Typist, tooltip, cursor, letter wave. `index.d.ts` documents the API.
 - `system/components/<Name>/`: guidelines and a live preview for each component.
 - `system/assets/`: the φ, the icons as SVG, the simulacra density maps.
-- `system/fonts/`: Aphesis Script, variable.
+- `system/fonts/`: Aphesis Script, variable, under the SIL Open Font License 1.1 with Reserved Font Name "Aphesis Script" (`system/fonts/OFL.txt`).
 - `system/lab-kit/v1/`: the lab kit, the system as one stylesheet and an optional script for the laboratory's research viewers, served at https://aphes.ist/lab-kit/v1/ (see "Lab kit" in `system/README.md`).
 - `tools/`: the bundle source before the φ path is inlined, how the density maps were made, and the lab kit's build (`tools/lab-kit/`).
+
+## Licences
+
+Aphesis Script is licensed under the [SIL Open Font License 1.1](system/fonts/OFL.txt) (Reserved Font Name "Aphesis Script"); the copy in the lab kit carries the same licence (`system/lab-kit/v1/fonts/AphesisScript-OFL.txt`). Special Elite keeps its own licence (`system/lab-kit/v1/fonts/SpecialElite-LICENSE.txt`). The φ mark and the wordmark `aφesis` are trademarks, not covered by either; see [TRADEMARKS.md](TRADEMARKS.md).

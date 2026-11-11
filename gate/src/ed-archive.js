@@ -52,7 +52,7 @@ export function createArchiveEditor({ api, root, onDirty }) {
     let saved = fresh ? '' : p.slug;
     const say = h('p', { class: 'say aph-meta aph-ink', role: 'status', 'aria-live': 'polite' });
     const f = {
-      slug: text(p.slug, { pattern: '[a-z0-9-]+', inputmode: 'url' }),
+      slug: text(p.slug, { inputmode: 'url' }),
       title: text(p.title, { 'data-spell': '1' }),
       summary: text(p.summary, { 'data-spell': '1' }),
       date: text(p.date, { inputmode: 'numeric', placeholder: 'yyyy-mm-dd' }),

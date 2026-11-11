@@ -77,7 +77,6 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 /* ---------- the desk ---------- */
 #desk {
   position: absolute; inset: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
-  scrollbar-width: thin; scrollbar-color: var(--line) transparent;
 }
 .desk {
   width: 100%; max-width: 1240px; margin: 0 auto;
@@ -166,8 +165,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
 /* the editor beside its preview; on a phone, one or the other */
 .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: var(--space-6); align-items: start; }
-.read { position: sticky; top: var(--space-4); max-height: calc(100vh - 2 * var(--space-4)); overflow-y: auto; overscroll-behavior: contain;
-  scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.read { position: sticky; top: var(--space-4); max-height: calc(100vh - 2 * var(--space-4)); overflow-y: auto; overscroll-behavior: contain; }
 .editor .pane-head .choice { display: none; }
 @media (max-width: 980px) {
   .split { grid-template-columns: minmax(0, 1fr); }

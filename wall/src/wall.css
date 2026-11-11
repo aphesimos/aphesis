@@ -77,6 +77,17 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .line.fwd .line-text { opacity: 1; filter: none; transform: scale(min(var(--lift), 1.18)); }
 .line:focus { outline: none; }
 .line:focus-visible .line-text { outline: 1px solid var(--accent); outline-offset: 4px; }
+/* the owner's line: the owner's mark above the words, at the line's depth (its eye and name as faint and soft as the
+   words), the eye in rubedo, the name in Aphesis Script. No box and no rule: the words are drawn as anyone's */
+.line-owner {
+  display: flex; align-items: center; gap: calc(var(--size) * .4); margin-bottom: calc(var(--size) * .1);
+  opacity: var(--alpha); filter: blur(var(--blur));
+  transition: opacity var(--duration-slow) var(--easing-settle), filter var(--duration-slow) var(--easing-settle);
+}
+.line-owner .owner-eye { display: block; flex: none; color: var(--accent); }
+.line-owner .owner-eye svg { display: block; }
+.line-owner .owner-name { color: var(--accent-text); font-size: calc(var(--size) * 1.05); line-height: 1; letter-spacing: .02em; }
+.line.fwd .line-owner { opacity: 1; filter: none; }
 
 /* ---------- the line to write in ---------- */
 #composer {

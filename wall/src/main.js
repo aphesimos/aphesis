@@ -3,7 +3,7 @@
    line to write in, the wall's lines drift through the fog. */
 
 import { createApi } from './api.js';
-import { createDrift } from './drift.js';
+import { createDrift, OWNER } from './drift.js';
 import { createComposer } from './composer.js';
 
 const A = window.Aphesis;
@@ -54,6 +54,7 @@ function rect() {
 }
 
 function describe(m) {
+  if (m.owner === true) return { tip: '', label: OWNER + ', the owner: ' + m.text };
   if (m.mine && !api.live) return { tip: 'your line · kept on this device', label: m.text + ', your line, kept on this device' };
   return { tip: '', label: '' };
 }

@@ -5,7 +5,12 @@
 
    createDrift(list, { rect, describe }) -> { set(messages), push(message), zones(), resize() }
    rect() gives the field the lines may use, in viewport pixels: { left, top, width, height }.
-   describe(message) -> { tip, label } for the tooltip and the accessible name. */
+   describe(message) -> { tip, label } for the tooltip and the accessible name.
+
+   The owner's lines (`owner: true`, which only the server gives: the owner writes from the desk, and the content
+   service passes it on with the wall's admin token) carry the owner's mark above the words: a small live
+   Aphesis.Eye in rubedo and the name, aphesist, in Aphesis Script, at the line's depth. The eyes are `shared`: one
+   tick for the page, still while off screen, gone with their line. */
 
 import { clamp } from './motion.js';
 
@@ -13,6 +18,7 @@ const A = window.Aphesis;
 const IN = 2600;   /* condense */
 const OUT = 1800;  /* thin out */
 const GAP = 18;                  /* the clearing kept between two lines, px */
+export const OWNER = 'aphesist';
 
 export function createDrift(list, { rect, describe }) {
   let pool = [], queue = [], items = [], field = rect(), last = performance.now(), nextSpawn = 0, seed = 1;
@@ -55,6 +61,17 @@ export function createDrift(list, { rect, describe }) {
     el.className = 'line';
     inner.className = 'line-text aph-on-fog';
     inner.textContent = msg.text;
+    const owner = msg.owner === true;
+    let eye = null;
+    if (owner) {
+      el.classList.add('owner');
+      const mark = document.createElement('span');
+      mark.className = 'line-owner aph-on-fog';
+      mark.setAttribute('aria-hidden', 'true');
+      mark.innerHTML = '<span class="owner-eye aph-red"></span><span class="owner-name aph-display">' + OWNER + '</span>';
+      el.appendChild(mark);
+      eye = mark.firstChild;
+    }
     el.appendChild(inner);
     el.tabIndex = 0;
     const d = describe(msg);
@@ -68,6 +85,13 @@ export function createDrift(list, { rect, describe }) {
     el.style.setProperty('--alpha', lk.alpha.toFixed(3));
     el.style.setProperty('--blur', lk.blur.toFixed(2) + 'px');
     el.style.setProperty('--lift', (19 / lk.size).toFixed(3));
+    /* the owner's eye, twice the words' size wide (near 38px, far 25px), alive on the shared tick */
+    if (eye) {
+      const px = Math.round(lk.size * 2);
+      eye.style.width = px + 'px';
+      if (A && typeof A.Eye === 'function') A.Eye(eye, { size: px, shared: true, drawIn: false, gaze: 'auto', blink: true });
+      else if (A && A.icon) eye.innerHTML = A.icon('eye', 0);
+    }
     el.style.maxWidth = Math.min(field.width * 0.88, phone() ? 330 : 470) + 'px';
     el.style.opacity = '0';
     list.appendChild(el);

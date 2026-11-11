@@ -6,7 +6,7 @@
    and a gentle limit, so it behaves like the real wall without pretending to be it.
 
    createApi() -> { live, sitekey, list(), post(text, token) }
-   list() -> [{ id, text, at, mine? }]
+   list() -> [{ id, text, at, owner?, mine? }]   owner: true only for the owner's lines (the server says so)
    post() -> { ok: true, message } | { ok: false, reason: 'empty'|'long'|'word'|'link'|'rate'|'turnstile'|'offline', retryAfter? } */
 
 import { check } from './filter.js';

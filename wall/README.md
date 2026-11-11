@@ -21,7 +21,13 @@ Anonymous lines drifting in the fog. A visitor reads them, holds one still, and 
 - **The quiet:** while the wall holds no line, the middle of the field holds the gloss *silentium* ("silence" in its
   tooltip) and one line, "the wall is quiet. the first line is yours.", on a calm zone; it fades as the first line
   condenses.
-- **No names, replies or likes.**
+- **The owner's lines:** a line the server marks `owner` carries the owner's mark above its words, at the line's
+  depth: a small live `Aphesis.Eye` in rubedo (twice the words' size wide: 38px near, 25px far), trembling, blinking
+  and glancing on its own, and the name *aphesist* in Aphesis Script, in rubedo; for assistive technology,
+  "aphesist, the owner: ...". It drifts, condenses, is held and thins like any line. Only the owner's desk can write
+  one (the content service passes it on with the wall's admin token; see `backend/README.md`, *The owner's posts*),
+  and nothing a visitor sends can claim it. The eyes are `shared`: one tick for the page, still while off screen.
+- **No names, replies or likes**, but for the owner's mark.
 
 ## Data
 

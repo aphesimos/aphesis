@@ -247,14 +247,26 @@ Vars: `ALLOWED_ORIGINS`, `EMAIL_FROM` (`clavis@post.aphes.ist`), `SESSION_SECOND
 node content/tools/hash-password.mjs            # the OWNER_PASSWORD_HASH line (12 to 32 characters): asks twice, prints pbkdf2-sha256$25000$<salt>$<hash>
 node content/tools/seed.mjs --remote            # the one-time import of the section branches into D1 and R2
 node content/tools/seed.mjs --local --persist-to DIR    # the same into a local wrangler state
+node content/tools/prune-examples.mjs --remote  # the one-shot removal of the seeded examples (--dry-run says what would go)
 NODE_PATH=$(npm root -g) node content/tools/make-mail-phi.mjs   # redraw content/assets/mail-phi.png (Playwright)
 ```
 
 The seed reads `section/archive` (`archive/content/*.md`), `section/book` (`book/content/*.md`), `section/works`
 (`works/content/works.json`, `works/maps/`) and the design system's density maps with git (each ref, or
 `origin/<ref>`), uploads every picture under its content key, writes every entry as published, and puts the email's
-φ in the bucket. Running it again adds nothing twice: an entry already in D1 (same slug or id) is left as it is, so
-the owner's edits stay, and each picture lands on its own key again; `--replace` overwrites the imported entries.
+φ in the bucket. An entry marked `example: true` is never imported (the seed names each one it skips), and a branch
+with no content imports nothing. Running it again adds nothing twice: an entry already in D1 (same slug or id) is
+left as it is, so the owner's edits stay, and each picture lands on its own key again; `--replace` overwrites the
+imported entries.
+
+**The seeded examples.** The first seed imported the archive's four example posts and the book's six example
+entries, which are gone from the branches now that the site is live. `prune-examples.mjs` removes them from D1 and
+their pictures from R2: a row goes only if its slug is one of the examples' (listed in the script) and it is still
+marked example, so the owner's entries (at any slug, if not marked example) and every work stay; a picture goes only
+if no row left in posts, books or works names it. It prints each removal, and a second run says there is nothing to
+remove. From GitHub Actions: Actions → backend → Run workflow → branch `backend`, tick **prune** (or
+`gh workflow run backend.yml --repo aphesimos/aphesis --ref backend -f prune=true`); it runs after the deploy, with
+the repository's Cloudflare secrets, and its log (the step *Remove the seeded examples*) lists what went.
 
 **From GitHub Actions**, with no clone: Actions → backend → Run workflow → branch `backend`, tick **seed**. The
 workflow tests, builds and deploys as usual, then fetches `section/archive`, `section/book`, `section/works` and
@@ -325,10 +337,13 @@ node --test e2e/*.test.mjs             # the Workers under wrangler dev, over HT
 - **The content service**: unit tests for hashing (RFC 7914 vectors, a vector from Node, the stored line), the words
   (2048, 33 bits, loose reading), the lockout and its backoff, cookies and CSRF, validation of every kind of entry,
   the email (the backlog's rules, and its colours against the design system's tokens) and the export's files; end to
-  end (`e2e/content.test.mjs`) with a local D1 and R2: the seed, the public API and CORS, the gate step by step with
+  end (`e2e/content.test.mjs`) with a local D1 and R2: the seed (from fixture commits the test makes, one entry of
+  each kind marked example, which it skips), the public API and CORS, the gate step by step with
   the mail read from the local `send_email` binding (its HTML checked), code expiry, replacement and single use,
   lockout on both steps, CSRF (token, origin), create, edit, preview, publish, rename and delete for each kind, uploads,
-  moderation against local wall and forum Workers, and the nightly export against a stand-in for GitHub's API.
+  moderation against local wall and forum Workers, and the nightly export against a stand-in for GitHub's API; and
+  `e2e/prune.test.mjs`: the removal of the seeded examples from a database as the first seed left it, with the
+  owner's entries beside them (a dry run, the run, a second run, then the Worker's answers and pictures).
 
 ## One-time setup
 

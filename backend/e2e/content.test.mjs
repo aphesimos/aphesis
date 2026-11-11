@@ -10,7 +10,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
-import { start, wrangler, root, sleep } from './dev.mjs';
+import { start, wrangler, root, sleep, fixtureCommit } from './dev.mjs';
 
 const SITE = 'http://localhost:8000';
 const PASSWORD = 'salt sulphur mercury and a long walk';
@@ -18,7 +18,23 @@ const salt = Buffer.from('00112233445566778899aabbccddeeff', 'hex');
 const HASH = `pbkdf2-sha256$25000$${salt.toString('base64')}$${pbkdf2Sync(PASSWORD, salt, 25000, 32, 'sha256').toString('base64')}`;
 const vars = { ALLOWED_ORIGINS: SITE, OWNER_PASSWORD_HASH: HASH, OWNER_EMAIL: 'owner@example.com', EMAIL_FROM: 'clavis@aphes.ist', AUTH_SALT: 'test-salt' };
 
-let c, wall, forum, gh;
+/* the content the seed imports: the tests bring their own (the section branches may carry none), with one entry of
+   each kind marked example, which the seed must skip */
+const ARCHIVE = fixtureCommit({
+  'archive/content/on-mercury.md': '---\ntitle: on mercury\ndate: 2026-02-01\nstage: rubedo\nsummary: a post the tests bring.\n---\n' +
+    'the quick metal.[^quick]\n\n![saint jerome writing · Caravaggio, 1605–06](simulacrum:jerome)\n\n[^quick]: quicksilver, the living metal.\n',
+  'archive/content/on-lead.md': '---\ntitle: on lead\ndate: 2026-01-15\nstage: nigredo\nsummary: an older one.\n---\nheavy.\n',
+  'archive/content/a-shown-post.md': '---\ntitle: a shown post\ndate: 2026-03-01\nstage: albedo\nsummary: written to show.\nexample: true\n---\nshown.\n',
+});
+const BOOK = fixtureCommit({
+  'book/content/01-the-tablet.md': '---\ntitle: the tablet\nauthor: Hermes Trismegistus\nyear: c. 800\nmap: trismegistus.png\n' +
+    'caption: hermes trismegistus · Siena Cathedral pavement, 1488\ncrop: 10 10 400 400\n---\none.\n\ntwo.\n',
+  'book/content/02-the-stone.md': '---\ntitle: the stone\nauthor: Goethe\nyear: 1808\nmap: faust.jpg\ncaption: faust · Rembrandt, c. 1652\n' +
+    'quote: Verweile doch! du bist so schön!\nquote_lang: de\nquote_en: stay a while! you are so beautiful!\n---\na note.\n',
+  'book/content/03-a-shown-entry.md': '---\ntitle: a shown entry\nauthor: nobody\nyear: 2026\nmap: jerome.jpg\ncaption: a caption\nexample: true\n---\nshown.\n',
+});
+
+let c, wall, forum, gh, seeded = '';
 /* a stand-in for GitHub's git data API: refs, trees and commits in memory, as the export uses them */
 function fakeGitHub() {
   const refs = {}, trees = {}, commits = {}, calls = [];
@@ -45,8 +61,10 @@ function fakeGitHub() {
 }
 function migrateAndSeed(state) {
   wrangler('content', ['d1', 'migrations', 'apply', 'aphesis-content', '--local', '--persist-to', state]);
-  const r = spawnSync(process.execPath, [path.join(root, 'content', 'tools', 'seed.mjs'), '--local', '--persist-to', state, '-c', 'wrangler.e2e.toml'], { encoding: 'utf8' });
+  const r = spawnSync(process.execPath, [path.join(root, 'content', 'tools', 'seed.mjs'), '--local', '--persist-to', state, '-c', 'wrangler.e2e.toml'],
+    { encoding: 'utf8', env: { ...process.env, ARCHIVE_REF: ARCHIVE, BOOK_REF: BOOK } });
   if (r.status !== 0) throw new Error(r.stdout + r.stderr);
+  seeded = r.stdout;
 }
 before(async () => {
   gh = await fakeGitHub();
@@ -104,23 +122,24 @@ async function login(ip = '10.0.0.9') {
   return { j, csrf, raw, words };
 }
 
-test('the seed: everything on the section branches, published, with its pictures', async () => {
+test('the seed: everything on the section branches but examples, published, with its pictures', async () => {
   let r = await send('/v1/posts');
   assert.equal(r.status, 200);
   assert.equal(r.headers.get('access-control-allow-origin'), SITE);
   assert.match(r.headers.get('cache-control'), /public/);
   const { posts } = await r.json();
-  assert.equal(posts.length, 4);
-  assert.deepEqual(posts.map((p) => p.date), [...posts.map((p) => p.date)].sort().reverse());
-  const fog = posts.find((p) => p.slug === 'how-the-fog-is-made');
-  assert.equal(fog.stage, 'rubedo');
-  assert.equal(fog.notes[0].id, 'golden');
-  assert.ok(!fog.body.includes('[^golden]:'), 'notes are kept apart from the body');
-  const withFig = posts.find((p) => p.figures.length);
-  assert.match(withFig.figures[0].url, /\/media\/m\/[0-9a-f]{24}\.(png|jpg)$/);
+  assert.deepEqual(posts.map((p) => p.slug), ['on-mercury', 'on-lead'], 'newest first, and the example is not there');
+  const mercury = posts[0];
+  assert.equal(mercury.stage, 'rubedo');
+  assert.equal(mercury.notes[0].id, 'quick');
+  assert.ok(!mercury.body.includes('[^quick]:'), 'notes are kept apart from the body');
+  assert.match(mercury.figures[0].url, /\/media\/m\/[0-9a-f]{24}\.(png|jpg)$/);
   const { books } = await (await send('/v1/books')).json();
-  assert.deepEqual(books.map((b) => b.slug), ['emerald-tablet', 'paradiso', 'newton', 'faust', 'jerome', 'flammarion']);
-  assert.ok(books.find((b) => b.slug === 'flammarion').adjust.crop.length === 4);
+  assert.deepEqual(books.map((b) => b.slug), ['the-tablet', 'the-stone']);
+  assert.ok(books[0].adjust.crop.length === 4);
+  assert.match(seeded, /skipped posts\/a-shown-post: marked example/);
+  assert.match(seeded, /skipped books\/a-shown-entry: marked example/);
+  assert.equal((await send('/v1/posts/a-shown-post')).status, 404);
   const w = await (await send('/v1/works')).json();
   assert.deepEqual(w.works.map((x) => x.id), ['heild', 'aphesis']);
   assert.equal(w.section.gloss, 'opera');
@@ -130,7 +149,7 @@ test('the seed: everything on the section branches, published, with its pictures
   assert.equal(r.headers.get('content-type'), 'image/png');
   assert.match(r.headers.get('cache-control'), /max-age=31536000, immutable/);
   assert.equal(r.headers.get('access-control-allow-origin'), '*');
-  r = await send('/v1/books/faust');
+  r = await send('/v1/books/the-stone');
   assert.equal((await r.json()).book.quote_lang, 'de');
   assert.equal((await send('/v1/books/nothing')).status, 404);
   assert.equal((await send('/media/../secret')).status, 404);
@@ -304,7 +323,7 @@ test('posts, book entries and works: create, edit, preview, publish, rename, del
   assert.equal((await W('/v1/admin/posts/on-salt/publish', 'POST')).status, 200);
   r = await send('/v1/posts/on-salt');
   assert.equal((await r.json()).post.title, 'on salt, again');
-  r = await W('/v1/admin/posts/on-salt', 'PUT', { ...post, slug: 'how-the-fog-is-made' });
+  r = await W('/v1/admin/posts/on-salt', 'PUT', { ...post, slug: 'on-mercury' });
   assert.equal(r.status, 409);
   r = await W('/v1/admin/posts/on-salt', 'PUT', { ...post, slug: 'on-salt-and-sulphur' });
   assert.equal(r.status, 200);
@@ -394,9 +413,9 @@ test('the nightly export: every entry as the section files, committed as the own
   assert.ok(!/co-authored|claude|session/i.test(commit.message));
   assert.deepEqual(commit.parents, []);
   const files = Object.fromEntries(gh.trees[commit.tree].map((e) => [e.path, e.content]));
-  assert.ok(files['archive/content/how-the-fog-is-made.md'].includes('[^golden]: the golden angle'));
+  assert.ok(files['archive/content/on-mercury.md'].includes('[^quick]: quicksilver'));
   assert.match(files['archive/content/a-draft.md'], /^---\ntitle: a draft\n[\s\S]*published: false\n---\nsoon\.\[\^n\]\n\n\[\^n\]: a note\.\n$/);
-  assert.ok(files['book/content/04-faust.md'].includes('quote_lang: de'));
+  assert.ok(files['book/content/02-the-stone.md'].includes('quote_lang: de'));
   assert.equal(JSON.parse(files['works/content/works.json']).works.length, 2);
   assert.ok(gh.calls.every((x) => x.ua === 'aphes.ist-content'));
   /* nothing changed: no new commit */

@@ -6,7 +6,11 @@
 # CONTENT_OWNER_EMAIL, CONTENT_AUTH_SALT. Empty ones are skipped, a Worker without its Turnstile secret or salts
 # refuses posts until they are set, and the content service's gate stays shut without its own (see backend/README.md).
 # Run by hand with seed = true, it also imports the section branches' content into the deployed content service
-# (content/tools/seed.mjs): once, after the first deploy; running it again adds nothing twice.
+# (content/tools/seed.mjs): once, after the first deploy; running it again adds nothing twice, and it never imports
+# an entry marked example. Run by hand with prune = true, it removes from the deployed D1 and R2 the example posts
+# and book entries the first seed imported, and their pictures (content/tools/prune-examples.mjs): only rows at the
+# examples' slugs still marked example, never works or the owner's entries; it prints what it removed, and running
+# it again removes nothing.
 # Repository variable: BACKEND_CUSTOM_DOMAINS = 1 serves wall-api, forum-api and content-api.aphes.ist as custom
 # domains; without it the Workers answer on workers.dev only.
 name: backend
@@ -21,6 +25,10 @@ on:
     inputs:
       seed:
         description: "Import the content of section/archive, section/book and section/works into the content service (the one-time seed; safe to repeat)"
+        type: boolean
+        default: false
+      prune:
+        description: "Remove the example posts and book entries the first seed imported, and their pictures, from the content service (works and the owner's entries stay; safe to repeat)"
         type: boolean
         default: false
 
@@ -173,6 +181,11 @@ jobs:
           # the script picks the secrets this service maps in services.json, skips empty ones, never prints values
           SECRETS_JSON: ${{ toJSON(secrets) }}
         run: node scripts/deploy.mjs "${{ matrix.service }}"
+
+      # the one-shot removal of the seeded examples, by hand only, with the database's real id from the deploy above
+      - name: Remove the seeded examples (prune)
+        if: matrix.service == 'content' && github.event_name == 'workflow_dispatch' && inputs.prune
+        run: node content/tools/prune-examples.mjs --remote -c wrangler.deploy.toml
 
       # the one-time import, by hand only: the deploy above left wrangler.deploy.toml with the database's real id
       - name: Import the section branches' content (seed)

@@ -125,3 +125,21 @@ export async function query(state, sql) {
 }
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/* a commit made of the given files ({path: text}), written into the repository's objects but on no branch, for a
+   tool that reads a section branch with git (the content seed: ARCHIVE_REF, BOOK_REF): the tests bring their own
+   content instead of depending on what the branches carry */
+export function fixtureCommit(files) {
+  const env = { ...process.env, GIT_AUTHOR_NAME: 'fixture', GIT_AUTHOR_EMAIL: 'fixture@localhost', GIT_COMMITTER_NAME: 'fixture',
+    GIT_COMMITTER_EMAIL: 'fixture@localhost', GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z' };
+  const git = (args, input) => execFileSync('git', ['-C', root, ...args], { input, encoding: 'utf8', env }).trim();
+  const tree = {};
+  for (const [p, text] of Object.entries(files)) {
+    const parts = p.split('/');
+    let t = tree;
+    for (const d of parts.slice(0, -1)) t = t[d] ||= {};
+    t[parts[parts.length - 1]] = git(['hash-object', '-w', '--stdin'], text);
+  }
+  const mktree = (t) => git(['mktree'], Object.entries(t).map(([n, v]) => (typeof v === 'string' ? `100644 blob ${v}\t${n}` : `040000 tree ${mktree(v)}\t${n}`)).join('\n') + '\n');
+  return git(['commit-tree', mktree(tree), '-m', 'a fixture for the end-to-end tests']);
+}

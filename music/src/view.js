@@ -13,6 +13,8 @@ import { clock, hours, bytes, khz, depth, plural } from './library.js';
 import { createVList } from './vlist.js';
 
 const A = window.Aphesis;
+/* the site's texts: the owner's version of a line where the site has one (the shell's Aphesis.text), else this one */
+const T = (key, own) => (A.text ? A.text(key, own) : own);
 const enc = encodeURIComponent;
 const ROW = { wide: 40, narrow: 48 };
 
@@ -44,7 +46,7 @@ export function mountView(root, lib, core, opts = {}) {
   $('.m-stats').textContent = [plural(s.tracks, 'track'), plural(lib.albumList.length, 'album'), plural(lib.artistList.length, 'artist'),
     hours(s.seconds), bytes(s.bytes)].join(' · ') + (lib.example ? ' · examples: generated tones, not music' : '');
   if (!core.volumeSupported) root.querySelectorAll('.m-vol .c-vol, .m-vol .s-track').forEach((el) => { el.hidden = true; });
-  if (!core.flacSupported) { bLoss.disabled = true; bLoss.dataset.tip = 'this browser cannot play flac: the stream it is'; }
+  if (!core.flacSupported) { bLoss.disabled = true; bLoss.dataset.tip = "this browser can't play flac. playing the stream."; }
 
   /* ---------- where we are: the route ---------- */
   const narrowMq = matchMedia('(max-width: 899px)');
@@ -119,7 +121,7 @@ export function mountView(root, lib, core, opts = {}) {
     r.tracks.forEach((i) => p.items.push({ k: 'track', ref: tr(i), style: 'search' }));
     p.all = p.tracks;
     const n = r.tracks.length + r.albums.length + r.artists.length;
-    p.head = { text: n ? [r.artists.length ? plural(r.artists.length, 'artist') : '', r.albums.length ? plural(r.albums.length, 'album') : '', plural(r.tracks.length, 'track')].filter(Boolean).join(' · ') : 'nothing matches' };
+    p.head = { text: n ? [r.artists.length ? plural(r.artists.length, 'artist') : '', r.albums.length ? plural(r.albums.length, 'album') : '', plural(r.tracks.length, 'track')].filter(Boolean).join(' · ') : T('music.empty', 'nothing matches') };
     return p;
   }
 
@@ -344,7 +346,7 @@ export function mountView(root, lib, core, opts = {}) {
     const t = cur();
     deck.classList.toggle('idle', !t);
     $('.n-title').textContent = t ? t.shown : 'nothing playing';
-    $('.n-by').textContent = t ? t.artistName + (t.album ? ' · ' + t.album : '') : 'choose a track, or play a folder';
+    $('.n-by').textContent = t ? t.artistName + (t.album ? ' · ' + t.album : '') : T('music.idle', 'choose a track, or play a folder');
     $('.n-tech').textContent = t ? techLine(t) : '';
     caption.textContent = t ? (t.album ? t.album : t.shown) + ' · ' + t.artistName + (t.year ? ', ' + t.year : '') : '';
     cover(t);

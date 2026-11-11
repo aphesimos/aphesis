@@ -86,16 +86,14 @@ def b64(data):
 
 # ---------- the home: sections around the seal, passages in the corner ----------
 SECTIONS = [
-    # desc: the section's line, the tooltip of its name on the home; the owner changes it from the desk
-    # (home.sections.<route>.description, the content service's texts), and this is the page's own copy
-    dict(id='book', name='book', gl='liber', desc="what i'm reading."),
+    dict(id='book', name='book', gl='liber', desc='authors, works and what shaped me, leafed through like a codex.'),
     # the section lives on section/experimental; on the site it is the descent, at #descent (#experimental redirects)
-    dict(id='experimental', route='descent', name='descent', gl='κατάβασις', desc='a door, and the chambers behind it.'),
-    dict(id='archive', name='archive', gl='codex', desc='writing, finished or not.'),
-    dict(id='laboratory', name='laboratory', gl='officina', desc='experiments that run in your browser.'),
-    dict(id='works', name='works', gl='opera', desc="things i've made."),
-    dict(id='wall', name='wall', gl='paries', desc='anonymous lines. each one fades after thirty days.'),
-    dict(id='forum', name='forum', gl='ἀγορά', desc='an anonymous forum.'),
+    dict(id='experimental', route='descent', name='descent', gl='κατάβασις', desc='chambers discovered through gestures. symbols, motion, no explanation.'),
+    dict(id='archive', name='archive', gl='codex', desc='writing about anything, from draft (nigredo) to finished (rubedo).'),
+    dict(id='laboratory', name='laboratory', gl='officina', desc='measured experiments: machines that rewrite themselves, metrics that lie, the cost of a truth.'),
+    dict(id='works', name='works', gl='opera', desc='things I have built.'),
+    dict(id='wall', name='wall', gl='paries', desc='anonymous messages that drift in the fog and fade with time.'),
+    dict(id='forum', name='forum', gl='ἀγορά', desc='a plain anonymous forum, in threads.'),
     dict(id='music', name='music', gl='phonotheca', desc='my music folder. mostly lossless.'),
     # the owner's gate and desk: no name in the inscription, no route; the shell opens it on an `aph:entrance` event
     dict(id='gate', name='', gl='', desc='', hidden=True),
@@ -294,9 +292,7 @@ def build(fragment, refs):
     tok = json.loads(show('design-system', 'system/tokens.json'))
     bcss = re.sub(r'@import url\([^)]*\);\s*', '', show('design-system', 'system/components/bundle.css'))
     css = faces() + tokens_css(tok) + bcss + open(os.path.join(D, 'src', 'shell.css'), encoding='utf-8').read()
-    nav = ''.join(f'<a href="#{s.get("route", s["id"])}" data-tip="{html.escape(s["desc"], quote=True)}" '
-                  f'data-text-tip="home.sections.{s.get("route", s["id"])}.description">'
-                  f'{html.escape(s["name"])}<span class="gl" lang="{lang(s["gl"])}">{html.escape(s["gl"])}</span></a>'
+    nav = ''.join(f'<a href="#{s.get("route", s["id"])}">{html.escape(s["name"])}<span class="gl" lang="{lang(s["gl"])}">{html.escape(s["gl"])}</span></a>'
                   for s in SECTIONS if not s.get('hidden'))
     tpl, styles, secjs, info = section_modules(refs)
     red = {'light': T.color('rubedo', 'light', tok), 'dark': T.color('rubedo', 'dark', tok)}

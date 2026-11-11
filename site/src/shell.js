@@ -76,8 +76,7 @@ let sealBox = { ...centerBox() }, u = 0;
 function placeSeal(c) { sealBox = c; const e = $('aph-seal'); e.style.width = e.style.height = c.s.toFixed(2) + 'px'; e.style.transform = `translate(${c.x.toFixed(2)}px,${c.y.toFixed(2)}px)`; }
 
 /* ---------- the site's texts ----------
-   The short lines the owner changes from the desk (the home's line for each section, the ledes, the helper lines,
-   the empty states) come from the content service's /v1/texts, which answers only the keys that were changed. The
+   The short lines the owner changes from the desk (the ledes, the helper lines, the empty states) come from the content service's /v1/texts, which answers only the keys that were changed. The
    page always carries its own strings and keeps them when the service is absent, slow or silent.
    - markup names its key: data-text (the words), data-text-tip (the tooltip), data-text-placeholder;
    - a section's script asks Aphesis.text(key, its own string), through its scoped runtime.
@@ -104,8 +103,6 @@ if (CONTENT_API) {
     .then((doc) => {
       const t = doc && doc.texts;
       if (t && typeof t === 'object') for (const k of Object.keys(t)) if (typeof t[k] === 'string' && t[k]) TEXTS[k] = t[k];
-      /* the home's lines are tooltips, never on screen until asked for: they take the texts whenever they come */
-      applyTexts($('aph-ring'));
     })
     .catch(() => { /* the page's own strings stay */ })
     .finally(() => { clearTimeout(late); settleTexts(); });
@@ -268,7 +265,7 @@ function pick() { let i; do { i = Math.floor(Math.random() * PASSAGES.length); }
 function newPassage() {
   clearTimeout(pLoop);
   const f = pick();
-  $('aph-ptext').lang = f.l; $('aph-passage').dataset.tip = (f.t && f.t !== '—' ? f.t + ' · ' : '') + f.a;
+  $('aph-ptext').lang = f.l; $('aph-passage').dataset.tip = (f.t && f.t !== '—' ? f.t + '  — ' : '') + f.a;
   $('aph-psr').textContent = f.o + (f.t && f.t !== '—' ? ' (' + f.t + ')' : '') + ', ' + f.a;
   typist.type(f.o, () => {
     pLoop = setTimeout(() => typist.erase(() => { pLoop = setTimeout(newPassage, 900 + Math.random() * 900); }), 6500 + Math.random() * 3500);
@@ -313,7 +310,7 @@ $('aph-eye').addEventListener('click', () => {
 A.cursor();
 A.tooltip();
 /* the ear, beside the eye: it silences the sound and opens it again */
-if (A.Sound) { A.Sound.ear($('aph-ear')); $('aph-ear').setAttribute('aria-label', 'sound'); } else $('aph-ear').remove();
+if (A.Sound) A.Sound.ear($('aph-ear')); else $('aph-ear').remove();
 
 /* ================= routes ================= */
 /* a hidden section (the gate) has no name in the inscription and no route: the shell opens it on `aph:entrance` */

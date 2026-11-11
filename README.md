@@ -133,8 +133,7 @@ real domain (`aphes.ist`), not `aphesist.pages.dev`.
 
 ## The site's texts
 
-The short lines the owner changes from the desk without a rebuild: the home's line for each section (the tooltip of
-its name, `desc` in `SECTIONS`), the ledes, the helper lines, the empty states. The shell asks the content service
+The short lines the owner changes from the desk without a rebuild: the ledes, the helper lines, the empty states. The shell asks the content service
 for `/v1/texts` once, at load, which answers only the keys the owner changed (`backend/content/src/texts.rs` lists
 every key and its default). The page always carries its own strings and keeps them when the service is absent, slow
 or says nothing for a key.

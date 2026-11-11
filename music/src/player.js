@@ -137,6 +137,7 @@ function createPlayer(lib) {
     store(true);
   }
   function start() {
+    resumeAfter = false;
     const p = audio.play();
     if (p && p.catch) p.catch((err) => { if (err && err.name !== 'AbortError') { wantPlay = false; emit('state'); } });
   }
@@ -160,10 +161,12 @@ function createPlayer(lib) {
     if (pendingSeek) { try { audio.currentTime = Math.min(pendingSeek, Math.max(0, audio.duration - 0.25)); } catch (_) { /* not seekable yet */ } pendingSeek = null; }
     position(); emit('time');
   });
-  audio.addEventListener('playing', () => { errors = 0; duck(true); emit('state'); position(); });
+  audio.addEventListener('playing', () => { errors = 0; resumeAfter = false; disarm(); duck(true); emit('state'); position(); });
   audio.addEventListener('play', () => { wantPlay = true; emit('state'); });
   audio.addEventListener('pause', () => {
     if (audio.ended) return;     /* the end of a track: 'ended' decides */
+    const mine = userPause; userPause = false;
+    if (!mine && cur() && away()) { resumeAfter = true; log('paused by the system: resume on return'); arm(); }
     wantPlay = false; duck(false); emit('state'); position(); store(true);
   });
   audio.addEventListener('ended', () => {
@@ -175,13 +178,13 @@ function createPlayer(lib) {
   audio.addEventListener('error', () => { if (audio.getAttribute('src')) onError(); });
 
   /* ---------- Media Session: the lock screen, headphones and keyboards' media keys ---------- */
-  let art = null;
+  let art = null, lastMd = null;
   const arts = [];
   function metadata() {
     const t = cur();
     if (!ms || !t || typeof MediaMetadata === 'undefined') return;
     const md = { title: t.shown, artist: t.artistName, album: t.album || '' };
-    try { ms.metadata = new MediaMetadata(md); } catch (_) { return; }
+    try { ms.metadata = lastMd = new MediaMetadata(md); } catch (_) { return; }
     const thumb = lib.thumbOf(t.cover);
     if (!thumb) return;
     const cs = getComputedStyle(document.documentElement);
@@ -190,7 +193,7 @@ function createPlayer(lib) {
       /* the browser may still be fetching the last few: let go of an artwork only some tracks later */
       arts.push(u); while (arts.length > 40) URL.revokeObjectURL(arts.shift());
       art = u;
-      try { ms.metadata = new MediaMetadata(Object.assign(md, { artwork: [{ src: u, sizes: '384x384', type: 'image/png' }] })); } catch (_) { /* fine */ }
+      try { ms.metadata = lastMd = new MediaMetadata(Object.assign(md, { artwork: [{ src: u, sizes: '384x384', type: 'image/png' }] })); } catch (_) { /* fine */ }
     });
   }
   function position() {
@@ -209,6 +212,36 @@ function createPlayer(lib) {
     };
     for (const k in h) { try { ms.setActionHandler(k, h[k]); } catch (_) { /* not supported here */ } }
   }
+
+  /* ---------- interruptions: a call, Siri, another app's audio, the screen locking, the browser left ----------
+     iOS pauses the element when its audio is interrupted. A pause the visitor did not ask for, while the page is
+     hidden, unfocused or its ambient sound interrupted, is the system's: when the page is back (shown, focused, from
+     the cache) the track resumes where it was, and if the browser wants a gesture first, the next touch or key
+     anywhere resumes it. A pause from the visitor (the buttons, the keys, the lock screen) is never undone. The
+     listeners are on the page's own document and window, like the ear's. */
+  const RD = audio.ownerDocument;
+  let userPause = false, resumeAfter = false, armed = false, resumedAt = 0;
+  function log(m) { try { const S = RW.Aphesis && RW.Aphesis.Sound; if (S && S.log) S.log('music · ' + m); } catch (_) { /* no runtime */ } }
+  function away() {
+    let interrupted = false;
+    try { const S = RW.Aphesis && RW.Aphesis.Sound; interrupted = !!S && S.state === 'interrupted'; } catch (_) { /* no runtime */ }
+    return RD.hidden || (RD.hasFocus && !RD.hasFocus()) || interrupted;
+  }
+  function comeBack(why, gesture) {
+    if (!resumeAfter || RD.hidden || !cur()) return;
+    log('resume (' + why + ')');
+    const p = audio.play();
+    if (gesture) resumedAt = Date.now();
+    if (p && p.then) p.then(() => { if (ms && lastMd) { try { ms.metadata = lastMd; } catch (_) { /* fine */ } } position(); },
+      (err) => { if (err && err.name !== 'AbortError') { resumeAfter = true; log('resume refused (' + err.name + '): the next touch'); arm(); } });
+  }
+  const GESTURES = ['pointerdown', 'touchend', 'keydown', 'click'];
+  function onGesture(e) { if (resumeAfter) comeBack('gesture ' + e.type, true); else disarm(); }
+  function arm() { if (armed) return; armed = true; GESTURES.forEach((k) => RD.addEventListener(k, onGesture, { capture: true, passive: true })); }
+  function disarm() { if (!armed) return; armed = false; GESTURES.forEach((k) => RD.removeEventListener(k, onGesture, { capture: true, passive: true })); }
+  RD.addEventListener('visibilitychange', () => { if (!RD.hidden) comeBack('shown'); });
+  RW.addEventListener('pageshow', () => comeBack('pageshow'));
+  RW.addEventListener('focus', () => comeBack('focus'));
 
   /* ---------- remembering where the visitor was (this browser only) ---------- */
   function store(now) {
@@ -318,8 +351,9 @@ function createPlayer(lib) {
     },
     playAt(i) { if (i >= 0 && i < queue.length) { pos = i; load(true); emit('queue'); } },
     play() { if (!cur()) return; if (!audio.getAttribute('src')) load(true); else start(); },
-    pause() { audio.pause(); },
-    toggle() { if (wantPlay && !audio.paused) audio.pause(); else api.play(); },
+    pause() { userPause = !audio.paused; resumeAfter = false; disarm(); audio.pause(); },
+    /* the touch or key that brought a track back after an interruption does not also pause it */
+    toggle() { if (wantPlay && !audio.paused && Date.now() - resumedAt > 1000) api.pause(); else api.play(); },
     next() { advance(true, 1); },
     prev() {
       if (audio.currentTime > 3 || !advance(true, -1)) api.seek(0);

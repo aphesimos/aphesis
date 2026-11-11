@@ -117,6 +117,16 @@ separate: what you hear is the slider times the ear. Where a page cannot set the
 cut. The listener and the fade use the page's own window (the audio element's), never the section's sandboxed
 timers, so they work on every route.
 
+**Interruptions.** iOS pauses the track when its audio is interrupted: a call, Siri, another app's audio, the
+screen locking or the browser left. A pause the visitor did not ask for, made while the page is hidden, unfocused or
+its ambient sound interrupted, is taken as the system's: when the page is back (shown, focused, or restored from the
+back-forward cache) the track resumes where it was, and the lock screen's metadata and state are set again. Where the
+browser wants a gesture first, the next touch or key anywhere resumes it, and that same touch or key does not also
+pause it (a toggle within a second of it plays). A pause from the visitor (the buttons, the keys, the lock screen,
+headphones' keys) is never undone. The ear is still followed: a track resumed while the ear is closed plays on in
+silence underneath. With `?sounddebug` in the address the player's pauses and resumes are logged with the ambient
+sound's (`Aphesis.Sound.log`).
+
 ## Building
 
 ```sh

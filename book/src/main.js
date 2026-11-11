@@ -80,8 +80,20 @@ function prepare(img, e) {
 const announceEl = $('announce');
 const announce = (t) => { announceEl.textContent = ''; setTimeout(() => { announceEl.textContent = t; }, 60); };
 
+/* no entries, here or from the service: the codex stays closed, its spine and one gloss on the fog */
+function closed() {
+  root.classList.add('blank', 'ready');
+  $('closed').hidden = false;
+  fog.zones([
+    { el: $('seal'), pad: 10 }, { el: $('controls'), pad: 8 }, { el: $('head'), pad: 26 }, { el: document.querySelector('#head .gloss-title'), pad: 14 },
+    { el: $('closed'), pad: 20 },
+  ]);
+  window.__book = { go: () => {}, cur: -1, states: [] };
+}
+
 fetchEntries().then((fresh) => {
   if (fresh) { BOOK = fresh; n = fresh.length; root.dataset.bookSource = 'api'; }
+  if (!n) return null;
   return Promise.all(BOOK.map((e) => new Promise((resolve) => {
   const im = new Image();
   if (!MAPS[e.map]) im.crossOrigin = 'anonymous';   /* the content API serves its pictures with CORS */
@@ -90,6 +102,7 @@ fetchEntries().then((fresh) => {
   im.src = MAPS[e.map] || e.map;
 })));
 }).then((images) => {
+  if (!images) { closed(); return; }
   const pictures = BOOK.map((e, i) => {
     const p = { src: images[i] ? prepare(images[i], e) : document.createElement('canvas') };
     ['gain', 'scatter', 'erosion', 'ceiling'].forEach((k) => { if (e[k] !== undefined) p[k] = e[k]; });

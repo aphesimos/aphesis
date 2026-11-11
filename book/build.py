@@ -61,7 +61,7 @@ def tokens_css(tok):
 
 
 # ---------- entries from content/*.md ----------
-FIELDS = {'title', 'author', 'year', 'map', 'caption', 'quote', 'quote_lang', 'quote_en', 'example', 'example_note',
+FIELDS = {'title', 'author', 'year', 'map', 'caption', 'quote', 'quote_lang', 'quote_en',
           'gain', 'scatter', 'erosion', 'ceiling', 'crop', 'blur', 'contrast', 'brightness'}
 REQUIRED = ('title', 'author', 'year', 'map', 'caption')
 NUMBERS = ('gain', 'scatter', 'erosion', 'ceiling', 'blur', 'contrast', 'brightness')
@@ -107,17 +107,14 @@ def read_entry(path):
     slug = re.sub(r'^\d+[-_]', '', os.path.splitext(os.path.basename(path))[0])
     entry = {'slug': slug, 'note': paras}
     entry.update(meta)
-    entry['example'] = bool(meta.get('example', False))
     return entry
 
 
 def entries():
+    # no entries is a book too: the codex stays closed (main.js), with one gloss beside its spine
     folder = os.path.join(D, 'content')
-    files = sorted(f for f in os.listdir(folder) if f.endswith('.md') and not f.startswith('_'))
-    out = [read_entry(os.path.join(folder, f)) for f in files]
-    if not out:
-        sys.exit('content/: no entries')
-    return out
+    files = sorted(f for f in os.listdir(folder) if f.endswith('.md') and not f.startswith('_')) if os.path.isdir(folder) else []
+    return [read_entry(os.path.join(folder, f)) for f in files]
 
 
 def entries_module(items):
@@ -180,8 +177,7 @@ def build(fragment):
     css = faces + tokens_css(tok) + bcss + open(os.path.join(D, 'src', 'book.css'), encoding='utf-8').read()
     body = open(os.path.join(D, 'src', 'template.html'), encoding='utf-8').read()
     # the first entry is in the markup, so the page reads before its script runs and without it
-    first = items[0]
-    body = body.replace('<!--__TITLE__-->', html.escape(first['title']))
+    body = body.replace('<!--__TITLE__-->', html.escape(items[0]['title']) if items else '')
     js = ds('components/bundle.js')
     page = body.replace('/*__CSS__*/', css).replace('/*__BUNDLE__*/', js).replace('/*__SCRIPT__*/', script(items))
     if not fragment:

@@ -29,7 +29,7 @@ python3 book/build.py --content-api https://content-api.aphes.ist     # or APHES
 
 ## Files
 
-- `content/*.md`: the entries, one markdown file each, read in file-name order.
+- `content/*.md`: the entries, one markdown file each, read in file-name order (none: the closed codex, below).
 - `src/template.html`, `src/book.css`: the page and its layout.
 - `src/content.js`: the content service's address (written by the build) and the fetch of its entries;
 - `src/main.js`: theme, fog, seal, cursor, tooltip, routing; `src/plate.js`: the two picture canvases;
@@ -74,9 +74,8 @@ The note: 60 to 200 words, plain paragraphs separated by a blank line.
   work, in the browser, without touching the map (the Flammarion engraving uses all four).
 - The build stops on a missing field or an unknown map, and warns when a note is outside 60 to 200 words.
 
-## The six example entries
+## No entries
 
-The six entries in `content/` are **examples** (`example: true`), chosen from the site's hermetic canon because
-their density maps already exist: the Emerald Tablet, Dante's Paradiso, Blake's Newton, Rembrandt's Faust,
-Caravaggio's Saint Jerome and the Flammarion engraving. Their notes are factual descriptions, not my own words about
-them. Replace them with the real reading list and delete the `example` lines.
+With nothing in `content/` and nothing from the content service, the codex stays closed: no picture page, no text
+page, no edges or contents, only the spine standing on the axis (in portrait too) and one gloss beside it,
+*liber clausus*, with "the book is closed" in its tooltip. The first entry opens it.

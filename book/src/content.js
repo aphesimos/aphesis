@@ -17,7 +17,7 @@ export async function fetchEntries(timeout = 3000) {
     if (!Array.isArray(books) || !books.length) return null;
     return books.map((b) => {
       const e = { slug: b.slug, title: b.title, author: b.author, year: b.year, map: b.picture.url, caption: b.caption,
-        note: b.note, example: !!b.example };
+        note: b.note };
       if (b.quote) Object.assign(e, { quote: b.quote, quote_lang: b.quote_lang, quote_en: b.quote_en });
       Object.assign(e, b.adjust || {});
       return e;

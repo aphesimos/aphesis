@@ -44,12 +44,13 @@ function fromFolders(t) {
 }
 
 export function buildLibrary({ doc, resolve, example }) {
-  const tracks = doc.tracks.map((t0, i) => Object.assign({}, t0, fromFolders(t0))).map((t, i) => Object.assign({}, t, {
+  /* one copy per track (the same fields, in the same order, as copying it twice) */
+  const tracks = doc.tracks.map((t0, i) => { const t = Object.assign({}, t0, fromFolders(t0)); return Object.assign(t, {
     i,
     artistName: t.artist || t.albumArtist || 'unknown artist',
     shown: t.title || t.name,
     hay: [t.title, t.artist, t.albumArtist, t.album, t.path].filter(Boolean).join(' \u0001 ').toLowerCase(),
-  }));
+  }); });
   const covers = doc.covers || {};
 
   /* ---------- folders ---------- */
@@ -159,4 +160,6 @@ export function bytes(n) {
 }
 export const khz = (r) => (r ? (r % 1000 ? (r / 1000).toFixed(1) : r / 1000) + ' khz' : '');
 export const depth = (t) => (t.bits ? t.bits + ' bit' : t.bitrate ? t.bitrate + ' kbps' : '');
-export const plural = (n, w) => n.toLocaleString('en') + ' ' + w + (n === 1 ? '' : 's');
+/* one number format for every count: n.toLocaleString('en') builds a new formatter on each call (the same text) */
+const NUM = new Intl.NumberFormat('en');
+export const plural = (n, w) => NUM.format(n) + ' ' + w + (n === 1 ? '' : 's');

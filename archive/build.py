@@ -27,13 +27,13 @@ SECTION_URL = SITE + '/archive'          # a post lives at SECTION_URL#<slug>
 
 STAGES = ['nigredo', 'albedo', 'citrinitas', 'rubedo']
 STAGE_TIPS = {
-    'nigredo': 'nigredo · just started',
-    'albedo': 'albedo · taking shape',
-    'citrinitas': 'citrinitas · almost done',
-    'rubedo': 'rubedo · finished',
+    'nigredo': 'nigredo · the black: barely begun',
+    'albedo': 'albedo · the white: taking shape',
+    'citrinitas': 'citrinitas · the yellow: nearly there',
+    'rubedo': 'rubedo · the red: finished',
 }
-LEDE = 'writing, finished or not.'
-EMPTY = 'nothing here yet.'
+LEDE = 'writing about anything, from draft to finished.'
+EMPTY = 'the scraped tablet: nothing on it, everything possible.'
 MAP_FILES = {  # density maps a post may name as ![caption](simulacrum:<name>), from system/assets/Simulacra
     'trismegistus': 'trismegistus.png', 'jerome': 'jerome.jpg', 'alchemist': 'alchemist.jpg',
     'flammarion': 'flammarion.png', 'cagnacci': 'cagnacci.jpg', 'magdalen': 'magdalen.jpg',
@@ -296,7 +296,7 @@ def list_html(posts):
         f'{entries}'
         '<footer class="foot"><span class="rule" aria-hidden="true"></span>'
         '<a class="feed aph-label" href="feed.xml" type="application/atom+xml">feed</a>'
-        '<span class="aph-meta">atom · every post</span></footer>'
+        '<span class="aph-meta">atom · every post, from nigredo to rubedo</span></footer>'
         '</div></section>')
 
 

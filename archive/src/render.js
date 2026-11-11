@@ -9,13 +9,13 @@
 
 export const STAGES = ['nigredo', 'albedo', 'citrinitas', 'rubedo'];
 export const STAGE_TIPS = {
-  nigredo: 'nigredo · just started',
-  albedo: 'albedo · taking shape',
-  citrinitas: 'citrinitas · almost done',
-  rubedo: 'rubedo · finished',
+  nigredo: 'nigredo · the black: barely begun',
+  albedo: 'albedo · the white: taking shape',
+  citrinitas: 'citrinitas · the yellow: nearly there',
+  rubedo: 'rubedo · the red: finished',
 };
-export const LEDE = 'writing, finished or not.';
-export const EMPTY = 'nothing here yet.';
+export const LEDE = 'writing about anything, from draft to finished.';
+export const EMPTY = 'the scraped tablet: nothing on it, everything possible.';
 /* the site's texts: the owner's version of a line where the site has one (the shell's Aphesis.text), else this one.
    The markup also names its key (data-text, data-text-tip), as build.py writes it. */
 const T = (key, own) => { const A = typeof window !== 'undefined' && window.Aphesis; return A && A.text ? A.text(key, own) : own; };
@@ -169,7 +169,7 @@ export function listHtml(posts) {
     entries +
     '<footer class="foot"><span class="rule" aria-hidden="true"></span>' +
     '<a class="feed aph-label" href="feed.xml" type="application/atom+xml">feed</a>' +
-    '<span class="aph-meta">atom · every post</span></footer>' +
+    '<span class="aph-meta">atom · every post, from nigredo to rubedo</span></footer>' +
     '</div></section>';
 }
 

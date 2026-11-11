@@ -172,7 +172,8 @@ live at once: the sections read the public API when it answers and keep their bu
 - **D1** (`aphesis-content`, `content/migrations/`): `posts` (slug, title, summary, stage, date, markdown body, notes,
   figures, example, published), `books` (slug, title, author, year, note, quote with its language and English, caption,
   picture, map adjustments, position, example, published), `works` (the fields of section/works `content/works.json`,
-  position, published), and the gate's `challenges`, `sessions` and `throttle`. Only hashes are kept there: of the
+  position, published), `texts` (the site's texts the owner changed: key, value, version), and the gate's
+  `challenges`, `sessions` and `throttle`. Only hashes are kept there: of the
   pending token, the code, the session and the visitor's address.
 - **R2** (`aphesis-content`): density maps under `m/<sha-256 of the bytes, 24 hex>.<png|jpg>` (a key never changes
   what it holds, so they are served with a year of `immutable` cache and `Access-Control-Allow-Origin: *`, which the
@@ -183,6 +184,18 @@ live at once: the sections read the public API when it answers and keep their bu
 Public, read-only, published entries only, CORS for `ALLOWED_ORIGINS`, `cache-control: public, max-age=30`:
 `GET /v1/posts`, `/v1/posts/:slug`, `/v1/books`, `/v1/books/:slug`, `/v1/works` (with the section's name and gloss),
 `/v1/works/:id`, `GET /media/:key`. Pictures come back as absolute URLs.
+
+**The site's texts** (`content/src/texts.rs`): the short lines the owner can change without a rebuild: the home's
+line for each section, the ledes, the helper lines, the empty states. Every key is listed once in `TEXTS`, with its
+screen and its default, which is the same string the page carries; the page keeps its own copy and shows it whenever
+the API does not answer or has nothing set, so a missing key never breaks a screen. `GET /v1/texts` answers only the
+keys the owner set, `{texts: {"music.lede": "..."}, version}`, with `cache-control: public, max-age=15` and an
+`ETag` of the version (`If-None-Match` gets `304`). The version is the sum of every key's version, which grows by one
+with each save and each reset, so it never comes back to an earlier value. The keys: `home.sections.<section>.description`
+(book, descent, archive, laboratory, works, wall, forum, music), `archive.lede`, `archive.empty`, `archive.stage.<stage>`,
+`laboratory.lede`, `laboratory.live`, `wall.placeholder`, `wall.helper`, `wall.sent`, `wall.empty`, `forum.lede`, `forum.empty`,
+`forum.placeholder.thread`, `forum.placeholder.reply`, `forum.pictures`, `music.lede`, `music.idle`, `music.empty`.
+A new key is one line in `TEXTS` and the same default in the page.
 
 The gate, as in the backlog (`docs/backlog.md` on `main`):
 
@@ -230,6 +243,9 @@ CORS preflight, which only the site's origins pass):
 | PUT | `/v1/admin/{posts,books,works}/:id` | create (`201`) or update (`200`); another id in the body renames (`409` if taken) |
 | DELETE | `/v1/admin/{posts,books,works}/:id` | remove |
 | POST | `/v1/admin/{posts,books,works}/:id/publish`, `/unpublish` | show it on the site, or take it back to a draft |
+| GET | `/v1/admin/texts` | every text the site reads, with `screen`, `label`, `default`, `value`, `overridden`, `version`, and the screens in order |
+| GET, PUT | `/v1/admin/texts/:key` | one text; PUT `{value, version?}` sets it (one line, 1 to 400 characters); with `version`, `409` and the current text when it changed meanwhile |
+| POST | `/v1/admin/texts/:key/reset` | back to the page's own string |
 | POST | `/v1/admin/media` | a density map made in the browser (multipart `file`: jpeg or png, at most 400 KB, 32 to 640 px) → `{key, url, w, h}` |
 | GET, DELETE | `/v1/admin/wall`, `/v1/admin/wall/:id` | the wall's lines and their removal, through the wall's admin API |
 | GET | `/v1/admin/forum/board[?cursor=<next>]`, `/threads/:id`, `/reports` | the forum's board a page at a time, a thread, the reports |
@@ -348,15 +364,17 @@ node --test e2e/*.test.mjs             # the Workers under wrangler dev, over HT
   address is ever in storage.
 - **The content service**: unit tests for hashing (RFC 7914 vectors, a vector from Node, the stored line), the words
   (2048, 33 bits, loose reading), the lockout and its backoff, cookies and CSRF, validation of every kind of entry,
-  the email (the backlog's rules, and its colours against the design system's tokens) and the export's files; end to
+  the email (the backlog's rules, and its colours against the design system's tokens), the export's files and the
+  texts (every key once, every default a valid value, the answers); end to
   end (`e2e/content.test.mjs`) with a local D1 and R2: the seed (from fixture commits the test makes, one entry of
   each kind marked example, which it skips), the public API and CORS, the gate step by step with
   the mail read from a local stand-in for Resend's API (the request, its key and its JSON, the HTML and text checked),
   Resend failing or never answering (a bare 503, the words void), code expiry, replacement and single use,
   lockout on both steps, CSRF (token, origin), create, edit, preview, publish, rename and delete for each kind, uploads,
-  moderation against local wall and forum Workers, and the nightly export against a stand-in for GitHub's API; and
+  moderation against local wall and forum Workers, and the nightly export against a stand-in for GitHub's API;
   `e2e/prune.test.mjs`: the removal of the seeded examples from a database as the first seed left it, with the
-  owner's entries beside them (a dry run, the run, a second run, then the Worker's answers and pictures).
+  owner's entries beside them (a dry run, the run, a second run, then the Worker's answers and pictures); and
+  `e2e/texts.test.mjs`: the public texts (CORS, cache, `304`), and the dashboard's list, edit, conflict and reset.
 
 ## One-time setup
 

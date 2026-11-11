@@ -5,6 +5,7 @@
 //!   GET  /v1/posts            /v1/posts/:slug       archive · codex
 //!   GET  /v1/books            /v1/books/:slug       book · liber
 //!   GET  /v1/works            /v1/works/:id         works · opera
+//!   GET  /v1/texts                                  the site's texts the owner changed {texts: {key: value}, version}
 //!   GET  /media/:key                                a picture from R2, cached for a year
 //!
 //! the gate (both steps answer a wrong attempt with the same 401 {"error": "no"})
@@ -20,6 +21,8 @@
 //!   DELETE /v1/admin/{posts|books|works}/:id
 //!   POST /v1/admin/{posts|books|works}/:id/publish     and /unpublish
 //!   POST /v1/admin/media                               a density map made in the browser (multipart: file)
+//!   GET  /v1/admin/texts                               every text the site reads: default, value, version
+//!   GET  /v1/admin/texts/:key    PUT {value, version?}    POST /v1/admin/texts/:key/reset
 //!   GET  /v1/admin/wall                  DELETE /v1/admin/wall/:id                     the wall's admin API
 //!   GET  /v1/admin/forum/board[?cursor]  GET /v1/admin/forum/threads/:id               the forum's admin API
 //!   GET  /v1/admin/forum/reports         DELETE /v1/admin/forum/threads/:id/posts/:n
@@ -39,6 +42,7 @@ pub mod export;
 pub mod mail;
 pub mod model;
 pub mod pbkdf2;
+pub mod texts;
 pub mod throttle;
 
 use aphesis_common::{
@@ -300,6 +304,7 @@ async fn route(c: &Ctx, mut req: Request) -> Result<Response> {
     match (m.clone(), p.as_slice()) {
         (Method::Get, [""]) => c.public(&json!({ "service": "content" })),
         (Method::Get, ["media", rest @ ..]) => media(c, &rest.join("/")).await,
+        (Method::Get, ["v1", "texts"]) => public_texts(c, &req).await,
         (Method::Get, ["v1", kind]) if Kind3::from(kind).is_some() => {
             list(c, Kind3::from(kind).unwrap(), false).await
         }
@@ -367,6 +372,97 @@ async fn one(c: &Ctx, k: Kind3, id: &str, admin: bool) -> Result<Response> {
         }
         None => c.fail(404, "not found"),
     }
+}
+
+/// the texts the owner set, briefly cached; a page that has them already gets 304 by their version
+async fn public_texts(c: &Ctx, req: &Request) -> Result<Response> {
+    let rows = c
+        .rows("SELECT key, value, version FROM texts ORDER BY key", &[])
+        .await?;
+    let body = texts::public_out(&rows);
+    let tag = texts::etag(body["version"].as_i64().unwrap_or(0));
+    let cache = "public, max-age=15";
+    if req.headers().get("If-None-Match")?.as_deref() == Some(tag.as_str()) {
+        let h = c
+            .headers()
+            .with("cache-control", cache)
+            .with("etag", &tag)
+            .to_worker();
+        return Ok(Response::empty()?.with_status(304).with_headers(h));
+    }
+    c.json_with(200, &body, cache, &[("etag", tag)])
+}
+
+async fn text_row(c: &Ctx, key: &str) -> Result<Option<Value>> {
+    c.row(
+        "SELECT key, value, version, updated FROM texts WHERE key = ?1",
+        &[s(key)],
+    )
+    .await
+}
+
+async fn admin_texts(c: &Ctx) -> Result<Response> {
+    let rows = c
+        .rows("SELECT key, value, version, updated FROM texts", &[])
+        .await?;
+    let list: Vec<Value> = texts::TEXTS
+        .iter()
+        .map(|t| texts::admin_out(t, rows.iter().find(|r| r["key"] == t.key)))
+        .collect();
+    c.json(200, &json!({ "screens": texts::SCREENS, "texts": list }))
+}
+
+async fn admin_text(c: &Ctx, t: &texts::Text, status: u16) -> Result<Response> {
+    let row = text_row(c, t.key).await?;
+    c.json(
+        status,
+        &json!({ "text": texts::admin_out(t, row.as_ref()) }),
+    )
+}
+
+/// a new value; with `version`, only if nothing was saved since that version (409 with the current text otherwise)
+async fn save_text(c: &Ctx, req: &mut Request, t: &texts::Text) -> Result<Response> {
+    let body = body_json(req).await;
+    if !body.is_object() {
+        return c.fail(400, "not json");
+    }
+    let value = match texts::value_in(&body) {
+        Ok(v) => v,
+        Err(e) => return c.fail(400, &e),
+    };
+    let want = match texts::version_in(&body) {
+        Ok(v) => v,
+        Err(e) => return c.fail(400, &e),
+    };
+    let row = text_row(c, t.key).await?;
+    let version = row
+        .as_ref()
+        .and_then(|r| r["version"].as_i64())
+        .unwrap_or(0);
+    if want.is_some_and(|w| w != version) {
+        return c.json(
+            409,
+            &json!({ "error": "changed meanwhile", "text": texts::admin_out(t, row.as_ref()) }),
+        );
+    }
+    c.run(
+        "INSERT INTO texts (key, value, version, updated) VALUES (?1, ?2, 1, ?3) \
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, version = texts.version + 1, updated = excluded.updated",
+        &[s(t.key), s(&value), n(now_ms())],
+    )
+    .await?;
+    admin_text(c, t, 200).await
+}
+
+/// back to the page's built-in string: the row stays, empty, so the version keeps growing
+async fn reset_text(c: &Ctx, t: &texts::Text) -> Result<Response> {
+    c.run(
+        "INSERT INTO texts (key, value, version, updated) VALUES (?1, NULL, 1, ?2) \
+         ON CONFLICT(key) DO UPDATE SET value = NULL, version = texts.version + 1, updated = excluded.updated",
+        &[s(t.key), n(now_ms())],
+    )
+    .await?;
+    admin_text(c, t, 200).await
 }
 
 async fn media(c: &Ctx, key: &str) -> Result<Response> {
@@ -684,6 +780,19 @@ async fn admin(c: &Ctx, req: &mut Request, m: Method, p: &[&str]) -> Result<Resp
             one(c, k, id, true).await
         }
         (Method::Post, ["media"]) => upload(c, req).await,
+        (Method::Get, ["texts"]) => admin_texts(c).await,
+        (Method::Get, ["texts", key]) => match texts::find(key) {
+            Some(t) => admin_text(c, t, 200).await,
+            None => c.fail(404, "not found"),
+        },
+        (Method::Put, ["texts", key]) => match texts::find(key) {
+            Some(t) => save_text(c, req, t).await,
+            None => c.fail(404, "not found"),
+        },
+        (Method::Post, ["texts", key, "reset"]) => match texts::find(key) {
+            Some(t) => reset_text(c, t).await,
+            None => c.fail(404, "not found"),
+        },
         (Method::Post, ["export"]) => match run_export(&c.env).await {
             Ok(v) => c.json(200, &v),
             Err(e) => {

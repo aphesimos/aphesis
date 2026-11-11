@@ -17,7 +17,7 @@
 .acts button{background:none;border:0;padding:var(--space-2) 0;color:var(--ink);font:inherit;cursor:pointer}
 .aph-meta{margin:0;color:var(--ink-soft)}
 .small{display:flex;gap:var(--space-5);margin:0}
-.small .s{width:40px;color:var(--accent)}
+.small .s{width:56px;color:var(--accent)}
 </style>
 <script>
 const eye = Aphesis.Eye(document.getElementById('e'), { gaze: 'auto' });
@@ -27,5 +27,5 @@ document.getElementById('bClose').onclick = () => eye.close();
 document.getElementById('bOpen').onclick = () => eye.open();
 document.getElementById('bWide').onclick = () => eye.wide();
 /* the owner's mark: small eyes on one shared tick, still while off screen */
-document.querySelectorAll('.small .s').forEach((el) => Aphesis.Eye(el, { size: 40, shared: true, drawIn: false }));
+document.querySelectorAll('.small .s').forEach((el) => Aphesis.Eye(el, { size: 56, drawAt: 240, shared: true, drawIn: false }));
 </script>

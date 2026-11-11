@@ -1266,9 +1266,10 @@
      shared (false; true: one of many small eyes, as the owner's mark beside each of the owner's posts: every shared eye
      steps on one page-wide tick of 125 ms, holds still while it is off screen (one IntersectionObserver for them all),
      and reads the pointer from one listener; the tick stops while no shared eye is on screen).
-     The box's height is 14/24 of its width: the eye's own band of the icon grid. Drawn small (from 24 px), the lids
-     keep at least 1.5 CSS px, so the eye still reads as brushed ink. The drawings for a size are made once and kept
-     for every eye of that size. */
+     drawAt (CSS px: the eye is drawn as it is at that size and scaled to its box, lids, boil and stipple cells together,
+     so a small eye is a miniature of a large one, not a drawing of its own; else it is drawn at the size it is shown).
+     The box's height is 14/24 of its width: the eye's own band of the icon grid. The drawings for a size are made once
+     and kept for every eye of that size. */
   var EYE_BLINKS = ['open', 'half', 'closed', 'squint', 'wide'];
   var EYE_GAZES = ['centre', 'left', 'right', 'up', 'down', 'up-left', 'up-right', 'down-left', 'down-right', 'narrow', 'dilated'];
   var EYE_DIR = { centre: [0, 0], left: [-2.3, 0], right: [2.3, 0], up: [0, -1.5], down: [0, 1.5], 'up-left': [-1.75, -1.15], 'up-right': [1.75, -1.15],
@@ -1303,13 +1304,11 @@
     return { iris: iris, pupil: pupil };
   }
   function eyeScaled(pts, u) { return pts.map(function (p) { return [p[0] * u, p[1] * u]; }); }
-  /* a small eye's strokes are held at 1.5 CSS px at least (the lashes in proportion), so it reads as ink, not hair */
-  function eyeWeight(u) { return Math.max(1, 1.5 / (EYE_W * u)); }
   function eyeDrawings(u) {
-    var lids = {}, irises = {}, k = eyeWeight(u);
+    var lids = {}, irises = {};
     EYE_BLINKS.forEach(function (b) {
       var L = EYE_LIDS[b](); lids[b] = []; irises[b] = {};
-      for (var v = 0; v < EYE_VARIANTS; v++) lids[b].push(L.strokes.map(function (s) { return brush(eyeScaled(s[0], u), s[1] * u * k, s[2] + v * 211, s[3], s[4]); }).join(''));
+      for (var v = 0; v < EYE_VARIANTS; v++) lids[b].push(L.strokes.map(function (s) { return brush(eyeScaled(s[0], u), s[1] * u, s[2] + v * 211, s[3], s[4]); }).join(''));
       EYE_GAZES.forEach(function (g) { irises[b][g] = []; for (var v = 0; v < EYE_VARIANTS; v++) irises[b][g].push(eyeIris(b, g, v, u)); });
     });
     return { lids: lids, irises: irises, u: u };
@@ -1374,10 +1373,9 @@
     function hold(median, spread) { return Math.max(1, Math.round(median * Math.exp((rnd() + rnd() + rnd() - 1.5) * spread))); }
     var nextBlink = hold(26, 0.55);
     function size() {
-      var w = Math.max(24, o.size || el.getBoundingClientRect().width || 240), u = w / 24;
+      /* drawAt: drawn at that size whatever the box, and the SVG scales it down (a miniature); else at the shown size */
+      var w = o.drawAt || Math.max(48, o.size || el.getBoundingClientRect().width || 240), u = w / 24;
       if (D && Math.abs(D.u - u) / D.u < 0.1) return;
-      if (shared) u = Math.round(u * 8) / 8;   /* shared eyes of nearly one size share one set of drawings */
-      w = u * 24;
       svg.setAttribute('viewBox', '0 ' + (5 * u).toFixed(1) + ' ' + w.toFixed(1) + ' ' + (14 * u).toFixed(1));
       disp.setAttribute('scale', (w * 0.0095).toFixed(2));
       D = eyeDrawingsAt(u); api.drawings = D;

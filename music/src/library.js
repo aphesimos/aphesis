@@ -33,70 +33,66 @@ export async function loadIndex() {
   return { doc, resolve: (u) => new URL(u, base).href, example: false };
 }
 
-/* untagged files take their names from the library's structure (artist/album/track), so an index written before
-   sync.py filled these in still reads right */
-function fromFolders(t) {
-  const parts = (t.path || '').split('/');
-  const out = {};
-  if (!t.artist && !t.albumArtist && parts.length >= 2) out.artist = parts[0];
-  if (!t.album && parts.length >= 3) out.album = parts[parts.length - 2];
-  return out;
-}
-
-export function buildLibrary({ doc, resolve, example }) {
-  /* one copy per track (the same fields, in the same order, as copying it twice) */
-  const tracks = doc.tracks.map((t0, i) => { const t = Object.assign({}, t0, fromFolders(t0)); return Object.assign(t, {
-    i,
-    artistName: t.artist || t.albumArtist || 'unknown artist',
-    shown: t.title || t.name,
-    hay: [t.title, t.artist, t.albumArtist, t.album, t.path].filter(Boolean).join(' \u0001 ').toLowerCase(),
-  }); });
+/* the library as plain data, from the parsed index: every track named, the folder tree, artists and albums
+   gathered from the tags, each list in its order. It reads nothing outside itself, so it runs as it is in a worker
+   (loadLibrary), and on the main thread where no worker can be made. The tracks are the index's own objects,
+   filled in (the document is the library's alone). */
+export function computeLibrary(doc) {
+  const coll = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
+  const byName = (a, b) => coll.compare(a, b);
+  const sortKey = (s) => s.replace(/^the\s+/i, '');
+  /* untagged files take their names from the library's structure (artist/album/track), so an index written before
+     sync.py filled these in still reads right */
+  const tracks = doc.tracks;
+  for (let i = 0; i < tracks.length; i++) {
+    const t = tracks[i], parts = (t.path || '').split('/');
+    if (!t.artist && !t.albumArtist && parts.length >= 2) t.artist = parts[0];
+    if (!t.album && parts.length >= 3) t.album = parts[parts.length - 2];
+    t.i = i;
+    t.artistName = t.artist || t.albumArtist || 'unknown artist';
+    t.shown = t.title || t.name;
+  }
   const covers = doc.covers || {};
 
-  /* ---------- folders ---------- */
-  const nodes = new Map();
-  function node(name, parent, path) {
-    const n = { kind: 'dir', name, parent, path, dirs: [], files: [], count: 0, seconds: 0 };
-    nodes.set(path.join('/'), n);
-    return n;
-  }
-  const root = node('', null, []);
+  /* ---------- folders: one flat list, the root first; a node names its parent and children by index ---------- */
+  const nodes = [];
+  function node(name, parent, path) { nodes.push({ name, parent, path, dirs: [], files: [], count: 0, seconds: 0 }); return nodes.length - 1; }
+  node('', -1, []);
   if (doc.tree) {
     (function fill(src, n) {
-      n.files = src.files.slice();
-      for (const d of src.dirs) { const c = node(d.name, n, n.path.concat(d.name)); n.dirs.push(c); fill(d, c); }
-    })(doc.tree, root);
+      nodes[n].files = src.files.slice();
+      for (const d of src.dirs) { const c = node(d.name, n, nodes[n].path.concat(d.name)); nodes[n].dirs.push(c); fill(d, c); }
+    })(doc.tree, 0);
   } else {
     tracks.forEach((t) => {
-      let n = root;
+      let n = 0;
       for (const part of t.path.split('/').slice(0, -1)) {
-        let c = n.dirs.find((d) => d.name === part);
-        if (!c) { c = node(part, n, n.path.concat(part)); n.dirs.push(c); }
+        let c = nodes[n].dirs.find((d) => nodes[d].name === part);
+        if (c === undefined) { c = node(part, n, nodes[n].path.concat(part)); nodes[n].dirs.push(c); }
         n = c;
       }
-      n.files.push(t.i);
+      nodes[n].files.push(t.i);
     });
   }
-  (function total(n) {
-    n.dirs.sort((a, b) => byName(a.name, b.name));
+  (function total(i) {
+    const n = nodes[i];
+    n.dirs.sort((a, b) => byName(nodes[a].name, nodes[b].name));
     n.files.sort((a, b) => byName(tracks[a].name, tracks[b].name));
-    n.count = n.files.length; n.seconds = n.files.reduce((s, i) => s + (tracks[i].duration || 0), 0);
-    for (const d of n.dirs) { total(d); n.count += d.count; n.seconds += d.seconds; }
-  })(root);
-  /* every track below a folder, in folder order: what "play" on a folder plays */
-  function deep(n, out = []) { out.push(...n.files); n.dirs.forEach((d) => deep(d, out)); return out; }
+    n.count = n.files.length; n.seconds = n.files.reduce((s, j) => s + (tracks[j].duration || 0), 0);
+    for (const d of n.dirs) { total(d); n.count += nodes[d].count; n.seconds += nodes[d].seconds; }
+  })(0);
 
   /* ---------- artists and albums, from the tags ---------- */
   const artists = new Map(), albums = new Map();
   for (const t of tracks) {
     const an = t.albumArtist || t.artist || 'unknown artist';
     let a = artists.get(an);
-    if (!a) { a = { kind: 'artist', name: an, albums: [], loose: [], count: 0, seconds: 0 }; artists.set(an, a); }
+    if (!a) { a = { name: an, albums: [], loose: [], count: 0, seconds: 0 }; artists.set(an, a); }
     a.count++; a.seconds += t.duration || 0;
     if (t.album) {
       const key = an + '\u0000' + t.album;
       let al = albums.get(key);
-      if (!al) { al = { kind: 'album', key, title: t.album, artist: an, year: null, cover: null, tracks: [], seconds: 0 }; albums.set(key, al); a.albums.push(al); }
+      if (!al) { al = { key, title: t.album, artist: an, year: null, cover: null, tracks: [], seconds: 0 }; albums.set(key, al); a.albums.push(al); }
       al.tracks.push(t.i); al.seconds += t.duration || 0;
       if (t.year) al.year = Math.max(al.year || 0, t.year);
       if (!al.cover && t.cover && covers[t.cover]) al.cover = t.cover;
@@ -114,14 +110,42 @@ export function buildLibrary({ doc, resolve, example }) {
     a.loose.sort((x, y) => byName(tracks[x].shown, tracks[y].shown));
   }
   const albumList = [...albums.values()].sort((a, b) => byName(sortKey(a.artist), sortKey(b.artist)) || (a.year || 9999) - (b.year || 9999) || byName(a.title, b.title));
+  /* an artist's albums by their place in the album list */
+  const at = new Map(albumList.map((al, j) => [al, j]));
+  artistList.forEach((a) => { a.albums = a.albums.map((al) => at.get(al)); });
+
+  return {
+    tracks, nodes, albums: albumList, artists: artistList, covers, base: doc.base, generated: doc.generated,
+    stats: { tracks: tracks.length, seconds: tracks.reduce((s, t) => s + (t.duration || 0), 0), bytes: tracks.reduce((s, t) => s + (t.size || 0), 0) },
+  };
+}
+
+/* the library the explorer reads, made from that data (cheap: it only links what is already worked out) */
+function assemble(d, resolve, example) {
+  const tracks = d.tracks, covers = d.covers || {};
+  const ns = d.nodes.map((n) => ({ kind: 'dir', name: n.name, parent: null, path: n.path, dirs: [], files: n.files, count: n.count, seconds: n.seconds }));
+  d.nodes.forEach((n, i) => { ns[i].parent = n.parent >= 0 ? ns[n.parent] : null; ns[i].dirs = n.dirs.map((j) => ns[j]); });
+  const root = ns[0], nodes = new Map(ns.map((n) => [n.path.join('/'), n]));
+  /* every track below a folder, in folder order: what "play" on a folder plays */
+  function deep(n, out = []) { out.push(...n.files); n.dirs.forEach((c) => deep(c, out)); return out; }
+  const albumList = d.albums.map((a) => ({ kind: 'album', key: a.key, title: a.title, artist: a.artist, year: a.year, cover: a.cover, tracks: a.tracks, seconds: a.seconds }));
+  const artistList = d.artists.map((a) => ({ kind: 'artist', name: a.name, albums: a.albums.map((j) => albumList[j]), loose: a.loose, count: a.count, seconds: a.seconds }));
+  const artists = new Map(artistList.map((a) => [a.name, a])), albums = new Map(albumList.map((a) => [a.key, a]));
+  const trackOrder = (x, y) => {
+    const a = tracks[x], b = tracks[y];
+    return (a.disc || 1) - (b.disc || 1) || (a.track || 1e4) - (b.track || 1e4) || byName(a.name, b.name);
+  };
 
   /* ---------- search: every word must appear somewhere in title, artist, album or path ---------- */
+  /* (what a track is searched by is put together the first time anything is searched) */
+  let hay = null;
   function search(q) {
     const words = q.toLowerCase().split(/\s+/).filter(Boolean);
     if (!words.length) return { albums: [], artists: [], tracks: [] };
+    if (!hay) hay = tracks.map((t) => [t.title, t.artist, t.albumArtist, t.album, t.path].filter(Boolean).join(' \u0001 ').toLowerCase());
     const hit = (s) => words.every((w) => s.includes(w));
     const ts = [];
-    for (const t of tracks) if (hit(t.hay)) ts.push(t.i);
+    for (let i = 0; i < tracks.length; i++) if (hit(hay[i])) ts.push(i);
     ts.sort((x, y) => byName(sortKey(tracks[x].artistName), sortKey(tracks[y].artistName)) || byName(tracks[x].album || '', tracks[y].album || '') || trackOrder(x, y));
     return {
       artists: artistList.filter((a) => hit(a.name.toLowerCase())).slice(0, 50),
@@ -131,12 +155,73 @@ export function buildLibrary({ doc, resolve, example }) {
   }
 
   return {
-    tracks, covers, root, nodes, deep, artists, albums, artistList, albumList, search, example,
-    stats: { tracks: tracks.length, seconds: tracks.reduce((s, t) => s + (t.duration || 0), 0), bytes: tracks.reduce((s, t) => s + (t.size || 0), 0) },
+    tracks, covers, root, nodes, deep, artists, albums, artistList, albumList, search, example, stats: d.stats,
     url: (u) => (u ? resolve(u) : null),
     mapUrl: (cid) => (cid && covers[cid] ? resolve(covers[cid].map) : null),
     thumbOf: (cid) => (cid && covers[cid] ? covers[cid].thumb : null),
-    generated: doc.generated,
+    generated: d.generated,
+  };
+}
+
+export function buildLibrary({ doc, resolve, example }) { return assemble(computeLibrary(doc), resolve, example); }
+
+/* the library, with the index fetched, decoded, parsed and worked out in a worker, so none of it holds the page up:
+   the main thread only receives the result, the tracks in parts (each part a short task between frames), and links
+   it. Inside the one-page shell the index is asked for through the section's fetch (the shell holds the section
+   back until the library is there and not empty) and its bytes are handed to the worker; alone, the worker fetches
+   it. Where no worker can be made, or it fails, the same work runs here. */
+const PART = 400;
+export async function loadLibrary() {
+  if (MOCK) return buildLibrary(await loadIndex());
+  const url = new URL(INDEX_URL, location.href).href;
+  const inShell = !!document.getElementById('aph-host');
+  const here = async () => {
+    const res = await fetch(url, { cache: 'no-cache' });
+    if (!res.ok) throw new Error('index ' + res.status);
+    const doc = await res.json();
+    const base = new URL(doc.base || './', url);
+    return buildLibrary({ doc, resolve: (u) => new URL(u, base).href, example: false });
+  };
+  let w = null, src = null;
+  try {
+    src = URL.createObjectURL(new Blob(['"use strict";\n' + computeLibrary.toString() + '\n(' + libraryWorker.toString() + ')(' + PART + ');'], { type: 'text/javascript' }));
+    w = new Worker(src);
+  } catch (_) { if (src) URL.revokeObjectURL(src); return here(); }
+  const end = () => { w.terminate(); URL.revokeObjectURL(src); };
+  let buf = null;
+  if (inShell) {
+    const res = await fetch(url, { cache: 'no-cache' });
+    if (!res.ok) { end(); throw new Error('index ' + res.status); }
+    buf = await res.arrayBuffer();
+  }
+  const d = await new Promise((resolve, reject) => {
+    const tracks = [];
+    w.onmessage = (e) => {
+      const m = e.data;
+      if (m.t === 'tracks') { for (let i = 0; i < m.list.length; i++) tracks[m.from + i] = m.list[i]; return; }
+      end();
+      if (m.t === 'rest') { m.data.tracks = tracks; resolve(m.data); } else reject(new Error(m.message));
+    };
+    /* a worker that could not start or broke down: the work runs here instead */
+    w.onerror = (e) => { e.preventDefault(); end(); resolve(null); };
+    if (buf) w.postMessage({ buf }, [buf]); else w.postMessage({ url });
+  });
+  if (!d) return here();
+  const base = new URL(d.base || './', url);
+  return assemble(d, (u) => new URL(u, base).href, false);
+}
+/* the worker's own script (with computeLibrary before it): it fetches the index where it was not given its bytes,
+   works the library out and sends it back, the tracks first in parts */
+function libraryWorker(PART) {
+  self.onmessage = async (e) => {
+    try {
+      let buf = e.data.buf;
+      if (!buf) { const r = await fetch(e.data.url, { cache: 'no-cache' }); if (!r.ok) throw new Error('index ' + r.status); buf = await r.arrayBuffer(); }
+      const d = computeLibrary(JSON.parse(new TextDecoder().decode(buf)));
+      for (let i = 0; i < d.tracks.length; i += PART) postMessage({ t: 'tracks', from: i, list: d.tracks.slice(i, i + PART) });
+      d.tracks = null;
+      postMessage({ t: 'rest', data: d });
+    } catch (err) { postMessage({ t: 'error', message: String((err && err.message) || err) }); }
   };
 }
 

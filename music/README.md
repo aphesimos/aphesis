@@ -9,6 +9,12 @@ like a file explorer and listen with the player built in. The gloss is *phonothe
   terminal listing in Special Elite: name, time, format, bit depth, sample rate. Folders, files and artists are
   brushed glyphs with stipple on the 24-unit grid (`src/glyphs.js`); albums show their cover as a still stipple
   thumb (`src/stipple.js`). Lists are virtual (`src/vlist.js`): 20,000 tracks keep about forty rows in the page.
+- **Coming in without a stall.** The library (`index.json`, about two megabytes) is fetched, decoded, parsed and
+  worked out (folders, artists, albums, their orders) in a worker (`loadLibrary` in `src/library.js`); the page
+  only receives the result, the tracks in parts, each a short task between frames. Inside the one-page shell the
+  shell's own wait checks the index in a worker too and hands its bytes on. The view is made in a frame of its own,
+  after the player, and the cover's simulacrum (its WebGL setup is the slowest single thing in the view) once the
+  section has come in. Where no worker can be made, or it fails, the same work runs on the page.
 - **The deck.** The cover as a live simulacrum (one canvas for the whole section, a dissolve between albums), the
   track, a seek line (a brushed stroke with the time already played in stipple), previous · play · next, shuffle,
   the **lossless** switch, volume and the queue. Playing a track queues the folder, album or search results it is

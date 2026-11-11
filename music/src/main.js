@@ -6,7 +6,7 @@
    player core keeps playing. Inside the one-page shell (#aph-host exists) the shell mounts and unmounts; the
    section mounts at once and the shell's own routes do the rest. See README.md, "continuity". */
 
-import { loadIndex, buildLibrary } from './library.js';
+import { loadLibrary } from './library.js';
 import { getPlayer } from './player.js';
 import { mountView } from './view.js';
 
@@ -77,9 +77,13 @@ function route() {
   if (inShell || wanted()) { document.title = 'aphes.ist music'; mount(); } else leave();
 }
 
-loadIndex().then((ix) => {
-  lib = buildLibrary(ix);
+/* the library comes from a worker (library.js); the view is made in a frame of its own, after the player, so no one
+   task holds up the seal's travel or the section coming in */
+const nextFrame = () => new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+loadLibrary().then(async (l) => {
+  lib = l;
   core = getPlayer(lib);
+  await nextFrame();
   route();
 }).catch((err) => {
   console.error(err);

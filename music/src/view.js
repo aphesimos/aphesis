@@ -380,7 +380,10 @@ export function mountView(root, lib, core, opts = {}) {
   /* ---------- the cover: one live simulacrum, reused for every track ---------- */
   /* the sim's options stay live: the spinning record turns its sound cue off while it swaps frames */
   const simOpts = { ground: false, fit: 'contain', margin: 0.06, scatter: 0.6, erosion: 0.5, ceiling: 0.8, accent: 0.015, gain: 1 };
-  const sim = A.Simulacrum(canvas, simOpts);
+  /* made once the view has come in (its pieces condense over about a second and a half): its WebGL setup is the
+     slowest single thing in the view and would stall them, and the cover only shows once it has drawn anyway */
+  const SIM_AFTER = 1300;
+  let sim = null, simWait = 0, simFor;
   let shownCover = undefined, simStarted = false, simShown = false;
     const maps = new Map();
   function mapCanvas(cid) {
@@ -421,7 +424,7 @@ export function mountView(root, lib, core, opts = {}) {
   }
   const spin = setInterval(() => {
     /* it turns once the record has coalesced (a swap is a dissolve and a coalesce, about 4 s) */
-    if (dead || shownCover !== 'record' || performance.now() - recSince < 4200 || !root.isConnected) return;
+    if (dead || !sim || shownCover !== 'record' || performance.now() - recSince < 4200 || !root.isConnected) return;
     const target = core.playing ? 1 : 0, now = performance.now(), dt = Math.min(0.5, (now - (recLast || now)) / 1000);
     recLast = now;
     recSpeed += (target - recSpeed) * (1 - Math.exp(-dt / 0.45));   /* about a second and a half to stop or start */
@@ -433,6 +436,14 @@ export function mountView(root, lib, core, opts = {}) {
 
   /* nothing loaded: the still ring, the record no one photographed (the same simulacrum, standing still) */
   function cover(t) {
+    if (!sim) {
+      simFor = t;
+      if (!simWait) simWait = setTimeout(() => requestAnimationFrame(() => {
+        if (dead) return;
+        sim = A.Simulacrum(canvas, simOpts); cover(simFor);
+      }), SIM_AFTER);
+      return;
+    }
     const key = !t ? 'idle' : (t.cover || 'record');
     if (key === shownCover) return;
     shownCover = key; recSince = performance.now();
@@ -561,10 +572,13 @@ export function mountView(root, lib, core, opts = {}) {
     try { ro.disconnect(); } catch (_) { /* fine */ }
     narrowMq.removeEventListener('change', onMq);
     vl.destroy();
-    try { sim.stop(); } catch (_) { /* fine */ }
-    const ext = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-    const lose = ext && ext.getExtension('WEBGL_lose_context');
-    if (lose) lose.loseContext();
+    clearTimeout(simWait);
+    if (sim) {
+      try { sim.stop(); } catch (_) { /* fine */ }
+      const ext = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      const lose = ext && ext.getExtension('WEBGL_lose_context');
+      if (lose) lose.loseContext();
+    }
   }
   return {
     unmount: stop,

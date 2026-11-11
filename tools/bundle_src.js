@@ -571,7 +571,7 @@
      jerk (bundle.css: .aph-red). Its moment comes from the fields' own model of the wave: a cell turns once
      MJ(t / duration) passes .76 times its distance from the origin over the farthest corner, plus a hash (.14) and the
      fog's noise (.1), .12 on average; the turn is centred on that moment. */
-  var RED_TURN = 500, REDS = ['--accent', '--accent-text', '--seal'];
+  var RED_TURN = 500;
   function rootValue(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
   function mjInverse(y) { var lo = 0, hi = 1; for (var i = 0; i < 24; i++) { var m = (lo + hi) / 2; if (MJ(m) < y) lo = m; else hi = m; } return (lo + hi) / 2; }
   function redsAt(org, far, dur) {
@@ -580,33 +580,324 @@
       el.style.setProperty('--aph-red-at', Math.max(0, Math.round(dur * mjInverse(Math.min(1, 0.76 * d / far + 0.12)) - RED_TURN / 2)) + 'ms');
     });
   }
+  /* the rest of the page. Right after the click (once its handler has run, so a section that takes a mask off under
+     .aph-shifting, or the shell stepping its inscription aside, already has) the runtime reads the page once and gives
+     every piece of ink that is in no .aph-ink container and no .aph-red mark the treatment it can take:
+     - a subtree whose paint is only ink (text, drawn marks, borders, fields in black, white or a grey: no red, no other
+       colour, no picture or canvas, no ground and no layer of its own) and that reaches the fog (no stacking context
+       between it and the page) blends like .aph-ink. The highest such subtree is taken, so the blend groups stay few;
+     - what cannot blend turns at the wave's moment where it stands, like the reds: a red mark, ink inside a layer of
+       its own (an opacity, a transform, a fixed, sticky or z-indexed box), a box whose own text shares it with a red or
+       sits on a ground of its own, and an .aph-ink container that cannot reach the fog, where its white ink would show
+       over the old ground (it blends again if the layer steps aside later). Such a box (.aph-turn) keeps every colour of the old theme until then and turns over RED_TURN ms; a box
+       whose colour it only inherits is given it, so the turn reaches it. A canvas is never inside a turn, since its
+       field reads the theme's colours from the page.
+     A box that blends keeps its own grey (the blend's white ink would show it as full ink), and an .aph-ink container
+     whose own colour is red turns instead of blending.
+     What is added or shown while the wave runs is read the same way. When the wave has covered the screen every class
+     and colour the runtime set is taken back, in the frames that hold transitions (.aph-still). */
+  var INK = 1, RED = 2, OTHER = 4, GROUND = 8, MEDIA = 16, LAYER = 32;
+  var TURN = ['--ink', '--ink-soft', '--line', '--accent-text', '--accent', '--seal', '--rubedo-text', '--rubedo', '--fog', '--bg'];
+  var SKIP = /^(SCRIPT|STYLE|TEMPLATE|NOSCRIPT|LINK|META|TITLE|BR|WBR|AUDIO|SOURCE|TRACK|DATALIST|OPTION|OPTGROUP)$/;
+  var PICTURE = /^(CANVAS|IMG|VIDEO|PICTURE|IFRAME|OBJECT|EMBED)$/;
+  var hues = {};
+  function rgba(s) {
+    var c = hues[s]; if (c) return c;
+    if (!probe) probe = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+    probe.clearRect(0, 0, 1, 1); probe.fillStyle = 'rgba(0,0,0,0)'; probe.fillStyle = s; probe.fillRect(0, 0, 1, 1);
+    var d = probe.getImageData(0, 0, 1, 1).data; return (hues[s] = [d[0], d[1], d[2], d[3]]);
+  }
+  function sameColor(a, b) { var x = rgba(a), y = rgba(b); return Math.abs(x[0] - y[0]) + Math.abs(x[1] - y[1]) + Math.abs(x[2] - y[2]) + Math.abs(x[3] - y[3]) < 8; }
+  /* black, white and the greys are ink; a colour leaning to red is a red; any other is a colour of its own */
+  function hueOf(s) {
+    if (!s || s === 'none' || s === 'transparent') return 0;
+    if (/url\(|gradient/.test(s)) return OTHER;
+    var c = rgba(s); if (c[3] < 8) return 0;
+    var mx = Math.max(c[0], c[1], c[2]), mn = Math.min(c[0], c[1], c[2]);
+    if (mx - mn < 28) return INK;
+    return c[0] === mx && c[0] - Math.max(c[1], c[2]) > 40 ? RED : OTHER;
+  }
+  function set(v) { return !!v && v !== 'none' && v !== 'auto' && v !== 'normal'; }
+  /* a box that makes a stacking context: blending inside it never reaches the fog */
+  function isolates(cs, pd) {
+    var p = cs.position;
+    return p === 'fixed' || p === 'sticky' || (cs.zIndex !== 'auto' && (p !== 'static' || /flex|grid/.test(pd))) || +cs.opacity < 1 ||
+      set(cs.transform) || set(cs.translate) || set(cs.rotate) || set(cs.scale) || set(cs.filter) || set(cs.backdropFilter) ||
+      set(cs.webkitBackdropFilter) || cs.mixBlendMode !== 'normal' || cs.isolation === 'isolate' || set(cs.maskImage) ||
+      set(cs.webkitMaskImage) || set(cs.clipPath) || set(cs.perspective) || set(cs.containerType) || cs.contentVisibility === 'auto' ||
+      /transform|opacity|filter|mask|clip-path|isolation|mix-blend-mode|perspective|translate|rotate|scale|z-index/.test(cs.willChange) ||
+      /paint|layout|strict|content/.test(cs.contain);
+  }
+  /* a layer of its own: blending a subtree that holds one would pull it into the subtree's stacking context */
+  function layered(cs, pd) { var p = cs.position; return p === 'fixed' || p === 'sticky' || (cs.zIndex !== 'auto' && (p !== 'static' || /flex|grid/.test(pd))); }
+  function edges(cs) {
+    var b = 0;
+    ['Top', 'Right', 'Bottom', 'Left'].forEach(function (s) { if (parseFloat(cs['border' + s + 'Width']) > 0 && !/none|hidden/.test(cs['border' + s + 'Style'])) b |= hueOf(cs['border' + s + 'Color']); });
+    if (set(cs.borderImageSource)) b |= OTHER;
+    return b;
+  }
+  /* a ground of its own: the page's ground, or a veil of it */
+  function ground(cs, bg) {
+    var h = hueOf(cs.backgroundColor), c = rgba(cs.backgroundColor), g = bg && rgba(bg);
+    return (set(cs.backgroundImage) ? OTHER : 0) | (h === INK && g && Math.abs(c[0] - g[0]) + Math.abs(c[1] - g[1]) + Math.abs(c[2] - g[2]) < 12 ? GROUND : h);
+  }
+  /* the drawn marks inside an svg, by their fill and stroke */
+  function marks(svg) {
+    var b = 0, s = svg.querySelectorAll('path,circle,ellipse,rect,line,polyline,polygon,text,use,image,foreignObject');
+    for (var i = 0; i < s.length && i < 48; i++) {
+      if (/^(image|foreignObject)$/.test(s[i].tagName)) return OTHER;
+      var c = getComputedStyle(s[i]); if (c.display !== 'none' && c.visibility !== 'hidden') b |= hueOf(c.fill) | hueOf(c.stroke);
+    }
+    return b;
+  }
+  /* what an element paints itself: its text, an svg's marks, its borders and decoration, its ground */
+  function paintOf(el, cs, bg) {
+    var b = 0, tag = el.tagName, text = false, n;
+    if (cs.visibility !== 'hidden') {
+      for (n = el.firstChild; n; n = n.nextSibling) if (n.nodeType === 3 && /\S/.test(n.data)) { text = true; break; }
+      if (tag === 'TEXTAREA' || tag === 'SELECT' || (tag === 'INPUT' && /^(text|password|search|email|url|tel|number)$/.test(el.type))) text = true;
+      else if (tag === 'INPUT' && !/^(hidden|file)$/.test(el.type)) b |= OTHER;   /* a native control draws its own colours */
+      if (text) {
+        var f = cs.webkitTextFillColor; b |= hueOf(f && !sameColor(f, cs.color) ? f : cs.color);
+        if (set(cs.textDecorationLine)) b |= hueOf(cs.textDecorationColor);
+      }
+      if (tag === 'svg') b |= marks(el);
+      b |= edges(cs) | ground(cs, bg);
+    }
+    return b;
+  }
+  /* what the ::before and ::after of a subtree paint (asked only of a subtree about to blend: reading them for the
+     whole page would cost more than everything else) */
+  function pseudos(root, bg) {
+    var b = 0, els = [root].concat(Array.prototype.slice.call(root.querySelectorAll('*')));
+    for (var i = 0; i < els.length && !(b & (RED | OTHER | GROUND)); i++) {
+      if (els[i].closest('svg') && els[i].tagName !== 'svg') continue;
+      ['::before', '::after'].forEach(function (w) {
+        var p = getComputedStyle(els[i], w), c = p.content;
+        if (!set(c) || p.display === 'none' || p.visibility === 'hidden') return;
+        if (/^["'].*\S.*["']$/.test(c) || /counter|attr\(/.test(c)) b |= hueOf(p.color);
+        if (/url\(/.test(c)) b |= OTHER;
+        b |= edges(p) | ground(p, bg);
+      });
+    }
+    return b;
+  }
+  /* bottom up: what each subtree paints (info: element -> {b: the subtree, o: its own paint, its style, box, and
+     whether its colour is its parent's}) */
+  function survey(el, pd, pc, bg, info) {
+    var tag = el.tagName;
+    if (SKIP.test(tag) || el.classList.contains('aph-cursor')) return 0;
+    var cs = getComputedStyle(el);
+    if (cs.display === 'none') return 0;
+    if (el.classList.contains('aph-red')) return RED;
+    if (PICTURE.test(tag)) return MEDIA;
+    if (el.classList.contains('aph-ink')) {
+      if (cs.visibility === 'hidden') return 0;
+      info.set(el, { b: INK | (el.querySelector('canvas,img,video,picture,iframe,object,embed') ? MEDIA : 0), o: INK, box: true, color: cs.color, inherits: sameColor(cs.color, pc) });
+      return INK | (layered(cs, pd) ? LAYER : 0);
+    }
+    var o = paintOf(el, cs, bg), b = o, d = cs.display;
+    if (cs.mixBlendMode !== 'normal') b |= OTHER;
+    if (tag !== 'svg') for (var c = el.firstElementChild; c; c = c.nextElementSibling) b |= survey(c, d, cs.color, bg, info);
+    info.set(el, { b: b, o: o, cs: cs, pd: pd, box: d !== 'contents', color: cs.color, inherits: sameColor(cs.color, pc) });
+    return b | (layered(cs, pd) ? LAYER : 0);
+  }
+  /* top down: the highest subtree of ink that reaches the fog blends; what cannot, turns, at the first box that paints
+     (so a layer full of text turns piece by piece as the wave crosses it). cut: the layer that keeps el from the fog */
+  function decide(el, cut, info, acts) {
+    var i = info.get(el); if (!i) return;
+    var b = i.b;
+    if (!(b & (INK | RED | GROUND))) return;
+    if (el.classList.contains('aph-ink')) { if ((cut || info.reds.has(el)) && !(b & MEDIA)) acts.push([el, 2, cut]); return; }
+    if (!cut && i.box && !(b & (RED | OTHER | MEDIA | GROUND | LAYER))) {
+      var pb = pseudos(el, info.bg);
+      if (!(pb & (RED | OTHER | GROUND))) { acts.push([el, 0]); return; }
+      b = i.b = b | pb;
+    }
+    if ((i.o & (INK | RED | GROUND)) && !(b & MEDIA)) {
+      acts.push([el, 1]);
+      /* inside a layer, an .aph-ink container in the turn would blend there: it takes the turn's colours instead */
+      if (cut) Array.prototype.forEach.call(el.querySelectorAll('.aph-ink'), function (x) { acts.push([x, 3]); });
+      return;
+    }
+    /* (whether it is a layer is asked only of the boxes the reading goes through) */
+    var below = cut || (isolates(i.cs, i.pd) ? el : null);
+    for (var c = el.firstElementChild; c; c = c.nextElementSibling) decide(c, below, info, acts);
+  }
+  /* the plan for one wave: what blends, what turns and when, and how to give it all back. Everything is read before
+     anything is written, so the page's style is worked out once for the reading. */
+  function wavePlan(org, far, dur, A, B, dark, inks) {
+    var blended = [], turned = [], suspended = [], pinned = [], mo = null, wo = null, watched = new Map(), reds = new Set(), greys = new Map(), acts = null, frames = 0;
+    /* under the blend an element's own colour is the white ink, which is right for ink but reads black or white for a
+       grey: a box that blends with a grey of its own keeps it as the grey that reads as that grey on both grounds (the
+       theme's ink-soft and line as the system's shift greys, any other as its negative on a light ground). T: the
+       theme the colour was read in */
+    function greyOf(c, T, tDark) {
+      function is(n) { return sameColor(c, T[n]) || sameColor(c, (T === A ? B : A)[n]); }
+      if (hueOf(c) !== INK || is('--ink')) return '';
+      if (is('--ink-soft')) return 'var(--ink-soft)';
+      if (is('--line')) return 'var(--line)';
+      var v = rgba(c); return 'rgb(' + [0, 1, 2].map(function (j) { return tDark ? v[j] : 255 - v[j]; }).join(',') + ')';
+    }
+    function pinColor(el, v) {
+      var p = [el, el.style.getPropertyValue('color'), el.style.getPropertyPriority('color')];
+      el.style.setProperty('color', v); p.push(el.style.getPropertyValue('color')); pinned.push(p);
+    }
+    /* a turn whose colour is only inherited would not follow its own colours: it is given the one it shows (which may
+       still be the old one, on its way to the new over a transition of its parent's) */
+    function pinOf(c) { var n = ''; [B, A].some(function (T) { return TURN.some(function (m) { if (B[m] && T[m] && sameColor(c, T[m])) { n = m; return true; } }); }); return n; }
+    /* the containers the page marked, read before the theme changed: a red one turns, a grey one keeps its grey */
+    inks.forEach(function (x) { if (hueOf(x[1]) === RED) reds.add(x[0]); else { var g = greyOf(x[1], A, dark); if (g) greys.set(x[0], g); } });
+    function display(el) { return el ? getComputedStyle(el).display : 'block'; }
+    function cutOf(el) {
+      for (var a = el.parentElement; a && a !== document.body; a = a.parentElement) if (isolates(getComputedStyle(a), display(a.parentElement))) return a;
+      return null;
+    }
+    /* an .aph-ink container turned because a layer kept it from the fog blends again once the layer steps aside (the
+       shell's inscription does a moment later when the eye is pressed just as it comes in) */
+    function watch(el, cut) {
+      if (!wo) wo = new MutationObserver(function (list) {
+        list.forEach(function (m) {
+          var els = watched.get(m.target); if (!els) return;
+          watched.delete(m.target);
+          els.forEach(function (x) {
+            var c = cutOf(x); if (c) { watch(x, c); return; }
+            var j = turned.findIndex(function (t) { return t.el === x; }); if (j >= 0) turned.splice(j, 1);
+            x.classList.remove('aph-turn'); x.style.removeProperty('--aph-red-k'); x.classList.add('aph-ink');
+            suspended.splice(suspended.indexOf(x), 1);
+            if (greys.has(x)) pinColor(x, greys.get(x));
+          });
+        });
+      });
+      if (!watched.has(cut)) { watched.set(cut, []); wo.observe(cut, { attributes: true, attributeFilter: ['class', 'style'] }); }
+      watched.get(cut).push(el);
+    }
+    /* what to do, from reading alone: [element, 0 blend | 1 turn | 2 turn a marked container | 3 lift a marked container
+       inside a turn, the layer that cuts it, the colour to give it] */
+    function read(els) {
+      var info = new Map(), bg = B['--bg'], out = [];
+      info.reds = reds; info.bg = bg;
+      els.forEach(function (el) {
+        if (!el.isConnected || !document.body.contains(el) || el.closest('.aph-ink, .aph-turn, .aph-red')) return;
+        var p = el.parentElement;
+        survey(el, display(p), p ? getComputedStyle(p).color : '', bg, info); decide(el, cutOf(el), info, out);
+      });
+      out.forEach(function (x) {
+        var i = info.get(x[0]);
+        if (x[1] === 0) x[3] = greyOf(i.color, B, !dark);
+        else if (x[1] < 3 && i && i.inherits) { var n = pinOf(i.color); if (n) x[3] = 'var(' + n + ')'; }
+      });
+      return out;
+    }
+    function write(out, first) {
+      out.forEach(function (x) {
+        var el = x[0];
+        if (x[1] === 0) { el.classList.add('aph-ink'); blended.push(el); if (x[3]) pinColor(el, x[3]); return; }
+        if (x[1] >= 2) { el.classList.remove('aph-ink'); suspended.push(el); }
+        if (x[1] === 2 && x[2]) watch(el, x[2]);
+        if (x[1] === 3) return;
+        el.classList.add('aph-turn'); if (x[3]) pinColor(el, x[3]);
+        /* its moment is read at the next frame; k starts at the rule's own 0, so nothing is written until it comes */
+        turned.push({ el: el, at: null, k: 0 });
+      });
+      if (first) greys.forEach(function (g, el) { if (el.isConnected && el.classList.contains('aph-ink')) pinColor(el, g); });
+      /* a marked container read under the blend showed its white ink: its own colour is known only now */
+      out.forEach(function (x) {
+        if (x[1] !== 2 || x[3]) return;
+        var c = getComputedStyle(x[0]).color, p = x[0].parentElement, n;
+        if (p && sameColor(c, getComputedStyle(p).color) && (n = pinOf(c))) pinColor(x[0], 'var(' + n + ')');
+      });
+    }
+    var plan = {
+      /* the page as it stands at the click, read; then written */
+      read: function () { acts = read(Array.prototype.slice.call(document.body.children)); },
+      write: function () {
+        write(acts || [], true); acts = null;
+        /* what is added or shown while the wave runs (read and written at once: the page has changed anyway) */
+        mo = new MutationObserver(function (list) {
+          var els = [];
+          list.forEach(function (m) {
+            if (m.type === 'attributes') { if (!m.target.hidden) els.push(m.target); }
+            else m.addedNodes.forEach(function (n) { if (n.nodeType === 1) els.push(n); });
+          });
+          if (els.length) write(read(els));
+        });
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
+      },
+      /* each frame: a turn runs over RED_TURN ms from its moment, with minimum jerk (the moments are read first, then
+         the turns written) */
+      tick: function (t) {
+        var j, x;
+        /* (from the second frame, when the first has laid the page out) */
+        if (++frames > 1) for (j = 0; j < turned.length; j++) {
+          x = turned[j]; if (x.at !== null) continue;
+          var r = x.el.getBoundingClientRect(), d = Math.hypot(r.left + r.width / 2 - org[0], r.top + r.height / 2 - org[1]);
+          x.at = dur * mjInverse(Math.min(1, 0.76 * d / far + 0.12)) - RED_TURN / 2;
+        }
+        for (j = 0; j < turned.length; j++) {
+          x = turned[j]; if (x.at === null) continue;
+          var k = MJ((t - x.at) / RED_TURN);
+          if (k !== x.k) { x.k = k; x.el.style.setProperty('--aph-red-k', String(Math.round(k * 1e4) / 1e4)); }
+        }
+      },
+      stop: function () { if (mo) { mo.disconnect(); mo = null; } if (wo) { wo.disconnect(); wo = null; } watched.clear(); },
+      /* the colours go back with the blend, in the same frame (a grey given for the blend is wrong without it); a colour
+         the page set meanwhile is left as it is */
+      unpin: function () {
+        pinned.reverse().forEach(function (p) { if (p[0].style.getPropertyValue('color') !== p[3]) return; if (p[1]) p[0].style.setProperty('color', p[1], p[2]); else p[0].style.removeProperty('color'); });
+        pinned = [];
+      },
+      /* the classes two frames later, once transitions are held no more */
+      end: function () {
+        plan.stop(); plan.unpin();
+        blended.forEach(function (el) { el.classList.remove('aph-ink'); });
+        turned.forEach(function (x) { x.el.classList.remove('aph-turn'); x.el.style.removeProperty('--aph-red-k'); });
+        suspended.forEach(function (el) { el.classList.add('aph-ink'); });
+        blended = []; turned = []; suspended = [];
+      },
+    };
+    return plan;
+  }
+  var PLAN = null;
   function themeShift(apply, o) {
     o = o || {};
     if (SHIFT) return false;
+    if (PLAN) { PLAN.end(); PLAN = null; }
     var root = document.documentElement, before = root.getAttribute('data-theme');
     var dark = before ? before === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
-    var softA = cssColor('--ink-soft'), lineA = cssColor('--line'), redA = REDS.map(rootValue);
+    var softA = cssColor('--ink-soft'), lineA = cssColor('--line'), A = {};
+    TURN.forEach(function (n) { A[n] = rootValue(n); });
+    var inks = Array.prototype.map.call(document.querySelectorAll('.aph-ink'), function (el) { return [el, getComputedStyle(el).color]; });
     var org = o.origin || [24, innerHeight - 24], W = innerWidth, H = innerHeight;
     var far = Math.max(Math.hypot(org[0], org[1]), Math.hypot(W - org[0], org[1]), Math.hypot(org[0], H - org[1]), Math.hypot(W - org[0], H - org[1]));
     SHIFT = { o: org, far: far, p: 0 };
     /* colour transitions would smear the switch into and out of difference: hold them off for two frames at each end */
-    function still() { root.classList.add('aph-still'); requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.remove('aph-still'); }); }); }
+    function still(after) { root.classList.add('aph-still'); requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.remove('aph-still'); if (after) after(); }); }); }
     still(); apply(); Sound.event('shift');
-    var softB = cssColor('--ink-soft'), lineB = cssColor('--line'), redB = REDS.map(rootValue);
+    var softB = cssColor('--ink-soft'), lineB = cssColor('--line'), B = {};
+    TURN.forEach(function (n) { B[n] = rootValue(n); });
     /* a grey under difference shows as itself on a dark ground and as its negative on a light one:
        take the grey that reads as each theme's own grey on its own ground */
     function grey(a, b) { var dk = dark ? a : b, lt = dark ? b : a; return 'rgb(' + [0, 1, 2].map(function (i) { return Math.round((dk[i] + 1 - lt[i]) / 2 * 255); }).join(',') + ')'; }
     root.style.setProperty('--shift-soft', grey(softA, softB)); root.style.setProperty('--shift-line', grey(lineA, lineB));
-    REDS.forEach(function (n, i) { root.style.setProperty('--shift-' + n.slice(2) + '-a', redA[i]); root.style.setProperty('--shift-' + n.slice(2) + '-b', redB[i]); });
+    /* both themes' colours, for the reds and the turns */
+    TURN.forEach(function (n) { root.style.setProperty('--shift-' + n.slice(2) + '-a', A[n]); root.style.setProperty('--shift-' + n.slice(2) + '-b', B[n]); });
     var dur = o.duration || cssMs('--duration-shift', 5200), t = 0, last = null;
     redsAt(org, far, dur);
     root.classList.add('aph-shifting');
+    /* the rest of the page is read once the click's handler has run (a section may take a mask off under .aph-shifting,
+       the shell steps its inscription aside), still before the frame */
+    var plan = PLAN = wavePlan(org, far, dur, A, B, dark, inks);
+    (window.queueMicrotask || function (f) { Promise.resolve().then(f); })(function () { if (PLAN === plan && SHIFT) { plan.read(); plan.write(); } });
     /* time advances at most 100 ms a frame, like tween(): a stalled frame pauses the wave instead of jumping it */
     function tick(now) {
       if (last !== null) t += Math.min(100, Math.max(0, now - last)); last = now;
       var k = clamp(t / dur); SHIFT.p = MJ(k);
+      if (PLAN === plan) plan.tick(t);
       if (k < 1) { requestAnimationFrame(tick); return; }
-      still(); root.classList.remove('aph-shifting'); SHIFT = null; themeColor(); if (o.done) o.done();
+      plan.stop(); plan.unpin();
+      still(function () { if (PLAN === plan) { plan.end(); PLAN = null; } });
+      root.classList.remove('aph-shifting'); SHIFT = null; themeColor(); if (o.done) o.done();
       Array.prototype.forEach.call(document.querySelectorAll('.aph-red'), function (el) { el.style.removeProperty('--aph-red-at'); });
     }
     requestAnimationFrame(tick);

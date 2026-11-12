@@ -161,17 +161,21 @@ def calm_rect(x0, y0, x1, y1, pad, residue):
 def edges(w, h, ex=46, ey=26):
     return lambda x, y: _ss(x / ex) * _ss((w - x) / ex) * _ss(y / ey) * _ss((h - y) / ey)
 
+FOG_LOW = .6
 def fog_layer(frames, theme, period=12, ox=0, oy=0, w=None, h=None, name='f'):
-    """the frames cross-fade a -> b -> c -> a. Cells outside (ox, oy, w, h) are dropped (a piece of a mosaic)."""
+    """the fog's frames as layers that breathe: each layer's opacity follows a cosine between FOG_LOW and 1 over the
+    period, the layers 1/n of a period apart, so their sum stays nearly even and the fog drifts as the field moves
+    between frames. The curve ends where it starts: the loop has no seam, and the pieces of a mosaic, all on the same
+    curve, stay joined. The phase is written into each layer's keyframes rather than an animation-delay, so pausing
+    every animation at a moment still shows the layers apart. Reduced motion: every layer rests at 1.
+    Cells outside (ox, oy, w, h) are dropped (a piece of a mosaic)."""
     n = len(frames); css = ''; body = '<g fill="%s" opacity="%s" shape-rendering="crispEdges">' % (THEMES[theme]['fog'], FOG_OPACITY[theme])
+    stops = 24
     for i, cells in enumerate(frames):
         if w is not None: cells = [(x - ox, y - oy) for x, y in cells if ox - 2 < x < ox + w and oy - 2 < y < oy + h]
-        c = i / n
-        def at(t):
-            return max(1 if abs(t - (c + k / n)) * n <= .35 else max(0, 1 - (abs(t - (c + k / n)) * n - .35) / .65) for k in (-1, 0, 1))
-        stops = sorted({0, 1} | {round(c + k / n + d / n, 4) for k in (-1, 0, 1) for d in (-1, -.35, .35, 1) if 0 <= c + k / n + d / n <= 1})
-        kf = ''.join('%s%%{opacity:%s}' % (num(t * 100), num(at(t))) for t in stops)
-        css += '.%s%d{opacity:%d;animation:%sk%d %ss linear infinite}@keyframes %sk%d{%s}' % (name, i, 1 if i == 0 else 0, name, i, period, name, i, kf)
+        kf = ''.join('%s%%{opacity:%.3f}' % (num(100 * k / stops), (1 + FOG_LOW) / 2 + (1 - FOG_LOW) / 2 * math.cos(2 * math.pi * (k / stops - i / n)))
+                     for k in range(stops + 1))
+        css += '.%s%d{animation:%sk%d %ss linear infinite}@keyframes %sk%d{%s}' % (name, i, name, i, period, name, i, kf)
         body += '<path class="%s%d" d="%s"/>' % (name, i, ''.join('M%d %dh2v2h-2z' % p for p in cells))
     return css, body + '</g>'
 

@@ -416,8 +416,9 @@ node --test e2e/*.test.mjs             # the Workers under wrangler dev, over HT
   (2048, 33 bits, loose reading), the lockout and its backoff, cookies and CSRF, validation of every kind of entry,
   the email (the backlog's rules, and its colours against the design system's tokens), the export's files and the
   texts (every key once, every default a valid value, the answers); end to
-  end (`e2e/content.test.mjs`) with a local D1 and R2: the seed (from fixture commits the test makes, one entry of
-  each kind marked example, which it skips), the public API and CORS, the gate step by step with
+  end (`e2e/content.test.mjs`) with a local D1 and R2: the seed (from fixture commits the test makes for the archive,
+  the book, the works and the Simulacra they name, never from the section branches, whose content changes; one entry
+  of each kind marked example, which it skips), the public API and CORS, the gate step by step with
   the mail read from a local stand-in for Resend's API (the request, its key and its JSON, the HTML and text checked),
   Resend failing or never answering (a bare 503, the words void), code expiry, replacement and single use,
   lockout on both steps, CSRF (token, origin), create, edit, preview, publish, rename and delete for each kind, uploads,

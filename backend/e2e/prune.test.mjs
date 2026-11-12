@@ -1,7 +1,7 @@
 // The one-shot removal of the seeded examples (content/tools/prune-examples.mjs), end to end against a local D1 and
-// R2: the database as the first seed left it (the archive's four example posts, the book's six example entries, both
-// works, their pictures), plus what the owner might have added (a post at one of the examples' slugs, not marked
-// example; a book entry that shares an example's picture; a post of their own). A dry run changes nothing, the run
+// R2: the database as the first seed left it (the archive's four example posts, the book's six example entries, the
+// two works of the tests' own works fixture, their pictures), plus what the owner might have added (a post at one of
+// the examples' slugs, not marked example; a book entry that shares an example's picture; a post of their own). A dry run changes nothing, the run
 // removes exactly the example rows and the pictures nothing else names, and a second run finds nothing to do. Then
 // the Worker answers with what is left.
 import { test, before, after } from 'node:test';
@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { start, wrangler, root, fixtureCommit } from './dev.mjs';
+import { start, wrangler, root, fixtureCommit, worksFixture, simulacraFixture } from './dev.mjs';
 
 const SITE = 'http://localhost:8000';
 const EXAMPLE_POSTS = ['a-note-on-hermes-trismegistus', 'how-a-simulacrum-is-made', 'how-the-fog-is-made', 'the-phi-drawn-by-hand'];
@@ -30,10 +30,10 @@ before(async () => {
   c = await start('content', { ALLOWED_ORIGINS: SITE }, {
     async prepare(state, dir) {
       wrangler('content', ['d1', 'migrations', 'apply', 'aphesis-content', '--local', '--persist-to', state]);
-      /* the works, through the seed, from empty archive and book branches */
+      /* the works, through the seed, from the tests' own works and empty archive and book branches */
       const empty = fixtureCommit({ 'README.md': 'nothing here\n' });
       const s = spawnSync(process.execPath, [path.join(root, 'content', 'tools', 'seed.mjs'), '--local', '--persist-to', state, '-c', 'wrangler.e2e.toml'],
-        { encoding: 'utf8', env: { ...process.env, ARCHIVE_REF: empty, BOOK_REF: empty } });
+        { encoding: 'utf8', env: { ...process.env, ARCHIVE_REF: empty, BOOK_REF: empty, WORKS_REF: worksFixture(), DS_REF: simulacraFixture() } });
       if (s.status !== 0) throw new Error(s.stdout + s.stderr);
       runs.seed = s.stdout;
       /* the rows the first seed wrote, marked example, and what the owner added since */

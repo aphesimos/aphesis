@@ -9,6 +9,7 @@
 import { spawn, spawnSync, execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync, readdirSync } from 'node:fs';
 import { createServer } from 'node:net';
+import { deflateSync } from 'node:zlib';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -126,20 +127,64 @@ export async function query(state, sql) {
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/* a commit made of the given files ({path: text}), written into the repository's objects but on no branch, for a
-   tool that reads a section branch with git (the content seed: ARCHIVE_REF, BOOK_REF): the tests bring their own
-   content instead of depending on what the branches carry */
+/* a commit made of the given files ({path: text or bytes}), written into the repository's objects but on no branch,
+   for a tool that reads a section branch with git (the content seed: ARCHIVE_REF, BOOK_REF, WORKS_REF, DS_REF): the
+   tests bring their own content instead of depending on what the branches carry */
 export function fixtureCommit(files) {
   const env = { ...process.env, GIT_AUTHOR_NAME: 'fixture', GIT_AUTHOR_EMAIL: 'fixture@localhost', GIT_COMMITTER_NAME: 'fixture',
     GIT_COMMITTER_EMAIL: 'fixture@localhost', GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z' };
   const git = (args, input) => execFileSync('git', ['-C', root, ...args], { input, encoding: 'utf8', env }).trim();
   const tree = {};
-  for (const [p, text] of Object.entries(files)) {
+  for (const [p, data] of Object.entries(files)) {
     const parts = p.split('/');
     let t = tree;
     for (const d of parts.slice(0, -1)) t = t[d] ||= {};
-    t[parts[parts.length - 1]] = git(['hash-object', '-w', '--stdin'], text);
+    t[parts[parts.length - 1]] = git(['hash-object', '-w', '--stdin'], data);
   }
   const mktree = (t) => git(['mktree'], Object.entries(t).map(([n, v]) => (typeof v === 'string' ? `100644 blob ${v}\t${n}` : `040000 tree ${mktree(v)}\t${n}`)).join('\n') + '\n');
   return git(['commit-tree', mktree(tree), '-m', 'a fixture for the end-to-end tests']);
+}
+
+/* a real PNG of w × h, grey, its pixels drawn from `seed` (so two pictures of the same size still differ) */
+export function png(w, h, seed = 0) {
+  const crc = (b) => { let c = ~0; for (const x of b) { c ^= x; for (let k = 0; k < 8; k++) c = c >>> 1 ^ (0xedb88320 & -(c & 1)); } return ~c >>> 0; };
+  const chunk = (t, d) => { const b = Buffer.alloc(12 + d.length); b.writeUInt32BE(d.length); b.write(t, 4); d.copy(b, 8); b.writeUInt32BE(crc(b.subarray(4, 8 + d.length)), 8 + d.length); return b; };
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 0;
+  const raw = Buffer.alloc((w + 1) * h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) raw[y * (w + 1) + 1 + x] = (x * y + seed) & 255;
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+}
+
+/* the head of a JPEG of w × h: start of image, a baseline frame header, end of image; enough for a reader of sizes */
+export function jpeg(w, h) {
+  const sof = Buffer.from([0xff, 0xc0, 0x00, 0x0b, 0x08, 0, 0, 0, 0, 0x01, 0x01, 0x11, 0x00]);
+  sof.writeUInt16BE(h, 5); sof.writeUInt16BE(w, 7);
+  return Buffer.concat([Buffer.from([0xff, 0xd8]), sof, Buffer.from([0xff, 0xd9])]);
+}
+
+/* the works the seed imports in the tests, in the shape of section/works' works/content/works.json, with their maps:
+   two works, then one marked example, which the seed must skip */
+export function worksFixture() {
+  const work = (id, name, map, more = {}) => ({ id, name, gloss: `${id} gloss`, gloss_tip: `${id} gloss · a tip`, year: '2026', role: 'author',
+    description: `${name}, a work the tests bring.`, links: [{ label: 'the repository', href: `https://example.com/${id}` }],
+    map: { file: map, caption: `${name} · a caption`, settings: { scatter: 0.8, gain: 1.0 } },
+    sources: { description: 'the tests' }, flags: { needs_owner_review: false }, ...more });
+  const works = {
+    section: { name: 'works', gloss: 'opera', gloss_tip: 'opera · works' },
+    works: [work('heild', 'heild', 'heild.png'), work('aphesis', 'aφesis', 'aphesis.png'), work('a-shown-work', 'a shown work', 'shown.png', { example: true })],
+  };
+  return fixtureCommit({
+    'works/content/works.json': JSON.stringify(works, null, 2) + '\n',
+    'works/maps/heild.png': png(48, 32, 1),
+    'works/maps/aphesis.png': png(40, 40, 2),
+    'works/maps/shown.png': png(16, 16, 3),
+  });
+}
+
+/* the design system's Simulacra the archive and book fixtures name */
+export function simulacraFixture() {
+  return fixtureCommit({
+    'system/assets/Simulacra/jerome.jpg': jpeg(640, 480),
+    'system/assets/Simulacra/trismegistus.png': png(64, 64, 4),
+    'system/assets/Simulacra/faust.jpg': jpeg(480, 600),
+  });
 }

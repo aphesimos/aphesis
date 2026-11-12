@@ -58,11 +58,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Fetch the page's filter for the parity check, and what the content seed reads
-        run: |
-          for b in section/wall section/archive section/book section/works design-system; do
-            git fetch --depth=1 origin "$b:refs/remotes/origin/$b"
-          done
+      # only the page's filter: the end-to-end tests seed from fixture commits of their own, never from the section
+      # branches, so a change to their content cannot break the tests
+      - name: Fetch the page's filter for the parity check
+        run: git fetch --depth=1 origin "section/wall:refs/remotes/origin/section/wall"
 
       - uses: actions/setup-node@v5
         with:

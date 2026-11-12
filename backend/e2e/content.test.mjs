@@ -5,12 +5,11 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { pbkdf2Sync } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
-import { deflateSync } from 'node:zlib';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
-import { start, wrangler, root, sleep, fixtureCommit } from './dev.mjs';
+import { start, wrangler, root, sleep, fixtureCommit, worksFixture, simulacraFixture, png } from './dev.mjs';
 
 const SITE = 'http://localhost:8000';
 const PASSWORD = 'salt sulphur mercury and a long walk';
@@ -18,8 +17,8 @@ const salt = Buffer.from('00112233445566778899aabbccddeeff', 'hex');
 const HASH = `pbkdf2-sha256$25000$${salt.toString('base64')}$${pbkdf2Sync(PASSWORD, salt, 25000, 32, 'sha256').toString('base64')}`;
 const vars = { ALLOWED_ORIGINS: SITE, OWNER_PASSWORD_HASH: HASH, OWNER_EMAIL: 'owner@example.com', EMAIL_FROM: 'clavis@aphes.ist', AUTH_SALT: 'test-salt' };
 
-/* the content the seed imports: the tests bring their own (the section branches may carry none), with one entry of
-   each kind marked example, which the seed must skip */
+/* the content the seed imports: the tests bring their own (the section branches may carry none, or change), with one
+   entry of each kind marked example, which the seed must skip: posts, book entries, works, and the Simulacra they name */
 const ARCHIVE = fixtureCommit({
   'archive/content/on-mercury.md': '---\ntitle: on mercury\ndate: 2026-02-01\nstage: rubedo\nsummary: a post the tests bring.\n---\n' +
     'the quick metal.[^quick]\n\n![saint jerome writing · Caravaggio, 1605–06](simulacrum:jerome)\n\n[^quick]: quicksilver, the living metal.\n',
@@ -33,6 +32,9 @@ const BOOK = fixtureCommit({
     'quote: Verweile doch! du bist so schön!\nquote_lang: de\nquote_en: stay a while! you are so beautiful!\n---\na note.\n',
   'book/content/03-a-shown-entry.md': '---\ntitle: a shown entry\nauthor: nobody\nyear: 2026\nmap: jerome.jpg\ncaption: a caption\nexample: true\n---\nshown.\n',
 });
+
+const WORKS = worksFixture();
+const DS = simulacraFixture();
 
 let c, wall, forum, gh, resend, seeded = '';
 /* a stand-in for Resend's `POST /emails`: keeps every request, answers as `mode` says (ok, fail, hang) */
@@ -82,7 +84,7 @@ function fakeGitHub() {
 function migrateAndSeed(state) {
   wrangler('content', ['d1', 'migrations', 'apply', 'aphesis-content', '--local', '--persist-to', state]);
   const r = spawnSync(process.execPath, [path.join(root, 'content', 'tools', 'seed.mjs'), '--local', '--persist-to', state, '-c', 'wrangler.e2e.toml'],
-    { encoding: 'utf8', env: { ...process.env, ARCHIVE_REF: ARCHIVE, BOOK_REF: BOOK } });
+    { encoding: 'utf8', env: { ...process.env, ARCHIVE_REF: ARCHIVE, BOOK_REF: BOOK, WORKS_REF: WORKS, DS_REF: DS } });
   if (r.status !== 0) throw new Error(r.stdout + r.stderr);
   seeded = r.stdout;
 }
@@ -154,6 +156,8 @@ test('the seed: everything on the section branches but examples, published, with
   assert.ok(books[0].adjust.crop.length === 4);
   assert.match(seeded, /skipped posts\/a-shown-post: marked example/);
   assert.match(seeded, /skipped books\/a-shown-entry: marked example/);
+  assert.match(seeded, /skipped works\/a-shown-work: marked example/);
+  assert.match(seeded, /^2 posts, 2 book entries, 2 works, 6 pictures$/m, 'three Simulacra, two maps and the mail\'s φ');
   assert.equal((await send('/v1/posts/a-shown-post')).status, 404);
   const w = await (await send('/v1/works')).json();
   assert.deepEqual(w.works.map((x) => x.id), ['heild', 'aphesis']);
@@ -326,14 +330,6 @@ test('the dashboard needs the session, and writes need the origin and the CSRF t
   assert.match(r.headers.get('access-control-allow-headers'), /X-CSRF-Token/);
   assert.match(r.headers.get('access-control-allow-methods'), /PUT/);
 });
-
-function png(w, h) {
-  const crc = (b) => { let c = ~0; for (const x of b) { c ^= x; for (let k = 0; k < 8; k++) c = c >>> 1 ^ (0xedb88320 & -(c & 1)); } return ~c >>> 0; };
-  const chunk = (t, d) => { const b = Buffer.alloc(12 + d.length); b.writeUInt32BE(d.length); b.write(t, 4); d.copy(b, 8); b.writeUInt32BE(crc(b.subarray(4, 8 + d.length)), 8 + d.length); return b; };
-  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 0;
-  const raw = Buffer.alloc((w + 1) * h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) raw[y * (w + 1) + 1 + x] = (x * y) & 255;
-  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
-}
 
 test('posts, book entries and works: create, edit, preview, publish, rename, delete; uploads', async () => {
   const { j, csrf } = await login();

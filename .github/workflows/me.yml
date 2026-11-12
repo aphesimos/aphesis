@@ -1,0 +1,57 @@
+# Builds me.aphes.ist (me/: the page and the lab kit it stands on) and publishes it to Cloudflare Pages on every push
+# to `me` that touches it (and by hand). me/build.py copies the lab kit from design-system beside the page and stops
+# while a [[placeholder]] is left in it, so an unfinished page never goes out.
+#
+# Secrets: CLOUDFLARE_API_TOKEN (Account · Cloudflare Pages · Edit), CLOUDFLARE_ACCOUNT_ID: the same as the site's.
+# The custom domain me.aphes.ist is attached once, by hand, in the Pages dashboard (see me/README.md).
+name: me
+
+on:
+  push:
+    branches: [me]
+    paths:
+      - me/**
+      - .github/workflows/me.yml
+  workflow_dispatch:
+
+concurrency:
+  group: me
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROJECT: aphesist-me
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: me
+
+      - name: Fetch the design system (the lab kit and the φ)
+        run: git fetch --depth=1 origin design-system:refs/remotes/origin/design-system
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build the page
+        run: python3 me/build.py --require-filled --out dist
+
+      - name: Create the Pages project the first time
+        run: |
+          if ! npx --yes wrangler@4.153.0 pages project list | grep -q "\b$PROJECT\b"; then
+            npx --yes wrangler@4.153.0 pages project create "$PROJECT" --production-branch me
+          fi
+
+      - name: Deploy
+        run: npx --yes wrangler@4.153.0 pages deploy dist --project-name "$PROJECT" --branch me --commit-hash "$(git rev-parse HEAD)" --commit-message "$(git log -1 --format=%s)"

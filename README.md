@@ -30,6 +30,7 @@ holds this overview, the agent rules, the map of branches, the plan and the tool
 | [`font`](../../tree/font) | Aphesis Script: the authorial variable font drawn with the φ's brush, its source, proofs and specimen | `README.md`, `RATIONALE.md` |
 | [`mark`](../../tree/mark) | The φ: the original drawing and the brush engine that redraws it and closes it into Φ | `README.md` |
 | [`site`](../../tree/site) | The app: the home and its shell (fog, seal, inscription, passage, routing), later the Astro + Cloudflare project | `README.md` |
+| [`me`](../../tree/me) | me.aphes.ist: the plain, readable page about the owner, for people who want the summary; its build and deploy | `me/README.md` |
 | `section/<name>` | One branch per section while it is built, cut from `site` and merged back | its own README |
 
 The full map is in [`docs/branches.md`](docs/branches.md); what each section is, in [`docs/sections.md`](docs/sections.md).

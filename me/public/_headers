@@ -3,13 +3,11 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   X-Frame-Options: SAMEORIGIN
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://content-api.aphes.ist; font-src 'self' data:; connect-src 'self' https://content-api.aphes.ist; base-uri 'none'; form-action 'none'; frame-ancestors 'self'
 
 /
   Cache-Control: public, max-age=0, must-revalidate
 
-# the lab kit and the φ change only with a rebuild; an hour, as on aphes.ist
-/lab-kit/*
-  Cache-Control: public, max-age=3600
+# the φ changes only with a rebuild; an hour, as on aphes.ist
 /phi.svg
   Cache-Control: public, max-age=3600

@@ -33,7 +33,7 @@ jobs:
         with:
           ref: me
 
-      - name: Fetch the design system (the lab kit and the φ)
+      - name: Fetch the design system (the runtime, the fonts, the tokens and the φ)
         run: git fetch --depth=1 origin design-system:refs/remotes/origin/design-system
 
       - uses: actions/setup-node@v5
@@ -43,6 +43,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      - name: Install the build's image tools (the preview masks)
+        run: pip install pillow numpy
 
       - name: Build the page
         run: python3 me/build.py --require-filled --out dist

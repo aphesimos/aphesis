@@ -1,0 +1,246 @@
+/* me.aphes.ist: one narrow column on the fog. Tokens and the runtime's classes carry the rest.
+   Nothing here is a box, a border, a fill or a gradient except the receding veils, which are the ground's own colour
+   under a mask. Hidden states hang on html.mo (scripts + motion allowed); without it everything simply shows. */
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+html.mo { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: var(--type-body-weight) var(--type-body-size)/var(--type-body-line) var(--font-text);
+  -webkit-tap-highlight-color: transparent; overflow-wrap: break-word;
+}
+a { color: inherit; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; border-radius: var(--radius-none); cursor: pointer; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+p { margin: 0; }
+ul, dl { margin: 0; padding: 0; list-style: none; }
+
+/* the ground */
+#fog { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: var(--z-fog); pointer-events: none; }
+html.mo #fog { opacity: 0; }
+html.mo #fog.on { opacity: 1; transition: opacity 1.2s var(--easing-settle); }
+
+/* the column */
+.page {
+  position: relative; z-index: var(--z-main);
+  padding-block: 0 var(--space-7);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.blk { max-width: 62ch; margin-left: auto; margin-right: auto; }
+.page > main { padding-top: var(--space-4); }
+/* the halo of ground behind text is declared on each .aph-ink piece itself, so it reads the --bg the theme shift sets there */
+.aph-ink { text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg); }
+
+/* the receding header: the design system's lab kit 1.1.0 (system/lab-kit/v1/lab.css), ported as it is. Content passing
+   under the sticky header is faint under most of it and comes clear just past it, through the eased band (50px). Never a
+   solid bar: the veil is the ground's own colour. The header sits in the page column; the φ is on its left, the nav on
+   its right; script measures its height into --lab-header-h (as lab.js does). */
+:root {
+  --lab-band: 50px; --lab-veil-blur: 4px;
+  --lab-header-h: calc(env(safe-area-inset-top, 0px) + 84px);   /* the script replaces it with the sticky header's own height */
+  --lab-gutter: max(16px, env(safe-area-inset-left, 0px));
+  --lab-veil: linear-gradient(to bottom, var(--bg) calc(100% - var(--lab-band)),
+    color-mix(in oklab, var(--bg) 88%, transparent) calc(100% - var(--lab-band) * .5),
+    color-mix(in oklab, var(--bg) 55%, transparent) calc(100% - var(--lab-band) * .2), transparent);
+  --lab-veil-mask: linear-gradient(to bottom, #000 calc(100% - var(--lab-band)), rgba(0, 0, 0, .55) calc(100% - var(--lab-band) * .5), transparent);
+}
+.lab-header { padding: max(var(--space-4), env(safe-area-inset-top, 0px)) 0 var(--space-4); }
+.lab-header--sticky { position: sticky; z-index: 10; isolation: isolate; top: 0; }
+.lab-header--sticky::before, .lab-header--blur::after {
+  content: ""; position: absolute; left: calc(-1 * var(--lab-gutter)); right: calc(-1 * var(--lab-gutter)); pointer-events: none;
+  transition: opacity var(--duration-quick) ease;
+}
+.lab-header--sticky::before { z-index: -1; top: 0; bottom: calc(-1 * var(--lab-band)); background: var(--lab-veil); }
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .lab-header--blur::after {
+    z-index: -2; -webkit-backdrop-filter: blur(var(--lab-veil-blur)); backdrop-filter: blur(var(--lab-veil-blur));
+    -webkit-mask-image: var(--lab-veil-mask); mask-image: var(--lab-veil-mask); top: 0; bottom: calc(-1 * var(--lab-band));
+  }
+}
+.lab-fog-on .lab-header--blur::after { display: none; }   /* the stipple ground is always on here: its cells are never smeared */
+@media (prefers-reduced-transparency: reduce) { .lab-header--blur::after { display: none; } }
+html:has(.lab-header--sticky) { scroll-padding-top: calc(var(--lab-header-h) + var(--lab-band) * .5); }
+/* while the eye's wave runs the ground changes cell by cell, so the veil (the new theme's colour) steps aside until it has passed */
+.aph-shifting .lab-header--sticky::before, .aph-shifting .lab-header--blur::after { opacity: 0; }
+.hdr-in { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2) var(--space-4); max-width: 62ch; margin: 0 auto; }
+#seal { display: block; flex: none; color: var(--seal); height: 44px; width: calc(44px * 385 / 533); transition: opacity .35s var(--easing-settle); }
+.nav { display: flex; align-items: center; gap: var(--space-2) var(--space-5); }
+.nav a { text-decoration: none; padding: var(--space-2) 0; }
+
+/* fixed chrome: every edge adds its safe-area inset */
+#eye {
+  position: fixed; z-index: var(--z-corner); width: 46px; height: 46px; color: var(--accent);
+  left: calc(var(--space-3) + env(safe-area-inset-left, 0px)); bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+}
+#eye .eye { position: absolute; inset: var(--space-2); display: block; transform-origin: 50% 50%;
+  transition: opacity var(--duration-quick) var(--easing-settle), transform var(--duration-slow) var(--easing-settle); }
+#eye .eye svg { width: 100%; height: 100%; display: block; overflow: visible; }
+#eye .closed { opacity: 0; transform: scaleY(.2) translateY(-4px); }
+:root[data-theme="dark"] #eye .open { opacity: 0; transform: scaleY(.08); }
+:root[data-theme="dark"] #eye .closed { opacity: 1; transform: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) #eye .open { opacity: 0; transform: scaleY(.08); }
+  :root:not([data-theme="light"]) #eye .closed { opacity: 1; transform: none; }
+}
+#skip {
+  display: none; position: fixed; z-index: var(--z-corner); left: 50%; margin-left: -9ch; width: 18ch; text-align: center;
+  bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px)); color: var(--ink-soft);
+  opacity: 0; transform: translateY(12px); pointer-events: none;
+  transition: opacity var(--duration-slow) var(--easing-settle), transform var(--duration-slow) var(--easing-settle), color var(--duration-quick) ease;
+}
+html.mo #skip { display: block; }
+#skip.up { opacity: 1; transform: none; pointer-events: auto; }
+
+/* the φ that draws itself and travels to the corner: transform only */
+#fly { position: fixed; left: 0; top: 0; z-index: var(--z-nav); display: none; color: var(--seal); transform-origin: 0 0; pointer-events: none; transition: opacity .35s var(--easing-settle); }
+#fly.on { display: block; }
+#fly svg, #fly-seal { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
+#fly-seal { opacity: 0; transition: opacity .3s ease; }
+#fly.sealed #fly-seal { opacity: 1; }
+#fly.sealed #fly-frames { opacity: 0; transition: opacity .3s ease; }
+#fly.gone { opacity: 0; }
+html.mo.sealwait #seal { opacity: 0; }
+
+/* hero */
+.hero { padding-top: calc(var(--space-6) + 8px); }
+html.mo .phi-slot { height: 120px; width: calc(120px * 656 / 910); margin-bottom: var(--space-4); }
+.gloss-title, .gloss {
+  font-family: var(--font-display); font-variation-settings: "wght" 400, "slnt" -12; text-transform: lowercase; color: var(--ink-soft);
+  letter-spacing: .02em; padding-right: .2em;
+}
+.gloss-title { display: block; font-size: var(--type-gloss-title-size); line-height: var(--type-gloss-title-line); margin-bottom: var(--space-3); }
+.gloss { font-size: var(--type-gloss-size); line-height: 1; white-space: nowrap; }
+.title {
+  margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(44px, 8vw, 80px); line-height: 1;
+  font-variation-settings: "wght" 400, "slnt" -12; text-transform: lowercase; padding-right: .2em;
+}
+.title .w { display: inline-block; white-space: nowrap; }
+.title .nl { display: inline-block; }
+.hero .meta { margin-top: var(--space-4); display: block; letter-spacing: var(--type-meta-tracking); min-height: 1.7em; }
+.hero .meta .typed { white-space: pre-wrap; }
+.hero .lede { margin-top: var(--space-5); font-size: var(--type-lede-size); line-height: var(--type-lede-line); }
+.hero .lede + p { margin-top: var(--space-4); }
+.wd { display: inline-block; }
+
+/* sections */
+.sec { margin-top: var(--space-7); }
+.sh { display: flex; align-items: center; flex-wrap: wrap; gap: 0 var(--space-3); margin: 0 0 var(--space-4); min-height: 40px; }
+.si { display: block; width: 32px; height: 32px; flex: none; color: var(--accent); }
+.si svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.sh h2 {
+  margin: 0; font-family: var(--font-display); font-size: clamp(30px, 5.4vw, 38px); line-height: 1; padding-right: .2em;
+  font-variation-settings: "wght" 500, "slnt" -12; text-transform: lowercase; font-weight: 500;
+}
+.sh .gloss { margin-left: var(--space-1); }
+
+.list > li + li { margin-top: var(--space-4); }
+.list p { margin-top: var(--space-1); }
+.iname, .wname { font-size: var(--type-lede-size); line-height: var(--type-lede-line); }
+.tag { margin-left: var(--space-2); letter-spacing: var(--type-meta-tracking); }
+.works > li + li { margin-top: var(--space-5); }
+.wname { text-decoration: none; }
+
+.pairs > div, .pairs > li { display: grid; grid-template-columns: 10ch 1fr; gap: 0 var(--space-3); align-items: baseline; }
+.pairs > * + * { margin-top: var(--space-2); }
+.pairs dt, .pairs .aph-label { color: var(--ink-soft); }
+.pairs dd { margin: 0; }
+.email { font-size: var(--type-lede-size); text-decoration: none; }
+.pairs .ul { justify-self: start; }
+#contact > p { margin-bottom: var(--space-4); }
+
+.end { margin-top: var(--space-8); display: flex; justify-content: center; }
+.phi-end { display: block; width: calc(30px * 385 / 533); height: 30px; color: var(--seal); }
+
+/* work: each row is its text, and its link's preview as stipple beside it (below it on phones) */
+.work { display: grid; grid-template-columns: minmax(0, 1fr) 210px; column-gap: var(--space-5); align-items: start; }
+.whead { display: flex; align-items: center; flex-wrap: wrap; gap: 0 var(--space-3); }
+.wi { display: block; flex: none; width: 30px; height: 30px; color: var(--accent); }
+.wi svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.wi .wphi { display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; }
+.wi .wphi svg { width: auto; height: 100%; }
+.work p { margin-top: var(--space-2); }
+.work .tag { margin-left: 0; }
+.pv { display: block; text-decoration: none; color: var(--ink-soft); }
+.pvbox { position: relative; display: block; aspect-ratio: 16 / 10; }
+.pvs {
+  position: absolute; inset: 0; background: var(--ink); opacity: .8; transition: opacity .4s var(--easing-settle) .6s;
+  -webkit-mask-image: var(--mk-sm); mask-image: var(--mk-sm); -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; image-rendering: pixelated;
+}
+.pvbox canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity .4s var(--easing-settle); pointer-events: none; }
+.pvbox canvas.on { opacity: 1; }
+.work.live .pvs { opacity: 0; transition-delay: 0s; }
+.pvhost { display: block; margin-top: var(--space-1); overflow-wrap: anywhere; line-height: 1.5; transition: color var(--duration-slow) var(--easing-settle); }
+.pv:focus-visible { outline-offset: 4px; }
+@media (hover: hover) and (pointer: fine) { .pv:hover .pvhost { color: var(--accent-text); } }
+.work:focus-within .pvhost { color: var(--accent-text); }
+/* the row's project icon: the row hovered or focused stirs its stipple, the live row gathers it (the runtime's .aph-icon rules, for the row) */
+@media (hover: hover) and (pointer: fine) {
+  .work:hover .wi .aph-st path { animation: aph-stir 1.7s ease-in-out infinite alternate; }
+  .work:hover .wi .aph-st path + path { animation-direction: alternate-reverse; animation-duration: 1.45s; }
+}
+.work:focus-within .wi .aph-st path { animation: aph-stir 1.7s ease-in-out infinite alternate; }
+.work:focus-within .wi .aph-st path + path { animation-direction: alternate-reverse; animation-duration: 1.45s; }
+@media (max-width: 639px) {
+  .work { grid-template-columns: minmax(0, 1fr); row-gap: var(--space-3); }
+  .pv { max-width: 640px; }
+  .pvbox { aspect-ratio: 16 / 9; max-height: 360px; width: 100%; }
+  .pvs { -webkit-mask-image: var(--mk-lg); mask-image: var(--mk-lg); }
+}
+
+/* brushed underlines: drawn by the script; a plain underline stays until then and without it */
+a.ul, button.ul { position: relative; display: inline-block; }
+html:not(.ul-on) a.ul, html:not(.ul-on) button.ul { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; text-decoration-color: var(--ink-soft); }
+html:not(.ul-on) .nav a, html:not(.ul-on) a.wname, html:not(.ul-on) a.email { text-decoration: none; }
+.ul > svg { position: absolute; left: 0; bottom: -5px; height: 8px; overflow: visible; pointer-events: none; }
+.ul > svg path { fill: currentColor; }
+.ul .ur { color: var(--ink-soft); opacity: .7; }
+.ul--h .ur { display: none; }
+.ul .uh { color: var(--accent); clip-path: inset(-4px 100% -4px 0); transition: clip-path .3s var(--easing-settle); }
+.ul:focus-visible .uh { clip-path: inset(-4px -4px -4px 0); }
+.ul:focus-visible { color: var(--accent-text); }
+@media (hover: hover) and (pointer: fine) {
+  .ul:hover { color: var(--accent-text); }
+  .ul:hover .uh { clip-path: inset(-4px -4px -4px 0); }
+  .gloss:hover, .gloss-title:hover { color: var(--accent-text); }
+}
+.gloss, .gloss-title { transition: color var(--duration-slow) var(--easing-settle); }
+
+/* the entrance and the reveals: only under html.mo */
+html.mo .rv, html.mo .hi, html.mo .nl, html.mo .wd { will-change: auto; }
+html.mo .rv {
+  opacity: 0; filter: blur(10px); transform: translateY(14px);
+  transition: opacity var(--duration-scene) var(--easing-settle) var(--d, 0s), filter var(--duration-scene) var(--easing-settle) var(--d, 0s), transform var(--duration-scene) var(--easing-settle) var(--d, 0s);
+}
+html.mo .in .rv, html.mo .rv.in { opacity: 1; filter: none; transform: none; }
+/* held soft during the intro: still there, links still work */
+html.mo.intro .rv:not(.in), html.mo.intro .sec:not(.in) .rv, html.mo.intro .hold { opacity: .35; filter: blur(10px); transform: none; }
+html.mo .hold { transition: opacity var(--duration-scene) var(--easing-settle), filter var(--duration-scene) var(--easing-settle); }
+html.mo .hi:not(.on) { opacity: 0; filter: blur(6px); transform: translateY(6px); }
+html.mo .hi { display: block; transition: opacity .5s var(--easing-settle), filter .5s var(--easing-settle), transform .5s var(--easing-settle); }
+html.mo .nl:not(.on) { opacity: 0; filter: blur(6px); transform: translateY(6px); }
+html.mo .nl { transition: opacity .5s var(--easing-settle), filter .5s var(--easing-settle), transform .5s var(--easing-settle); }
+html.mo .hp:not(.rdy) { opacity: 0; }
+html.mo .wd:not(.on) { opacity: 0; filter: blur(4px); }
+html.mo .wd { transition: opacity .4s var(--easing-settle), filter .4s var(--easing-settle); }
+html.mo .hero .meta .aph-caret { transition: opacity 1.2s ease; }
+
+@media (max-width: 560px) {
+  /* the kit's phone header: the φ on one line, the nav on one scrolling line beneath */
+  .lab-header { padding-bottom: var(--space-2); }
+  .nav { order: 3; width: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; gap: var(--space-5); padding-bottom: var(--space-1); }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav a { white-space: nowrap; }
+  html.mo .phi-slot { height: 84px; width: calc(84px * 656 / 910); }
+  .pairs > div, .pairs > li { grid-template-columns: 1fr; }
+  .pairs > * + * { margin-top: var(--space-3); }
+  .tag { display: block; margin: var(--space-1) 0 0; }
+}
+
+/* reduce motion: nothing hidden (no html.mo), no smooth scroll, no travelling, hover draws at once */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .ul .uh, #eye .eye, .gloss, .gloss-title, #seal, .pvs, .pvbox canvas { transition: none; }
+  .aph-icon .aph-st path { animation: none !important; }
+}

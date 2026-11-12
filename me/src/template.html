@@ -1,0 +1,69 @@
+<title>__TITLE__</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="__DESCRIPTION__">
+<meta name="color-scheme" content="light dark">
+<meta property="og:title" content="__TITLE__">
+<meta property="og:description" content="__OGDESC__">
+<meta property="og:url" content="https://me.aphes.ist/">
+<meta property="og:type" content="profile">
+<link rel="canonical" href="https://me.aphes.ist/">
+<link rel="icon" href="__FAVICON__" type="image/svg+xml">
+<style>
+/*__CSS__*/
+</style>
+<script>
+/* before the first paint: the theme the reader chose last time, and the classes the motion's hidden states hang on.
+   mo = scripts and motion are allowed (nothing is hidden without it); intro = the entrance will play (the page is at
+   the top, with no hash); sealwait = the corner seal waits for the φ to arrive. A safety timeout lifts every hidden
+   state if the page's script never starts. */
+(function () {
+  var d = document.documentElement;
+  try { var t = localStorage.getItem('aphesis.me.theme'); if (t === 'light' || t === 'dark') d.setAttribute('data-theme', t); } catch (e) {}
+  var calm = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (calm) return;
+  d.classList.add('mo');
+  if ((window.pageYOffset || 0) < 10 && !location.hash) d.classList.add('intro', 'sealwait');
+  setTimeout(function () { if (!window.__meAlive) d.classList.remove('mo', 'intro', 'sealwait'); }, 6000);
+})();
+</script>
+<!--__BODY__-->
+<canvas id="fog" aria-hidden="true"></canvas>
+
+<div id="fly" class="aph-red" aria-hidden="true">
+  <svg id="fly-frames" viewBox="173 45 656 910" aria-hidden="true" focusable="false"><path fill="currentColor" fill-rule="evenodd" d=""/></svg>
+  <div id="fly-seal"></div>
+</div>
+
+<div class="page">
+<header class="lab-header lab-header--sticky lab-header--blur">
+  <div class="hdr-in">
+    <a id="seal" class="aph-red" href="https://aphes.ist/" aria-label="aphes.ist, the other site" data-cursor=".9">__SEAL__</a>
+    <nav class="nav hold aph-ink" aria-label="sections">
+      <a class="ul ul--h aph-label" href="#work">work</a>
+      <a class="ul ul--h aph-label" href="#awards">awards</a>
+      <a class="ul ul--h aph-label" href="#contact">contact</a>
+    </nav>
+  </div>
+</header>
+<main>
+<!--__MAIN__-->
+</main>
+
+<footer class="end blk">
+  <span class="phi-end aph-red" aria-hidden="true">__PHI_END__</span>
+</footer>
+</div>
+
+<button id="skip" type="button" class="aph-label ul aph-ink">skip · show all</button>
+
+<button id="eye" class="hold aph-red" type="button" aria-label="switch between light and dark" aria-pressed="false" data-tip="open · close the eye" data-cursor=".55"><span class="eye open"></span><span class="eye closed"></span></button>
+
+<script>
+/*__BUNDLE__*/
+</script>
+<script>
+/*__CONFIG__*/
+</script>
+<script>
+/*__SCRIPT__*/
+</script>

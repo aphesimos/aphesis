@@ -8,14 +8,22 @@
      heild    the heild wordmark (HE · the I pill · LD), design-system/logos/heild-wordmark-papel.svg on the
               `origin/design-system` branch of the heild repository (path in HEILD_REPO, default ../../heild)
      aphesis  the φ, system/assets/Logos/phi.svg on this repository's `design-system` branch
+     contraprova  the governed cascade, assets/readme/cascade-dark.svg on `origin/main` of the contraprova
+              repository (path in CONTRAPROVA_REPO, default ../../contraprova), with its words, its fog and its
+              typing cursor taken out: the edges and the seven brush icons are left
+     anamnesis  the demo brain, its 1,100 entries at their own anatomy coordinates, seen from the front as its
+              README hero sees it (x, -1.05 y), demo/transcendentalist/snapshot/views.json.gz on `origin/main` of
+              the anamnesis repository (path in ANAMNESIS_REPO, default ../../anamnesis)
 
-     NODE_PATH=$(npm root -g) node works/tools/make_maps.mjs   (needs the `playwright` package and its Chromium)
+     NODE_PATH=$(npm root -g) node works/tools/make_maps.mjs [id ...]   (needs the `playwright` package and its
+     Chromium; with ids, only those maps are made)
 */
 import { execFileSync } from 'node:child_process';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { gunzipSync } from 'node:zlib';
 /* required, not imported, so a global install found through NODE_PATH works too */
 const { chromium } = createRequire(import.meta.url)('playwright');
 
@@ -23,17 +31,50 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
 const OUT = join(REPO, 'works', 'maps');
 const HEILD = process.env.HEILD_REPO || resolve(REPO, '..', 'heild');
+const CONTRAPROVA = process.env.CONTRAPROVA_REPO || resolve(REPO, '..', 'contraprova');
+const ANAMNESIS = process.env.ANAMNESIS_REPO || resolve(REPO, '..', 'anamnesis');
 
 const show = (repo, spec) => execFileSync('git', ['-C', repo, 'show', spec], { encoding: 'utf8' });
+const showBytes = (repo, spec) => execFileSync('git', ['-C', repo, 'show', spec], { maxBuffer: 1 << 26 });
 /* every fill becomes white: the map only keeps where the mark is */
 const white = (svg) => svg.replace(/fill="#[0-9a-fA-F]{3,8}"/g, 'fill="#fff"');
 
-const MAPS = [
-  { id: 'heild', svg: white(show(HEILD, 'origin/design-system:design-system/logos/heild-wordmark-papel.svg')),
-    height: 300, blur: 2.2, margin: 0.16, gamma: 1.1 },
-  { id: 'aphesis', svg: white(show(REPO, 'design-system:system/assets/Logos/phi.svg')),
-    height: 560, blur: 1.6, margin: 0.12, gamma: 1.1 },
-];
+/* the cascade without its words (<text>), its fog (the .4 stipple layers) and the typing cursor; the edges
+   (ink-soft) and icons (accent) become white, the ground black (the discs behind the icons go); cropped to the figure */
+function cascade(svg) {
+  return svg
+    .replace(/<text\b[^>]*>[^<]*<\/text>/g, '')
+    .replace(/<path d="[^"]*" fill="#e8e3e3" opacity="0.4">[\s\S]*?<\/path>/g, '')
+    .replace(/<rect [^>]*visibility="hidden">[\s\S]*?<\/rect>/g, '')
+    .replace('viewBox="0 0 1200 470" width="1200" height="470"', 'viewBox="70 60 930 370" width="930" height="370"')
+    .replace(/fill="#050404"/g, 'fill="#000"')
+    .replace(/fill="#(857e7e|d43031)"/g, 'fill="#fff"')
+    /* thickened, so the thin edges and the small icons read as a figure the simulacrum can gather */
+    .replace('</svg>', '<style>path{stroke:#fff;stroke-width:7px;stroke-linejoin:round}circle[fill="#000"]{display:none}</style></svg>');
+}
+
+/* the demo brain: one dot per entry at its anatomy (x, y), y up as in the README hero */
+function brain(views) {
+  const pts = views.anatomy.map(([x, y]) => [x, -1.05 * y]);
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+  const x0 = Math.min(...xs), y0 = Math.min(...ys), k = 1000 / (Math.max(...xs) - x0);
+  const w = 1000, h = Math.round((Math.max(...ys) - y0) * k);
+  const dots = pts.map(([x, y]) => `<circle cx="${((x - x0) * k).toFixed(1)}" cy="${((y - y0) * k).toFixed(1)}" r="13"/>`).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 ${w + 20} ${h + 20}" width="${w + 20}" height="${h + 20}"><g fill="#fff" fill-opacity=".4">${dots}</g></svg>`;
+}
+
+const ALL = {
+  heild: () => ({ svg: white(show(HEILD, 'origin/design-system:design-system/logos/heild-wordmark-papel.svg')),
+    height: 300, blur: 2.2, margin: 0.16, gamma: 1.1 }),
+  aphesis: () => ({ svg: white(show(REPO, 'design-system:system/assets/Logos/phi.svg')),
+    height: 560, blur: 1.6, margin: 0.12, gamma: 1.1 }),
+  contraprova: () => ({ svg: cascade(show(CONTRAPROVA, 'origin/main:assets/readme/cascade-dark.svg')),
+    height: 370, blur: 2, margin: 0.06, gamma: 1.0 }),
+  anamnesis: () => ({ svg: brain(JSON.parse(gunzipSync(showBytes(ANAMNESIS, 'origin/main:demo/transcendentalist/snapshot/views.json.gz')))),
+    height: 560, blur: 6, margin: 0.1, gamma: 0.9 }),
+};
+const ids = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(ALL);
+const MAPS = ids.map((id) => { if (!ALL[id]) throw new Error('no map called ' + id); return { id, ...ALL[id]() }; });
 
 const browser = await chromium.launch();
 const page = await browser.newPage();

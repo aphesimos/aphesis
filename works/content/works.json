@@ -72,6 +72,74 @@
       "flags": {
         "needs_owner_review": false
       }
+    },
+    {
+      "id": "contraprova",
+      "name": "contraprova",
+      "gloss": "probatio contraria",
+      "gloss_tip": "probatio contraria · the counter-proof",
+      "year": "2026",
+      "role": "author: the orchestrator, the pre-registered study and the replay",
+      "description": "a governed orchestrator. a strong model plans from outlines, claude haiku does the narrow work, a gate checks each change, and only what the gate blocks escalates to a stronger model. every fact is an event in a hash-chained log; every claim is tied to a number registered before the run. on 88 fresh swe-bench pro tasks the cascade solved 83 and a single opus 85: −2.3 points [−8.0, +3.4], inside the pre-registered 10-point margin, at $0.055 per solved task against $0.139, about 61% less.",
+      "links": [
+        {
+          "label": "the replay",
+          "href": "https://aphesist.github.io/contraprova/"
+        },
+        {
+          "label": "the repository",
+          "href": "https://github.com/aphesist/contraprova"
+        }
+      ],
+      "map": {
+        "file": "contraprova.png",
+        "caption": "the governed cascade · plan, work, gate, fork",
+        "settings": {
+          "scatter": 0.7,
+          "erosion": 0.5,
+          "ceiling": 0.78,
+          "gain": 1.0
+        }
+      },
+      "sources": {
+        "description": "contraprova README.md (main branch) and results/swepro-main/README.md: 83/88 vs 85/88, -2.3 points [-8.0, 3.4], cost per solved task $0.0546 vs $0.1390, ratio 0.393 [0.299, 0.510]",
+        "map": "contraprova main branch: assets/readme/cascade-dark.svg, without its words, fog and cursor"
+      },
+      "flags": {
+        "needs_owner_review": false
+      }
+    },
+    {
+      "id": "anamnesis",
+      "name": "anamnesis",
+      "gloss": "ἀνάμνησις",
+      "gloss_tip": "ἀνάμνησις · recollection",
+      "year": "2026",
+      "role": "author: the app, the brain and its evaluation; in progress",
+      "description": "a local-first second brain, open source, that measures itself. notes, sources and conversations become a turning 3d stipple brain of linked dots, with regions that keep their names as it grows and every change an event in a hash-chained log. it works with no model, or with yours: a local one, an api key, or the subscriptions you already have. it asks one question of your own writing: what share of the links i later make by hand was already latent in what i had written? it is in progress.",
+      "links": [
+        {
+          "label": "the repository",
+          "href": "https://github.com/aphesist/anamnesis"
+        }
+      ],
+      "map": {
+        "file": "anamnesis.png",
+        "caption": "the demo brain · 1,100 dated entries from thoreau and emerson",
+        "settings": {
+          "scatter": 0.75,
+          "erosion": 0.5,
+          "ceiling": 0.78,
+          "gain": 1.0
+        }
+      },
+      "sources": {
+        "description": "anamnesis README.md (main branch, v0.1.0)",
+        "map": "anamnesis main branch: demo/transcendentalist/snapshot/views.json.gz, the anatomy layout seen from the front"
+      },
+      "flags": {
+        "needs_owner_review": false
+      }
     }
   ]
 }

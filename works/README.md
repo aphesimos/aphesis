@@ -28,6 +28,8 @@ on the `section/works` branch (cut from `site`, merged back when finished).
 | --- | --- | --- |
 | `heild` | the heild repository's `README.md` (`main`), translated from Portuguese | the heild wordmark (HE · the I pill · LD), `design-system/logos/heild-wordmark-papel.svg` on heild's `design-system` branch |
 | `aphesis` | this repository's `README.md` (`main`) and the `mark` branch README | the φ, `system/assets/Logos/phi.svg` on `design-system` |
+| `contraprova` | the contraprova repository's `README.md` and `results/swepro-main/README.md` (`main`); every number as the results give it | the governed cascade, `assets/readme/cascade-dark.svg` on contraprova's `main`, without its words, fog and cursor, thickened |
+| `anamnesis` | the anamnesis repository's `README.md` (`main`, v0.1.0); in progress | the demo brain's 1,100 entries at their anatomy coordinates, `demo/transcendentalist/snapshot/views.json.gz` on anamnesis's `main` |
 
 ## Adding a work
 
@@ -54,8 +56,8 @@ on the `section/works` branch (cut from `site`, merged back when finished).
    `needs_owner_review` when the source was thin or private. `sources` and `flags` stay in the data file; the page
    does not show them.
 2. **Map.** Put a grayscale density map in `maps/` (white = dense, dark ground, 480 to 640px on the long side; the
-   design system's README, "Density maps"). For a logo or an SVG, add it to `MAPS` in `tools/make_maps.mjs` and run
-   it (`NODE_PATH=$(npm root -g) node works/tools/make_maps.mjs`; it reads every source with `git show`). For a
+   design system's README, "Density maps"). For a logo or an SVG, add it to `ALL` in `tools/make_maps.mjs` and run
+   it (`NODE_PATH=$(npm root -g) node works/tools/make_maps.mjs [id ...]`; it reads every source with `git show`). For a
    screenshot or a photo: crop to the subject, black point at the 30th percentile, white at the 97.5th, gamma 0.8 to
    1.1. A project with no picture gets a symbol drawn with the brush instead (`Simulacrum.fromBrush`); none does yet.
 3. **Build:** `python3 works/build.py`. It checks every entry for the required fields, a unique id and an existing

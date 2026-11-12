@@ -59,10 +59,10 @@ choice is in [`tools/simulacra/research.md`](tools/simulacra/research.md).
 - `system/tokens.json`: every token, per theme.
 - `system/components/bundle.js`, `bundle.css`: the runtime every screen loads (`window.Aphesis`): brush, stipple, icons, seal, Fog, Simulacrum, Typist, tooltip, cursor, letter wave. `index.d.ts` documents the API.
 - `system/components/<Name>/`: guidelines and a live preview for each component.
-- `system/assets/`: the φ, the icons as SVG, the simulacra density maps.
+- `system/assets/`: the φ (and `Logos/phi-boil-{dark,light}.svg`, boiling, for READMEs), the icons as SVG (and `Icons/animated/`, moving, for READMEs), the simulacra density maps.
 - `system/fonts/`: Aphesis Script, variable, under the SIL Open Font License 1.1 with Reserved Font Name "Aphesis Script" (`system/fonts/OFL.txt`).
 - `system/lab-kit/v1/`: the lab kit, the system as one stylesheet and an optional script for the laboratory's research viewers, served at https://aphes.ist/lab-kit/v1/ (see "Lab kit" in `system/README.md`).
-- `tools/`: the bundle source before the φ path is inlined, how the density maps were made, and the lab kit's build (`tools/lab-kit/`).
+- `tools/`: the bundle source before the φ path is inlined, how the density maps were made, the lab kit's build (`tools/lab-kit/`), and the readme kit (`tools/readme/`): animated README headers, cards, icons and the φ for any repository.
 
 ## Licences
 

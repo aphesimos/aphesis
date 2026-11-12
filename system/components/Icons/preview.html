@@ -1,7 +1,7 @@
-<!-- @dsCard group="Marks" height=640 subtitle="brush strokes and stipple, two states each; click one to switch. The eight sections at 24, 32 and 48px: hover stirs (the forum's eyes blink and glance), a tap gathers" -->
+<!-- @dsCard group="Marks" height=640 subtitle="brush strokes and stipple, two states each; click one to switch. The eight sections and the four projects at 24, 32 and 48px: hover stirs (the forum's eyes blink and glance), a tap gathers" -->
 <div class="g" id="g"></div>
 <div class="s">
-  <p class="aph-meta head">sections · at rest 24 · 32 · 48, then chosen at 32</p>
+  <p class="aph-meta head">sections, then projects · at rest 24 · 32 · 48, then chosen at 32</p>
   <div class="t" id="t"></div>
 </div>
 <style>
@@ -27,9 +27,9 @@ I.forEach(function(it){var b=document.createElement('button');b.type='button';va
   function r(){b.innerHTML=Aphesis.icon(it[0],st)+'<span class="aph-meta">'+it[1]+(it[2]?' · '+(st?it[3]:it[2]):'')+'</span>';b.setAttribute('aria-label',it[0]+(it[2]?', '+(st?it[3]:it[2]):''));}
   r();if(it[2])b.onclick=function(){st=1-st;r();};g.appendChild(b);});
 /* the eight sections: three sizes at rest (hover or focus stirs them; a click gathers and lets go), and the still chosen state */
-var GL={book:'liber',descent:'κατάβασις',archive:'codex',laboratory:'officina',works:'opera',wall:'paries',forum:'ἀγορά',music:'phonotheca'};
+var GL={book:'liber',descent:'κατάβασις',archive:'codex',laboratory:'officina',works:'opera',wall:'paries',forum:'ἀγορά',music:'phonotheca',contraprova:'probatio contraria',heuresis:'εὕρεσις',anamnesis:'ἀνάμνησις',autopoiesis:'αὐτοποίησις'};
 var t=document.getElementById('t');
-Aphesis.SECTIONS.forEach(function(n){var d=document.createElement('div');d.className='sec';var row='<div class="row">';
+Aphesis.SECTIONS.concat(Aphesis.PROJECTS).forEach(function(n){var d=document.createElement('div');d.className='sec';var row='<div class="row">';
   [24,32,48].forEach(function(px){row+='<button type="button" class="aph-icon s'+px+'" aria-label="'+n+'" data-tip="'+n+' · '+GL[n]+'">'+Aphesis.icon(n,0)+'</button>';});
   row+='<span class="still s32" aria-hidden="true">'+Aphesis.icon(n,1)+'</span></div>';
   d.innerHTML=row+'<span class="aph-meta">'+n+' · '+GL[n]+'</span>';t.appendChild(d);});

@@ -15,8 +15,9 @@ interface EyeHandle { el: Element; blink(): void; close(ticks?: number): void; o
 interface SimulacrumSource { src: string | HTMLImageElement | HTMLCanvasElement; gain?: number; scatter?: number; erosion?: number; ceiling?: number }
 interface SimulacrumProps { sound?: boolean; source?: string | HTMLImageElement | HTMLCanvasElement | SimulacrumSource; scatter?: number; erosion?: number; ceiling?: number; fit?: 'contain' | 'cover'; gain?: number; cell?: number; accent?: number; margin?: number; ground?: boolean; legible?: boolean | number }
 type SectionIcon = 'book' | 'descent' | 'archive' | 'laboratory' | 'works' | 'wall' | 'forum' | 'music';
+type ProjectIcon = 'contraprova' | 'heuresis' | 'anamnesis' | 'autopoiesis';
 /** state: 0 at rest, 1 the second drawing (for a section icon: chosen, its stipple gathered) */
-interface IconsProps { name: 'eye' | 'sol' | 'luna' | 'terminator' | 'threshold' | 'ear' | SectionIcon; state?: 0 | 1 }
+interface IconsProps { name: 'eye' | 'sol' | 'luna' | 'terminator' | 'threshold' | 'ear' | SectionIcon | ProjectIcon; state?: 0 | 1 }
 interface BrushProps { points: Pt[]; width: number; seed: number; taper?: number; wobble?: number }
 interface SealProps { boil?: boolean }
 interface TypistProps { el: Element; caret?: Element }
@@ -78,6 +79,8 @@ interface Aphesis {
   icon(name: IconsProps['name'], state?: 0 | 1): string;
   /** the eight sections in the home's order, each also an icon name */
   SECTIONS: SectionIcon[];
+  /** the owner's projects (each a repository), drawn as the sections are; not sections of the site */
+  PROJECTS: ProjectIcon[];
   seal(el: Element, opts?: SealProps): { stop(): void };
   Fog(canvas: HTMLCanvasElement, opts?: FogProps): { zones(list: (Element | FogZone)[]): void; set(o: FogProps): void; stop(): void; start(): void; destroy(): void };
   Simulacrum(canvas: HTMLCanvasElement, opts?: SimulacrumProps): { show(src?: SimulacrumProps['source'], done?: () => void): void; hide(done?: () => void): void; set(src: SimulacrumProps['source'], done?: () => void): void; stop(): void; start(): void; drawn(cb: () => void): void; destroy(): void };

@@ -14,7 +14,9 @@ Nothing is copied from other branches; they are read with git:
                    drawn by the archive's own modules under its own stylesheet (scoped here to .gp-archive)
   section/forum    forum/src/density.js: a picture becomes a density map in the browser by the forum's rules
   section/book, section/works, design-system maps: only for --mock, the demo's content
-Each ref may be overridden (ARCHIVE_REF, FORUM_REF, BOOK_REF, WORKS_REF) and falls back to origin/<ref>.
+  me               me/content/me.json, for --mock: the me page's words, works' lines and awards (until that branch
+                   carries it, vendor/me.json is the same file)
+Each ref may be overridden (ARCHIVE_REF, FORUM_REF, BOOK_REF, WORKS_REF, ME_REF) and falls back to origin/<ref>.
 Special Elite is vendored in vendor/ (Apache License 2.0), as in the other sections.
 
 The modules in src/ are plain ES modules, concatenated in dependency order into one script, each in its own function
@@ -187,7 +189,14 @@ def mock_data():
         m = dict(pic(show(WR, 'works/maps/' + w['map']['file'], True), w['map']['file']), caption=w['map']['caption'], settings=w['map'].get('settings', {}))
         works.append({k: w[k] for k in ('id', 'name', 'gloss', 'gloss_tip', 'year', 'role', 'description', 'links')} |
                      {'map': m, 'sources': w.get('sources', {}), 'flags': w.get('flags', {}), 'position': i + 1})
-    return 'export const MOCK = ' + json.dumps({'posts': posts, 'books': books, 'works': works, 'media': media}, ensure_ascii=False) + ';\n'
+    try:
+        me = json.loads(show(ref('me', 'ME_REF'), 'me/content/me.json'))
+    except (SystemExit, subprocess.CalledProcessError):
+        me = json.load(open(os.path.join(D, 'vendor', 'me.json'), encoding='utf-8'))
+    lines = {w['id']: w for w in me['works']['items']}
+    for w in works:
+        w['line'], w['status'] = lines.get(w['id'], {}).get('line', ''), lines.get(w['id'], {}).get('tag', '')
+    return 'export const MOCK = ' + json.dumps({'posts': posts, 'books': books, 'works': works, 'me': me, 'media': media}, ensure_ascii=False) + ';\n'
 
 
 def size(b):
@@ -211,7 +220,7 @@ def size(b):
 # ---------- modules ----------
 ORDER = ['config.js', 'archive/assets.js', 'archive/render.js', 'archive/stage-icon.js', 'archive/marks.js', 'archive/figure.js',
          'archive/css.js', 'forum/refusal.js', 'forum/density.js', 'mockdata.js', 'mock.js', 'ui.js', 'api.js', 'eye.js', 'line.js',
-         'ed-archive.js', 'ed-entries.js', 'moderation.js', 'ed-texts.js', 'dash.js', 'main.js']
+         'ed-archive.js', 'ed-entries.js', 'moderation.js', 'ed-texts.js', 'ed-me.js', 'dash.js', 'main.js']
 
 
 def scope_module(name, src):

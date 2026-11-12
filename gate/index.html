@@ -67,11 +67,35 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
 /* text on fog keeps a halo of ground so it never sits on dots */
 .aph-on-fog { text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg); }
 
+/* bands: the seal holds the top-left corner and the eye, the ear and the passage the bottom, above whatever scrolls.
+   A scroller that covers the screen lets what scrolls under them recede instead of running into them: marked
+   .aph-bands (or given mask-image: var(--aph-bands) where only some widths need it), its content fades out at the
+   top through the seal's band and at the bottom through the corners', the safe-area insets included. A mask on the
+   scroller, so the fog behind stays crisp and nothing solid is laid over the page; it does not change with the
+   theme, and it holds through the eye's wave: a blend cannot reach the fog through a mask, so for the wave the
+   runtime puts a mirror of the fog at the scroller's back, and the text inside is painted cell by cell as anywhere
+   else. Content at rest starts below the top band and ends above the bottom one. */
+:root {
+  --aph-band-top: calc(env(safe-area-inset-top, 0px) + 80px); --aph-band-top-clear: calc(env(safe-area-inset-top, 0px) + 30px);
+  --aph-band-bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); --aph-band-bottom-clear: calc(env(safe-area-inset-bottom, 0px) + 34px);
+  /* eased in (the content stays faint under most of the corner and comes clear just past it) */
+  --aph-bands: linear-gradient(to bottom, transparent var(--aph-band-top-clear),
+    rgba(0, 0, 0, .12) calc(var(--aph-band-top-clear) + (var(--aph-band-top) - var(--aph-band-top-clear)) * .5),
+    rgba(0, 0, 0, .45) calc(var(--aph-band-top-clear) + (var(--aph-band-top) - var(--aph-band-top-clear)) * .8), #000 var(--aph-band-top),
+    #000 calc(100% - var(--aph-band-bottom)),
+    rgba(0, 0, 0, .45) calc(100% - var(--aph-band-bottom-clear) - (var(--aph-band-bottom) - var(--aph-band-bottom-clear)) * .8),
+    rgba(0, 0, 0, .12) calc(100% - var(--aph-band-bottom-clear) - (var(--aph-band-bottom) - var(--aph-band-bottom-clear)) * .5),
+    transparent calc(100% - var(--aph-band-bottom-clear)));
+}
+.aph-bands { -webkit-mask-image: var(--aph-bands); mask-image: var(--aph-bands); }
+
 
 /* theme shift: the ground changes behind the page, cell by cell from the eye, and nothing on top stops.
    Mark the containers of black-and-white text with .aph-ink (not ones holding the seal, accents or their own ground):
    while the wave runs they blend by difference with white ink, so every glyph is the negative of the cell beneath it,
-   old theme or new. Greys and hairlines get the one grey that reads right on both grounds. */
+   old theme or new. Greys and hairlines get the one grey that reads right on both grounds (a container whose own
+   colour is a grey keeps it: the runtime gives it inline at the click). What is not marked, the runtime reads at the
+   click and treats the same way where it can (themeShift; .aph-turn below where it cannot). */
 .aph-shifting .aph-ink {
   mix-blend-mode: difference; color: #fff;
   --ink: #fff; --fog: #fff; --ink-soft: var(--shift-soft); --line: var(--shift-line); --bg: #000;
@@ -80,25 +104,38 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
 /* the two frames around each switch: colours change without a transition (movement keeps its own) */
 .aph-still body, .aph-still .aph-ink, .aph-still .aph-ink * { transition-property: opacity, filter, transform !important; }
 /* the reds. Mark with .aph-red each red mark that is not text in an .aph-ink container: the seal, an icon, the eye, the
-   ear, red words. While the wave runs it keeps the old theme's reds until the wave reaches where it stands, then turns
-   to the new ones over half a second with minimum jerk (the keyframes are the curve). The runtime gives each its
-   moment (--aph-red-at) and both themes' reds (--shift-accent-a, -b and the same for accent-text and seal). An element
+   ear, red words. While the wave runs it keeps the old theme's colours (its reds, and the ink and ground it draws
+   with, such as the halo of ground behind the passage) until the wave reaches where it stands, then turns to the new
+   ones over half a second with minimum jerk (the keyframes are the curve). The runtime gives each its moment
+   (--aph-red-at) and both themes' colours (--shift-accent-a, -b and the same for each colour below). An element
    marked .aph-red carries no CSS animation of its own (mark its box), and a colour transition inside it is turned
    off while the wave runs (.aph-shifting), or it would trail the turn. */
 @property --aph-red-k { syntax: '<number>'; inherits: false; initial-value: 1; }
-/* the old reds are the rule's own value (k 0), not the animation's: before its turn the animation does nothing, so the
-   element is left alone, and after it the end holds */
-.aph-shifting .aph-red {
-  --aph-red-k: 0;
-  --accent: color-mix(in oklab, var(--shift-accent-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-accent-b));
-  --accent-text: color-mix(in oklab, var(--shift-accent-text-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-accent-text-b));
-  --seal: color-mix(in oklab, var(--shift-seal-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-seal-b));
-  animation: aph-red .5s linear var(--aph-red-at, 0ms) forwards;
-}
+/* the old colours are the rule's own value (k 0), not the animation's: before its turn the animation does nothing, so
+   the element is left alone, and after it the end holds */
+.aph-shifting .aph-red { animation: aph-red .5s linear var(--aph-red-at, 0ms) forwards; }
 @keyframes aph-red {
   0% { --aph-red-k: 0; } 10% { --aph-red-k: .00856; } 20% { --aph-red-k: .05792; } 30% { --aph-red-k: .16308; }
   40% { --aph-red-k: .31744; } 50% { --aph-red-k: .5; } 60% { --aph-red-k: .68256; } 70% { --aph-red-k: .83692; }
   80% { --aph-red-k: .94208; } 90% { --aph-red-k: .99144; } 100% { --aph-red-k: 1; }
+}
+/* what the runtime turns. At the click the runtime reads what nobody marked: ink that reaches the fog blends as if it
+   were in an .aph-ink container, and what cannot blend (a red it was not told about, ink inside a layer of its own, a
+   box whose text shares it with a red or sits on its own ground) is marked .aph-turn and turns like the reds. The
+   runtime moves --aph-red-k itself, frame by frame, so the box keeps any animation it has. */
+/* both keep every colour of the old theme (k 0) until their moment, and have the new ones when it has passed (k 1) */
+.aph-shifting .aph-red, .aph-shifting .aph-turn {
+  --aph-red-k: 0;
+  --accent: color-mix(in oklab, var(--shift-accent-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-accent-b));
+  --accent-text: color-mix(in oklab, var(--shift-accent-text-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-accent-text-b));
+  --seal: color-mix(in oklab, var(--shift-seal-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-seal-b));
+  --rubedo: color-mix(in oklab, var(--shift-rubedo-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-rubedo-b));
+  --rubedo-text: color-mix(in oklab, var(--shift-rubedo-text-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-rubedo-text-b));
+  --ink: color-mix(in oklab, var(--shift-ink-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-ink-b));
+  --ink-soft: color-mix(in oklab, var(--shift-ink-soft-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-ink-soft-b));
+  --line: color-mix(in oklab, var(--shift-line-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-line-b));
+  --fog: color-mix(in oklab, var(--shift-fog-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-fog-b));
+  --bg: color-mix(in oklab, var(--shift-bg-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-bg-b));
 }
 
 /* the ear: the sound's switch, beside the eye. Listening, three arcs of stipple arrive at the ear and breathe with
@@ -350,8 +387,9 @@ dialog::backdrop { background: color-mix(in oklch, var(--bg) 78%, transparent); 
    layout, the gate: one screen, the fog thinned for a section. The eye stands above the axis, the line under it; no
    word anywhere. The desk: one scrolling column wide enough for an editor beside its preview, a single column on a
    phone with a choice between writing and reading. The seal holds the top-left corner, the eye the bottom-left,
-   the passage corner (bottom-right) stays free. No container makes a stacking context around the ink: #gate, #desk
-   and their columns have no z-index, transform, filter or opacity of their own once they have entered. */
+   the passage corner (bottom-right) stays free. No container makes a stacking context around the ink but the desk's
+   bands (its mask): #gate, #desk and their columns have no z-index, transform, filter or opacity of their own once
+   they have entered. */
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -424,6 +462,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 /* ---------- the desk ---------- */
 #desk {
   position: absolute; inset: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  /* what scrolls recedes under the seal and the bottom corners instead of running into them (the design system's
+     bands: a mask; for the eye's wave the runtime puts a mirror of the fog at its back, so the ink still blends) */
+  -webkit-mask-image: var(--aph-bands); mask-image: var(--aph-bands);
 }
 .desk {
   width: 100%; max-width: 1240px; margin: 0 auto;
@@ -548,7 +589,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .mod-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--space-1) var(--space-3); align-items: baseline; padding: var(--space-2) 0; }
 .mod-list li.marked .mod-text { color: var(--accent-text); }
 .mod-text { overflow-wrap: anywhere; }
-/* the owner's own lines and posts: a still eye and the name, aphesist, in rubedo, before the words */
+/* the owner's own lines and posts: a still eye and the name, aφesist, both in accent, before the words */
 .mod-owner { white-space: nowrap; }
 .mod-eye { display: inline-block; width: 20px; height: 20px; vertical-align: -5px; margin-right: var(--space-1); color: var(--accent); }
 .mod-eye svg { display: block; width: 100%; height: 100%; }
@@ -572,6 +613,18 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .tx-preview { margin: var(--space-2) 0 0; font-size: var(--type-lede-size); line-height: var(--type-lede-line); overflow-wrap: anywhere; }
 .tx-row.dirty .tx-preview { color: var(--accent-text); }
 .tx-acts { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--space-5); }
+.tx-preview.tx-name { font-size: var(--type-heading-size); line-height: 1.2; }
+
+/* the me place: its three parts, and the rows of works and awards (a name, fields on their baselines, buttons) */
+.me { max-width: 46em; }
+.me-part { margin-bottom: var(--space-6); }
+.me-list { list-style: none; margin: 0; padding: 0; }
+.me-row { margin-bottom: var(--space-6); }
+.me-row .field { margin-bottom: var(--space-3); }
+.me-row .field textarea { min-height: 0; resize: none; field-sizing: content; }
+.me-name { margin: 0 0 var(--space-2); font-size: var(--type-lede-size); line-height: var(--type-lede-line); overflow-wrap: anywhere; }
+.me-row.dirty .me-name { color: var(--accent-text); }
+.me-new .me-row { margin-bottom: var(--space-5); }
 .act:disabled { color: var(--ink-soft); cursor: default; }
 .act:disabled .uline { display: none; }
 
@@ -836,6 +889,21 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
      their fog, and leaves a sparse residue (about 12%) drifting in the band. Every change of clear is eased with
      minimum jerk over 1.8s, never snapped. clearWidth: the band's width as a share of the screen's width; left out
      (or null), it follows the screen: .66 on a wide one, .94 on a phone. */
+  /* mirrors of the ground. While the eye's wave runs, a layer the blend cannot reach the fog through (a scroller with
+     bands: a mask makes it a stacking context) is given a canvas at its back that holds a copy of the fog (the fog's
+     canvas is one pixel per cell, so the copy is small), and the ink inside blends with the copy as it would with
+     the fog. Where the layer's mask fades, the copy fades into the fog it copies, so nothing shows. The ground
+     is the first fog made on the page (MIRROR.cv). The copy is made every other frame, the first one at once (the
+     fog drifts slowly and the wave turns a cell at a time: a frame's lag does not show under the text), as the copy
+     is the costly part where canvases are drawn without a GPU. */
+  var MIRROR = { cv: null, list: [], n: 0 };
+  function mirrorFrom(cv) {
+    for (var i = 0; i < MIRROR.list.length; i++) {
+      var m = MIRROR.list[i];
+      if (m.width !== cv.width || m.height !== cv.height) { m.width = cv.width; m.height = cv.height; }
+      m.getContext('2d').drawImage(cv, 0, 0);
+    }
+  }
   function Fog(cv, o) {
     o = o || {}; var P = glField(cv, 'precision highp float;uniform vec2 R;uniform float T,D,C,S,X;uniform vec3 F,N,F2,N2;uniform vec2 P,Q;uniform vec4 Z[12];' + NOISE + SWITCH_GLSL +
       'void main(){vec2 cel=floor(gl_FragCoord.xy/S);vec2 uv=(cel*S-R*.5)/min(R.x,R.y);' +
@@ -851,6 +919,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       'float s=sw(cel,uv,X);vec3 Fc=mix(F,F2,s),Nc=mix(N,N2,s);' +
       'gl_FragColor=vec4(mix(Fc,Nc,step(h(cel),dens)*.55),1.);}', ['R', 'T', 'D', 'C', 'S', 'X', 'F', 'N', 'F2', 'N2', 'P', 'Q', 'Z', 'SO', 'SF']);
     if (!P) return { zones: function () {}, set: function () {}, stop: function () {}, start: function () {}, destroy: function () {} };
+    if (!MIRROR.cv || !MIRROR.cv.isConnected) MIRROR.cv = cv;
     var gl = P.gl, U = P.U, colors = palette(cv, ['--bg', '--fog']);
     var ptr = null, sm = null, t = 0, last = performance.now(), zEls = [], ZB = new Float32Array(48);
     var dens = o.density === undefined ? 1 : o.density, light = o.light === undefined ? 1 : o.light, dpr = 1;
@@ -875,6 +944,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       var cw = clearW == null ? lerp(0.94, 0.66, clamp((R.width - 480) / 720)) : clamp(clearW, 0.05, 1);
       gl.uniform2f(U.Q, clearAt(now), Math.max(1e-3, cw * 0.5 * cv.width / Math.min(cv.width, cv.height)));
       gl.drawArrays(gl.TRIANGLES, 0, 3);
+      if (MIRROR.cv === cv && MIRROR.list.length && !(MIRROR.n++ & 1)) mirrorFrom(cv);
     });
     L.start();
     return {
@@ -1184,7 +1254,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
      jerk (bundle.css: .aph-red). Its moment comes from the fields' own model of the wave: a cell turns once
      MJ(t / duration) passes .76 times its distance from the origin over the farthest corner, plus a hash (.14) and the
      fog's noise (.1), .12 on average; the turn is centred on that moment. */
-  var RED_TURN = 500, REDS = ['--accent', '--accent-text', '--seal'];
+  var RED_TURN = 500;
   function rootValue(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
   function mjInverse(y) { var lo = 0, hi = 1; for (var i = 0; i < 24; i++) { var m = (lo + hi) / 2; if (MJ(m) < y) lo = m; else hi = m; } return (lo + hi) / 2; }
   function redsAt(org, far, dur) {
@@ -1193,33 +1263,343 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       el.style.setProperty('--aph-red-at', Math.max(0, Math.round(dur * mjInverse(Math.min(1, 0.76 * d / far + 0.12)) - RED_TURN / 2)) + 'ms');
     });
   }
+  /* the rest of the page. Right after the click (once its handler has run, so a section that takes a mask off under
+     .aph-shifting, or the shell stepping its inscription aside, already has) the runtime reads the page once and gives
+     every piece of ink that is in no .aph-ink container and no .aph-red mark the treatment it can take:
+     - a subtree whose paint is only ink (text, drawn marks, borders, fields in black, white or a grey: no red, no other
+       colour, no picture or canvas, no ground and no layer of its own) and that reaches the fog (no stacking context
+       between it and the page) blends like .aph-ink. The highest such subtree is taken, so the blend groups stay few;
+     - what cannot blend turns at the wave's moment where it stands, like the reds: a red mark, ink inside a layer of
+       its own (an opacity, a transform, a fixed, sticky or z-indexed box), a box whose own text shares it with a red or
+       sits on a ground of its own, and an .aph-ink container that cannot reach the fog, where its white ink would show
+       over the old ground (it blends again if the layer steps aside later). Such a box (.aph-turn) keeps every colour of the old theme until then and turns over RED_TURN ms; a box
+       whose colour it only inherits is given it, so the turn reaches it. A canvas is never inside a turn, since its
+       field reads the theme's colours from the page.
+     A box that blends keeps its own grey (the blend's white ink would show it as full ink), and an .aph-ink container
+     whose own colour is red turns instead of blending.
+     What is added or shown while the wave runs is read the same way. When the wave has covered the screen every class
+     and colour the runtime set is taken back, in the frames that hold transitions (.aph-still). */
+  var INK = 1, RED = 2, OTHER = 4, GROUND = 8, MEDIA = 16, LAYER = 32;
+  var TURN = ['--ink', '--ink-soft', '--line', '--accent-text', '--accent', '--seal', '--rubedo-text', '--rubedo', '--fog', '--bg'];
+  var SKIP = /^(SCRIPT|STYLE|TEMPLATE|NOSCRIPT|LINK|META|TITLE|BR|WBR|AUDIO|SOURCE|TRACK|DATALIST|OPTION|OPTGROUP)$/;
+  var PICTURE = /^(CANVAS|IMG|VIDEO|PICTURE|IFRAME|OBJECT|EMBED)$/;
+  var hues = {};
+  function rgba(s) {
+    var c = hues[s]; if (c) return c;
+    if (!probe) probe = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+    probe.clearRect(0, 0, 1, 1); probe.fillStyle = 'rgba(0,0,0,0)'; probe.fillStyle = s; probe.fillRect(0, 0, 1, 1);
+    var d = probe.getImageData(0, 0, 1, 1).data; return (hues[s] = [d[0], d[1], d[2], d[3]]);
+  }
+  function sameColor(a, b) { var x = rgba(a), y = rgba(b); return Math.abs(x[0] - y[0]) + Math.abs(x[1] - y[1]) + Math.abs(x[2] - y[2]) + Math.abs(x[3] - y[3]) < 8; }
+  /* black, white and the greys are ink; a colour leaning to red is a red; any other is a colour of its own */
+  function hueOf(s) {
+    if (!s || s === 'none' || s === 'transparent') return 0;
+    if (/url\(|gradient/.test(s)) return OTHER;
+    var c = rgba(s); if (c[3] < 8) return 0;
+    var mx = Math.max(c[0], c[1], c[2]), mn = Math.min(c[0], c[1], c[2]);
+    if (mx - mn < 28) return INK;
+    return c[0] === mx && c[0] - Math.max(c[1], c[2]) > 40 ? RED : OTHER;
+  }
+  function set(v) { return !!v && v !== 'none' && v !== 'auto' && v !== 'normal'; }
+  /* a box that makes a stacking context: blending inside it never reaches the fog */
+  function isolates(cs, pd) { return masked(cs) || isolatesBut(cs, pd); }
+  function masked(cs) { return set(cs.maskImage) || set(cs.webkitMaskImage); }
+  function isolatesBut(cs, pd) {
+    var p = cs.position;
+    return p === 'fixed' || p === 'sticky' || (cs.zIndex !== 'auto' && (p !== 'static' || /flex|grid/.test(pd))) || +cs.opacity < 1 ||
+      set(cs.transform) || set(cs.translate) || set(cs.rotate) || set(cs.scale) || set(cs.filter) || set(cs.backdropFilter) ||
+      set(cs.webkitBackdropFilter) || cs.mixBlendMode !== 'normal' || cs.isolation === 'isolate' ||
+      set(cs.clipPath) || set(cs.perspective) || set(cs.containerType) || cs.contentVisibility === 'auto' ||
+      /transform|opacity|filter|mask|clip-path|isolation|mix-blend-mode|perspective|translate|rotate|scale|z-index/.test(cs.willChange) ||
+      /paint|layout|strict|content/.test(cs.contain);
+  }
+  /* a layer that is one only by its mask (a scroller with bands) can be given a mirror of the fog (MIRROR) */
+  function mirrorable(cs, pd) { return MIRROR.cv && MIRROR.cv.isConnected && masked(cs) && !isolatesBut(cs, pd); }
+  /* a layer of its own: blending a subtree that holds one would pull it into the subtree's stacking context */
+  function layered(cs, pd) { var p = cs.position; return p === 'fixed' || p === 'sticky' || (cs.zIndex !== 'auto' && (p !== 'static' || /flex|grid/.test(pd))); }
+  function edges(cs) {
+    var b = 0;
+    ['Top', 'Right', 'Bottom', 'Left'].forEach(function (s) { if (parseFloat(cs['border' + s + 'Width']) > 0 && !/none|hidden/.test(cs['border' + s + 'Style'])) b |= hueOf(cs['border' + s + 'Color']); });
+    if (set(cs.borderImageSource)) b |= OTHER;
+    return b;
+  }
+  /* a ground of its own: the page's ground, or a veil of it */
+  function ground(cs, bg) {
+    var h = hueOf(cs.backgroundColor), c = rgba(cs.backgroundColor), g = bg && rgba(bg);
+    return (set(cs.backgroundImage) ? OTHER : 0) | (h === INK && g && Math.abs(c[0] - g[0]) + Math.abs(c[1] - g[1]) + Math.abs(c[2] - g[2]) < 12 ? GROUND : h);
+  }
+  /* the drawn marks inside an svg, by their fill and stroke */
+  function marks(svg) {
+    var b = 0, s = svg.querySelectorAll('path,circle,ellipse,rect,line,polyline,polygon,text,use,image,foreignObject');
+    for (var i = 0; i < s.length && i < 48; i++) {
+      if (/^(image|foreignObject)$/.test(s[i].tagName)) return OTHER;
+      var c = getComputedStyle(s[i]); if (c.display !== 'none' && c.visibility !== 'hidden') b |= hueOf(c.fill) | hueOf(c.stroke);
+    }
+    return b;
+  }
+  /* what an element paints itself: its text, an svg's marks, its borders and decoration, its ground */
+  function paintOf(el, cs, bg) {
+    var b = 0, tag = el.tagName, text = false, n;
+    if (cs.visibility !== 'hidden') {
+      for (n = el.firstChild; n; n = n.nextSibling) if (n.nodeType === 3 && /\S/.test(n.data)) { text = true; break; }
+      if (tag === 'TEXTAREA' || tag === 'SELECT' || (tag === 'INPUT' && /^(text|password|search|email|url|tel|number)$/.test(el.type))) text = true;
+      else if (tag === 'INPUT' && !/^(hidden|file)$/.test(el.type)) b |= OTHER;   /* a native control draws its own colours */
+      if (text) {
+        var f = cs.webkitTextFillColor; b |= hueOf(f && !sameColor(f, cs.color) ? f : cs.color);
+        if (set(cs.textDecorationLine)) b |= hueOf(cs.textDecorationColor);
+      }
+      if (tag === 'svg') b |= marks(el);
+      b |= edges(cs) | ground(cs, bg);
+    }
+    return b;
+  }
+  /* what the ::before and ::after of a subtree paint (asked only of a subtree about to blend: reading them for the
+     whole page would cost more than everything else) */
+  function pseudos(root, bg) {
+    var b = 0, els = [root].concat(Array.prototype.slice.call(root.querySelectorAll('*')));
+    for (var i = 0; i < els.length && !(b & (RED | OTHER | GROUND)); i++) {
+      if (els[i].closest('svg') && els[i].tagName !== 'svg') continue;
+      ['::before', '::after'].forEach(function (w) {
+        var p = getComputedStyle(els[i], w), c = p.content;
+        if (!set(c) || p.display === 'none' || p.visibility === 'hidden') return;
+        if (/^["'].*\S.*["']$/.test(c) || /counter|attr\(/.test(c)) b |= hueOf(p.color);
+        if (/url\(/.test(c)) b |= OTHER;
+        b |= edges(p) | ground(p, bg);
+      });
+    }
+    return b;
+  }
+  /* bottom up: what each subtree paints (info: element -> {b: the subtree, o: its own paint, its style, box, and
+     whether its colour is its parent's}) */
+  function survey(el, pd, pc, bg, info) {
+    var tag = el.tagName;
+    if (SKIP.test(tag) || el.classList.contains('aph-cursor')) return 0;
+    var cs = getComputedStyle(el);
+    if (cs.display === 'none') return 0;
+    if (el.classList.contains('aph-red')) return RED;
+    if (PICTURE.test(tag)) return MEDIA;
+    if (el.classList.contains('aph-ink')) {
+      if (cs.visibility === 'hidden') return 0;
+      info.set(el, { b: INK | (el.querySelector('canvas,img,video,picture,iframe,object,embed') ? MEDIA : 0), o: INK, box: true, color: cs.color, inherits: sameColor(cs.color, pc) });
+      return INK | (layered(cs, pd) ? LAYER : 0);
+    }
+    var o = paintOf(el, cs, bg), b = o, d = cs.display;
+    if (cs.mixBlendMode !== 'normal') b |= OTHER;
+    if (tag !== 'svg') for (var c = el.firstElementChild; c; c = c.nextElementSibling) b |= survey(c, d, cs.color, bg, info);
+    info.set(el, { b: b, o: o, cs: cs, pd: pd, box: d !== 'contents', color: cs.color, inherits: sameColor(cs.color, pc) });
+    return b | (layered(cs, pd) ? LAYER : 0);
+  }
+  /* top down: the highest subtree of ink that reaches the fog blends; what cannot, turns, at the first box that paints
+     (so a layer full of text turns piece by piece as the wave crosses it). cut: the layer that keeps el from the fog */
+  function decide(el, cut, info, acts) {
+    var i = info.get(el); if (!i) return;
+    var b = i.b;
+    if (!(b & (INK | RED | GROUND))) return;
+    if (el.classList.contains('aph-ink')) { if ((cut || info.reds.has(el)) && !(b & MEDIA)) acts.push([el, 2, cut]); return; }
+    if (!cut && i.box && !(b & (RED | OTHER | MEDIA | GROUND | LAYER))) {
+      var pb = pseudos(el, info.bg);
+      if (!(pb & (RED | OTHER | GROUND))) { acts.push([el, 0]); return; }
+      b = i.b = b | pb;
+    }
+    if ((i.o & (INK | RED | GROUND)) && !(b & MEDIA)) {
+      acts.push([el, 1]);
+      /* inside a layer, an .aph-ink container in the turn would blend there: it takes the turn's colours instead */
+      if (cut) Array.prototype.forEach.call(el.querySelectorAll('.aph-ink'), function (x) { acts.push([x, 3]); });
+      return;
+    }
+    /* (whether it is a layer is asked only of the boxes the reading goes through; a layer by its mask alone gets a
+       mirror of the fog at its back, and what is in it blends as anywhere else) */
+    var below = cut;
+    if (!below && isolates(i.cs, i.pd)) { if (mirrorable(i.cs, i.pd)) acts.push([el, 4]); else below = el; }
+    for (var c = el.firstElementChild; c; c = c.nextElementSibling) decide(c, below, info, acts);
+  }
+  /* the plan for one wave: what blends, what turns and when, and how to give it all back. Everything is read before
+     anything is written, so the page's style is worked out once for the reading. */
+  function wavePlan(org, far, dur, A, B, dark, inks) {
+    var blended = [], turned = [], suspended = [], pinned = [], mo = null, wo = null, watched = new Map(), reds = new Set(), greys = new Map(), acts = null, frames = 0;
+    var mirrors = [], mirrored = new Set();
+    /* under the blend an element's own colour is the white ink, which is right for ink but reads black or white for a
+       grey: a box that blends with a grey of its own keeps it as the grey that reads as that grey on both grounds (the
+       theme's ink-soft and line as the system's shift greys, any other as its negative on a light ground). T: the
+       theme the colour was read in */
+    function greyOf(c, T, tDark) {
+      function is(n) { return sameColor(c, T[n]) || sameColor(c, (T === A ? B : A)[n]); }
+      if (hueOf(c) !== INK || is('--ink')) return '';
+      if (is('--ink-soft')) return 'var(--ink-soft)';
+      if (is('--line')) return 'var(--line)';
+      var v = rgba(c); return 'rgb(' + [0, 1, 2].map(function (j) { return tDark ? v[j] : 255 - v[j]; }).join(',') + ')';
+    }
+    function pinColor(el, v) {
+      var p = [el, el.style.getPropertyValue('color'), el.style.getPropertyPriority('color')];
+      el.style.setProperty('color', v); p.push(el.style.getPropertyValue('color')); pinned.push(p);
+    }
+    /* a turn whose colour is only inherited would not follow its own colours: it is given the one it shows (which may
+       still be the old one, on its way to the new over a transition of its parent's) */
+    function pinOf(c) { var n = ''; [B, A].some(function (T) { return TURN.some(function (m) { if (B[m] && T[m] && sameColor(c, T[m])) { n = m; return true; } }); }); return n; }
+    /* the containers the page marked, read before the theme changed: a red one turns, a grey one keeps its grey */
+    inks.forEach(function (x) { if (hueOf(x[1]) === RED) reds.add(x[0]); else { var g = greyOf(x[1], A, dark); if (g) greys.set(x[0], g); } });
+    function display(el) { return el ? getComputedStyle(el).display : 'block'; }
+    function cutOf(el) {
+      for (var a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+        var cs = getComputedStyle(a), pd = display(a.parentElement);
+        if (mirrored.has(a) ? isolatesBut(cs, pd) : isolates(cs, pd)) return a;
+      }
+      return null;
+    }
+    /* an .aph-ink container turned because a layer kept it from the fog blends again once the layer steps aside (the
+       shell's inscription does a moment later when the eye is pressed just as it comes in) */
+    function watch(el, cut) {
+      if (!wo) wo = new MutationObserver(function (list) {
+        list.forEach(function (m) {
+          var els = watched.get(m.target); if (!els) return;
+          watched.delete(m.target);
+          els.forEach(function (x) {
+            var c = cutOf(x); if (c) { watch(x, c); return; }
+            var j = turned.findIndex(function (t) { return t.el === x; }); if (j >= 0) turned.splice(j, 1);
+            x.classList.remove('aph-turn'); x.style.removeProperty('--aph-red-k'); x.classList.add('aph-ink');
+            suspended.splice(suspended.indexOf(x), 1);
+            if (greys.has(x)) pinColor(x, greys.get(x));
+          });
+        });
+      });
+      if (!watched.has(cut)) { watched.set(cut, []); wo.observe(cut, { attributes: true, attributeFilter: ['class', 'style'] }); }
+      watched.get(cut).push(el);
+    }
+    /* what to do, from reading alone: [element, 0 blend | 1 turn | 2 turn a marked container | 3 lift a marked container
+       inside a turn | 4 give a layer a mirror of the fog, the layer that cuts it, the colour to give it] */
+    function read(els) {
+      var info = new Map(), bg = B['--bg'], out = [];
+      info.reds = reds; info.bg = bg;
+      els.forEach(function (el) {
+        if (!el.isConnected || !document.body.contains(el) || el.closest('.aph-ink, .aph-turn, .aph-red') || el.classList.contains('aph-mirror')) return;
+        var p = el.parentElement;
+        survey(el, display(p), p ? getComputedStyle(p).color : '', bg, info); decide(el, cutOf(el), info, out);
+      });
+      out.forEach(function (x) {
+        var i = info.get(x[0]);
+        if (x[1] === 0) x[3] = greyOf(i.color, B, !dark);
+        else if (x[1] < 3 && i && i.inherits) { var n = pinOf(i.color); if (n) x[3] = 'var(' + n + ')'; }
+      });
+      return out;
+    }
+    function write(out, first) {
+      out.forEach(function (x) {
+        var el = x[0];
+        if (x[1] === 4) {
+          if (mirrored.has(el)) return;
+          var m = document.createElement('canvas');
+          m.className = 'aph-mirror'; m.setAttribute('aria-hidden', 'true');
+          m.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;z-index:-1;pointer-events:none;image-rendering:pixelated';
+          el.insertBefore(m, el.firstChild); MIRROR.list.push(m); MIRROR.n = 0; mirrors.push(m); mirrored.add(el);
+          return;
+        }
+        if (x[1] === 0) { el.classList.add('aph-ink'); blended.push(el); if (x[3]) pinColor(el, x[3]); return; }
+        if (x[1] >= 2) { el.classList.remove('aph-ink'); suspended.push(el); }
+        if (x[1] === 2 && x[2]) watch(el, x[2]);
+        if (x[1] === 3) return;
+        el.classList.add('aph-turn'); if (x[3]) pinColor(el, x[3]);
+        /* its moment is read at the next frame; k starts at the rule's own 0, so nothing is written until it comes */
+        turned.push({ el: el, at: null, k: 0 });
+      });
+      if (first) greys.forEach(function (g, el) { if (el.isConnected && el.classList.contains('aph-ink')) pinColor(el, g); });
+      /* a marked container read under the blend showed its white ink: its own colour is known only now */
+      out.forEach(function (x) {
+        if (x[1] !== 2 || x[3]) return;
+        var c = getComputedStyle(x[0]).color, p = x[0].parentElement, n;
+        if (p && sameColor(c, getComputedStyle(p).color) && (n = pinOf(c))) pinColor(x[0], 'var(' + n + ')');
+      });
+    }
+    var plan = {
+      /* the page as it stands at the click, read; then written */
+      read: function () { acts = read(Array.prototype.slice.call(document.body.children)); },
+      write: function () {
+        write(acts || [], true); acts = null;
+        /* what is added or shown while the wave runs (read and written at once: the page has changed anyway) */
+        mo = new MutationObserver(function (list) {
+          var els = [];
+          list.forEach(function (m) {
+            if (m.type === 'attributes') { if (!m.target.hidden) els.push(m.target); }
+            else m.addedNodes.forEach(function (n) { if (n.nodeType === 1) els.push(n); });
+          });
+          if (els.length) write(read(els));
+        });
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
+      },
+      /* each frame: a turn runs over RED_TURN ms from its moment, with minimum jerk (the moments are read first, then
+         the turns written) */
+      tick: function (t) {
+        var j, x;
+        /* (from the second frame, when the first has laid the page out) */
+        if (++frames > 1) for (j = 0; j < turned.length; j++) {
+          x = turned[j]; if (x.at !== null) continue;
+          var r = x.el.getBoundingClientRect(), d = Math.hypot(r.left + r.width / 2 - org[0], r.top + r.height / 2 - org[1]);
+          x.at = dur * mjInverse(Math.min(1, 0.76 * d / far + 0.12)) - RED_TURN / 2;
+        }
+        for (j = 0; j < turned.length; j++) {
+          x = turned[j]; if (x.at === null) continue;
+          var k = MJ((t - x.at) / RED_TURN);
+          if (k !== x.k) { x.k = k; x.el.style.setProperty('--aph-red-k', String(Math.round(k * 1e4) / 1e4)); }
+        }
+      },
+      stop: function () { if (mo) { mo.disconnect(); mo = null; } if (wo) { wo.disconnect(); wo = null; } watched.clear(); },
+      /* the colours go back with the blend, in the same frame (a grey given for the blend is wrong without it); a colour
+         the page set meanwhile is left as it is */
+      unpin: function () {
+        pinned.reverse().forEach(function (p) { if (p[0].style.getPropertyValue('color') !== p[3]) return; if (p[1]) p[0].style.setProperty('color', p[1], p[2]); else p[0].style.removeProperty('color'); });
+        pinned = [];
+      },
+      /* the classes two frames later, once transitions are held no more */
+      end: function () {
+        plan.stop(); plan.unpin();
+        blended.forEach(function (el) { el.classList.remove('aph-ink'); });
+        turned.forEach(function (x) { x.el.classList.remove('aph-turn'); x.el.style.removeProperty('--aph-red-k'); });
+        suspended.forEach(function (el) { el.classList.add('aph-ink'); });
+        mirrors.forEach(function (m) { m.remove(); var j = MIRROR.list.indexOf(m); if (j >= 0) MIRROR.list.splice(j, 1); });
+        blended = []; turned = []; suspended = []; mirrors = []; mirrored.clear();
+      },
+    };
+    return plan;
+  }
+  var PLAN = null;
   function themeShift(apply, o) {
     o = o || {};
     if (SHIFT) return false;
+    if (PLAN) { PLAN.end(); PLAN = null; }
     var root = document.documentElement, before = root.getAttribute('data-theme');
     var dark = before ? before === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
-    var softA = cssColor('--ink-soft'), lineA = cssColor('--line'), redA = REDS.map(rootValue);
+    var softA = cssColor('--ink-soft'), lineA = cssColor('--line'), A = {};
+    TURN.forEach(function (n) { A[n] = rootValue(n); });
+    var inks = Array.prototype.map.call(document.querySelectorAll('.aph-ink'), function (el) { return [el, getComputedStyle(el).color]; });
     var org = o.origin || [24, innerHeight - 24], W = innerWidth, H = innerHeight;
     var far = Math.max(Math.hypot(org[0], org[1]), Math.hypot(W - org[0], org[1]), Math.hypot(org[0], H - org[1]), Math.hypot(W - org[0], H - org[1]));
     SHIFT = { o: org, far: far, p: 0 };
     /* colour transitions would smear the switch into and out of difference: hold them off for two frames at each end */
-    function still() { root.classList.add('aph-still'); requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.remove('aph-still'); }); }); }
+    function still(after) { root.classList.add('aph-still'); requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.remove('aph-still'); if (after) after(); }); }); }
     still(); apply(); Sound.event('shift');
-    var softB = cssColor('--ink-soft'), lineB = cssColor('--line'), redB = REDS.map(rootValue);
+    var softB = cssColor('--ink-soft'), lineB = cssColor('--line'), B = {};
+    TURN.forEach(function (n) { B[n] = rootValue(n); });
     /* a grey under difference shows as itself on a dark ground and as its negative on a light one:
        take the grey that reads as each theme's own grey on its own ground */
     function grey(a, b) { var dk = dark ? a : b, lt = dark ? b : a; return 'rgb(' + [0, 1, 2].map(function (i) { return Math.round((dk[i] + 1 - lt[i]) / 2 * 255); }).join(',') + ')'; }
     root.style.setProperty('--shift-soft', grey(softA, softB)); root.style.setProperty('--shift-line', grey(lineA, lineB));
-    REDS.forEach(function (n, i) { root.style.setProperty('--shift-' + n.slice(2) + '-a', redA[i]); root.style.setProperty('--shift-' + n.slice(2) + '-b', redB[i]); });
+    /* both themes' colours, for the reds and the turns */
+    TURN.forEach(function (n) { root.style.setProperty('--shift-' + n.slice(2) + '-a', A[n]); root.style.setProperty('--shift-' + n.slice(2) + '-b', B[n]); });
     var dur = o.duration || cssMs('--duration-shift', 5200), t = 0, last = null;
     redsAt(org, far, dur);
     root.classList.add('aph-shifting');
+    /* the rest of the page is read once the click's handler has run (a section may take a mask off under .aph-shifting,
+       the shell steps its inscription aside), still before the frame */
+    var plan = PLAN = wavePlan(org, far, dur, A, B, dark, inks);
+    (window.queueMicrotask || function (f) { Promise.resolve().then(f); })(function () { if (PLAN === plan && SHIFT) { plan.read(); plan.write(); } });
     /* time advances at most 100 ms a frame, like tween(): a stalled frame pauses the wave instead of jumping it */
     function tick(now) {
       if (last !== null) t += Math.min(100, Math.max(0, now - last)); last = now;
       var k = clamp(t / dur); SHIFT.p = MJ(k);
+      if (PLAN === plan) plan.tick(t);
       if (k < 1) { requestAnimationFrame(tick); return; }
-      still(); root.classList.remove('aph-shifting'); SHIFT = null; themeColor(); if (o.done) o.done();
+      plan.stop(); plan.unpin();
+      still(function () { if (PLAN === plan) { plan.end(); PLAN = null; } });
+      root.classList.remove('aph-shifting'); SHIFT = null; themeColor(); if (o.done) o.done();
       Array.prototype.forEach.call(document.querySelectorAll('.aph-red'), function (el) { el.style.removeProperty('--aph-red-at'); });
     }
     requestAnimationFrame(tick);
@@ -1341,6 +1721,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   };
   /* then(value, seconds, at): a later move, after the one under way */
   Lane.prototype.then = function (v, sec, t) { this._push(v, sec, t); };
+  /* set(value): hold value from now on, at once; only while the context is not running, where no step is heard */
+  Lane.prototype.set = function (v, t) {
+    t = t === undefined ? this.c.currentTime : t; this.p.cancelScheduledValues(t); this.p.setValueAtTime(v, t); this.s = [{ t0: t, v0: v, v1: v, tau: 0 }];
+  };
 
   function noiseBuffer(ctx) {
     /* pinkish noise (Kellet's filter), 6.18 s, looped */
@@ -1516,43 +1900,122 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     var s = 0, p = 0; for (var i = 0; i < d.length; i++) { s += d[i] * d[i]; p = Math.max(p, Math.abs(d[i])); } return { rms: Math.sqrt(s / d.length), peak: p };
   };
 
-  /* the live sound: autoplay, the first gesture, mute, visibility, the pointer, the ear */
+  /* the live sound: autoplay, the first gesture, mute, visibility, interruptions, the pointer, the ear */
   var Sound = (function () {
     var AC = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext);
     var E = null, started = false, want = { name: 'home', o: null }, timer = 0, sleepT = 0, armed = false, ears = [], fadeMs = 7000, lastPtr = 0, media = 0;
+    /* what the page asked of the master besides the voice (the duck), carried onto a context made again */
+    var duckTo = 1;
+    /* the context's health. sleeping: we put it to sleep ourselves (hidden or muted). stale: it says it runs but its
+       clock stands still, or a gesture's resume never came: only a new context, made inside a gesture, sounds again.
+       gone: between pagehide and the page being shown again. */
+    var sleeping = false, stale = false, gone = false, kicked = null, checkT = 0, settleT = 0, rebuiltAt = 0, lastState = 'none';
+    /* ?sounddebug in the address: every change of the audio's state is logged to the console */
+    var DEBUG = false;
+    try { DEBUG = /[?&]sounddebug(=|&|$)/.test(location.search); } catch (e) {}
+    function log(msg) {
+      if (!DEBUG) return;
+      var c = E && E.ctx, s = 'sound · ' + msg + ' · ctx ' + (c ? c.state + ' t ' + c.currentTime.toFixed(2) : 'none') +
+        (navigator.audioSession ? ' · session ' + navigator.audioSession.state : '') + ' · ' + (document.hidden ? 'hidden' : 'visible') +
+        (muted ? ' · muted' : '') + (stale ? ' · stale' : '') + (armed ? ' · armed' : '');
+      try { console.log('[' + (performance.now() / 1000).toFixed(2) + '] ' + s); } catch (e) {}
+    }
     function stored() { try { return localStorage.getItem(SOUND_KEY) === 'off'; } catch (e) { return false; } }
     var muted = stored();
     function store() { try { localStorage.setItem(SOUND_KEY, muted ? 'off' : 'on'); } catch (e) {} }
     function running() { return E && E.ctx.state === 'running'; }
-    function ensure() {
-      if (E || !AC) return E;
+    /* the sound is wanted: made, not muted, the page shown */
+    function wanted() { return !!E && !muted && !document.hidden && !gone; }
+    function build() {
       /* heard on iPhone: a playback session plays through the silent switch (the owner's decision); iOS pauses other
          apps' audio while it plays */
       try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
       var ctx; try { ctx = new AC({ latencyHint: 'playback' }); } catch (e) { try { ctx = new AC(); } catch (e2) { return null; } }
-      E = new SoundEngine(ctx);
+      E = new SoundEngine(ctx); stale = false; kicked = null; sleeping = false;
       E.scene(voiceOf(want.name, want.o), 0.05, ctx.currentTime); E.name = want.name;
-      ctx.addEventListener ? ctx.addEventListener('statechange', onState) : (ctx.onstatechange = onState);
-      timer = setInterval(function () { if (running()) E.tick(); }, 250);
+      if (duckTo !== 1) E.duck.go(duckTo, 0.05, ctx.currentTime);
+      var f = function () { onState(ctx); };
+      ctx.addEventListener ? ctx.addEventListener('statechange', f) : (ctx.onstatechange = f);
+      if (!timer) timer = setInterval(function () { if (running()) E.tick(); }, 250);
+      lastState = ctx.state; log('context made');
       return E;
     }
-    /* the context is running: the first time, creep in (the φ draws itself meanwhile) */
-    function onState() {
-      if (!running()) return;
-      disarm(); E.ignite(); E.tick();
-      if (!started) { started = true; var t = E.ctx.currentTime, s = fadeMs / 1000; E.st1.go(1, s * 4 / 3, t); E.st2.go(1, s * 4 / 3, t); }
+    function ensure() { return E || !AC ? E : build(); }
+    /* a context that is closed, or stale, is let go and made again, at most every four seconds; it creeps back in from
+       silence on the current route's voice and the duck it had */
+    function rebuild(why) {
+      if (Date.now() - rebuiltAt < 4000) return false;
+      rebuiltAt = Date.now(); log('make the context again: ' + why);
+      var prev = E; E = null;
+      if (!build()) { E = prev; return false; }
+      if (prev && prev.ctx.state !== 'closed') try { var p = prev.ctx.close(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+      started = false; fadeMs = 2400;
+      return true;
+    }
+    /* every change of the context's state: the first run creeps in (the φ draws itself meanwhile); a stop we did not
+       ask for (iOS: the page left, a call, Siri, another app's audio, the screen locked) holds the sound at silence and
+       tries to wake it, so it always fades back in and never jumps */
+    function onState(c) {
+      if (!E || (c && c !== E.ctx)) return;
+      var st = E.ctx.state;
+      if (st !== lastState) { log('state ' + lastState + ' → ' + st); lastState = st; }
+      if (st === 'closed') { if (wanted()) kick('closed'); return; }
+      if (st !== 'running') {
+        if (started && !sleeping) E.vis.set(0);
+        if (wanted() && !sleeping) kick('state ' + st);
+        return;
+      }
+      sleeping = false; disarm(); E.ignite(); E.tick();
+      if (!started) { started = true; var t = E.ctx.currentTime, s = fadeMs / 1000; E.st1.go(1, s * 4 / 3, t); E.st2.go(1, s * 4 / 3, t); log('creep in'); }
+      else if (wanted() && E.vis.target() < 1) { E.vis.go(1, 2.4); log('fade back in'); }
+      if (!wanted() && !muted) awake(false);
+      else if (wanted()) watch();
     }
     function resume() {
       if (!E) return;
-      try { var p = E.ctx.resume(); if (p && p.then) p.then(onState, function () {}); } catch (e) {}
-      setTimeout(onState, 300);
+      var c = E.ctx;
+      try { var p = c.resume(); if (p && p.then) p.then(function () { onState(c); }, function (e) { log('resume refused: ' + (e && e.name)); }); } catch (e) {}
+      setTimeout(function () { onState(c); }, 300);
+    }
+    /* wake what is wanted: a closed or stale context is made again (it may need the next gesture to sound), a stopped
+       one is asked to resume and the next gesture is armed in case the browser waits for one, a running one is
+       watched for a clock that stands still */
+    function kick(why) {
+      if (!E || muted) return;
+      log('wake: ' + why);
+      if (E.ctx.state === 'closed' && !rebuild('closed')) { arm(); return; }
+      if (stale) { arm(); return; }
+      if (E.ctx.state !== 'running') { resume(); arm(); } else watch();
+    }
+    /* the zombie: iOS can hand back a context that says it runs while its clock stands still and nothing is heard.
+       Suspend and resume it once; if that does not move it, the next gesture makes a new one */
+    function watch() {
+      clearTimeout(checkT);
+      if (!E || !wanted()) return;
+      var c = E.ctx, t0 = c.currentTime, p0 = performance.now();
+      checkT = setTimeout(function () {
+        if (!E || E.ctx !== c || !wanted() || c.state !== 'running') return;
+        var moved = c.currentTime - t0, el = (performance.now() - p0) / 1000;
+        if (moved > el * 0.25) return;
+        if (kicked !== c) {
+          kicked = c; log('clock stands still: suspend and resume');
+          try { c.suspend().then(function () { return c.resume(); }).then(function () { onState(c); }, function () {}); } catch (e) {}
+          watch();
+        } else { stale = true; log('clock still stands: the next gesture makes a new context'); arm(); }
+      }, 900);
     }
     /* the first gesture of any kind wakes it; no prompt, nothing to click on purpose */
-    function gesture() {
+    function gesture(ev) {
       if (muted || !E) return disarm();
+      log('gesture ' + (ev && ev.type));
+      /* inside the gesture a new context may start, where a stale or closed one never will */
+      if (stale || E.ctx.state === 'closed') rebuild(stale ? 'stale' : 'closed');
       /* iOS unlocks on a sound started inside the gesture: a silent one */
       try { var b = E.ctx.createBufferSource(); b.buffer = E.ctx.createBuffer(1, 1, E.ctx.sampleRate); b.connect(E.ctx.destination); b.start(0); } catch (e) {}
       resume(); if (!document.hidden) awake(true);
+      /* a resume asked inside a gesture that never comes: the context is stale, the next gesture makes a new one */
+      clearTimeout(settleT); var c = E.ctx;
+      settleT = setTimeout(function () { if (E && E.ctx === c && wanted() && c.state !== 'running' && c.state !== 'closed') { stale = true; log('the gesture did not wake it'); arm(); } }, 1500);
     }
     var GESTURES = ['pointerdown', 'keydown', 'touchend', 'click', 'mousedown'];
     function arm() { if (armed) return; armed = true; GESTURES.forEach(function (k) { addEventListener(k, gesture, { capture: true, passive: true }); }); }
@@ -1560,10 +2023,22 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     /* hidden pages and muted ones fade out, then the context sleeps; shown again, it wakes and fades back in */
     function awake(on) {
       if (!E) return; clearTimeout(sleepT);
-      if (on) { E.vis.go(1, 2.4); if (E.ctx.state !== 'running') { resume(); if (E.ctx.state !== 'running') arm(); } }
-      else { E.vis.go(0, 1.6); sleepT = setTimeout(function () { if (E && (document.hidden || muted)) try { E.ctx.suspend(); } catch (e) {} }, 2200); }
+      if (on) { E.vis.go(1, 2.4); if (E.ctx.state !== 'running' || stale) kick('shown'); else watch(); }
+      else {
+        clearTimeout(checkT); E.vis.go(0, 1.6);
+        sleepT = setTimeout(function () { if (E && (document.hidden || gone || muted) && E.ctx.state === 'running') { sleeping = true; log('sleep'); try { var p = E.ctx.suspend(); if (p && p.catch) p.catch(function () {}); } catch (e) {} } }, 2200);
+      }
     }
-    function onVis() { if (!E || muted) return; awake(!document.hidden); }
+    function onVis() {
+      if (!document.hidden) gone = false;
+      log(document.hidden ? 'page hidden' : 'page shown');
+      if (!E || muted) return; awake(!document.hidden);
+    }
+    /* bfcache and the ways iOS leaves a page: pagehide, then pageshow (persisted when it comes back from the cache) */
+    function onPageHide() { gone = true; log('pagehide'); if (E && !muted) awake(false); }
+    function onPageShow(e) { gone = false; log('pageshow' + (e && e.persisted ? ' (from the cache)' : '')); if (E && !muted && !document.hidden) awake(true); }
+    /* back from Siri, a call's banner or the control centre the page may never have been hidden, only unfocused */
+    function onFocus() { if (!document.hidden) gone = false; if (!wanted()) return; log('focus'); if (E.ctx.state !== 'running' || stale) awake(true); else watch(); }
     function onPointer(e) {
       if (!E || !running()) return; var n = performance.now(); if (n - lastPtr < 80) return; lastPtr = n;
       var x = e.clientX / Math.max(1, innerWidth), y = e.clientY / Math.max(1, innerHeight);
@@ -1579,6 +2054,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     function hook() {
       if (hooked || typeof document === 'undefined') return; hooked = true;
       document.addEventListener('visibilitychange', onVis);
+      addEventListener('pagehide', onPageHide); addEventListener('pageshow', onPageShow); addEventListener('focus', onFocus);
+      try { if (navigator.audioSession && navigator.audioSession.addEventListener) navigator.audioSession.addEventListener('statechange', function () { log('session ' + navigator.audioSession.state); if (wanted() && navigator.audioSession.state !== 'interrupted' && (E.ctx.state !== 'running' || stale)) kick('session ' + navigator.audioSession.state); }); } catch (e) {}
       addEventListener('pointermove', onPointer, { passive: true });
       ['play', 'pause', 'ended'].forEach(function (k) { document.addEventListener(k, onMedia, true); });
     }
@@ -1590,7 +2067,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       /* start({fade, scene, chamber}): call once at load. Muted visitors stay silent and nothing is created. */
       start: function (o) {
         o = o || {}; if (o.fade) fadeMs = o.fade; if (o.scene) { want.name = o.scene; want.o = o; }
-        hook(); announce(); if (muted || !AC) return api;
+        hook(); announce(); log('start' + (muted ? ' (muted: nothing made)' : '')); if (muted || !AC) return api;
         if (!ensure()) return api;
         if (document.hidden) { arm(); return api; }
         resume(); if (!running()) arm();
@@ -1605,12 +2082,13 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       /* event(kind): a swell or an impact: swell, door, coalesce, dissolve, impact, turn, shift, passage */
       event: function (kind) { if (running() && !muted) E.event(kind); return api; },
       /* duck(level, ms): lower everything to level (0..1) over ms; duck(1) restores */
-      duck: function (level, ms) { if (E) E.duck.go(clamp(level === undefined ? 0.2 : level), (ms || 1500) / 1000); return api; },
+      duck: function (level, ms) { duckTo = clamp(level === undefined ? 0.2 : level); if (E) E.duck.go(duckTo, (ms || 1500) / 1000); return api; },
       /* mute(true|false): a slow fade (1.2 s), remembered for the next visit */
       mute: function (m) {
         m = m === undefined ? !muted : !!m; var changed = m !== muted; muted = m; store(); paintEars(); if (changed) announce();
+        if (changed) log(m ? 'ear closed' : 'ear opened');
         var hush = cssMs('--duration-hush', 1200) / 1000;
-        if (m) { if (E) { E.mute.go(0, hush); disarm(); clearTimeout(sleepT); sleepT = setTimeout(function () { if (E && muted) try { E.ctx.suspend(); } catch (e) {} }, 1800); } }
+        if (m) { if (E) { E.mute.go(0, hush); disarm(); clearTimeout(sleepT); clearTimeout(checkT); clearTimeout(settleT); sleepT = setTimeout(function () { if (E && muted && E.ctx.state === 'running') { sleeping = true; log('sleep: muted'); try { var p = E.ctx.suspend(); if (p && p.catch) p.catch(function () {}); } catch (e) {} } }, 1800); } }
         else {
           hook(); var first = !E; if (!ensure()) return api;
           clearTimeout(sleepT);
@@ -1620,6 +2098,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
         return api;
       },
       get muted() { return muted; },
+      /* log(message): with ?sounddebug in the address, a line in the console; otherwise nothing */
+      log: function (msg) { log(msg); return api; },
+      get debug() { return DEBUG; },
       get state() { return E ? E.ctx.state : 'none'; },
       get context() { return E ? E.ctx : null; },
       /* level(): {rms, peak} of what is playing now, for a meter */
@@ -1845,6 +2326,75 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       brush(line(3.6, 7.3, 20.4, 7.1, 26), 1.25, 295, 0.2, 0.05);
     function strings(x, y) { return y > 7.9 && y < 17.6 && (Math.abs(x - 9.7) < 0.34 || Math.abs(x - 12) < 0.34 || Math.abs(x - 14.3) < 0.34); }
     ICONS.music = sectionIcon(strokes, [[strings, 297, 3600, 0.44]], [12, 12.6], 0.9);
+  })();
+
+  /* ================= PROJECT ICONS ================= */
+  /* the owner's projects, each a repository of its own, drawn as the sections are (one to a few brush strokes and a
+     little stipple on the 24-unit grid, at rest 0 and gathered 1) so they can stand among them, as they do on the
+     profile's ring. They are not sections of the site: Aphesis.PROJECTS lists them apart. Seeds 401 to 499 belong to
+     them. speck(x, y) is grain(x, y) above under a name of its own: the masked-text grain(i) further down shares that
+     name, and as a later declaration in this scope it is the one every call to grain reaches. */
+  function speck(x, y) { var s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); }
+  var PROJECTS = ['contraprova', 'heuresis', 'anamnesis', 'autopoiesis'];
+
+  /* contraprova (probatio contraria): a balance, its beam level: two marks weighed against each other and found
+     equal. The post and its foot, the beam, two pans on their cords, and in each pan a heap of stipple, alike */
+  (function () {
+    var strokes = brush(line(12, 4.6, 12, 19.6, 20), 1.6, 401, 0.12) +
+      brush(line(8.4, 20.2, 15.6, 20.1, 12), 1.5, 403, 0.3, 0.05) +
+      brush(line(3.6, 7.2, 20.4, 7.0, 28), 1.6, 405, 0.18) +
+      brush(arc(12, 4, 0.95, -90, 270, 14), 1.0, 406, 0, 0.04) +
+      brush(chain(line(2.9, 14.4, 5.2, 7.9, 10), line(5.2, 7.9, 7.5, 14.4, 10)), 1.0, 407, 0.3, 0.05) +
+      brush(chain(line(16.5, 14.4, 18.8, 7.7, 10), line(18.8, 7.7, 21.1, 14.4, 10)), 1.0, 408, 0.3, 0.05) +
+      brush(arc(5.2, 14.4, 3.3, 0, 180, 16, 1.9), 1.5, 409, 0.25) +
+      brush(arc(18.8, 14.4, 3.3, 0, 180, 16, 1.9), 1.5, 410, 0.25);
+    function heap(cx) { return function (x, y) { var u = (x - cx) / 2.3, v = (y - 14.1) / 1.7; return y < 14.1 && u * u + v * v < 1; }; }
+    ICONS.contraprova = sectionIcon(strokes, [[heap(5.2), 411, 1200, 0.6], [heap(18.8), 412, 1200, 0.6]], [12, 12.8], 0.8);
+  })();
+
+  /* heuresis (εὕρεσις): an oil lamp, the kind carried into a dark room to find what is there: the bowl, the spout
+     reaching out, the handle ring behind, the filling hole, the foot, and the flame in stipple at the spout's mouth */
+  (function () {
+    var body = chain(bez([4.6, 14.2], [4.4, 19.6], [13.6, 19.8], [15.8, 16.6], 20), line(15.8, 16.6, 19.6, 14.4, 8), bez([19.6, 14.4], [20.6, 13.8], [20, 12.6], [18.8, 13.1], 8),
+      bez([18.8, 13.1], [16.2, 14.2], [13.6, 13.4], [11, 13.2], 12), bez([11, 13.2], [7.6, 13], [4.8, 12.8], [4.6, 14.2], 12));
+    var strokes = brush(body, 1.6, 421, 0.04) +
+      brush(arc(3.6, 13.6, 1.9, 95, 285, 18), 1.2, 423, 0.3, 0.05) +
+      brush(line(9, 11.6, 12, 11.5, 8), 1.1, 425, 0.3, 0.04) +
+      brush(line(8.8, 21, 14.2, 20.9, 10), 1.15, 426, 0.35, 0.04);
+    /* the flame: a drop standing on the spout's mouth, leaning a little with the air; a faint light round its tip */
+    function flame(x, y) { var dy = y - 9.2, dx = x - 19.3 + (dy < 0 ? dy * 0.18 : 0); if (dy > 2.8 || dy < -5) return false; var half = dy > 0 ? 1.45 * Math.sqrt(1 - dy / 2.8) : 1.45 * Math.pow(1 + dy / 5, 0.8); return Math.abs(dx) < half; }
+    function glow(x, y) { var d = Math.hypot(x - 19.4, y - 8.6); return d > 2.4 && d < 4.4 && y < 11.6 && speck(x, y) < 0.32 - (d - 2.4) * 0.12; }
+    ICONS.heuresis = sectionIcon(strokes, [[flame, 427, 3600, 0.62], [glow, 429, 900, 0.44]], [19.3, 9.4], 0.7);
+  })();
+
+  /* anamnesis (ἀνάμνησις): a few remembered things linked to each other: small rings joined by fine strokes, and
+     stipple gathering in the ones being recalled */
+  (function () {
+    var N = [[6, 6.6], [15.2, 4.6], [19.4, 12], [11.6, 12.4], [5, 17.2], [16, 19.4]], RR = [1.7, 1.5, 1.6, 2.2, 1.6, 1.6];
+    var E = [[0, 1], [1, 2], [0, 3], [1, 3], [3, 2], [3, 4], [3, 5], [2, 5]];
+    var strokes = '';
+    N.forEach(function (p, i) { strokes += brush(arc(p[0], p[1], RR[i], i * 37, i * 37 + 360, 20), i === 3 ? 1.35 : 1.15, 441 + i, 0, 0.05); });
+    E.forEach(function (e, j) {
+      var a = N[e[0]], b = N[e[1]], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy), ux = dx / l, uy = dy / l,
+        x0 = a[0] + ux * (RR[e[0]] + 0.55), y0 = a[1] + uy * (RR[e[0]] + 0.55), x1 = b[0] - ux * (RR[e[1]] + 0.55), y1 = b[1] - uy * (RR[e[1]] + 0.55);
+      strokes += brush(line(x0, y0, x1, y1, 10), 0.85, 451 + j, 0.25, 0.04);
+    });
+    function held(i, r) { return function (x, y) { return Math.hypot(x - N[i][0], y - N[i][1]) < r; }; }
+    ICONS.anamnesis = sectionIcon(strokes, [[held(3, 1.45), 461, 1600, 0.56], [held(1, 0.9), 463, 1400, 0.5], [held(4, 0.9), 465, 1400, 0.5]], [11.6, 12.4], 0.75);
+  })();
+
+  /* autopoiesis (αὐτοποίησις): the ouroboros, the serpent that makes itself by eating its own tail: the body swept
+     round the ring and thinning to the tail, the head at the top, two jaws parting round the tail's tip, and matter
+     in stipple turning inside the ring */
+  (function () {
+    var C = [12, 12.6], r = 7.4;
+    var strokes = brush(arc(C[0], C[1], r, -70, 170, 40), 2.0, 481, 0.04) +
+      brush(arc(C[0], C[1], r, 160, 254, 22), 1.75, 483, 0.5) +
+      brush(chain(arc(C[0], C[1], r + 0.2, -72, -88, 6), arc(C[0], C[1], r + 1.5, -88, -122, 10)), 1.6, 485, 0.3, 0.05) +
+      brush(chain(arc(C[0], C[1], r - 0.1, -72, -88, 6), arc(C[0], C[1], r - 1.4, -88, -118, 10)), 1.3, 486, 0.32, 0.05) +
+      brush(arc(C[0], C[1], r, -86, -66, 8), 3.4, 488, 0.3, 0.05);
+    function matter(x, y) { var d = Math.hypot(x - C[0], y - C[1]); return d < 4.4 && speck(x, y) < 0.78 - d * 0.14; }
+    ICONS.autopoiesis = sectionIcon(strokes, [[matter, 489, 2400, 0.56]], C, 0.7);
   })();
 
   function mountEar(el) {
@@ -2324,7 +2874,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   window.Aphesis = {
     reducedMotion: REDUCED, MJ: MJ, cellPx: cellPx, canFilter: canFilter, blur2d: blur2d, lerp: lerp, clamp: clamp, tween: tween, rng: rng, cssColor: cssColor,
     brush: brush, arc: arc, line: line, stipple: stipple, inC: inC,
-    icon: icon, ICONS: ICONS, SECTIONS: SECTIONS, PHI: PHI, seal: seal, Eye: Eye, grain: grain, grains: grains,
+    icon: icon, ICONS: ICONS, SECTIONS: SECTIONS, PROJECTS: PROJECTS, PHI: PHI, seal: seal, Eye: Eye, grain: grain, grains: grains,
     Fog: Fog, Simulacrum: Simulacrum, Typist: Typist, tooltip: tooltip, cursor: cursor, letters: letters, themeShift: themeShift, themeColor: themeColor, Sound: Sound, Scroll: Scroll
   };
 })();
@@ -2784,6 +3334,126 @@ const ARCHIVE_CSS = ".gp-archive *{box-sizing: border-box;}\n.gp-archive a{color
 
 return { ARCHIVE_CSS };
 })();
+/* ---- forum/refusal.js ---- */
+M["forum/refusal.js"] = (function () {
+/* refusal: why a post did not go, as a code the page acts on and words that say it.
+
+   The Worker answers every refusal with {error, code, limit?, retryAfter?}: the words as before, a code that never
+   changes, the limit that was passed (bytes, characters, lines or pixels) and, for the rate limit, the seconds to
+   wait (in the body: a page on another origin cannot read Retry-After). The page makes the same refusals itself
+   before sending what it can already judge (the words, the image), and for what only happens on the way (no
+   network, a check that never finished). explain() turns any of them into one line in the form's own voice.
+
+   LIMITS: what the board takes, as its pages say (`limits` on GET /api/board); these are the current backend's,
+   kept for a Worker that says nothing. */
+
+const LIMITS = {
+  request: 6 * 1024 * 1024,
+  original: { bytes: 4 * 1024 * 1024, pixels: 40e6 },
+  density: { long: 960, bytes: 900 * 1024 },
+  text: { chars: 2000, lines: 60 },
+};
+
+/* a board's own limits over the defaults, each read only when it is a sensible number */
+function boardLimits(l) {
+  const n = (v, min, d) => (Number.isFinite(+v) && +v >= min ? +v : d);
+  const o = (l && l.original) || {}, d = (l && l.density) || {}, t = (l && l.text) || {};
+  return {
+    request: n(l && l.request, 1024 * 1024, LIMITS.request),
+    original: { bytes: n(o.bytes, 256 * 1024, LIMITS.original.bytes), pixels: n(o.pixels, 1e6, LIMITS.original.pixels) },
+    density: { long: Math.min(n(d.long, 480, LIMITS.density.long), 2048), bytes: n(d.bytes, 100 * 1024, LIMITS.density.bytes) },
+    text: { chars: n(t.chars, 1, LIMITS.text.chars), lines: n(t.lines, 1, LIMITS.text.lines) },
+  };
+}
+
+/* an Error that carries its code (and whatever else explains it: limit, retryAfter, status, kind, n) */
+function refusal(code, more = {}, words = '') {
+  return Object.assign(new Error(words || code), { code }, more);
+}
+
+/* a refusal from the Worker's answer; an answer from before the codes is read by its status and words */
+function fromAnswer(status, body) {
+  const b = body && typeof body === 'object' ? body : {};
+  let code = typeof b.code === 'string' ? b.code : '';
+  let retryAfter = Number.isFinite(+b.retryAfter) ? +b.retryAfter : null;
+  if (!code) {
+    const w = String(b.error || '');
+    if (status === 429) { code = 'rate'; const m = w.match(/(\d+)\s*s\b/); if (m) retryAfter = +m[1]; }
+    else if (status === 413) code = 'too_large';
+    else if (status === 403 && /check/.test(w)) code = 'turnstile';
+    else if (status === 404) code = 'thread_gone';
+    else if (status === 409 && /full/.test(w)) code = 'thread_full';
+    else if (status >= 500) code = 'stumbled';
+    else if (/up to \d+ mb/.test(w)) code = 'image_too_large';
+    else if (/only jpeg/.test(w)) code = 'image_type';
+    else if (/could not be read/.test(w)) code = 'image_unreadable';
+    else if (/needs words/.test(w)) code = 'text_required';
+    else if (/characters/.test(w)) code = 'text_long';
+    else if (/lines/.test(w)) code = 'text_lines';
+    else code = 'refused';
+  }
+  return refusal(code, { status, limit: Number.isFinite(+b.limit) ? +b.limit : undefined, retryAfter }, String(b.error || code));
+}
+
+/* 4194304 -> "4 mb", 921600 -> "900 kb" */
+function size(bytes) {
+  if (bytes >= 1024 * 1024) { const m = bytes / (1024 * 1024); return (m >= 10 || Number.isInteger(m) ? Math.round(m) : m.toFixed(1)) + ' mb'; }
+  return Math.max(1, Math.round(bytes / 1024)) + ' kb';
+}
+const mp = (px) => Math.round(px / 1e6) + ' megapixels';
+
+/* the words, and what the form offers with them: retry (send again as it is) or nothing */
+function explain(err, limits = LIMITS, { thread = null } = {}) {
+  const e = err || {}, L = limits, code = e.code || (e.name === 'TypeError' ? 'network' : 'refused');
+  const lim = (d) => (Number.isFinite(e.limit) ? e.limit : d);
+  switch (code) {
+    case 'too_large':
+      return { text: 'too large to send: the board takes ' + size(lim(L.request)) + ' at most for a post, the image and its fog together.' };
+    case 'image_too_large':
+      return { text: 'this image is over ' + size(lim(L.original.bytes)) + ', the most the board takes, and it could not be made smaller here. try a smaller one.' };
+    case 'image_pixels':
+      return { text: 'this image is over ' + mp(lim(L.original.pixels)) + ', the most the board takes, and it could not be made smaller here. try a smaller one.' };
+    case 'image_type':
+      return { text: (e.kind ? e.kind + ' images cannot be opened here' : 'this kind of image cannot be opened here') + '. the board takes jpeg, png, webp or gif.' };
+    case 'image_unreadable':
+      return { text: 'this image could not be read. it may be damaged, or only partly downloaded. try another.' };
+    case 'map_missing': case 'map_too_large': case 'map_type': case 'map_unreadable': case 'map_size': case 'map_orphan':
+      return { text: 'the fog for this image could not be made to fit' + (code === 'map_too_large' ? ' (' + size(lim(L.density.bytes)) + ' at most)' : '') + '. remove the image and add it again, or try another.' };
+    case 'text_required':
+      return { text: thread ? 'write something, or add an image.' : 'a thread begins with words.' };
+    case 'text_long':
+      return { text: 'too long: ' + lim(L.text.chars) + ' characters at most' + (e.n ? ', and this has ' + e.n : '') + '.' };
+    case 'text_lines':
+      return { text: 'too long: ' + lim(L.text.lines) + ' lines at most' + (e.n ? ', and this has ' + e.n : '') + '.' };
+    case 'turnstile':
+      return { text: 'the check that keeps robots out did not pass, or it ran out of time.', retry: true };
+    case 'turnstile_load':
+      return { text: 'the check that keeps robots out did not load, so nothing was sent.', retry: true };
+    case 'rate': {
+      const s = Math.max(1, Math.ceil(e.retryAfter || 30));
+      return { text: 'too fast: the board takes a few posts at a time. try again in ' + s + ' s.', wait: s };
+    }
+    case 'word':
+      return { text: 'the board will not carry that word.' };
+    case 'thread_full':
+      return { text: 'this thread is full at ' + lim(500) + ' posts. start a new one from the board.' };
+    case 'thread_gone':
+      return { text: 'this thread is gone.' };
+    case 'not_open':
+      return { text: 'the board is not open yet. try again later.' };
+    case 'origin':
+      return { text: 'the board does not answer this page. open aphes.ist and post from there.' };
+    case 'network':
+      return { text: 'the board could not be reached, so nothing was sent. check the connection, then try again.', retry: true };
+    case 'stumbled':
+      return { text: 'the board stumbled on its side, and the post did not go. try again in a moment.', retry: true };
+    default:
+      return { text: (e.status >= 500 ? 'the board stumbled on its side, and the post did not go. try again in a moment.' : String(e.message || 'the post did not go.').toLowerCase()), retry: e.status >= 500 };
+  }
+}
+
+return { LIMITS, boardLimits, refusal, fromAnswer, size, explain };
+})();
 /* ---- forum/density.js ---- */
 M["forum/density.js"] = (function () {
 /* density: an uploaded picture becomes a density map in the browser, before anything is sent.
@@ -2805,17 +3475,23 @@ M["forum/density.js"] = (function () {
    - a black margin of 5% around the picture, so the simulacrum's soft edge falls on the margin, not on the content.
    prepareMap(file, {mode: 'hermetic'}) gives the design system's original preparation instead (30th percentile,
    gamma 0.8, a 1px blur on light grounds), kept for comparison.
-   The original file goes up beside the map, untouched, so it stays a click away. */
+   The original file goes up beside the map, untouched, so it stays a click away, when the board takes it as it is
+   (jpeg, png, webp or gif, within the board's bytes and pixels). Otherwise prepareUpload() makes a copy that fits:
+   a jpeg of the whole picture, as large as fits (at most 4096px on the long side), so a phone's 12 MB photo or a
+   heic that this browser can open still goes, as a picture a little smaller than it was. */
 
+const { refusal, LIMITS } = M["forum/refusal.js"];
+/* the types the board stores as they are; the picker offers any image, and the rest are converted when this browser
+   can open them */
 const ACCEPT = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-const MAX_BYTES = 4 * 1024 * 1024;
 const LONG = 640, MIN_LONG = 480;
 
-function checkFile(file) {
-  if (!file) return 'no file';
-  if (!ACCEPT.includes(file.type)) return 'only jpeg, png, webp or gif';
-  if (file.size > MAX_BYTES) return 'images up to 4 mb';
-  return '';
+/* "heic" for photo.HEIC (the name says it as people know it), else from the type, for the words that say it cannot
+   be opened */
+function kindOf(file) {
+  const t = String(file.type || '').toLowerCase().replace(/^image\//, '').replace(/^x-/, '');
+  const ext = (String(file.name || '').match(/\.([a-z0-9]{2,5})$/i) || [])[1];
+  return (ext || '').toLowerCase() || (t && t.length <= 12 ? t : '');
 }
 
 async function decode(file) {
@@ -2905,10 +3581,10 @@ function percentile(sorted, p) { return sorted[Math.min(sorted.length - 1, Math.
 /* limits: {long, bytes}, what the board takes (api.densityLimits()); 640 px and 400 KB when not given */
 function toDensity(file, limits) { return prepareMap(file, { limits }); }
 
-async function prepareMap(file, { mode = 'legible', limits } = {}) {
+async function prepareMap(file, { mode = 'legible', limits, source } = {}) {
   const maxLong = Math.min(960, (limits && limits.long) || LONG), maxBytes = Math.round(((limits && limits.bytes) || 400 * 1024) * 0.94);
   const hermetic = mode === 'hermetic';
-  const src = await decode(file);
+  const src = source || await decode(file);
   const sw = src.width || src.naturalWidth, sh = src.height || src.naturalHeight;
   if (!sw || !sh) throw new Error('decode');
   /* a small working copy to find the borders and the ground */
@@ -2950,7 +3626,7 @@ async function prepareMap(file, { mode = 'legible', limits } = {}) {
   ox.drawImage(src, cx, cy, cw, ch, P, P, IW, IH);
   if (soft && !viaFilter) window.Aphesis.blur2d(ox, 1);
   ox.filter = 'none';
-  if (src.close) src.close();
+  if (src.close && !source) src.close();
   const img = ox.getImageData(0, 0, W, H);
   const lum = luminance(img.data);
   if (lightGround) for (let i = 0; i < lum.length; i++) lum[i] = 1 - lum[i];
@@ -2983,7 +3659,55 @@ async function prepareMap(file, { mode = 'legible', limits } = {}) {
   return { blob, url, width: W, height: H, inverted: lightGround };
 }
 
-return { ACCEPT, MAX_BYTES, checkFile, toDensity, prepareMap };
+/* the original as the board takes it: the file itself when it fits, else a jpeg copy of the whole picture that does
+   (white under any transparency, as large as fits, quality .9 down to .74, then smaller by a fifth at a time) */
+async function fitOriginal(file, src, sw, sh, lim) {
+  if (ACCEPT.includes(file.type) && file.size <= lim.bytes && sw * sh <= lim.pixels) return file;
+  const budget = lim.bytes * 0.97;
+  let long = Math.min(Math.max(sw, sh), 4096, Math.floor(Math.sqrt(lim.pixels * Math.max(sw, sh) / Math.min(sw, sh))));
+  const c = document.createElement('canvas'), x = c.getContext('2d');
+  for (; long >= 640; long = Math.round(long * 0.8)) {
+    const s = long / Math.max(sw, sh);
+    c.width = Math.max(1, Math.round(sw * s)); c.height = Math.max(1, Math.round(sh * s));
+    x.imageSmoothingQuality = 'high';
+    x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+    x.drawImage(src, 0, 0, c.width, c.height);
+    for (const q of [0.9, 0.82, 0.74]) {
+      const blob = await new Promise((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('encode'))), 'image/jpeg', q));
+      if (blob.size <= budget) {
+        c.width = c.height = 0;
+        return new File([blob], String(file.name || 'image').replace(/\.[a-z0-9]{2,5}$/i, '') + '.jpg', { type: 'image/jpeg' });
+      }
+    }
+  }
+  c.width = c.height = 0;
+  throw refusal(file.size > lim.bytes ? 'image_too_large' : 'image_pixels', { limit: file.size > lim.bytes ? lim.bytes : lim.pixels });
+}
+
+/* a picked file -> {density, original, resized, why, kind, from}: the map, and the original that goes beside it (the file, or a
+   copy that fits the board). Refusals carry their code: image_type (this browser cannot open that kind: a heic on
+   most browsers), image_unreadable (a damaged or partial file), image_too_large / image_pixels (no copy fits). */
+async function prepareUpload(file, limits = LIMITS) {
+  if (!file || !file.size) throw refusal('image_unreadable');
+  let src;
+  try { src = await decode(file); } catch (_) {
+    throw ACCEPT.includes(file.type) ? refusal('image_unreadable') : refusal('image_type', { kind: kindOf(file) });
+  }
+  try {
+    const sw = src.width || src.naturalWidth, sh = src.height || src.naturalHeight;
+    if (!sw || !sh) throw refusal('image_unreadable');
+    const density = await prepareMap(file, { limits: limits.density, source: src });
+    const original = await fitOriginal(file, src, sw, sh, limits.original);
+    const resized = original !== file;
+    /* why a copy goes: a kind the board does not keep, too many bytes, or too many pixels */
+    const why = !resized ? '' : !ACCEPT.includes(file.type) ? 'kind' : file.size > limits.original.bytes ? 'bytes' : 'pixels';
+    return { density, original, resized, why, kind: kindOf(file), from: file.size };
+  } catch (e) {
+    throw e && e.code ? e : refusal('image_unreadable');
+  } finally { if (src.close) src.close(); }
+}
+
+return { ACCEPT, decode, toDensity, prepareMap, prepareUpload };
 })();
 /* ---- mockdata.js ---- */
 M["mockdata.js"] = (function () {
@@ -3111,7 +3835,7 @@ function createApi(base) {
     try { data = await r.json(); } catch (_) { data = {}; }
     return { status: r.status, data };
   }
-  const kinds = { posts: 'post', books: 'book', works: 'work' };
+  const kinds = { posts: 'post', books: 'book', works: 'work', awards: 'award' };
   return {
     async session() { const r = await call('GET', '/v1/auth/session'); if (r.status === 200 && r.data.open) { csrf = r.data.csrf; return true; } return false; },
     async password(password) { return (await call('POST', '/v1/auth/password', { password })).status === 200; },
@@ -3528,7 +4252,8 @@ M["ed-entries.js"] = (function () {
 /* ed-entries: book entries and works, one editor for both. The list, the fields, the picture (turned into a density
    map in the browser by the forum's rules, then uploaded), and the preview: the picture as a simulacrum with the
    entry's own settings and adjustments, beside its words set as the section sets them. One Simulacrum canvas serves
-   every preview, so the dashboard holds the fog and at most two simulacra (this one and the archive's figure). */
+   every preview, so the dashboard holds the fog and at most two simulacra (this one and the archive's figure).
+   A work also carries the line and the status the me page shows for it (ed-me.js sets them among the others). */
 
 const { h, act, sure, field, text, area, check, status, debounce, slugify, rule, setLabel } = M["ui.js"];
 const { toDensity, checkFile, ACCEPT } = M["forum/density.js"];
@@ -3564,6 +4289,7 @@ function image(url) {
 }
 
 /* ---------- what differs between a book entry and a work ---------- */
+const LIMITS = { line: '300', status: '40' };
 const KINDS = {
   books: {
     one: 'book', key: 'slug', noun: 'entry', title: (e) => e.title, meta: (e) => e.author + ' · ' + e.year,
@@ -3576,11 +4302,12 @@ const KINDS = {
   },
   works: {
     one: 'work', key: 'id', noun: 'work', title: (e) => e.name, meta: (e) => e.gloss + ' · ' + e.year,
-    blank: (n) => ({ id: '', name: '', gloss: '', gloss_tip: '', year: '', role: '', description: '', links: [], map: null, sources: {}, flags: {}, position: n + 1 }),
+    blank: (n) => ({ id: '', name: '', gloss: '', gloss_tip: '', year: '', role: '', description: '', line: '', status: '', links: [], map: null, sources: {}, flags: {}, position: n + 1 }),
     pictureOf: (e) => e.map, settingsOf: (e) => (e.map && e.map.settings) || {},
     numbers: [['scatter', 'scatter'], ['erosion', 'erosion'], ['ceiling', 'ceiling'], ['gain', 'gain']],
     fields: [['name', 'name', 1], ['id', 'id · the address', 0, '#works-<id>'], ['gloss', 'gloss · a latin or greek word', 0], ['gloss_tip', 'the gloss · its english', 1],
-      ['year', 'year', 0], ['role', 'role · what I did', 1], ['description', 'description · 40 to 90 words', 1, '', 'area']],
+      ['year', 'year', 0], ['role', 'role · what I did', 1], ['description', 'description · 40 to 90 words', 1, '', 'area'],
+      ['line', 'on the me page · one line', 1, 'up to 300 characters', 'area'], ['status', 'status · in progress, not launched yet', 1, 'up to 40; leave it empty for none']],
   },
 };
 
@@ -3623,7 +4350,7 @@ function createEntriesEditor({ api, root, kind }) {
     const fieldEls = K.fields.map(([k, label, spell, hint, type]) => {
       let v = e[k] ?? '';
       if (k === 'note' && Array.isArray(v)) v = v.join('\n\n');
-      f[k] = type === 'area' ? area(String(v), { rows: k === 'quote' ? 3 : 8, 'data-spell': spell ? '1' : null }) : text(String(v), { 'data-spell': spell ? '1' : null });
+      f[k] = type === 'area' ? area(String(v), { rows: k === 'quote' ? 3 : k === 'line' ? 3 : 8, maxlength: LIMITS[k] || null, 'data-spell': spell ? '1' : null }) : text(String(v), { maxlength: LIMITS[k] || null, 'data-spell': spell ? '1' : null });
       return field(label, f[k], hint);
     });
     const titleKey = K.fields[0][0];
@@ -3643,7 +4370,7 @@ function createEntriesEditor({ api, root, kind }) {
       const a = text(l.label, { class: 'link-l aph-ink', 'aria-label': 'the link’s words' });
       const b = text(l.href, { class: 'link-h aph-ink', 'aria-label': 'its address', inputmode: 'url' });
       const li = h('li', {}, a, b, act('remove', () => { li.remove(); refresh(); }));
-      [a, b].forEach((x) => x.addEventListener('input', refresh));
+      [a, b].forEach((x) => x.addEventListener('input', () => refresh()));
       return li;
     }
     if (kind === 'works') (e.links || []).forEach((l) => linksEl.append(linkRow(l)));
@@ -3771,8 +4498,15 @@ function createEntriesEditor({ api, root, kind }) {
     return { el, save, entry };
   }
 
+  /* a work opened from outside (the me place): whatever is open is put away, the list read fresh, then this one opened */
+  async function openById(id) {
+    if (cur) { if (sim) sim.hide(); cur.el.remove(); cur = null; listView.hidden = false; }
+    await load();
+    if (items.some((x) => x[K.key] === id)) open(id);
+  }
+
   load();
-  return { load, open, close, get current() { return cur; } };
+  return { load, open, openById, close, get current() { return cur; } };
 }
 
 return { createEntriesEditor };
@@ -3932,7 +4666,12 @@ M["ed-texts.js"] = (function () {
    the ledes, the helper lines, the empty states). Every key the site reads, grouped by screen, with its value now,
    a field to change it, and a preview line in the face it is read in. Save sends it through the content service;
    reset takes it back to the page's own string. The page reads them on its next load (backend/content: texts); the link
-   preview's two, from the site's Pages worker, within five minutes. */
+   preview's two, from the site's Pages worker, within five minutes.
+
+   One module serves two places: the texts place (every screen but `me`) and the me place (only `me`, its words,
+   which ed-me.js sets among the works' lines and the awards). `only` and `skip` choose the screens; `embed` leaves
+   out the pane's own head and the screen headings, and `say` is then the host's line; `face` names the class a
+   key's preview is read in (the name in Aphesis Script), `maxlength` the longest text a field takes. */
 
 const { h, act, field, area, status, setLabel } = M["ui.js"];
 /* a screen whose name alone would not say what it is: its heading, and a line under it. `meta` is the whole page as
@@ -3940,10 +4679,10 @@ const { h, act, field, area, status, setLabel } = M["ui.js"];
 const HEADS = { meta: 'link preview' };
 const NOTES = { meta: 'what discord, imessage, whatsapp, slack and x show under a link to aphes.ist. live within five minutes of a save; each app keeps its own copy of a preview for a while.' };
 
-function createTexts({ api, root }) {
-  const say = h('p', { class: 'say aph-meta aph-ink', role: 'status', 'aria-live': 'polite' });
+function createTexts({ api, root, only, skip, embed, say: hostSay, face, maxlength = 400 }) {
+  const say = hostSay || h('p', { class: 'say aph-meta aph-ink', role: 'status', 'aria-live': 'polite' });
   const listEl = h('div', { class: 'tx-list' });
-  root.append(h('section', { class: 'pane texts' }, h('div', { class: 'pane-head' }, act('reload', () => load()), say), listEl));
+  root.append(h('section', { class: 'pane texts' }, embed ? null : h('div', { class: 'pane-head' }, act('reload', () => load()), say), listEl));
 
   async function load() {
     status(say, '');
@@ -3951,21 +4690,21 @@ function createTexts({ api, root }) {
     if (r.status !== 200) { status(say, r.data.error || "couldn't load the texts", true); return; }
     const by = {};
     for (const t of r.data.texts || []) (by[t.screen] = by[t.screen] || []).push(t);
-    const screens = (r.data.screens || Object.keys(by)).filter((s) => by[s]);
-    listEl.replaceChildren(...screens.map((s) => h('section', { class: 'tx-screen', 'aria-labelledby': 'tx-' + s },
-      h('h2', { class: 'mod-h aph-display aph-ink', id: 'tx-' + s, text: HEADS[s] || s }),
-      ...(NOTES[s] ? [h('p', { class: 'tx-note aph-meta aph-ink', text: NOTES[s] })] : []),
+    const screens = (r.data.screens || Object.keys(by)).filter((s) => by[s] && (only ? s === only : s !== skip));
+    listEl.replaceChildren(...screens.map((s) => h('section', { class: 'tx-screen', 'aria-labelledby': embed ? null : 'tx-' + s },
+      embed ? null : h('h2', { class: 'mod-h aph-display aph-ink', id: 'tx-' + s, text: HEADS[s] || s }),
+      ...(NOTES[s] && !embed ? [h('p', { class: 'tx-note aph-meta aph-ink', text: NOTES[s] })] : []),
       ...by[s].map(row))));
     if (!screens.length) listEl.append(h('p', { class: 'empty aph-meta aph-ink', text: 'no texts.' }));
   }
 
   /* one text: its field, a preview line, save and reset */
   function row(t) {
-    const input = area(t.value, { rows: 2, maxlength: '400', 'data-spell': '1', class: 'aph-ink' });
+    const input = area(t.value, { rows: 2, maxlength: String(maxlength), 'data-spell': '1', class: 'aph-ink' });
     const hint = h('span', { class: 'hint aph-meta aph-ink' });
     const fieldEl = field(t.label, input);
     fieldEl.append(hint);
-    const preview = h('p', { class: 'tx-preview aph-ink', 'aria-label': 'preview' });
+    const preview = h('p', { class: 'tx-preview aph-ink ' + ((face && face(t.key)) || ''), 'aria-label': 'preview' });
     const rowSay = h('span', { class: 'say aph-meta aph-ink', role: 'status', 'aria-live': 'polite' });
     const save = act('save', () => send());
     const reset = act('reset to default', () => back());
@@ -4008,20 +4747,214 @@ function createTexts({ api, root }) {
 
 return { createTexts };
 })();
+/* ---- ed-me.js ---- */
+M["ed-me.js"] = (function () {
+/* ed-me: the me page (me.aphes.ist), edited from the desk. One scrolling column in three parts: the page's words (the
+   texts of the `me` screen, set by ed-texts.js), the works on the page (each work's one line and its status), and
+   the awards (a small list of their own). The words and the awards are the content service's (`/v1/admin/texts`,
+   `/v1/admin/awards`); a work's line and status ride on the work itself, saved with the existing PUT of the whole
+   work, so the work is fetched, merged and put back. The page reads them on its next load. Errors speak in the
+   page's own voice, from the server's message. */
+
+const { h, act, sure, field, text, area, status, slugify, setLabel } = M["ui.js"];
+const { createTexts } = M["ed-texts.js"];
+/* the name is read in the script, everything else in the text face */
+const face = (key) => (key === 'me.name' ? 'aph-display tx-name' : '');
+
+function createMe({ api, root, openWork }) {
+  const say = h('p', { class: 'say aph-meta aph-ink', role: 'status', 'aria-live': 'polite' });
+  const worksEl = h('ol', { class: 'me-list' });
+  const awardsEl = h('ol', { class: 'me-list' });
+  const newEl = h('div', { class: 'me-new' });
+  const wordsEl = h('div', { class: 'me-words' });
+  let awards = [];
+
+  const part = (id, title, note, ...kids) => h('section', { class: 'me-part', 'aria-labelledby': 'me-' + id },
+    h('h2', { class: 'mod-h aph-display aph-ink', id: 'me-' + id, text: title }),
+    note ? h('p', { class: 'tx-note aph-meta aph-ink', text: note }) : null, ...kids);
+  const newAward = act('new award', () => openNew());
+  root.append(h('section', { class: 'pane me' },
+    h('div', { class: 'pane-head' }, act('reload', () => load()), say),
+    part('words', 'words', 'what the page says. one line each; Enter saves. the page reads them on its next load.', wordsEl),
+    part('works', 'works on the page',
+      'each work’s one line and its status, as the page shows them. the whole work (description, links, picture) is edited in works · opera.', worksEl),
+    part('awards', 'awards', 'in the order the page shows them. a draft is not on the page.', h('div', { class: 'pane-head' }, newAward), newEl, awardsEl)));
+
+  const texts = createTexts({ api, root: wordsEl, only: 'me', embed: true, say, face, maxlength: 400 });
+
+  async function load() {
+    status(say, '');
+    await Promise.all([texts.load(), loadWorks(), loadAwards()]);
+  }
+
+  /* ---------- the works' lines ---------- */
+  async function loadWorks() {
+    const r = await api.list('works');
+    if (r.status !== 200) { status(say, r.data.error || "couldn't load the works", true); return; }
+    /* the published first, then the drafts, each in position order */
+    const ws = [...r.data.works].sort((a, b) => (b.published - a.published) || (a.position - b.position));
+    worksEl.replaceChildren(...ws.map(workRow));
+    if (!ws.length) worksEl.append(h('li', { class: 'empty aph-meta aph-ink', text: 'no works yet.' }));
+  }
+
+  function workRow(w) {
+    let line = w.line || '', state = w.status || '';
+    const lineIn = area(line, { rows: 3, maxlength: '300', 'data-spell': '1', class: 'aph-ink', 'aria-label': 'its line' });
+    const stateIn = text(state, { maxlength: '40', 'data-spell': '1', placeholder: '·' });
+    const rowSay = h('span', { class: 'say aph-meta aph-ink', role: 'status', 'aria-live': 'polite' });
+    const save = act('save', () => send());
+    const el = h('li', { class: 'me-row', 'data-id': w.id },
+      h('p', { class: 'me-name aph-ink' }, w.name, h('span', { class: 'aph-meta aph-ink', text: ' · ' + (w.published ? 'published' : 'draft') })),
+      field('its line · up to 300', lineIn), field('its status · up to 40', stateIn),
+      h('div', { class: 'tx-acts' }, save, act('open in works', () => openWork(w.id), { 'data-tip': 'the whole work: description, links, picture' }), rowSay));
+    const changed = () => lineIn.value.trim() !== line || stateIn.value.trim() !== state;
+    function show() { const d = changed(); save.disabled = !d; el.classList.toggle('dirty', d); }
+    async function send() {
+      if (!changed()) return;
+      setLabel(save, 'saving…');
+      /* the whole work is put back: fetch it fresh, change the two, drop what the editor drops (the picture's url) */
+      const got = await api.get('works', w.id);
+      if (got.status !== 200) { setLabel(save, 'save'); status(rowSay, got.data.error || "couldn't read the work", true); return; }
+      const next = { ...got.data.work, line: lineIn.value.trim(), status: stateIn.value.trim() };
+      delete next.published;
+      if (next.map) { next.map = { ...next.map }; delete next.map.url; }
+      const r = await api.save('works', w.id, next);
+      setLabel(save, 'save');
+      if (r.status !== 200) { status(rowSay, r.data.error || 'it did not save', true); return; }
+      line = r.data.work.line || ''; state = r.data.work.status || '';
+      lineIn.value = line; stateIn.value = state; show(); status(rowSay, 'saved');
+    }
+    [lineIn, stateIn].forEach((x) => x.addEventListener('input', () => { status(rowSay, ''); show(); }));
+    /* one line: Enter saves */
+    [lineIn, stateIn].forEach((x) => x.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } }));
+    show();
+    return el;
+  }
+
+  /* ---------- the awards ---------- */
+  async function loadAwards() {
+    const r = await api.list('awards');
+    if (r.status !== 200) { status(say, r.data.error || "couldn't load the awards", true); return; }
+    awards = [...r.data.awards].sort((a, b) => a.position - b.position);
+    draw();
+  }
+  function draw() {
+    awardsEl.replaceChildren(...awards.map((a, i) => awardRow(a, i)));
+    if (!awards.length) awardsEl.append(h('li', { class: 'empty aph-meta aph-ink', text: 'no awards yet.' }));
+  }
+
+  /* the order is the positions: moving one rewrites them 1, 2, 3… and puts back only those that changed */
+  async function move(i, by) {
+    const j = i + by; if (j < 0 || j >= awards.length) return;
+    const order = [...awards];
+    [order[i], order[j]] = [order[j], order[i]];
+    for (let n = 0; n < order.length; n++) {
+      const a = order[n];
+      if (a.position === n + 1) continue;
+      const r = await api.save('awards', a.id, { id: a.id, title: a.title, note: a.note, line: a.line, position: n + 1 });
+      if (r.status !== 200) { status(say, r.data.error || "the order didn't change", true); await loadAwards(); return; }
+    }
+    status(say, 'moved');
+    await loadAwards();
+  }
+
+  function awardRow(a, i) {
+    const title = text(a.title, { maxlength: '160', 'data-spell': '1' });
+    const note = text(a.note || '', { maxlength: '120', 'data-spell': '1', placeholder: '·' });
+    const line = area(a.line || '', { rows: 3, maxlength: '400', 'data-spell': '1', class: 'aph-ink', 'aria-label': 'its line' });
+    const rowSay = h('span', { class: 'say aph-meta aph-ink', role: 'status', 'aria-live': 'polite' });
+    const stateEl = h('span', { class: 'aph-meta aph-ink' });
+    const save = act('save', () => send());
+    const pubLabel = () => (a.published ? 'unpublish' : 'publish');
+    const pub = act(pubLabel(), async () => {
+      if (changed() && !(await send())) return;
+      const r = await api.publish('awards', a.id, !a.published);
+      if (r.status !== 200) { status(rowSay, r.data.error || 'no', true); return; }
+      a.published = r.data.award.published; setLabel(pub, pubLabel()); show();
+      status(rowSay, a.published ? 'published: it is on the page now' : 'back to a draft');
+    });
+    const up = act('move up', () => move(i, -1)), down = act('move down', () => move(i, 1));
+    up.disabled = i === 0; down.disabled = i === awards.length - 1;
+    const el = h('li', { class: 'me-row award', 'data-id': a.id },
+      h('p', { class: 'me-name aph-ink' }, String(i + 1) + ' · ', stateEl),
+      field('title · up to 160', title), field('note · up to 120', note), field('its line · up to 400', line),
+      h('div', { class: 'tx-acts' }, save, pub, up, down,
+        sure('delete', async () => {
+          const r = await api.remove('awards', a.id);
+          if (r.status !== 200) { status(rowSay, r.data.error || 'no', true); return; }
+          await loadAwards();
+        }), rowSay));
+    const val = () => ({ title: title.value.trim(), note: note.value.trim(), line: line.value.trim() });
+    const changed = () => { const v = val(); return v.title !== a.title || v.note !== (a.note || '') || v.line !== (a.line || ''); };
+    function show() {
+      const d = changed(); save.disabled = !d; el.classList.toggle('dirty', d);
+      stateEl.textContent = a.title ? (a.published ? 'published' : 'draft') + (d ? ' · not saved' : '') : '';
+    }
+    async function send() {
+      const v = val();
+      if (!v.title) { status(rowSay, 'it needs a title', true); return false; }
+      setLabel(save, 'saving…');
+      const r = await api.save('awards', a.id, { id: a.id, position: a.position, ...v });
+      setLabel(save, 'save');
+      if (r.status !== 200) { status(rowSay, r.data.error || 'it did not save', true); return false; }
+      Object.assign(a, r.data.award); show(); status(rowSay, 'saved');
+      return true;
+    }
+    [title, note, line].forEach((x) => x.addEventListener('input', () => { status(rowSay, ''); show(); }));
+    [title, note].forEach((x) => x.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); send(); } }));
+    show();
+    return el;
+  }
+
+  /* a new award: its title makes the id (a slug, which the owner may change) */
+  function openNew() {
+    newAward.disabled = true;
+    const title = text('', { maxlength: '160', 'data-spell': '1' });
+    const id = text('', { maxlength: '80' });
+    const note = text('', { maxlength: '120', 'data-spell': '1', placeholder: '·' });
+    const line = area('', { rows: 3, maxlength: '400', 'data-spell': '1', class: 'aph-ink', 'aria-label': 'its line' });
+    const nSay = h('span', { class: 'say aph-meta aph-ink', role: 'status', 'aria-live': 'polite' });
+    title.addEventListener('input', () => { if (!id.dataset.touched) id.value = slugify(title.value); });
+    id.addEventListener('input', () => { id.dataset.touched = '1'; });
+    const close = () => { newEl.replaceChildren(); newAward.disabled = false; };
+    async function create() {
+      const t = title.value.trim(), slug = id.value.trim();
+      if (!t) { status(nSay, 'it needs a title', true); return; }
+      if (!slug) { status(nSay, 'it needs an id: the address, in lowercase letters, digits and hyphens', true); return; }
+      const next = awards.reduce((m, a) => Math.max(m, a.position), 0) + 1;
+      const r = await api.save('awards', slug, { id: slug, title: t, note: note.value.trim(), line: line.value.trim(), position: next });
+      if (r.status !== 200 && r.status !== 201) { status(nSay, r.data.error || 'it did not save', true); return; }
+      close(); status(say, 'saved: it is a draft until you publish it'); await loadAwards();
+    }
+    [title, note, id].forEach((x) => x.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); create(); } }));
+    newEl.replaceChildren(h('div', { class: 'me-row award' },
+      field('title · up to 160', title), field('id · the address', id), field('note · up to 120', note), field('its line · up to 400', line),
+      h('div', { class: 'tx-acts' }, act('save', create), act('cancel', close), nSay)));
+    title.focus({ preventScroll: true });
+  }
+
+  /* the desk reloads a place it comes back to only when nothing in it is unsaved */
+  return { load, get current() { return !!root.querySelector('.me-row.dirty, .tx-row.dirty'); } };
+}
+
+return { createMe };
+})();
 /* ---- dash.js ---- */
 M["dash.js"] = (function () {
 /* dash: the owner's desk, behind the gate. A title and its gloss, one line of places (archive, book, works,
-   moderation, texts) and the way out; each place is made the first time it is opened and kept after. */
+   moderation, texts, me) and the way out; each place is made the first time it is opened and kept after. */
 
 const { h, act } = M["ui.js"];
 const { createArchiveEditor } = M["ed-archive.js"];
 const { createEntriesEditor } = M["ed-entries.js"];
 const { createModeration } = M["moderation.js"];
 const { createTexts } = M["ed-texts.js"];
+const { createMe } = M["ed-me.js"];
 const PLACES = [
   { id: 'archive', name: 'archive', gl: 'codex', lang: 'la' },
   { id: 'books', name: 'book', gl: 'liber', lang: 'la' },
   { id: 'works', name: 'works', gl: 'opera', lang: 'la' },
+  { id: 'me', name: 'me', gl: 'nomen', lang: 'la' },
   { id: 'moderation', name: 'moderation', gl: 'custodia', lang: 'la' },
   { id: 'texts', name: 'texts', gl: 'verba', lang: 'la' },
 ];
@@ -4054,12 +4987,15 @@ function createDash({ api, root, onLeave }) {
       panes[id] = el;
       if (id === 'archive') made[id] = createArchiveEditor({ api, root: el });
       else if (id === 'moderation') made[id] = createModeration({ api, root: el });
-      else if (id === 'texts') made[id] = createTexts({ api, root: el });
+      else if (id === 'texts') made[id] = createTexts({ api, root: el, skip: 'me' });
+      else if (id === 'me') made[id] = createMe({ api, root: el, openWork });
       else made[id] = createEntriesEditor({ api, root: el, kind: id });
-      if (id === 'moderation' || id === 'texts') made[id].load();
+      if (id === 'moderation' || id === 'texts' || id === 'me') made[id].load();
     } else if (made[id].load && !(made[id].current)) made[id].load();
     root.dataset.place = id;
   }
+  /* the me place sends the owner to a work's whole editor, in works */
+  async function openWork(id) { show('works'); await made.works.openById(id); }
   show('archive');
   return { show, panes, made };
 }

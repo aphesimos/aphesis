@@ -1,16 +1,18 @@
 /* dash: the owner's desk, behind the gate. A title and its gloss, one line of places (archive, book, works,
-   moderation, texts) and the way out; each place is made the first time it is opened and kept after. */
+   moderation, texts, me) and the way out; each place is made the first time it is opened and kept after. */
 
 import { h, act } from './ui.js';
 import { createArchiveEditor } from './ed-archive.js';
 import { createEntriesEditor } from './ed-entries.js';
 import { createModeration } from './moderation.js';
 import { createTexts } from './ed-texts.js';
+import { createMe } from './ed-me.js';
 
 const PLACES = [
   { id: 'archive', name: 'archive', gl: 'codex', lang: 'la' },
   { id: 'books', name: 'book', gl: 'liber', lang: 'la' },
   { id: 'works', name: 'works', gl: 'opera', lang: 'la' },
+  { id: 'me', name: 'me', gl: 'nomen', lang: 'la' },
   { id: 'moderation', name: 'moderation', gl: 'custodia', lang: 'la' },
   { id: 'texts', name: 'texts', gl: 'verba', lang: 'la' },
 ];
@@ -43,12 +45,15 @@ export function createDash({ api, root, onLeave }) {
       panes[id] = el;
       if (id === 'archive') made[id] = createArchiveEditor({ api, root: el });
       else if (id === 'moderation') made[id] = createModeration({ api, root: el });
-      else if (id === 'texts') made[id] = createTexts({ api, root: el });
+      else if (id === 'texts') made[id] = createTexts({ api, root: el, skip: 'me' });
+      else if (id === 'me') made[id] = createMe({ api, root: el, openWork });
       else made[id] = createEntriesEditor({ api, root: el, kind: id });
-      if (id === 'moderation' || id === 'texts') made[id].load();
+      if (id === 'moderation' || id === 'texts' || id === 'me') made[id].load();
     } else if (made[id].load && !(made[id].current)) made[id].load();
     root.dataset.place = id;
   }
+  /* the me place sends the owner to a work's whole editor, in works */
+  async function openWork(id) { show('works'); await made.works.openById(id); }
   show('archive');
   return { show, panes, made };
 }

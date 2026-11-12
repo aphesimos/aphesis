@@ -47,7 +47,7 @@ all of them alike. A session still open (two hours) goes straight to the desk. E
 ## The desk
 
 `desk`, with its gloss *scriptorium*, and one line of places: archive · *codex*, book · *liber*, works · *opera*,
-moderation · *custodia*, texts · *verba*, and `leave` (which ends the session; the eye draws itself again).
+moderation · *custodia*, texts · *verba*, me · *nomen*, and `leave` (which ends the session; the eye draws itself again).
 
 - **archive**: every post, drafts too, with its stage icon, date and state. The editor: title, slug (the address,
   `#archive/<slug>`), summary, stage (the four stage icons), date, example, the markdown body, its notes (`[^id]`
@@ -73,6 +73,19 @@ moderation · *custodia*, texts · *verba*, and `leave` (which ends the session;
   whenever the service does not answer. The first group, `link preview` (`meta.title`, `meta.description`), is what
   a shared link to aphes.ist shows in discord, imessage, whatsapp, slack or x: the site's Pages worker writes them
   into the served page's `og:` tags, within five minutes of a save (each app keeps its own copy for a while).
+  The texts place leaves out the `me` screen: it lives in the me place.
+- **me** (`ed-me.js`): the me page (me.aphes.ist), one scrolling column in three parts. **words**: the `me` texts
+  (name, line, lede, bio, what the owner is looking for, the page, contact, education, tools, languages, email,
+  github), set by the same module as the texts place (`ed-texts.js`, given the screen), each with its preview in the
+  face it is read in (the name in Aphesis Script, the rest in Special Elite), Enter saves, `reset to default`; the
+  server refuses a bad email or github address in a plain message. **works on the page**: every work (published
+  first, then drafts, in position order) with its one line and its status; saving fetches the work, merges the two
+  and puts the whole work back (`PUT /v1/admin/works/<id>`); the full work is edited in works · *opera*, and `open in
+  works` goes there. The works editor has the same two fields beside the description. **awards**: title, note and
+  line each, in order; publish or unpublish, move up and down (the positions are rewritten), delete (it asks
+  `· sure?` in the line), and `new award` (the id is made from the title as a slug, and may be changed). Awards are a
+  kind like works: `/v1/admin/awards[/<id>]` (and `/publish`, `/unpublish`), public `GET /v1/awards`. In `--mock` the
+  desk serves all of it from memory, from `me/content/me.json` (read from `me`, else `vendor/me.json`).
 - **On a phone**, one column, with a choice between `write` and `read` for the editor and its preview.
 
 Nothing is solid: fields are words on a brushed baseline, buttons are labels whose brushed underline draws in,
@@ -122,7 +135,8 @@ content. Each ref falls back to `origin/<ref>`. Special Elite is vendored in `ve
 | `ed-archive.js` | posts, with the archive's own preview |
 | `ed-entries.js` | book entries and works, with the simulacrum preview |
 | `moderation.js` | the wall and the forum |
-| `ed-texts.js` | the site's texts: every key by screen, edit, preview, reset |
+| `ed-texts.js` | the site's texts: every key by screen, edit, preview, reset (the me place reuses it for `me`) |
+| `ed-me.js` | the me page: its words, the works' lines and statuses, the awards |
 | `dash.js` | the desk and its places |
 | `main.js` | theme, fog, seal, the gate's steps, the desk |
 | `entrances.js` | for the shell: the ritual, the phrase, the route |

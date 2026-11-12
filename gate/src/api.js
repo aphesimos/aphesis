@@ -17,7 +17,7 @@ export function createApi(base) {
     try { data = await r.json(); } catch (_) { data = {}; }
     return { status: r.status, data };
   }
-  const kinds = { posts: 'post', books: 'book', works: 'work' };
+  const kinds = { posts: 'post', books: 'book', works: 'work', awards: 'award' };
   return {
     async session() { const r = await call('GET', '/v1/auth/session'); if (r.status === 200 && r.data.open) { csrf = r.data.csrf; return true; } return false; },
     async password(password) { return (await call('POST', '/v1/auth/password', { password })).status === 200; },

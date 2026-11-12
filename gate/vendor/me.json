@@ -1,0 +1,138 @@
+{
+  "title": "enzo vasconcelos",
+  "description": "enzo vasconcelos, software engineer in applied ai: agents, automation and retrieval. work, awards, and how to reach me.",
+  "og_description": "software engineer in applied ai: agents, automation and retrieval.",
+  "nomen": "nomen",
+  "name": "enzo vasconcelos",
+  "meta": "software engineer · applied ai, agents and automation",
+  "lede": "i'm a software engineer in São Paulo, moving to Florianópolis in January 2027. i turn real operational pain into agents, automations and RAG systems, and i measure them by their results.",
+  "bio": "i work end to end: discovery with the people who know the domain, the architecture, orchestrating teams of agents, evaluating them on benchmarks, and improving them with a human approving each step. i keep the cost under control, and i stay critical about where ai shouldn't decide alone.",
+  "works": {
+    "heading": "work",
+    "gloss": "opera",
+    "items": [
+      {
+        "id": "heild",
+        "name": "heild",
+        "href": "https://aphesist.github.io/heild/",
+        "tag": "not launched yet",
+        "line": "a company's tools in one place (a dashboard, a crm with WhatsApp, a timesheet, finance, files, an app for the client), with a team of ai members, one for each area: they prepare the work, and a person approves it.",
+        "map": {
+          "file": "heild.png",
+          "caption": "the heild wordmark · he, the i pill, ld",
+          "settings": { "scatter": 0.8, "erosion": 0.58, "ceiling": 0.74, "gain": 1.0 }
+        }
+      },
+      {
+        "id": "aphesis",
+        "name": "aphes.ist",
+        "href": "https://aphes.ist/",
+        "line": "my experimental site: one page of stippled fog, a hand-drawn φ and typewriter text, with its own design system, a typeface drawn with the φ's brush, and Rust workers on Cloudflare.",
+        "map": {
+          "file": "aphesis.png",
+          "caption": "the φ · drawn by hand",
+          "settings": { "scatter": 0.75, "erosion": 0.55, "ceiling": 0.76, "gain": 1.0 }
+        }
+      },
+      {
+        "id": "contraprova",
+        "name": "contraprova",
+        "href": "https://contraprova.aphes.ist/",
+        "line": "a governed orchestrator. in a pre-registered study on 88 fresh SWE-bench Pro tasks, a Haiku-first cascade matched single Opus within a 10-point margin (83 vs 85 solved) at about 61% less cost per solved task.",
+        "map": {
+          "file": "contraprova.png",
+          "caption": "the governed cascade · plan, work, gate, fork",
+          "settings": { "scatter": 0.7, "erosion": 0.5, "ceiling": 0.78, "gain": 1.0 }
+        }
+      },
+      {
+        "id": "heuresis",
+        "name": "heuresis",
+        "href": "https://github.com/aphesist/heuresis",
+        "tag": "in progress",
+        "line": "a retrieval engine for corpora that change over time. it cites its sources, and abstains when it can't.",
+        "map": {
+          "file": "heuresis.png",
+          "caption": "the pipeline · understand, retrieve, answer, verify, decide",
+          "settings": { "scatter": 0.7, "erosion": 0.5, "ceiling": 0.78, "gain": 1.0 }
+        }
+      },
+      {
+        "id": "anamnesis",
+        "name": "anamnesis",
+        "href": "https://anamnesis.aphes.ist/",
+        "tag": "in progress",
+        "line": "an open-source, local-first second brain that measures itself.",
+        "map": {
+          "file": "anamnesis.png",
+          "caption": "the demo brain · 1,100 dated entries from thoreau and emerson",
+          "settings": { "scatter": 0.75, "erosion": 0.5, "ceiling": 0.78, "gain": 1.0 }
+        }
+      },
+      {
+        "id": "autopoiesis",
+        "name": "autopoiesis",
+        "href": "https://github.com/aphesist/autopoiesis",
+        "tag": "in progress",
+        "line": "a self-improving code agent, with planted flaws and hidden tests to catch it gaming its own benchmark.",
+        "map": {
+          "icon": "autopoiesis",
+          "caption": "the autopoiesis mark · drawn with the brush",
+          "settings": { "scatter": 0.7, "erosion": 0.5, "ceiling": 0.78, "gain": 1.0 }
+        }
+      }
+    ]
+  },
+  "awards": {
+    "heading": "awards",
+    "gloss": "laurea",
+    "items": [
+      {
+        "title": "winner, FIAP Startup One 2026",
+        "line": "first among 550+ startups, with BetHunter: a social-impact startup against betting addiction that i co-founded and built, from the problem to an app in the stores."
+      },
+      {
+        "title": "finalist, FIAP NEXT 2025",
+        "note": "with XP Investimentos",
+        "line": "a financial education solution for compulsive bettors."
+      }
+    ]
+  },
+  "education": {
+    "heading": "education",
+    "gloss": "studia",
+    "items": [
+      { "title": "bsc in software engineering", "note": "FIAP · 2023–2026" },
+      { "title": "technical diploma in systems development", "note": "ETEC · 2020–2022" }
+    ]
+  },
+  "tools": {
+    "heading": "tools",
+    "gloss": "instrumenta",
+    "rows": [
+      { "key": "code", "label": "code", "text": "TypeScript, Python, Go, Rust, Java" },
+      { "key": "ai", "label": "ai", "text": "agent orchestration, RAG (BM25, ColBERT, HippoRAG 2, rerankers), LLM evaluation, MCP, Claude Code" },
+      { "key": "web", "label": "web", "text": "React, Next.js, Node, Postgres and pgvector" },
+      { "key": "infra", "label": "infra", "text": "Cloudflare, AWS, Docker" },
+      { "key": "design", "label": "design", "text": "ui and ux, Figma, design systems" }
+    ],
+    "languages": { "key": "languages", "label": "i speak", "text": "Portuguese (native), English (fluent), Spanish (intermediate); learning Japanese and German" }
+  },
+  "looking": {
+    "heading": "what i'm looking for",
+    "gloss": "quaero",
+    "text": "a role as a software engineer in applied ai: agents, automation and retrieval. from January 2027 i'll be in Florianópolis."
+  },
+  "page": {
+    "heading": "this page",
+    "gloss": "pagina",
+    "text": "this is the plain version. [aphes.ist](https://aphes.ist/) is the other one: an experimental site made of fog, a hand-drawn φ and typewriter text, where nothing is explained. i design and build both, and the design system they share. if you want the short, readable summary, you're in the right place."
+  },
+  "contact": {
+    "heading": "contact",
+    "gloss": "scribe",
+    "lede": "email is the best way to reach me.",
+    "email": "enzo@aphes.ist",
+    "github": "https://github.com/aphesist"
+  }
+}

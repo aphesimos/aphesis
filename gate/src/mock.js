@@ -9,11 +9,15 @@ import { MOCK } from './mockdata.js';
 const DEMO_PASSWORD = 'solve et coagula';
 const DEMO_WORDS = 'ignis lapis aurum';
 
+const slug = (s) => String(s).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
+
 export function createMockApi() {
   const db = {
     posts: MOCK.posts.map((p) => ({ ...p, published: true })),
     books: MOCK.books.map((b) => ({ ...b, published: true })),
-    works: MOCK.works.map((w) => ({ ...w, published: true })),
+    works: MOCK.works.map((w) => ({ line: '', status: '', ...w, published: true })),
+    /* the me page's two awards (me.json), and its words: the same keys the content service has, with the page's defaults */
+    awards: (MOCK.me.awards.items).map((a, i) => ({ id: slug(a.title), title: a.title, note: a.note || '', line: a.line, position: i + 1, published: true })),
   };
   let wall = [
     { id: 'a1b2c3d4e5f60718', text: 'the fog was kind today', at: Date.now() - 3600e3 },
@@ -40,12 +44,24 @@ export function createMockApi() {
     ['wall.placeholder', 'wall', 'the empty line', 'leave a line in the fog'],
     ['forum.empty', 'forum', 'the board with no threads', 'the agora is quiet. start a thread, and the first word is yours.'],
   ].map(([key, screen, label, d]) => ({ key, screen, label, default: d, value: d, overridden: false, version: 0, updated: null }));
+  const me = MOCK.me, tool = (k) => me.tools.rows.find((r) => r.key === k).text, edu = (i) => me.education.items[i].title + ' · ' + me.education.items[i].note;
+  texts.push(...[
+    ['me.name', 'the name', me.name], ['me.meta', 'the line under the name', me.meta], ['me.lede', 'the lede', me.lede], ['me.bio', 'the bio', me.bio],
+    ['me.looking', 'what i am looking for', me.looking.text], ['me.page', 'this page', me.page.text], ['me.contact', 'the line above the contact', me.contact.lede],
+    ['me.education.1', 'education, first · title · note', edu(0)], ['me.education.2', 'education, second · title · note', edu(1)],
+    ['me.tools.code', 'tools · code', tool('code')], ['me.tools.ai', 'tools · ai', tool('ai')], ['me.tools.web', 'tools · web', tool('web')],
+    ['me.tools.infra', 'tools · infra', tool('infra')], ['me.tools.design', 'tools · design', tool('design')], ['me.languages', 'i speak', me.tools.languages.text],
+    ['me.email', 'contact · the email address', me.contact.email], ['me.github', 'contact · github', me.contact.github],
+  ].map(([key, label, d]) => ({ key, screen: 'me', label, default: d, value: d, overridden: false, version: 0, updated: null })));
+  /* what the server refuses, in its own plain words */
+  const refuse = (k, v) => (k === 'me.email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'that is not an email address'
+    : k === 'me.github' && !/^https:\/\/[^\s]+$/.test(v) ? 'the github address is an https link' : '');
   let reports = [{ thread: 'k3m9p2x7aa', n: 3, count: 2, at: Date.now() - 2e6 }];
   let session = false, pending = false, tries = 0, fails = 0, lockedUntil = 0;
   const wait = (v) => new Promise((r) => setTimeout(() => r(v), 180 + Math.random() * 220));
   const ok = (data, status = 200) => wait({ status, data });
   const no = (status = 401) => wait({ status, data: { error: 'no' } });
-  const key = (k) => (k === 'works' ? 'id' : 'slug');
+  const key = (k) => (k === 'works' || k === 'awards' ? 'id' : 'slug');
   const fail = () => { fails++; if (fails > 4) lockedUntil = Date.now() + 60e3 * 2 ** (fails - 5); };
   const locked = () => Date.now() < lockedUntil;
 
@@ -65,6 +81,13 @@ export function createMockApi() {
       if (!session) return no();
       const k = key(kind), i = db[kind].findIndex((e) => e[k] === id);
       if (!entry[k] || !/^[a-z0-9-]+$/.test(entry[k])) return ok({ error: 'the slug is the address: lowercase letters, digits and hyphens' }, 400);
+      if (kind === 'works' && ((entry.line || '').length > 300 || (entry.status || '').length > 40)) return ok({ error: 'the line is up to 300 characters, the status up to 40' }, 400);
+      if (kind === 'awards') {
+        const t = String(entry.title || '').trim();
+        if (!t || t.length > 160) return ok({ error: 'the title is 1 to 160 characters' }, 400);
+        if ((entry.note || '').length > 120) return ok({ error: 'the note is up to 120 characters' }, 400);
+        if ((entry.line || '').length > 400) return ok({ error: 'the line is up to 400 characters' }, 400);
+      }
       if (kind === 'posts' && !['nigredo', 'albedo', 'citrinitas', 'rubedo'].includes(entry.stage)) return ok({ error: 'stage is nigredo, albedo, citrinitas or rubedo' }, 400);
       if (entry[k] !== id && db[kind].some((e) => e[k] === entry[k])) return ok({ error: 'that address is taken' }, 409);
       const withUrls = structuredClone(entry);
@@ -118,10 +141,11 @@ export function createMockApi() {
     },
     thread(id) { if (!session) return no(); return threads[id] ? ok(structuredClone(threads[id])) : no(404); },
     reports() { if (!session) return no(); return ok({ reports: reports.slice() }); },
-    texts() { if (!session) return no(); return ok({ screens: ['meta', 'archive', 'laboratory', 'wall', 'forum', 'music'], texts: structuredClone(texts) }); },
+    texts() { if (!session) return no(); return ok({ screens: ['meta', 'archive', 'laboratory', 'wall', 'forum', 'music', 'me'], texts: structuredClone(texts) }); },
     textSave(k, value, version) {
       if (!session) return no();
       const t = texts.find((x) => x.key === k); if (!t) return no(404);
+      if (refuse(k, String(value).trim())) return ok({ error: refuse(k, String(value).trim()) }, 400);
       if (version !== undefined && version !== t.version) return ok({ error: 'changed meanwhile', text: structuredClone(t) }, 409);
       Object.assign(t, { value: String(value).trim(), overridden: true, version: t.version + 1, updated: Date.now() });
       return ok({ text: structuredClone(t) });

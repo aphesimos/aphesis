@@ -2,7 +2,12 @@
    the ledes, the helper lines, the empty states). Every key the site reads, grouped by screen, with its value now,
    a field to change it, and a preview line in the face it is read in. Save sends it through the content service;
    reset takes it back to the page's own string. The page reads them on its next load (backend/content: texts); the link
-   preview's two, from the site's Pages worker, within five minutes. */
+   preview's two, from the site's Pages worker, within five minutes.
+
+   One module serves two places: the texts place (every screen but `me`) and the me place (only `me`, its words,
+   which ed-me.js sets among the works' lines and the awards). `only` and `skip` choose the screens; `embed` leaves
+   out the pane's own head and the screen headings, and `say` is then the host's line; `face` names the class a
+   key's preview is read in (the name in Aphesis Script), `maxlength` the longest text a field takes. */
 
 import { h, act, field, area, status, setLabel } from './ui.js';
 
@@ -11,10 +16,10 @@ import { h, act, field, area, status, setLabel } from './ui.js';
 const HEADS = { meta: 'link preview' };
 const NOTES = { meta: 'what discord, imessage, whatsapp, slack and x show under a link to aphes.ist. live within five minutes of a save; each app keeps its own copy of a preview for a while.' };
 
-export function createTexts({ api, root }) {
-  const say = h('p', { class: 'say aph-meta aph-ink', role: 'status', 'aria-live': 'polite' });
+export function createTexts({ api, root, only, skip, embed, say: hostSay, face, maxlength = 400 }) {
+  const say = hostSay || h('p', { class: 'say aph-meta aph-ink', role: 'status', 'aria-live': 'polite' });
   const listEl = h('div', { class: 'tx-list' });
-  root.append(h('section', { class: 'pane texts' }, h('div', { class: 'pane-head' }, act('reload', () => load()), say), listEl));
+  root.append(h('section', { class: 'pane texts' }, embed ? null : h('div', { class: 'pane-head' }, act('reload', () => load()), say), listEl));
 
   async function load() {
     status(say, '');
@@ -22,21 +27,21 @@ export function createTexts({ api, root }) {
     if (r.status !== 200) { status(say, r.data.error || "couldn't load the texts", true); return; }
     const by = {};
     for (const t of r.data.texts || []) (by[t.screen] = by[t.screen] || []).push(t);
-    const screens = (r.data.screens || Object.keys(by)).filter((s) => by[s]);
-    listEl.replaceChildren(...screens.map((s) => h('section', { class: 'tx-screen', 'aria-labelledby': 'tx-' + s },
-      h('h2', { class: 'mod-h aph-display aph-ink', id: 'tx-' + s, text: HEADS[s] || s }),
-      ...(NOTES[s] ? [h('p', { class: 'tx-note aph-meta aph-ink', text: NOTES[s] })] : []),
+    const screens = (r.data.screens || Object.keys(by)).filter((s) => by[s] && (only ? s === only : s !== skip));
+    listEl.replaceChildren(...screens.map((s) => h('section', { class: 'tx-screen', 'aria-labelledby': embed ? null : 'tx-' + s },
+      embed ? null : h('h2', { class: 'mod-h aph-display aph-ink', id: 'tx-' + s, text: HEADS[s] || s }),
+      ...(NOTES[s] && !embed ? [h('p', { class: 'tx-note aph-meta aph-ink', text: NOTES[s] })] : []),
       ...by[s].map(row))));
     if (!screens.length) listEl.append(h('p', { class: 'empty aph-meta aph-ink', text: 'no texts.' }));
   }
 
   /* one text: its field, a preview line, save and reset */
   function row(t) {
-    const input = area(t.value, { rows: 2, maxlength: '400', 'data-spell': '1', class: 'aph-ink' });
+    const input = area(t.value, { rows: 2, maxlength: String(maxlength), 'data-spell': '1', class: 'aph-ink' });
     const hint = h('span', { class: 'hint aph-meta aph-ink' });
     const fieldEl = field(t.label, input);
     fieldEl.append(hint);
-    const preview = h('p', { class: 'tx-preview aph-ink', 'aria-label': 'preview' });
+    const preview = h('p', { class: 'tx-preview aph-ink ' + ((face && face(t.key)) || ''), 'aria-label': 'preview' });
     const rowSay = h('span', { class: 'say aph-meta aph-ink', role: 'status', 'aria-live': 'polite' });
     const save = act('save', () => send());
     const reset = act('reset to default', () => back());

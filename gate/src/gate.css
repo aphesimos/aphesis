@@ -228,5 +228,17 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .tx-preview { margin: var(--space-2) 0 0; font-size: var(--type-lede-size); line-height: var(--type-lede-line); overflow-wrap: anywhere; }
 .tx-row.dirty .tx-preview { color: var(--accent-text); }
 .tx-acts { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--space-5); }
+.tx-preview.tx-name { font-size: var(--type-heading-size); line-height: 1.2; }
+
+/* the me place: its three parts, and the rows of works and awards (a name, fields on their baselines, buttons) */
+.me { max-width: 46em; }
+.me-part { margin-bottom: var(--space-6); }
+.me-list { list-style: none; margin: 0; padding: 0; }
+.me-row { margin-bottom: var(--space-6); }
+.me-row .field { margin-bottom: var(--space-3); }
+.me-row .field textarea { min-height: 0; resize: none; field-sizing: content; }
+.me-name { margin: 0 0 var(--space-2); font-size: var(--type-lede-size); line-height: var(--type-lede-line); overflow-wrap: anywhere; }
+.me-row.dirty .me-name { color: var(--accent-text); }
+.me-new .me-row { margin-bottom: var(--space-5); }
 .act:disabled { color: var(--ink-soft); cursor: default; }
 .act:disabled .uline { display: none; }

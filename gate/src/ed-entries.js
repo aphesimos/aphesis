@@ -1,7 +1,8 @@
 /* ed-entries: book entries and works, one editor for both. The list, the fields, the picture (turned into a density
    map in the browser by the forum's rules, then uploaded), and the preview: the picture as a simulacrum with the
    entry's own settings and adjustments, beside its words set as the section sets them. One Simulacrum canvas serves
-   every preview, so the dashboard holds the fog and at most two simulacra (this one and the archive's figure). */
+   every preview, so the dashboard holds the fog and at most two simulacra (this one and the archive's figure).
+   A work also carries the line and the status the me page shows for it (ed-me.js sets them among the others). */
 
 import { h, act, sure, field, text, area, check, status, debounce, slugify, rule, setLabel } from './ui.js';
 import { toDensity, checkFile, ACCEPT } from './forum/density.js';
@@ -38,6 +39,7 @@ function image(url) {
 }
 
 /* ---------- what differs between a book entry and a work ---------- */
+const LIMITS = { line: '300', status: '40' };
 const KINDS = {
   books: {
     one: 'book', key: 'slug', noun: 'entry', title: (e) => e.title, meta: (e) => e.author + ' · ' + e.year,
@@ -50,11 +52,12 @@ const KINDS = {
   },
   works: {
     one: 'work', key: 'id', noun: 'work', title: (e) => e.name, meta: (e) => e.gloss + ' · ' + e.year,
-    blank: (n) => ({ id: '', name: '', gloss: '', gloss_tip: '', year: '', role: '', description: '', links: [], map: null, sources: {}, flags: {}, position: n + 1 }),
+    blank: (n) => ({ id: '', name: '', gloss: '', gloss_tip: '', year: '', role: '', description: '', line: '', status: '', links: [], map: null, sources: {}, flags: {}, position: n + 1 }),
     pictureOf: (e) => e.map, settingsOf: (e) => (e.map && e.map.settings) || {},
     numbers: [['scatter', 'scatter'], ['erosion', 'erosion'], ['ceiling', 'ceiling'], ['gain', 'gain']],
     fields: [['name', 'name', 1], ['id', 'id · the address', 0, '#works-<id>'], ['gloss', 'gloss · a latin or greek word', 0], ['gloss_tip', 'the gloss · its english', 1],
-      ['year', 'year', 0], ['role', 'role · what I did', 1], ['description', 'description · 40 to 90 words', 1, '', 'area']],
+      ['year', 'year', 0], ['role', 'role · what I did', 1], ['description', 'description · 40 to 90 words', 1, '', 'area'],
+      ['line', 'on the me page · one line', 1, 'up to 300 characters', 'area'], ['status', 'status · in progress, not launched yet', 1, 'up to 40; leave it empty for none']],
   },
 };
 
@@ -97,7 +100,7 @@ export function createEntriesEditor({ api, root, kind }) {
     const fieldEls = K.fields.map(([k, label, spell, hint, type]) => {
       let v = e[k] ?? '';
       if (k === 'note' && Array.isArray(v)) v = v.join('\n\n');
-      f[k] = type === 'area' ? area(String(v), { rows: k === 'quote' ? 3 : 8, 'data-spell': spell ? '1' : null }) : text(String(v), { 'data-spell': spell ? '1' : null });
+      f[k] = type === 'area' ? area(String(v), { rows: k === 'quote' ? 3 : k === 'line' ? 3 : 8, maxlength: LIMITS[k] || null, 'data-spell': spell ? '1' : null }) : text(String(v), { maxlength: LIMITS[k] || null, 'data-spell': spell ? '1' : null });
       return field(label, f[k], hint);
     });
     const titleKey = K.fields[0][0];
@@ -245,6 +248,13 @@ export function createEntriesEditor({ api, root, kind }) {
     return { el, save, entry };
   }
 
+  /* a work opened from outside (the me place): whatever is open is put away, the list read fresh, then this one opened */
+  async function openById(id) {
+    if (cur) { if (sim) sim.hide(); cur.el.remove(); cur = null; listView.hidden = false; }
+    await load();
+    if (items.some((x) => x[K.key] === id)) open(id);
+  }
+
   load();
-  return { load, open, close, get current() { return cur; } };
+  return { load, open, openById, close, get current() { return cur; } };
 }

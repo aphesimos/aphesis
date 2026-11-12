@@ -1,0 +1,173 @@
+/* PROJECT · a landing page (aphesis design-system: system/page-types/landing), from its template: anamnesis.aphes.ist's
+   own script with the brain made general. No framework, no build step. The aphes.ist runtime (vendor/aphesis/bundle.js,
+   window.Aphesis) draws the ground and the marks, set up as the site's shell sets them up, kept quiet:
+   1. the fog: one Aphesis.Fog on a fixed canvas, low, calm behind the words on screen and around the living element, and
+      drifting out of the column once the hero has gone by
+   2. the header: the φ, the project's icon and name, the parts, the eye (the theme switch, a wave from it); a light
+      veil under it once the page has moved. The tab shows the project's own icon (favicon.svg)
+   3. the cursor, the tooltips, the letter waves, the brushed strokes under the actions
+   4. the living element, after the first paint: the project's own (replace living() below), or until then its icon
+      conjured as a simulacrum; a still image inside #living stays until its first frame is on screen
+   A reader who asks for less motion gets the same page held still: one frame of fog, a still hero, no boil. */
+(function () {
+  'use strict';
+  const A = window.Aphesis;
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const ROOT = document.documentElement;
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const phoneQ = matchMedia('(max-width: 720px)');
+
+  /* the veil under the header, once the page has moved */
+  const scrolled = () => ROOT.classList.toggle('scrolled', scrollY > 8);
+  addEventListener('scroll', scrolled, { passive: true }); scrolled();
+
+  if (!A) return; /* without the runtime the page is plain words and pictures, which is enough */
+
+  /* ---------- the fog: low, so the living element and the words lead ---------- */
+  const HERO = $('.hero'), BRAIN = $('#living'), TOP = $('.top');
+  const PROJECT = document.body.dataset.project;
+  const look = () => (phoneQ.matches ? { density: 0.15, light: 0.08 } : { density: 0.19, light: 0.1 });
+  const fog = A.Fog($('#fog'), Object.assign({ clear: 0 }, look()));
+  /* a still fog: let it draw once (and again when something changes), then hold */
+  let holdT = 0;
+  function hold(ms) { if (!still) return; fog.start(); clearTimeout(holdT); holdT = setTimeout(() => fog.stop(), ms); }
+  hold(400);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) fog.stop(); else if (!still) fog.start(); else hold(400); });
+  phoneQ.addEventListener('change', () => { fog.set(look()); hold(400); });
+
+  /* calm zones: the living element, and the words on screen (twelve at most, the fog's limit) */
+  const ZONED = '.title, .hero-text > .lede, .question, .hero .acts, .hero-meta, .head, .does > li, .os > li, .sec > .note, .sec > .lede, .sec > .acts, .plain li, .code, .sub, #pictures > .small, .shot figcaption, .foot-links, .made, .notices';
+  const zoned = $$(ZONED);
+  let zoneKey = '', zq = 0;
+  function zones() {
+    zq = 0;
+    const H = innerHeight, list = [];
+    const br = BRAIN.getBoundingClientRect();
+    list.push({ el: TOP, pad: 8 }); /* the header's words stay clear of the fog */
+    if (br.bottom > 0 && br.top < H) list.push({ el: BRAIN, pad: 0 });
+    for (const el of zoned) {
+      const r = el.getBoundingClientRect();
+      if (r.bottom > -40 && r.top < H + 40 && r.width) list.push({ el, pad: 16 });
+      if (list.length === 12) break;
+    }
+    const key = list.map((z) => (z.el === BRAIN ? 'b' : z.el === TOP ? 't' : zoned.indexOf(z.el))).join(',');
+    if (key !== zoneKey) { zoneKey = key; fog.zones(list); }
+    fog.set({ clear: HERO.getBoundingClientRect().bottom < H * 0.45 ? 1 : 0 });
+    hold(250);
+  }
+  const queueZones = () => { if (!zq) zq = requestAnimationFrame(zones); };
+  addEventListener('scroll', queueZones, { passive: true });
+  addEventListener('resize', queueZones);
+  zones();
+
+  /* ---------- the header: the φ (the live seal, to aphes.ist), the name, the parts, the eye ---------- */
+  A.seal($('.brand-phi'), { boil: !still });
+  /*
+     the project's own icon beside its name. Hovering the name stirs its stipple (.aph-icon); pressing gathers it */
+  const project = $('.project');
+  if ((A.PROJECTS || []).indexOf(PROJECT) >= 0) $('.project-icon').innerHTML = A.icon(PROJECT, 0);
+  project.addEventListener('pointerdown', () => project.classList.add('aph-gather'));
+  project.addEventListener('pointerleave', () => project.classList.remove('aph-gather'));
+
+  /* the eye: open in light, closed in dark; the switch is a blink, and the theme spreads as a wave from it (drawn as
+     aphes.ist's shell draws it) */
+  const EYE = {
+    open: A.brush(A.arc(12, 15.5, 9, -160, -20, 40, 7), 1.7, 31) + A.brush(A.arc(12, 8.5, 9, 20, 160, 40, 7), 1.7, 33),
+    iris: A.stipple(A.inC(12, 12, 3.1), 36, 260, 0.95),
+    closed: (() => { let d = A.brush(A.arc(12, 8, 9, 25, 155, 40, 6), 1.8, 37);
+      [-0.55, 0, 0.55].forEach((k, i) => { const x = 12 + k * 9.5; d += A.brush(A.line(x, 14.2 + Math.abs(k) * -1.2, x + k * 1.8, 17.2 + Math.abs(k) * -1, 10), 1.2, 41 + i, 0.35, 0.05); }); return d; })(),
+  };
+  const eye = $('#eye'), O = $('#iopen'), I = $('#iris'), C = $('#iclosed');
+  O.setAttribute('d', EYE.open); I.setAttribute('d', EYE.iris); C.setAttribute('d', EYE.closed);
+  const sysDark = matchMedia('(prefers-color-scheme: dark)');
+  const isDark = () => (ROOT.dataset.theme ? ROOT.dataset.theme === 'dark' : sysDark.matches);
+  function themeIcon() {
+    const dark = isDark();
+    O.style.opacity = dark ? 0 : 1; O.style.transform = dark ? 'scaleY(.08)' : 'none';
+    I.style.opacity = dark ? 0 : 1; I.style.transform = dark ? 'scaleY(.05)' : 'none';
+    C.style.opacity = dark ? 1 : 0; C.style.transform = dark ? 'none' : 'scaleY(.2) translateY(-6px)';
+    eye.dataset.tip = dark ? 'closed · open the eye' : 'open · close the eye';
+    eye.setAttribute('aria-pressed', String(dark));
+    hold(1200);
+  }
+  themeIcon(); sysDark.addEventListener('change', themeIcon);
+  eye.addEventListener('click', () => {
+    const r = eye.getBoundingClientRect(), dark = isDark();
+    const apply = () => { ROOT.dataset.theme = dark ? 'light' : 'dark'; themeIcon(); };
+    if (still) { apply(); return; }
+    A.themeShift(apply, { origin: [r.left + r.width / 2, r.top + r.height / 2] });
+  });
+
+
+  /* ---------- the hand: cursor, tooltips, letters, the strokes under the actions ---------- */
+  A.cursor();
+  A.tooltip();
+  $$('.act-w, .top-nav a').forEach((el) => A.letters(el)); /* the actions and the header's parts */
+  let seed = 70;
+  const acts = $$('.act').map((a) => ({ a, seed: seed += 3, w: 0 }));
+  function strokes() {
+    for (const s of acts) {
+      const w = Math.round(s.a.querySelector('.act-w').getBoundingClientRect().width);
+      if (!w || w === s.w) continue;
+      s.w = w;
+      let svg = s.a.querySelector('svg');
+      if (!svg) { svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('aria-hidden', 'true'); svg.innerHTML = '<path/>'; s.a.appendChild(svg); }
+      svg.setAttribute('viewBox', `0 0 ${w} 6`);
+      svg.firstChild.setAttribute('d', A.brush(A.line(1, 3.2, w - 1, 2.6, Math.max(12, Math.round(w / 4))), 1.6, s.seed, 0.4, 0.08));
+    }
+  }
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { strokes(); queueZones(); });
+  addEventListener('resize', strokes);
+  strokes();
+
+  /* ---------- install: say which one is this computer ---------- */
+  const nav = navigator.userAgent.toLowerCase();
+  const ua = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || nav).toLowerCase();
+  const os = /win/.test(ua) ? 'windows' : /mac/.test(ua) && !/iphone|ipad/.test(nav) ? 'mac' : /linux|x11/.test(ua) && !/android/.test(nav) ? 'linux' : '';
+  if (os) { const li = $(`.os [data-os="${os}"]`); if (li) { li.querySelector('.yours').hidden = false; li.parentNode.prepend(li); } }
+
+  /* ---------- the copy button on the build block ---------- */
+  $$('[data-copy]').forEach((btn) => {
+    const source = document.getElementById(btn.dataset.copy), status = document.getElementById(btn.getAttribute('aria-describedby'));
+    const word = btn.querySelector('.act-w');
+    let timer = 0;
+    const set = (t) => { word.removeAttribute('data-split'); word.textContent = t; A.letters(word); strokes(); };
+    btn.addEventListener('click', async () => {
+      const text = source.innerText.trim();
+      let ok = false;
+      try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {
+        const r = document.createRange(); r.selectNodeContents(source); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+        try { ok = document.execCommand('copy'); } catch (e2) { ok = false; }
+      }
+      set(ok ? 'copied' : 'select it, then copy');
+      if (status) status.textContent = ok ? 'copied to the clipboard' : 'could not copy; the text is selected, copy it by hand';
+      clearTimeout(timer);
+      timer = setTimeout(() => { set('copy'); if (status) status.textContent = ''; }, 2200);
+    });
+  });
+
+  /* ---------- the living element ----------
+     Replace this with the project's own subject, drawn from its own data (anamnesis: hero/brain.js, the demo brain in
+     WebGL2). Until then: the project's icon, gathered (state 1), conjured as a simulacrum out of the fog. It lies over
+     the fog with a transparent ground, and rests while the tab is hidden */
+  function living() {
+    if (!BRAIN || (A.PROJECTS || []).indexOf(PROJECT) < 0) return;
+    const ds = Array.from(A.icon(PROJECT, 1).matchAll(/ d="([^"]+)"/g), (m) => m[1]);
+    const map = A.Simulacrum.fromBrush((x, w, h) => {
+      const s = Math.min(w, h) / 24 * 0.86;
+      x.translate((w - 24 * s) / 2, (h - 24 * s) / 2); x.scale(s, s);
+      ds.forEach((d) => x.fill(new Path2D(d)));
+    }, 560, 560);
+    const x = map.getContext('2d'), soft = document.createElement('canvas'); soft.width = map.width; soft.height = map.height;
+    const sx = soft.getContext('2d');
+    if (A.canFilter && A.canFilter(sx)) { sx.filter = 'blur(6px)'; sx.drawImage(map, 0, 0); x.globalCompositeOperation = 'lighter'; x.globalAlpha = .55; x.drawImage(soft, 0, 0); }
+    const canvas = BRAIN.querySelector('canvas');
+    const sim = A.Simulacrum(canvas, { source: map, fit: 'contain', ground: false, accent: 0.04, scatter: 0.6, erosion: 0.4, margin: 0.08 });
+    sim.drawn(() => { BRAIN.classList.add('live'); if (still) sim.stop(); });
+    sim.show();
+    document.addEventListener('visibilitychange', () => { if (document.hidden) sim.stop(); else if (!still) sim.start(); });
+  }
+  const afterPaint = (fn) => requestAnimationFrame(() => requestAnimationFrame(() => ('requestIdleCallback' in window ? requestIdleCallback(fn, { timeout: 2500 }) : setTimeout(fn, 200))));
+  if (document.readyState === 'complete') afterPaint(living); else addEventListener('load', () => afterPaint(living), { once: true });
+})();

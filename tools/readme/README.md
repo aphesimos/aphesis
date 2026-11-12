@@ -59,6 +59,17 @@ projects (`contraprova`, `heuresis`, `anamnesis`, `autopoiesis`). A new project 
 `tools/bundle_src.js` first, under "PROJECT ICONS", drawn the same way, and is added to `PROJECTS`. Then rebuild
 `system/components/bundle.js` (below).
 
+## The README standard
+
+What goes around the header, in what order, and in what voice is the README standard:
+`system/page-types/readme/README.md`, with a template for a product (`template-product.md`) and one for a study
+(`template-study.md`). In short: the header first, linking the project's page; a line that says what the project is,
+never a tagline; lowercase; no badges; the honesty table where there are claims; every picture dark and light; the
+licence last.
+
+**When an image changes, give it a new name** (`--name header-2`, then delete the old pair): GitHub's image proxy
+caches by path, so a redrawn SVG under the same name keeps showing the old one.
+
 ## The other images
 
 ```sh

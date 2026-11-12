@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- a paper page in the aphes.ist system: aphesis design-system, system/page-types/paper. The lab kit only, pinned beside
+     the page by tools/page-types/vendor.py --kit-only. Every "fill:" is the project's own; the numbers below are an
+     example, not a result -->
+<title>PROJECT · the study</title>
+<meta name="description" content="fill: what was studied, on what, and the answer in one sentence.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preload" href="vendor/lab-kit-v1/fonts/AphesisScript-VF.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="vendor/lab-kit-v1/fonts/SpecialElite-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="vendor/lab-kit-v1/lab.css">
+<script src="vendor/lab-kit-v1/lab.js" defer></script>
+<style>
+  /* the page's own layout, on the kit's tokens only. Prefix: pp- (a project uses its own) */
+  .pp-meta { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); align-items: center; margin-top: var(--space-4); }
+  .pp-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--space-5); align-items: start; margin-top: var(--space-5); }
+  .lab-section > * + * { margin-top: var(--space-4); }
+  .lab-chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+  @media (max-width: 960px) { .pp-grid { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body class="lab">
+<div class="lab-page">
+
+<!-- 0 · the receding header: the φ, the project and its gloss, the parts, the controls -->
+<header class="lab-header lab-header--sticky lab-header--blur">
+  <a class="lab-mark" href="https://aphes.ist/" aria-label="aphes.ist"></a>
+  <span class="lab-project">PROJECT <span class="lab-gloss" lang="la">gloss</span></span>
+  <nav class="lab-nav" aria-label="on this page">
+    <a href="#question">question</a><a href="#method">method</a><a href="#prereg">pre-registration</a><a href="#results">results</a><a href="#honesty">honesty</a><a href="#data">data</a>
+  </nav>
+  <div class="lab-controls">
+    <button class="lab-button" type="button" data-lab-toggle="theme">close the eye</button>
+    <button class="lab-button" type="button" data-lab-toggle="fog" aria-pressed="false">fog · off</button>
+  </div>
+</header>
+
+<main>
+<!-- 1 · the title: what the page is, the study in one sentence, the data set and its status -->
+<div class="lab-titles">
+  <span class="lab-gloss-title" lang="la">experimentum</span>
+  <h1 class="lab-title">the study</h1>
+  <p class="lab-lede">fill: what was studied, on what, how many; and, once there is one, the answer in one sentence with its interval.</p>
+  <div class="pp-meta lab-meta">
+    <span>data set: fill · 2026-11-12</span>
+    <span class="num">log 3f9a…c21e</span>
+    <span class="lab-ev" data-ev="measured" data-tip="the numbers below were recomputed from the log">pre-registered, run</span>
+  </div>
+</div>
+
+<!-- 2 · the question -->
+<section class="lab-section" id="question" aria-labelledby="question-h">
+  <h2 id="question-h">the question</h2>
+  <div class="lab-callout">
+    <span class="lab-callout-label">quaestio</span>
+    <p>fill: the question, in one sentence, answerable with a number.</p>
+  </div>
+  <p class="lab-prose">fill: why it is asked, and what answer would change what. two or three sentences.</p>
+</section>
+
+<!-- 3 · the method -->
+<section class="lab-section" id="method" aria-labelledby="method-h">
+  <h2 id="method-h">method</h2>
+  <p class="lab-prose">fill: the arms or conditions, what each one does; the data and how it was chosen; the measure; the sample size and how it was paired. a figure of the design goes here if there is one.</p>
+  <div class="lab-table-wrap">
+    <table class="lab-table lab-table--dense">
+      <caption>the arms.</caption>
+      <thead><tr><th scope="col">arm</th><th scope="col">what it does</th><th scope="col" class="num">tasks</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">A</th><td>fill: the baseline</td><td class="num">88</td></tr>
+        <tr class="lab-ref-row"><th scope="row">D</th><td>fill: the treatment</td><td class="num">88</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 4 · pre-registration -->
+<section class="lab-section" id="prereg" aria-labelledby="prereg-h">
+  <h2 id="prereg-h">pre-registration</h2>
+  <p class="lab-prose">fixed before the run, in <a href="https://github.com/aphesist/PROJECT/blob/main/PREREGISTRATION.md">PREREGISTRATION.md</a> (commit <code>abc1234</code>, 2026-11-01): fill: the hypotheses, the margin, the sample size, the test and the correction.</p>
+  <p class="lab-prose">deviations: none.</p>
+</section>
+
+<!-- 5 · results: tiles, a chart with its table view -->
+<section class="lab-section" id="results" aria-labelledby="results-h">
+  <h2 id="results-h">results</h2>
+  <dl class="lab-stats">
+    <div class="lab-stat"><dt class="lab-stat-label">arm A · baseline</dt><dd class="lab-stat-value num">96.6%</dd><dd class="lab-stat-note">85/88 · 95% wilson 90.4–98.8</dd></div>
+    <div class="lab-stat"><dt class="lab-stat-label">arm D · treatment</dt><dd class="lab-stat-value num">94.3%</dd><dd class="lab-stat-note">83/88 · 95% wilson 87.4–97.6</dd></div>
+    <div class="lab-stat lab-stat--ref"><dt class="lab-stat-label">D minus A</dt><dd class="lab-stat-value num">−2.3</dd><dd class="lab-stat-note">points [−8.0, +3.4], inside the −10 margin</dd></div>
+  </dl>
+  <div class="pp-grid">
+    <figure class="lab-chart">
+      <div class="lab-chart-head">
+        <h3>solve rate by arm</h3>
+        <ul class="lab-legend"><li class="lab-key lab-key--dot lab-ink">A</li><li class="lab-key lab-key--dot lab-c1">D</li><li class="lab-key lab-key--band lab-ink">95% interval</li><li class="lab-key lab-key--rule">margin</li></ul>
+      </div>
+      <svg viewBox="0 0 520 190" role="img" aria-label="example: arm D solves 94.3% against arm A's 96.6%; the difference, −2.3 points, is inside the −10 point margin">
+        <g class="lab-grid"><line x1="80" x2="500" y1="20" y2="20"/><line x1="80" x2="500" y1="150" y2="150"/></g>
+        <g class="lab-axis" transform="translate(0,160)">
+          <line class="domain" x1="80" x2="500" y1="0" y2="0"/>
+          <g class="tick" transform="translate(80,0)"><line y2="5"/><text y="18" text-anchor="middle">80%</text></g>
+          <g class="tick" transform="translate(185,0)"><line y2="5"/><text y="18" text-anchor="middle">85%</text></g>
+          <g class="tick" transform="translate(290,0)"><line y2="5"/><text y="18" text-anchor="middle">90%</text></g>
+          <g class="tick" transform="translate(395,0)"><line y2="5"/><text y="18" text-anchor="middle">95%</text></g>
+          <g class="tick" transform="translate(500,0)"><line y2="5"/><text y="18" text-anchor="middle">100%</text></g>
+        </g>
+        <!-- one unit per CSS pixel at 520px wide: x = 80 + (rate − 80) × 21 -->
+        <line class="lab-rule-ref" x1="218.6" x2="218.6" y1="12" y2="150"/>
+        <text class="lab-label-soft" x="222.6" y="14">margin: A − 10</text>
+        <rect class="lab-band lab-ink" x="298.4" y="40" width="176.4" height="22"/>
+        <rect class="lab-dot lab-ink" x="425.6" y="48" width="6" height="6"/>
+        <text class="lab-label" x="20" y="55">A</text>
+        <rect class="lab-band lab-c1" x="235.4" y="100" width="214.2" height="22"/>
+        <rect class="lab-dot lab-c1" x="377.3" y="108" width="6" height="6"/>
+        <circle class="lab-ring" cx="380.3" cy="111" r="9"/>
+        <text class="lab-label" x="20" y="115">D</text>
+      </svg>
+      <figcaption>example data. points are solve rates with 95% wilson intervals as stippled bands; the dotted red rule is the pre-registered margin.</figcaption>
+    </figure>
+    <div class="lab-table-wrap">
+      <table class="lab-table lab-table--dense">
+        <caption>the same numbers.</caption>
+        <thead><tr><th scope="col">arm</th><th scope="col" class="num">solved</th><th scope="col" class="num">rate</th><th scope="col" class="num">95% ci</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">A</th><td class="num">85/88</td><td class="num">96.6%</td><td class="num">90.4–98.8</td></tr>
+          <tr class="lab-ref-row"><th scope="row">D</th><td class="num">83/88</td><td class="num">94.3%</td><td class="num">87.4–97.6</td></tr>
+          <tr><th scope="row">D − A</th><td class="num">—</td><td class="num">−2.3</td><td class="num">−8.0–+3.4</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- 6 · the honesty table -->
+<section class="lab-section" id="honesty" aria-labelledby="honesty-h">
+  <h2 id="honesty-h">what this rests on</h2>
+  <div class="lab-table-wrap">
+    <table class="lab-table lab-honesty">
+      <caption>the honesty table: every claim on this page, and the kind of evidence behind it.</caption>
+      <thead><tr><th scope="col">claim</th><th scope="col">rests on</th></tr></thead>
+      <tbody>
+        <tr><td>fill: the main finding, with its interval</td><td><span class="lab-ev" data-ev="measured">measured (pre-registered, n=88)</span></td></tr>
+        <tr><td>fill: a number computed from what was measured</td><td><span class="lab-ev" data-ev="modelled">modelled</span></td></tr>
+        <tr><td>fill: a property of the code, checked by tests</td><td><span class="lab-ev" data-ev="tested">tested</span></td></tr>
+        <tr><td>fill: what the study does not show</td><td><span class="lab-ev" data-ev="hypothesis">hypothesis</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="lab-ev-key lab-legend" aria-label="key">
+    <span class="lab-ev" data-ev="measured">measured · observed directly</span>
+    <span class="lab-ev" data-ev="modelled">modelled · computed from what was measured</span>
+    <span class="lab-ev" data-ev="tested">tested · checked, and it held</span>
+    <span class="lab-ev" data-ev="hypothesis">hypothesis · not checked yet</span>
+  </div>
+</section>
+
+<!-- 7 · the replay or the data -->
+<section class="lab-section" id="data" aria-labelledby="data-h">
+  <h2 id="data-h">the data</h2>
+  <p class="lab-prose">fill: what is published (the log, the analysis, the pre-registration), what is left out and why, and how to check every number on this page. a replay of the log goes here when there is one.</p>
+  <div class="lab-table-wrap">
+    <table class="lab-table lab-table--dense">
+      <caption>files.</caption>
+      <thead><tr><th scope="col">file</th><th scope="col">what</th><th scope="col" class="num">size</th></tr></thead>
+      <tbody>
+        <tr><td><a href="https://github.com/aphesist/PROJECT/tree/main/results">results/…/log.jsonl</a></td><td>fill: the hash-chained log</td><td class="num">1.2 mb</td></tr>
+        <tr><td><a href="https://github.com/aphesist/PROJECT/tree/main/results">results/…/analysis.json</a></td><td>fill: the pre-registered analysis</td><td class="num">8 kb</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <pre data-label="verify"><code>pip install -e .
+PROJECT verify  results/…/log.jsonl     <span class="c"># fill: check the chain, replay every event</span>
+PROJECT report  results/…/log.jsonl     <span class="c"># every number on this page, with its interval</span></code></pre>
+</section>
+</main>
+
+<!-- 8 · the footer -->
+<footer class="lab-footer lab-meta">
+  <span>PROJECT · the study</span>
+  <span>aphes.ist lab kit <span id="kit-version">1.1.0</span>, vendored in vendor/lab-kit-v1</span>
+  <span><a href="https://github.com/aphesist/PROJECT">github</a> · LICENCE</span>
+</footer>
+</div>
+</body>
+</html>

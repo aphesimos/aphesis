@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- a landing page in the aphes.ist system: aphesis design-system, system/page-types/landing. Every "fill:" marks
+     something the project writes in its own words: say what it is, never a tagline -->
+<title>PROJECT · what it is, in a few plain words</title>
+<meta name="description" content="PROJECT is … (fill: two sentences, the lede's words). open source, LICENCE.">
+<link rel="canonical" href="https://PROJECT.aphes.ist/">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="PROJECT">
+<meta property="og:url" content="https://PROJECT.aphes.ist/">
+<meta property="og:title" content="PROJECT">
+<meta property="og:description" content="fill: the lede, shortened">
+<meta property="og:image" content="https://PROJECT.aphes.ist/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="fill: what the card shows">
+<meta name="twitter:card" content="summary_large_image">
+
+<!-- the tab's icon is the project's own, made from vendor/aphesis/PROJECT.svg -->
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+<link rel="preload" href="vendor/lab-kit-v1/fonts/AphesisScript-VF.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="vendor/lab-kit-v1/fonts/SpecialElite-latin.woff2" as="font" type="font/woff2" crossorigin>
+<!-- the aphes.ist tokens and runtime (vendor/aphesis), the lab kit for the faces (vendor/lab-kit-v1); style.css last.
+     Pinned by tools/page-types/vendor.py: nothing loads from aphes.ist at run time -->
+<link rel="stylesheet" href="vendor/aphesis/tokens.css">
+<link rel="stylesheet" href="vendor/lab-kit-v1/lab.css">
+<link rel="stylesheet" href="vendor/aphesis/bundle.css">
+<link rel="stylesheet" href="style.css">
+<script src="vendor/aphesis/bundle.js" defer></script>
+<script src="main.js" defer></script>
+</head>
+<body data-project="PROJECT">
+<canvas id="fog" aria-hidden="true"></canvas>
+<a class="skip" href="#main">skip to the content</a>
+
+<div class="lab-page">
+<!-- 0 · the header: the φ (to aphes.ist), the project's icon and name, the page's parts, the eye. Fixed and slim; a veil
+     of the ground eases in behind it once the page moves -->
+<header class="top">
+  <a class="brand" href="https://aphes.ist/" aria-label="aphes.ist" data-tip="aφesis" data-cursor=".9"><span class="brand-phi aph-red" aria-hidden="true"></span></a>
+  <a class="project aph-icon" href="#top" aria-label="PROJECT, to the top"><span class="project-icon aph-red" aria-hidden="true"></span><span class="nm">PROJECT</span></a>
+  <nav class="top-nav" aria-label="on this page">
+    <a class="wide" href="#does">what it does</a>
+    <a class="wide" href="#pictures">pictures</a>
+    <a href="#install">install</a>
+    <a class="wide" href="#privacy">privacy</a>
+    <a href="https://github.com/aphesist/PROJECT">github</a>
+  </nav>
+  <button id="eye" class="aph-mark aph-red" type="button" aria-label="switch between light and dark" data-tip="open · close the eye" data-cursor=".55"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="iopen"/><path id="iclosed"/><path id="iris"/></svg></button>
+</header>
+<div class="veil-bottom" aria-hidden="true"></div>
+
+<main id="main">
+
+<!-- 1 · the hero: the living stipple element, the title, what it is, the question, two actions, one line of meta -->
+<section class="hero" id="top" aria-labelledby="hero-h">
+  <!-- fill: the project's own subject in stipple, from its own data. Until then main.js conjures the project's icon as
+       a simulacrum. A still image (hero/fallback.webp, hero/fallback-light.webp) goes in a <picture> here and paints
+       first -->
+  <div id="living" class="living aph-red"><canvas aria-hidden="true"></canvas></div>
+  <div class="hero-text">
+    <h1 id="hero-h" class="title aph-ink">PROJECT</h1>
+    <p class="lede aph-ink">fill: what it is, in one or two plain sentences: what it takes in, what it gives back, where it runs.</p>
+    <p class="question aph-ink">fill: the one question the project asks of its own use, if it asks one; otherwise remove this line.</p>
+    <p class="acts">
+      <a class="act act-main" href="https://github.com/aphesist/PROJECT/releases"><span class="act-w">download v0.1.0</span></a>
+      <a class="act" href="https://github.com/aphesist/PROJECT"><span class="act-w">source on github</span></a>
+    </p>
+    <p class="aph-meta hero-meta">pre-release · windows, macos, linux · free and open source</p>
+  </div>
+</section>
+
+<!-- 2 · what it is: only when the lede cannot hold it. Remove the section otherwise
+<section class="sec" id="what" aria-labelledby="what-h">
+  <div class="head">
+    <p class="aph-gloss gloss-title" lang="la">quid</p>
+    <h2 id="what-h" class="heading aph-ink">what it is</h2>
+  </div>
+  <p class="note aph-ink">…</p>
+</section>
+-->
+
+<!-- 3 · what it does: three to six features -->
+<section class="sec" id="does" aria-labelledby="does-h">
+  <div class="head">
+    <p class="aph-gloss gloss-title" lang="la">opus</p>
+    <h2 id="does-h" class="heading aph-ink">what it does</h2>
+  </div>
+  <ul class="does">
+    <li class="aph-ink">
+      <h3 class="aph-label">first feature</h3>
+      <p>fill: what it does for the reader, in their terms, and how they would notice it. one paragraph.</p>
+    </li>
+    <li class="aph-ink">
+      <h3 class="aph-label">second feature</h3>
+      <p>fill: a second thing it does. say what it is, not how good it is.</p>
+    </li>
+    <li class="aph-ink">
+      <h3 class="aph-label">what is measured</h3>
+      <p>fill: if the project measures itself, how, and where the honesty table is. link the paper page here if there is one.</p>
+    </li>
+    <li class="aph-ink">
+      <h3 class="aph-label">what it works with</h3>
+      <p>fill: what it connects to, what it needs, what it works without.</p>
+    </li>
+  </ul>
+</section>
+
+<!-- 4 · demo or screenshots: the real thing, one main picture and two beside it -->
+<section class="sec sec-wide" id="pictures" aria-labelledby="pictures-h">
+  <div class="head">
+    <p class="aph-gloss gloss-title" lang="la">imagines</p>
+    <h2 id="pictures-h" class="heading aph-ink">pictures</h2>
+    <p class="note aph-ink">fill: what the pictures show and on what data. open a picture for its full size.</p>
+  </div>
+  <div class="gallery">
+  <figure class="shot shot-main">
+    <a href="assets/shots/main.webp"><img src="assets/shots/main.webp" width="1440" height="900" loading="lazy" decoding="async" alt="fill: what the main picture shows"></a>
+    <figcaption class="aph-meta">fill: the main view</figcaption>
+  </figure>
+  <div class="shots" role="list">
+    <figure class="shot" role="listitem">
+      <a href="assets/shots/second.webp"><img src="assets/shots/second.webp" width="1440" height="900" loading="lazy" decoding="async" alt="fill: what it shows"></a>
+      <figcaption class="aph-meta">fill: a second view</figcaption>
+    </figure>
+    <figure class="shot" role="listitem">
+      <a href="assets/shots/third.webp"><img src="assets/shots/third.webp" width="1440" height="900" loading="lazy" decoding="async" alt="fill: what it shows"></a>
+      <figcaption class="aph-meta">fill: a third view</figcaption>
+    </figure>
+  </div>
+  </div>
+</section>
+
+<!-- 5 · install and quick start: the reader's own system first (main.js), then build from source -->
+<section class="sec" id="install" aria-labelledby="install-h">
+  <div class="head">
+    <p class="aph-gloss gloss-title" lang="la">limen</p>
+    <h2 id="install-h" class="heading aph-ink">install</h2>
+    <p class="note aph-ink">fill: what it is to install (an app, a command line, a plugin) and where the files are. say what warnings the reader will meet.</p>
+  </div>
+  <ul class="os">
+    <li class="aph-ink" data-os="windows">
+      <h3 class="aph-label">windows <span class="yours aph-meta" hidden>this computer</span></h3>
+      <p>fill: the file, and what to do with it.</p>
+      <p class="aph-meta">fill: the warning, and the way past it.</p>
+    </li>
+    <li class="aph-ink" data-os="mac">
+      <h3 class="aph-label">macos <span class="yours aph-meta" hidden>this computer</span></h3>
+      <p>fill: the file, and what to do with it.</p>
+      <p class="aph-meta">fill: the warning, and the way past it.</p>
+    </li>
+    <li class="aph-ink" data-os="linux">
+      <h3 class="aph-label">linux <span class="yours aph-meta" hidden>this computer</span></h3>
+      <p>fill: the file, and what to do with it.</p>
+      <p class="aph-meta">fill: what it needs.</p>
+    </li>
+  </ul>
+
+  <h3 class="aph-label sub aph-ink">or build it from source</h3>
+  <p class="note small aph-ink">fill: what it needs.</p>
+  <div class="code">
+    <pre id="build-src" tabindex="0" class="aph-ink"><code>git clone https://github.com/aphesist/PROJECT
+cd PROJECT
+fill: the one command that runs it</code></pre>
+    <button class="act copy" type="button" data-copy="build-src" aria-describedby="copy-status" data-cursor=".55"><span class="act-w">copy</span></button>
+    <span id="copy-status" class="sr" role="status" aria-live="polite"></span>
+  </div>
+</section>
+
+<!-- 6 · privacy, and 7 · licence and status, side by side on a wide screen -->
+<div class="pair">
+<section class="sec" id="privacy" aria-labelledby="privacy-h">
+  <div class="head">
+    <p class="aph-gloss gloss-title" lang="la">secretum</p>
+    <h2 id="privacy-h" class="heading aph-ink">privacy</h2>
+  </div>
+  <ul class="plain">
+    <li class="aph-ink">fill: where it runs and where the data lives.</li>
+    <li class="aph-ink">fill: what leaves the machine, and only when.</li>
+    <li class="aph-ink">fill: what is logged about anything that leaves.</li>
+    <li class="aph-ink">fill: accounts, telemetry, keys: none, or exactly what.</li>
+  </ul>
+  <p class="note aph-ink"><a href="https://github.com/aphesist/PROJECT/blob/main/docs/privacy.md">privacy</a> says exactly what is and is not covered.</p>
+</section>
+
+<section class="sec" id="status" aria-labelledby="status-h">
+  <div class="head">
+    <p class="aph-gloss gloss-title" lang="grc">νῦν</p>
+    <h2 id="status-h" class="heading aph-ink">in progress</h2>
+  </div>
+  <p class="lede aph-ink">fill: the version and how finished it is. if something breaks, <a href="https://github.com/aphesist/PROJECT/issues">tell me in an issue</a>.</p>
+  <p class="note aph-ink">open source under LICENCE.</p>
+  <p class="acts">
+    <a class="act act-main" href="https://github.com/aphesist/PROJECT"><span class="act-w">source on github</span></a>
+    <a class="act" href="https://github.com/aphesist/PROJECT/blob/main/CONTRIBUTING.md"><span class="act-w">contributing</span></a>
+  </p>
+</section>
+</div>
+
+</main>
+
+<!-- 8 · links: two lines, each led by its gloss; the signature; one line of notice -->
+<footer class="foot">
+  <nav class="foot-links" aria-label="documentation and project">
+    <p><span class="foot-h aph-gloss" lang="la">libri</span><a href="https://github.com/aphesist/PROJECT/blob/main/docs/install.md">install</a><a href="https://github.com/aphesist/PROJECT/blob/main/docs/using.md">using</a><a href="https://github.com/aphesist/PROJECT/blob/main/docs/privacy.md">privacy</a></p>
+    <p><span class="foot-h aph-gloss" lang="la">opus</span><a href="https://github.com/aphesist/PROJECT">github</a><a href="https://github.com/aphesist/PROJECT/releases">releases</a><a href="https://github.com/aphesist/PROJECT/blob/main/CONTRIBUTING.md">contributing</a><a href="https://github.com/aphesist/PROJECT/issues">issues</a><a href="https://github.com/aphesist/PROJECT/blob/main/LICENSE">LICENCE</a></p>
+  </nav>
+  <p class="made aph-meta">made by aphesist · part of <a href="https://aphes.ist/">aφesis</a></p>
+  <p class="notices aph-meta">the design system, its fonts, the φ and the icon are aphesist's and are not covered by LICENCE (<a href="vendor/aphesis/NOTICE.md">notice</a>).</p>
+</footer>
+</div>
+
+</body>
+</html>

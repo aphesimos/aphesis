@@ -252,6 +252,22 @@ How the rules are built, and what that asks of a screen:
 
 Load `components/bundle.css` and `components/bundle.js` after `tokens.css`. Set `data-theme` from the system preference and the eye. Then: one `Aphesis.Fog` on a fixed full-screen canvas, `Aphesis.cursor()` and `Aphesis.tooltip()` once per document, and the screen's own marks drawn with `Aphesis.brush` and `Aphesis.stipple`. The scroll disturbance (`Aphesis.Scroll`) starts by itself.
 
+## Page types
+
+Everything published is one of three kinds of page, and every repository's README follows one standard. Each has
+its spec, a starter template and its live examples in `system/page-types/`:
+
+- **the site** (`page-types/site/`): aphes.ist itself, the reference. Its own rules (it always animates, sound on,
+  hermetic) belong to it alone, and nothing here changes it.
+- **landing page** (`page-types/landing/`): an open-source project's page, modelled on anamnesis.aphes.ist: the
+  runtime kept quiet, one living stipple element as the hero, a motion budget, still under reduced motion.
+- **paper page** (`page-types/paper/`): a study for reading (contraprova, heuresis, autopoiesis): the lab kit only,
+  question, method, pre-registration, results with charts, the honesty table, the data or a replay.
+- **the README standard** (`page-types/readme/`): the readme kit's header, lowercase, the parts in order, the
+  honesty table, dark and light pictures, the licence last.
+
+`tools/page-types/vendor.py` pins the runtime and the lab kit beside a project's page.
+
 ## Lab kit
 
 The laboratory's research viewers (autopoiesis, contraprova, anamnesis, the reasoning-engine benchmark) live in their own repositories and are not screens of the site. The lab kit gives them this system as one stylesheet and one optional script, so that they read as one body of work without each restyling itself. It lives in `system/lab-kit/v1/` and is served at **https://aphes.ist/lab-kit/v1/** (the demo, every component with sample data, is that address itself).

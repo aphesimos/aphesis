@@ -9,7 +9,9 @@
 //!   gain, scatter, erosion, ceiling, crop `[x, y, w, h]`, blur, contrast, brightness), position, example, published.
 //! - **work** (works · opera): the fields of section/works `content/works.json`: id, name, gloss, gloss_tip, year,
 //!   role, description, links `[{label, href}]`, map `{key, w, h, caption, settings}`, sources, flags, position,
-//!   published.
+//!   published; and for the me page a one-line summary (`line`) and a short `status` ("in progress").
+//! - **award** (me · awards): id, title, note (who it was with), line (what it was for), position, published. No
+//!   pictures.
 
 use serde_json::{json, Map, Value};
 
@@ -397,6 +399,8 @@ pub struct Work {
     pub sources: Value,
     pub flags: Value,
     pub position: i64,
+    pub line: String,
+    pub status: String,
 }
 
 pub fn work_in(v: &Value) -> R<Work> {
@@ -447,6 +451,8 @@ pub fn work_in(v: &Value) -> R<Work> {
         sources: obj("sources")?,
         flags: obj("flags")?,
         position: int(v, "position")?,
+        line: line(v, "line", 0, 300)?,
+        status: line(v, "status", 0, 40)?,
     })
 }
 
@@ -454,12 +460,49 @@ pub fn work_out(row: &Value, base: &str, admin: bool) -> Value {
     let mut o = json!({
         "id": row["id"], "name": row["name"], "gloss": row["gloss"], "gloss_tip": row["gloss_tip"],
         "year": row["year"], "role": row["role"], "description": row["description"], "links": parsed(row, "links"),
-        "map": with_url(parsed(row, "map"), base), "position": row["position"], "updated": row["updated"],
+        "map": with_url(parsed(row, "map"), base), "line": row["line"], "status": row["status"],
+        "position": row["position"], "updated": row["updated"],
     });
     if admin {
         o["published"] = json!(bit(row, "published"));
         o["sources"] = parsed(row, "sources");
         o["flags"] = parsed(row, "flags");
+    }
+    o
+}
+
+// ---------------- awards ----------------
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Award {
+    pub id: String,
+    pub title: String,
+    pub note: String,
+    pub line: String,
+    pub position: i64,
+}
+
+pub fn award_in(v: &Value) -> R<Award> {
+    let id = line(v, "id", 1, 60)?;
+    if !slug_ok(&id, 60) {
+        return Err("the id is the address: lowercase letters, digits and hyphens".into());
+    }
+    Ok(Award {
+        id,
+        title: line(v, "title", 1, 160)?,
+        note: line(v, "note", 0, 120)?,
+        line: line(v, "line", 0, 400)?,
+        position: int(v, "position")?,
+    })
+}
+
+pub fn award_out(row: &Value, admin: bool) -> Value {
+    let mut o = json!({
+        "id": row["id"], "title": row["title"], "note": row["note"], "line": row["line"],
+        "position": row["position"], "updated": row["updated"],
+    });
+    if admin {
+        o["published"] = json!(bit(row, "published"));
     }
     o
 }
@@ -559,13 +602,24 @@ mod tests {
         json!({ "id": "heild", "name": "heild", "gloss": "totum", "gloss_tip": "totum · the whole", "year": "2026",
                 "role": "author", "description": "the whole.", "links": [{ "label": "the site", "href": "https://example.com" }],
                 "map": { "key": KEY, "w": 640, "h": 320, "caption": "the wordmark", "settings": { "scatter": 0.8 } },
-                "sources": { "map": "x" }, "flags": { "needs_owner_review": false } })
+                "sources": { "map": "x" }, "flags": { "needs_owner_review": false },
+                "line": "the whole, in a line.", "status": "in progress" })
     }
 
     #[test]
     fn works_are_checked() {
         let w = work_in(&work()).unwrap();
         assert_eq!(w.map["settings"]["scatter"], json!(0.8));
+        assert_eq!(
+            (w.line.as_str(), w.status.as_str()),
+            ("the whole, in a line.", "in progress")
+        );
+        // both are optional
+        let mut bare = work();
+        bare.as_object_mut().unwrap().remove("line");
+        bare.as_object_mut().unwrap().remove("status");
+        let w = work_in(&bare).unwrap();
+        assert_eq!((w.line.as_str(), w.status.as_str()), ("", ""));
         let bad = |k: &str, v: Value| {
             let mut x = work();
             x[k] = v;
@@ -579,6 +633,44 @@ mod tests {
         assert!(bad("id", json!("Heild")).contains("id"));
         assert!(bad("sources", json!({ "a": { "b": 1 } })).contains("flat"));
         assert!(bad("map", json!({ "key": KEY, "w": 1, "h": 1 })).contains("caption"));
+        assert!(bad("line", json!("a\nb")).contains("line is one line"));
+        assert!(bad("line", json!("x".repeat(301))).contains("too long"));
+        assert!(bad("status", json!("x".repeat(41))).contains("too long"));
+        assert!(bad("status", json!("in\nprogress")).contains("one line"));
+        let mut edge = work();
+        edge["line"] = json!("x".repeat(300));
+        edge["status"] = json!("x".repeat(40));
+        assert!(work_in(&edge).is_ok());
+    }
+
+    #[test]
+    fn awards_are_checked() {
+        let a = json!({ "id": "startup-one", "title": "winner, FIAP Startup One 2026", "note": "with XP", "line": "first among 550+.", "position": 1 });
+        let ok = award_in(&a).unwrap();
+        assert_eq!((ok.id.as_str(), ok.position), ("startup-one", 1));
+        let bad = |k: &str, v: Value| {
+            let mut x = a.clone();
+            x[k] = v;
+            award_in(&x).unwrap_err()
+        };
+        assert!(bad("id", json!("Startup One")).contains("id"));
+        assert!(bad("id", json!("x".repeat(61))).contains("too long"));
+        assert!(bad("title", json!("")).contains("title is needed"));
+        assert!(bad("title", json!("x".repeat(161))).contains("too long"));
+        assert!(bad("note", json!("x".repeat(121))).contains("too long"));
+        assert!(bad("line", json!("x".repeat(401))).contains("too long"));
+        assert!(bad("line", json!("a\nb")).contains("one line"));
+        assert!(bad("position", json!("1")).contains("position"));
+        // note, line and position are optional
+        let min = award_in(&json!({ "id": "a", "title": "t" })).unwrap();
+        assert_eq!(
+            (min.note.as_str(), min.line.as_str(), min.position),
+            ("", "", 0)
+        );
+        let row = json!({ "id": "a", "title": "t", "note": "", "line": "", "position": 2, "published": 1, "updated": 9 });
+        assert!(award_out(&row, false).get("published").is_none());
+        assert_eq!(award_out(&row, true)["published"], true);
+        assert_eq!(award_out(&row, false)["position"], 2);
     }
 
     #[test]
@@ -598,8 +690,10 @@ mod tests {
         let b = book_out(&brow, "https://h", false);
         assert_eq!(b["note"], json!(["one", "two"]));
         assert_eq!(b["picture"]["url"], format!("https://h/media/{KEY}"));
-        let wrow = json!({ "id": "w", "links": "[]", "map": format!("{{\"key\":\"{KEY}\",\"w\":1,\"h\":1,\"caption\":\"c\"}}"), "sources": "{\"a\":\"b\"}", "flags": "{}" });
+        let wrow = json!({ "id": "w", "line": "l", "status": "s", "links": "[]", "map": format!("{{\"key\":\"{KEY}\",\"w\":1,\"h\":1,\"caption\":\"c\"}}"), "sources": "{\"a\":\"b\"}", "flags": "{}" });
         assert!(work_out(&wrow, "h", false).get("sources").is_none());
+        assert_eq!(work_out(&wrow, "h", false)["line"], "l");
+        assert_eq!(work_out(&wrow, "h", false)["status"], "s");
         assert_eq!(work_out(&wrow, "h", true)["sources"]["a"], "b");
     }
 }

@@ -34,8 +34,17 @@ const fn t(
 }
 
 /// the screens, in the order the dashboard shows them; `meta` is no screen of its own but the whole page as a link
-/// preview shows it (the site's Pages middleware writes these into the served page's meta tags)
-pub const SCREENS: [&str; 6] = ["meta", "archive", "laboratory", "wall", "forum", "music"];
+/// preview shows it (the site's Pages middleware writes these into the served page's meta tags); `me` is the plain
+/// page at me.aphes.ist, whose proper nouns keep their capitals
+pub const SCREENS: [&str; 7] = [
+    "meta",
+    "archive",
+    "laboratory",
+    "wall",
+    "forum",
+    "music",
+    "me",
+];
 
 /// at most this many characters in a text
 pub const MAX_CHARS: usize = 400;
@@ -63,6 +72,23 @@ pub const TEXTS: &[Text] = &[
     t("music.lede", "music", "lede", "my music folder. mostly lossless."),
     t("music.idle", "music", "the player, with nothing playing", "choose a track, or play a folder"),
     t("music.empty", "music", "a search with no results", "nothing matches"),
+    t("me.name", "me", "the name, at the top of the page", "enzo vasconcelos"),
+    t("me.meta", "me", "the role line under the name", "software engineer · applied ai, agents and automation"),
+    t("me.lede", "me", "the opening paragraph", "i'm a software engineer in São Paulo, moving to Florianópolis in January 2027. i turn real operational pain into agents, automations and RAG systems, and i measure them by their results."),
+    t("me.bio", "me", "how i work", "i work end to end: discovery with the people who know the domain, the architecture, orchestrating teams of agents, evaluating them on benchmarks, and improving them with a human approving each step. i keep the cost under control, and i stay critical about where ai shouldn't decide alone."),
+    t("me.looking", "me", "what i'm looking for", "a role as a software engineer in applied ai: agents, automation and retrieval. from January 2027 i'll be in Florianópolis."),
+    t("me.page", "me", "this page", "this is the plain version. [aphes.ist](https://aphes.ist/) is the other one: an experimental site made of fog, a hand-drawn φ and typewriter text, where nothing is explained. i design and build both, and the design system they share. if you want the short, readable summary, you're in the right place."),
+    t("me.contact", "me", "the line above the contact details", "email is the best way to reach me."),
+    t("me.education.1", "me", "education, first line: title · note", "bsc in software engineering · FIAP · 2023–2026"),
+    t("me.education.2", "me", "education, second line: title · note", "technical diploma in systems development · ETEC · 2020–2022"),
+    t("me.tools.code", "me", "tools: code", "TypeScript, Python, Go, Rust, Java"),
+    t("me.tools.ai", "me", "tools: ai", "agent orchestration, RAG (BM25, ColBERT, HippoRAG 2, rerankers), LLM evaluation, MCP, Claude Code"),
+    t("me.tools.web", "me", "tools: web", "React, Next.js, Node, Postgres and pgvector"),
+    t("me.tools.infra", "me", "tools: infra", "Cloudflare, AWS, Docker"),
+    t("me.tools.design", "me", "tools: design", "ui and ux, Figma, design systems"),
+    t("me.languages", "me", "the languages i speak", "Portuguese (native), English (fluent), Spanish (intermediate); learning Japanese and German"),
+    t("me.email", "me", "the contact email address", "enzo@aphes.ist"),
+    t("me.github", "me", "the github profile, a full https address", "https://github.com/aphesist"),
 ];
 
 pub fn find(key: &str) -> Option<&'static Text> {
@@ -85,6 +111,35 @@ pub fn value_in(body: &Value) -> Result<String, String> {
         return Err("one line, no control characters".into());
     }
     Ok(v.to_string())
+}
+
+/// The rules a few keys add to a value: the contact email is an address, the github profile an https address.
+pub fn key_in(key: &str, value: &str) -> Result<(), String> {
+    match key {
+        "me.email" if !email_ok(value) => Err("an email address, like name@example.com".into()),
+        "me.github" if !https_ok(value) => {
+            Err("a full https address, like https://github.com/name".into())
+        }
+        _ => Ok(()),
+    }
+}
+
+/// something@something.something: one `@`, a dot inside the domain, no spaces
+fn email_ok(v: &str) -> bool {
+    let Some((local, domain)) = v.split_once('@') else {
+        return false;
+    };
+    !local.is_empty()
+        && !v.contains(char::is_whitespace)
+        && !domain.contains('@')
+        && domain.contains('.')
+        && domain.split('.').all(|p| !p.is_empty())
+}
+
+fn https_ok(v: &str) -> bool {
+    v.strip_prefix("https://")
+        .is_some_and(|rest| !rest.is_empty() && !rest.starts_with('/'))
+        && !v.contains(char::is_whitespace)
 }
 
 /// The version the save expects (`version` in the body), if it names one.
@@ -158,7 +213,9 @@ mod tests {
                 t.key
             );
             assert!(
-                t.key.bytes().all(|b| b.is_ascii_lowercase() || b == b'.'),
+                t.key
+                    .bytes()
+                    .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'.'),
                 "{}",
                 t.key
             );
@@ -174,12 +231,15 @@ mod tests {
                 "{}",
                 t.key
             );
-            assert_eq!(
-                t.default,
-                t.default.to_lowercase(),
-                "{} is lowercase",
-                t.key
-            );
+            // the me page keeps the capitals of names and tools (São Paulo, FIAP, TypeScript)
+            if t.screen != "me" {
+                assert_eq!(
+                    t.default,
+                    t.default.to_lowercase(),
+                    "{} is lowercase",
+                    t.key
+                );
+            }
         }
     }
 
@@ -207,6 +267,62 @@ mod tests {
         assert!(value_in(&json!({ "value": "a\u{7}bell" })).is_err());
         assert!(value_in(&json!({ "value": "φ".repeat(MAX_CHARS) })).is_ok());
         assert!(value_in(&json!({ "value": "φ".repeat(MAX_CHARS + 1) })).is_err());
+    }
+
+    #[test]
+    fn the_me_page_keeps_its_defaults() {
+        // the same strings as section me's content/me.json
+        assert_eq!(SCREENS[6], "me");
+        assert_eq!(find("me.name").unwrap().default, "enzo vasconcelos");
+        for k in ["me.education.1", "me.education.2"] {
+            assert!(
+                find(k).unwrap().default.contains(" · "),
+                "{k} is title · note"
+            );
+        }
+        assert_eq!(
+            find("me.education.1").unwrap().default,
+            "bsc in software engineering · FIAP · 2023–2026"
+        );
+        for k in ["code", "ai", "web", "infra", "design"] {
+            assert!(find(&format!("me.tools.{k}")).is_some(), "me.tools.{k}");
+        }
+        // the contact defaults pass their own rules
+        for k in ["me.email", "me.github"] {
+            assert_eq!(key_in(k, find(k).unwrap().default), Ok(()), "{k}");
+        }
+    }
+
+    #[test]
+    fn the_contact_keys_have_rules() {
+        assert_eq!(key_in("me.email", "a@b.co"), Ok(()));
+        assert_eq!(key_in("me.email", "first.last@mail.example.com"), Ok(()));
+        for bad in [
+            "enzo",
+            "enzo@aphes",
+            "@aphes.ist",
+            "enzo@.ist",
+            "enzo@aphes.",
+            "a b@c.d",
+            "a@@b.c",
+            "a@b c.d",
+        ] {
+            assert!(key_in("me.email", bad).is_err(), "{bad}");
+        }
+        assert_eq!(key_in("me.github", "https://github.com/aphesist"), Ok(()));
+        for bad in [
+            "github.com/aphesist",
+            "http://github.com/x",
+            "https://",
+            "https:///x",
+            "https://a b.c",
+            "javascript:alert(1)",
+        ] {
+            assert!(key_in("me.github", bad).is_err(), "{bad}");
+        }
+        // every other key takes any line
+        assert_eq!(key_in("me.name", "x"), Ok(()));
+        assert_eq!(key_in("music.lede", "not an address"), Ok(()));
     }
 
     #[test]

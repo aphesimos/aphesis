@@ -111,7 +111,10 @@ Turnstile. SHA-256 is plain Rust (`sha2`), so hashing is synchronous and testabl
 
 Errors are always JSON `{"error": "..."}` (the forum's also carry a `code`, below). CORS answers only `ALLOWED_ORIGINS`
 (`https://aphes.ist,https://www.aphes.ist,https://aphesist.pages.dev`), always with `Vary: Origin`; preflights
-(`OPTIONS`, any path) get `204`.
+(`OPTIONS`, any path) get `204`. The content service has a second list, `READ_ORIGINS` (`https://me.aphes.ist,https://aphesist-me.pages.dev`,
+the me page): those origins get CORS headers (`GET, HEAD, OPTIONS`, no credentials) on the public reads only, `GET`/`HEAD`
+and the preflight of a `GET` under `/v1/texts`, `/v1/works`, `/v1/awards` and the like, never on `/v1/auth/*` or `/v1/admin/*`,
+and they are not `ALLOWED_ORIGINS`: the gate and every write still refuse them as they refuse any foreign origin.
 
 ### wall
 
@@ -221,7 +224,8 @@ live at once: the sections read the public API when it answers and keep their bu
 - **D1** (`aphesis-content`, `content/migrations/`): `posts` (slug, title, summary, stage, date, markdown body, notes,
   figures, example, published), `books` (slug, title, author, year, note, quote with its language and English, caption,
   picture, map adjustments, position, example, published), `works` (the fields of section/works `content/works.json`,
-  position, published), `texts` (the site's texts the owner changed: key, value, version), and the gate's
+  position, published, and `line` and `status` for the me page), `awards` (id, title, note, line, position,
+  published; no pictures), `texts` (the site's texts the owner changed: key, value, version), and the gate's
   `challenges`, `sessions` and `throttle`. Only hashes are kept there: of the
   pending token, the code, the session and the visitor's address.
 - **R2** (`aphesis-content`): density maps under `m/<sha-256 of the bytes, 24 hex>.<png|jpg>` (a key never changes
@@ -232,7 +236,18 @@ live at once: the sections read the public API when it answers and keep their bu
 
 Public, read-only, published entries only, CORS for `ALLOWED_ORIGINS`, `cache-control: public, max-age=30`:
 `GET /v1/posts`, `/v1/posts/:slug`, `/v1/books`, `/v1/books/:slug`, `/v1/works` (with the section's name and gloss),
-`/v1/works/:id`, `GET /media/:key`. Pictures come back as absolute URLs.
+`/v1/works/:id`, `GET /media/:key`. Pictures come back as absolute URLs. CORS also for `READ_ORIGINS` (see above).
+
+**Works carry a short line and a status** for the me page: `line` (0 to 300 characters, one line: what the work is, in a
+sentence) and `status` (0 to 40, one line: `in progress`, `not launched yet`; empty for a finished one). Both are optional on
+a save, empty by default, and come back on every work, public and admin: `{id, name, ..., line, status, position, updated}`.
+
+**Awards** (`GET /v1/awards`, the me page): `{"awards": [{id, title, note, line, position, updated}, ...]}`, published
+ones only, by `position` then `id`, with `cache-control: public, max-age=30` and an `ETag` (a hash of the answer;
+`If-None-Match` gets `304`). A save takes `id` (the address: lowercase letters, digits and hyphens, at most 60), `title`
+(1 to 160 characters), `note` (0 to 120: who it was with), `line` (0 to 400: what it was for) and `position` (a whole
+number), each one line. Awards are drafts until published, like any entry, and have no pictures. The nightly export
+writes them to `me/content/awards.json`, and each work's `line` and `status` into `works/content/works.json`.
 
 **The site's texts** (`content/src/texts.rs`): the short lines the owner can change without a rebuild: the ledes, the helper lines, the empty states. Every key is listed once in `TEXTS`, with its
 screen and its default, which is the same string the page carries; the page keeps its own copy and shows it whenever
@@ -242,7 +257,12 @@ keys the owner set, `{texts: {"music.lede": "..."}, version}`, with `cache-contr
 with each save and each reset, so it never comes back to an earlier value. The keys: `meta.title`, `meta.description` (the link preview: the site's Pages middleware writes them into the
 served page's `og:` and `twitter:` tags, so a shared link shows them; see the `site` branch), `archive.lede`, `archive.empty`, `archive.stage.<stage>`,
 `laboratory.lede`, `laboratory.live`, `wall.placeholder`, `wall.helper`, `wall.sent`, `wall.empty`, `forum.lede`, `forum.empty`,
-`forum.placeholder.thread`, `forum.placeholder.reply`, `forum.pictures`, `music.lede`, `music.idle`, `music.empty`.
+`forum.placeholder.thread`, `forum.placeholder.reply`, `forum.pictures`, `music.lede`, `music.idle`, `music.empty`, and the me page's (screen `me`, at me.aphes.ist, whose defaults keep the capitals of names and tools):
+`me.name`, `me.meta` (the role line under the name), `me.lede`, `me.bio`, `me.looking`, `me.page`, `me.contact` (the line
+above the contact details), `me.education.1` and `me.education.2` (each `title · note`: the page splits at the first
+` · `), `me.tools.code`, `me.tools.ai`, `me.tools.web`, `me.tools.infra`, `me.tools.design`, `me.languages`, `me.email`
+and `me.github`. Two keys have a rule on top of the general ones, checked on save (`400` and a plain message otherwise):
+`me.email` is an address (`something@something.something`, no spaces) and `me.github` a full `https://` address.
 A new key is one line in `TEXTS` and the same default in the page.
 
 The gate, as in the backlog (`docs/backlog.md` on `main`):
@@ -286,11 +306,11 @@ CORS preflight, which only the site's origins pass):
 
 | method | path | what |
 | --- | --- | --- |
-| GET | `/v1/admin/{posts,books,works}` | every entry, drafts too, with `published` |
-| GET | `/v1/admin/{posts,books,works}/:id` | one entry as the public API will answer it: the preview of a draft |
-| PUT | `/v1/admin/{posts,books,works}/:id` | create (`201`) or update (`200`); another id in the body renames (`409` if taken) |
-| DELETE | `/v1/admin/{posts,books,works}/:id` | remove |
-| POST | `/v1/admin/{posts,books,works}/:id/publish`, `/unpublish` | show it on the site, or take it back to a draft |
+| GET | `/v1/admin/{posts,books,works,awards}` | every entry, drafts too, with `published` |
+| GET | `/v1/admin/{posts,books,works,awards}/:id` | one entry as the public API will answer it: the preview of a draft |
+| PUT | `/v1/admin/{posts,books,works,awards}/:id` | create (`201`) or update (`200`); another id in the body renames (`409` if taken) |
+| DELETE | `/v1/admin/{posts,books,works,awards}/:id` | remove |
+| POST | `/v1/admin/{posts,books,works,awards}/:id/publish`, `/unpublish` | show it on the site, or take it back to a draft |
 | GET | `/v1/admin/texts` | every text the site reads, with `screen`, `label`, `default`, `value`, `overridden`, `version`, and the screens in order |
 | GET, PUT | `/v1/admin/texts/:key` | one text; PUT `{value, version?}` sets it (one line, 1 to 400 characters); with `version`, `409` and the current text when it changed meanwhile |
 | POST | `/v1/admin/texts/:key/reset` | back to the page's own string |
@@ -309,7 +329,7 @@ branches read (`archive/content/<slug>.md`, `book/content/<NN>-<slug>.md`, `work
 this repository's `content` branch as the owner (`aphesist`, the noreply address) through GitHub's git data API, only
 when something changed. It needs `EXPORT_GITHUB_TOKEN`; without it the cron does nothing.
 
-Vars: `ALLOWED_ORIGINS`, `EMAIL_FROM` (`clavis@aphes.ist`), `MAIL_API` (`https://api.resend.com`),
+Vars: `ALLOWED_ORIGINS`, `READ_ORIGINS`, `EMAIL_FROM` (`clavis@aphes.ist`), `MAIL_API` (`https://api.resend.com`),
 `SESSION_SECONDS` (7200), `WALL_API`, `FORUM_API`, `EXPORT_REPO`, `EXPORT_BRANCH`, `PUBLIC_URL`. Secrets:
 `OWNER_PASSWORD_HASH`, `OWNER_EMAIL`, `AUTH_SALT`, `RESEND_API_KEY`, `WALL_ADMIN_TOKEN`, `FORUM_ADMIN_SECRET`,
 `EXPORT_GITHUB_TOKEN`. Without `OWNER_PASSWORD_HASH`, `OWNER_EMAIL`, `AUTH_SALT` or `RESEND_API_KEY` the gate
@@ -332,7 +352,9 @@ The seed reads `section/archive` (`archive/content/*.md`), `section/book` (`book
 φ in the bucket. An entry marked `example: true` is never imported (the seed names each one it skips), and a branch
 with no content imports nothing. Running it again adds nothing twice: an entry already in D1 (same slug or id) is
 left as it is, so the owner's edits stay, and each picture lands on its own key again; `--replace` overwrites the
-imported entries.
+imported entries. When `me/content/me.json` is on the `me` branch (`ME_REF` overrides it; the one ref that may be missing),
+the seed also adds its two awards (published, positions 1 and 2, ids made from their titles) and fills each matching
+work's `line` and `status` (its `tag`), only where they are empty, so what the owner wrote is never overwritten.
 
 **The seeded examples.** The first seed imported the archive's four example posts and the book's six example
 entries, which are gone from the branches now that the site is live. `prune-examples.mjs` removes them from D1 and
@@ -344,8 +366,8 @@ remove. From GitHub Actions: Actions → backend → Run workflow → branch `ba
 the repository's Cloudflare secrets, and its log (the step *Remove the seeded examples*) lists what went.
 
 **From GitHub Actions**, with no clone: Actions → backend → Run workflow → branch `backend`, tick **seed**. The
-workflow tests, builds and deploys as usual, then fetches `section/archive`, `section/book`, `section/works` and
-`design-system` and runs the seed against the deployed D1 and R2 with the repository's Cloudflare secrets. Or:
+workflow tests, builds and deploys as usual, then fetches `section/archive`, `section/book`, `section/works`,
+`design-system` and, if it is there, `me`, and runs the seed against the deployed D1 and R2 with the repository's Cloudflare secrets. Or:
 `gh workflow run backend.yml --repo aphesist/aphesis --ref backend -f seed=true`.
 
 ## Local development
@@ -426,7 +448,8 @@ node --test e2e/*.test.mjs             # the Workers under wrangler dev, over HT
   without the session, the token or the origin), and the nightly export against a stand-in for GitHub's API;
   `e2e/prune.test.mjs`: the removal of the seeded examples from a database as the first seed left it, with the
   owner's entries beside them (a dry run, the run, a second run, then the Worker's answers and pictures); and
-  `e2e/texts.test.mjs`: the public texts (CORS, cache, `304`), and the dashboard's list, edit, conflict and reset, and the link preview's keys.
+  `e2e/texts.test.mjs`: the public texts (CORS, cache, `304`), and the dashboard's list, edit, conflict and reset, the link preview's keys, and the me page's keys (defaults, save and reset, the email and github rules).
+  `e2e/content.test.mjs` also covers works' `line` and `status`, the awards, and the read-only origin.
 
 ## One-time setup
 

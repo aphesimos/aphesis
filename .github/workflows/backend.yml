@@ -25,7 +25,7 @@ on:
   workflow_dispatch:
     inputs:
       seed:
-        description: "Import the content of section/archive, section/book and section/works into the content service (the one-time seed; safe to repeat)"
+        description: "Import the content of section/archive, section/book, section/works and the me page's awards and work lines into the content service (the one-time seed; safe to repeat)"
         type: boolean
         default: false
       prune:
@@ -194,4 +194,6 @@ jobs:
           for b in section/archive section/book section/works design-system; do
             git fetch --depth=1 origin "$b:refs/remotes/origin/$b"
           done
+          # the me page's content (awards, each work's line and status) is optional: a seed without it still runs
+          git fetch --depth=1 origin "me:refs/remotes/origin/me" || true
           node content/tools/seed.mjs --remote -c wrangler.deploy.toml

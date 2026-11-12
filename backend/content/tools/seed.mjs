@@ -12,8 +12,13 @@
 //   section/book     book/content/*.md: one entry each, in file-name order
 //   section/works    works/content/works.json and works/maps/*
 //   design-system    system/assets/Simulacra/* (the maps the archive and the book name)
+//   me (optional)    me/content/me.json: the two awards, and each work's `line` and `status` (its `tag`)
 // and this branch's content/assets/mail-phi.png (the email's φ, at mail/phi.png).
-// Each ref falls back to origin/<ref>; ARCHIVE_REF, BOOK_REF, WORKS_REF and DS_REF override them.
+// Each ref falls back to origin/<ref>; ARCHIVE_REF, BOOK_REF, WORKS_REF, DS_REF and ME_REF override them. The `me`
+// ref is the only one that may be missing: without it (or without a me/content/me.json on it) nothing of the me page
+// is seeded. Its awards are published, in the order written (positions 1 and 2), and added like any entry, so an
+// award already in D1 stays as the owner left it; a work's line and status are filled in only where they are empty,
+// for the works whose id matches, so what the owner wrote there is never overwritten.
 // Pictures go to R2 under a key made from their bytes (m/<sha-256, 24 hex>.<ext>), exactly as the Worker names
 // uploads. An entry marked `example: true` (a post or a book entry written to show a section, or a work, should one
 // ever be) is never imported: it is skipped and named. A section with no content imports nothing. Every imported
@@ -42,6 +47,14 @@ function ref(name, env) {
     if (spawnSync('git', ['-C', content, 'rev-parse', '--verify', '-q', r]).status === 0) return r;
   }
   console.error(`no ref ${want} (fetch it: git fetch origin ${want}:${want})`); process.exit(1);
+}
+/* like ref, but null when there is none: the me page's content is optional */
+function optionalRef(name, env) {
+  const want = process.env[env] || name;
+  for (const r of [want, `origin/${want}`]) {
+    if (spawnSync('git', ['-C', content, 'rev-parse', '--verify', '-q', r]).status === 0) return r;
+  }
+  return null;
 }
 const git = (r, p, binary) => execFileSync('git', ['-C', content, 'show', `${r}:${p}`], binary ? {} : { encoding: 'utf8' });
 /* the file names in a folder of a ref; none when the ref has no such folder (a section with no content) */
@@ -131,6 +144,14 @@ const works = data.works.filter(real('works')).map((w, i) => ({
   map: { ...picture(git(WR, `works/maps/${w.map.file}`, true)), caption: w.map.caption, settings: w.map.settings || {} },
 }));
 
+// ---------- me: awards, and each work's line and status ----------
+const ME = optionalRef('me', 'ME_REF');
+const meFile = ME && spawnSync('git', ['-C', content, 'show', `${ME}:me/content/me.json`], { encoding: 'utf8' });
+const me = meFile && meFile.status === 0 ? JSON.parse(meFile.stdout) : null;
+const slugOf = (t) => t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).replace(/-+$/, '');
+const awards = me ? (me.awards?.items || []).map((a, i) => ({ id: a.id || slugOf(a.title), title: a.title, note: a.note || '', line: a.line || '', position: i + 1 })) : [];
+const lines = me ? (me.works?.items || []).filter((w) => w.line || w.tag).map((w) => ({ id: w.id, line: w.line || '', status: w.tag || '' })) : [];
+
 // ---------- SQL ----------
 const q = (v) => (v === null || v === undefined ? "''" : typeof v === 'number' ? String(v) : typeof v === 'boolean' ? (v ? '1' : '0')
   : "'" + (typeof v === 'string' ? v : JSON.stringify(v)).replace(/'/g, "''") + "'");
@@ -142,6 +163,9 @@ const sql = ['SELECT 1;',
   ...books.map(({ picture: pic, ...b }) => row('books', { ...b, picture: pic.key, picture_w: pic.w, picture_h: pic.h })),
   ...works.map((w) => row('works', { id: w.id, name: w.name, gloss: w.gloss, gloss_tip: w.gloss_tip, year: w.year, role: w.role,
     description: w.description, links: w.links || [], map: w.map, sources: w.sources || {}, flags: w.flags || {}, position: w.position })),
+  ...awards.map((a) => row('awards', a)),
+  /* only where the work has none yet: what the owner wrote stays */
+  ...lines.map((w) => `UPDATE works SET line = CASE WHEN line = '' THEN ${q(w.line)} ELSE line END, status = CASE WHEN status = '' THEN ${q(w.status)} ELSE status END WHERE id = ${q(w.id)};`),
 ].join('\n') + '\n';
 media.set('mail/phi.png', { bytes: readFileSync(path.join(content, 'assets', 'mail-phi.png')), type: 'image/png' });
 
@@ -151,7 +175,8 @@ writeFileSync(path.join(dir, 'seed.sql'), sql);
 const files = [];
 for (const [key, m] of media) { const f = path.join(dir, key.replace('/', '_')); writeFileSync(f, m.bytes); files.push([key, f, m.type]); }
 for (const s of skipped) console.log(`skipped ${s}: marked example`);
-console.log(`${posts.length} posts, ${books.length} book entries, ${works.length} works, ${media.size} pictures`);
+console.log(`${posts.length} posts, ${books.length} book entries, ${works.length} works, ${media.size} pictures` +
+  (me ? `, ${awards.length} awards, ${lines.length} work lines` : ''));
 if (mode === 'out') { console.log(dir); process.exit(0); }
 
 const where = mode === 'remote' ? ['--remote'] : ['--local', ...(opt('--persist-to') ? ['--persist-to', opt('--persist-to')] : [])];

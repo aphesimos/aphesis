@@ -15,7 +15,7 @@ const SITE = 'http://localhost:8000';
 const PASSWORD = 'salt sulphur mercury and a long walk';
 const salt = Buffer.from('00112233445566778899aabbccddeeff', 'hex');
 const HASH = `pbkdf2-sha256$25000$${salt.toString('base64')}$${pbkdf2Sync(PASSWORD, salt, 25000, 32, 'sha256').toString('base64')}`;
-const vars = { ALLOWED_ORIGINS: SITE, OWNER_PASSWORD_HASH: HASH, OWNER_EMAIL: 'owner@example.com', EMAIL_FROM: 'clavis@aphes.ist', AUTH_SALT: 'test-salt' };
+const vars = { ALLOWED_ORIGINS: SITE, OWNER_PASSWORD_HASH: HASH, OWNER_EMAIL: 'owner@example.com', EMAIL_FROM: 'clavis@aphes.ist', AUTH_SALT: 'test-salt', READ_ORIGINS: 'https://me.aphes.ist' };
 
 /* the content the seed imports: the tests bring their own (the section branches may carry none, or change), with one
    entry of each kind marked example, which the seed must skip: posts, book entries, works, and the Simulacra they name */
@@ -35,6 +35,14 @@ const BOOK = fixtureCommit({
 
 const WORKS = worksFixture();
 const DS = simulacraFixture();
+/* the me page's content: two awards, and a line and a tag for one work and a line for another; a third work the seed
+   does not know is named too, which must change nothing */
+const ME = fixtureCommit({
+  'me/content/me.json': JSON.stringify({
+    works: { items: [{ id: 'heild', line: 'a company\'s tools in one place.', tag: 'not launched yet' }, { id: 'aphesis', line: 'my experimental site.' }, { id: 'unknown', line: 'nobody has it', tag: 'x' }] },
+    awards: { items: [{ title: 'winner, FIAP Startup One 2026', line: 'first among 550+ startups.' }, { title: 'finalist, FIAP NEXT 2025', note: 'with XP Investimentos', line: 'a financial education solution.' }] },
+  }, null, 2) + '\n',
+});
 
 let c, wall, forum, gh, resend, seeded = '';
 /* a stand-in for Resend's `POST /emails`: keeps every request, answers as `mode` says (ok, fail, hang) */
@@ -84,7 +92,7 @@ function fakeGitHub() {
 function migrateAndSeed(state) {
   wrangler('content', ['d1', 'migrations', 'apply', 'aphesis-content', '--local', '--persist-to', state]);
   const r = spawnSync(process.execPath, [path.join(root, 'content', 'tools', 'seed.mjs'), '--local', '--persist-to', state, '-c', 'wrangler.e2e.toml'],
-    { encoding: 'utf8', env: { ...process.env, ARCHIVE_REF: ARCHIVE, BOOK_REF: BOOK, WORKS_REF: WORKS, DS_REF: DS } });
+    { encoding: 'utf8', env: { ...process.env, ARCHIVE_REF: ARCHIVE, BOOK_REF: BOOK, WORKS_REF: WORKS, DS_REF: DS, ME_REF: ME } });
   if (r.status !== 0) throw new Error(r.stdout + r.stderr);
   seeded = r.stdout;
 }
@@ -157,12 +165,16 @@ test('the seed: everything on the section branches but examples, published, with
   assert.match(seeded, /skipped posts\/a-shown-post: marked example/);
   assert.match(seeded, /skipped books\/a-shown-entry: marked example/);
   assert.match(seeded, /skipped works\/a-shown-work: marked example/);
-  assert.match(seeded, /^2 posts, 2 book entries, 2 works, 6 pictures$/m, 'three Simulacra, two maps and the mail\'s φ');
+  assert.match(seeded, /^2 posts, 2 book entries, 2 works, 6 pictures, 2 awards, 3 work lines$/m, 'three Simulacra, two maps and the mail\'s φ');
   assert.equal((await send('/v1/posts/a-shown-post')).status, 404);
   const w = await (await send('/v1/works')).json();
   assert.deepEqual(w.works.map((x) => x.id), ['heild', 'aphesis']);
   assert.equal(w.section.gloss, 'opera');
   assert.equal(w.works[0].sources, undefined, 'sources stay out of the public answer');
+  assert.deepEqual([w.works[0].line, w.works[0].status], ['a company\'s tools in one place.', 'not launched yet'], 'the me page\'s line and tag');
+  assert.deepEqual([w.works[1].line, w.works[1].status], ['my experimental site.', '']);
+  const { awards } = await (await send('/v1/awards')).json();
+  assert.deepEqual(awards.map((a) => [a.id, a.position, a.note]), [['winner-fiap-startup-one-2026', 1, ''], ['finalist-fiap-next-2025', 2, 'with XP Investimentos']]);
   r = await fetch(w.works[0].map.url);
   assert.equal(r.status, 200);
   assert.equal(r.headers.get('content-type'), 'image/png');
@@ -398,6 +410,162 @@ test('posts, book entries and works: create, edit, preview, publish, rename, del
   assert.equal((await W('/v1/admin/works/salt', 'DELETE')).status, 404);
 });
 
+test('works carry a short line and a status: saved, returned public and admin, bounded to one line', async () => {
+  const { j, csrf } = await login();
+  const W = (p, method, body) => send(p, { method, body, j, headers: { 'X-CSRF-Token': csrf } });
+  const { works } = await (await send('/v1/admin/works', { j })).json();
+  const heild = works.find((x) => x.id === 'heild');
+  /* the same entry, as the admin API answered it, saved again with a new line and status */
+  const body = { ...heild, map: { ...heild.map }, line: 'a company\'s tools, one place.', status: 'in progress' };
+  let r = await W('/v1/admin/works/heild', 'PUT', body);
+  assert.equal(r.status, 200, await r.clone().text());
+  let { work } = await r.json();
+  assert.deepEqual([work.line, work.status], ['a company\'s tools, one place.', 'in progress']);
+  assert.equal(work.published, true, 'an edit leaves it published');
+  r = await send('/v1/works/heild');
+  ({ work } = await r.json());
+  assert.deepEqual([work.line, work.status], ['a company\'s tools, one place.', 'in progress'], 'public too');
+  assert.equal(work.sources, undefined);
+  assert.deepEqual((await (await send('/v1/works')).json()).works.map((x) => x.status), ['in progress', '']);
+  /* both are optional: left out, they are empty */
+  r = await W('/v1/admin/works/heild', 'PUT', { ...body, line: undefined, status: undefined });
+  assert.equal(r.status, 200);
+  ({ work } = await r.json());
+  assert.deepEqual([work.line, work.status], ['', '']);
+  /* limits: 300 characters for the line, 40 for the status, one line each */
+  assert.equal((await W('/v1/admin/works/heild', 'PUT', { ...body, line: 'x'.repeat(300), status: 'y'.repeat(40) })).status, 200);
+  for (const bad of [{ line: 'x'.repeat(301) }, { status: 'y'.repeat(41) }, { line: 'two\nlines' }, { status: 'two\nlines' }, { line: 5 }]) {
+    r = await W('/v1/admin/works/heild', 'PUT', { ...body, ...bad });
+    assert.equal(r.status, 400, JSON.stringify(bad));
+    assert.ok((await r.json()).error);
+  }
+  /* put the seed's words back for the tests after this one */
+  assert.equal((await W('/v1/admin/works/heild', 'PUT', { ...body, line: 'a company\'s tools in one place.', status: 'not launched yet' })).status, 200);
+});
+
+test('awards: a small collection, drafts until published, in order of position', async () => {
+  const anon = await send('/v1/admin/awards');
+  assert.equal(anon.status, 401, 'no session, no list');
+  const { j, csrf } = await login();
+  const W = (p, method, body) => send(p, { method, body, j, headers: { 'X-CSRF-Token': csrf } });
+  const award = { id: 'best-of-show', title: 'best of show', note: 'with the jury', line: 'for the whole.', position: 0 };
+  assert.equal((await send('/v1/admin/awards/best-of-show', { method: 'PUT', body: award, j })).status, 403, 'a write needs the token');
+  assert.equal((await send('/v1/admin/awards/best-of-show', { method: 'DELETE', j })).status, 403);
+  assert.equal((await send('/v1/admin/awards/best-of-show', { method: 'PUT', body: award })).status, 401);
+
+  /* the seeded two are there, published, in the admin list too */
+  let admin = await (await send('/v1/admin/awards', { j })).json();
+  assert.deepEqual(admin.awards.map((a) => [a.id, a.published]), [['winner-fiap-startup-one-2026', true], ['finalist-fiap-next-2025', true]]);
+
+  /* a draft: in the admin list, preview by id, not in the public answer */
+  let r = await W('/v1/admin/awards/best-of-show', 'PUT', award);
+  assert.equal(r.status, 201);
+  let { award: made } = await r.json();
+  assert.deepEqual([made.id, made.title, made.note, made.line, made.position, made.published], ['best-of-show', 'best of show', 'with the jury', 'for the whole.', 0, false]);
+  admin = await (await send('/v1/admin/awards', { j })).json();
+  assert.deepEqual(admin.awards.map((a) => a.id), ['best-of-show', 'winner-fiap-startup-one-2026', 'finalist-fiap-next-2025'], 'position, then id');
+  assert.equal((await (await send('/v1/admin/awards/best-of-show', { j })).json()).award.title, 'best of show');
+  let pub = await (await send('/v1/awards')).json();
+  assert.deepEqual(pub.awards.map((a) => a.id), ['winner-fiap-startup-one-2026', 'finalist-fiap-next-2025']);
+  assert.equal((await send('/v1/awards/best-of-show')).status, 404);
+
+  /* publish: it appears, by position then id */
+  assert.equal((await W('/v1/admin/awards/best-of-show/publish', 'POST')).status, 200);
+  pub = await (await send('/v1/awards')).json();
+  assert.deepEqual(pub.awards.map((a) => a.id), ['best-of-show', 'winner-fiap-startup-one-2026', 'finalist-fiap-next-2025']);
+  assert.deepEqual(Object.keys(pub.awards[0]).sort(), ['id', 'line', 'note', 'position', 'title', 'updated'], 'no published flag in the public answer');
+  r = await W('/v1/admin/awards/best-of-show', 'PUT', { ...award, position: 3 });
+  assert.equal(r.status, 200);
+  assert.equal((await r.json()).award.published, true, 'an edit leaves it published');
+  pub = await (await send('/v1/awards')).json();
+  assert.deepEqual(pub.awards.map((a) => a.id), ['winner-fiap-startup-one-2026', 'finalist-fiap-next-2025', 'best-of-show']);
+  /* equal positions fall back to the id */
+  assert.equal((await W('/v1/admin/awards/best-of-show', 'PUT', { ...award, position: 1 })).status, 200);
+  pub = await (await send('/v1/awards')).json();
+  assert.deepEqual(pub.awards.map((a) => a.id), ['best-of-show', 'winner-fiap-startup-one-2026', 'finalist-fiap-next-2025']);
+
+  /* the same caching as the other public answers, and a tag that changes with the answer */
+  r = await send('/v1/awards');
+  assert.equal(r.headers.get('access-control-allow-origin'), SITE);
+  assert.match(r.headers.get('cache-control'), /^public, max-age=\d{1,2}$/);
+  const tag = r.headers.get('etag');
+  assert.match(tag, /^"a[0-9a-f]{16}"$/);
+  r = await send('/v1/awards', { headers: { 'If-None-Match': tag } });
+  assert.equal(r.status, 304);
+  assert.equal(r.headers.get('access-control-allow-origin'), SITE);
+  assert.equal(r.headers.get('etag'), tag);
+  assert.equal((await send('/v1/awards', { origin: 'https://evil.example' })).headers.get('access-control-allow-origin'), null);
+  assert.equal((await send('/v1/awards', { origin: null })).status, 200);
+
+  /* unpublish: gone from the public answer, kept in the admin list; the tag moved with the answer */
+  assert.equal((await W('/v1/admin/awards/best-of-show/unpublish', 'POST')).status, 200);
+  pub = await (await send('/v1/awards', { headers: { 'If-None-Match': tag } })).json();
+  assert.deepEqual(pub.awards.map((a) => a.id), ['winner-fiap-startup-one-2026', 'finalist-fiap-next-2025']);
+  assert.equal((await send('/v1/admin/awards/best-of-show', { j })).status, 200);
+
+  /* validation */
+  const bad = async (patch, why) => {
+    const x = await W('/v1/admin/awards/best-of-show', 'PUT', { ...award, ...patch });
+    assert.equal(x.status, 400, why);
+    assert.ok((await x.json()).error, why);
+  };
+  await bad({ id: 'Best Of Show' }, 'the id is a slug');
+  await bad({ id: '-best' }, 'no leading hyphen');
+  await bad({ id: 'x'.repeat(61) }, 'at most 60 in the id');
+  await bad({ title: '' }, 'a title is needed');
+  await bad({ title: 't'.repeat(161) }, 'at most 160 in the title');
+  await bad({ title: 'two\nlines' }, 'one line');
+  await bad({ note: 'n'.repeat(121) }, 'at most 120 in the note');
+  await bad({ line: 'l'.repeat(401) }, 'at most 400 in the line');
+  await bad({ line: 'two\nlines' }, 'one line');
+  await bad({ position: 'first' }, 'position is a number');
+  await bad({ position: 1.5 }, 'a whole number');
+  assert.equal((await W('/v1/admin/awards/best-of-show', 'PUT', { id: 'best-of-show', title: 'just a title' })).status, 200, 'note, line and position are optional');
+  assert.equal((await W('/v1/admin/awards/best-of-show', 'PUT', { ...award, title: 't'.repeat(160), note: 'n'.repeat(120), line: 'l'.repeat(400) })).status, 200);
+  assert.equal((await W('/v1/admin/awards/nothing', 'PUT', { ...award, id: 'something-else' })).status, 400, 'the address in the body and in the path differ');
+  assert.equal((await W('/v1/admin/awards/best-of-show', 'PUT', { ...award, id: 'finalist-fiap-next-2025' })).status, 409, 'a rename onto an id that is taken');
+  r = await W('/v1/admin/awards/best-of-show', 'PUT', { ...award, id: 'grand-prize' });
+  assert.equal(r.status, 200, 'a rename');
+  assert.equal((await send('/v1/admin/awards/best-of-show', { j })).status, 404);
+
+  /* delete */
+  assert.equal((await W('/v1/admin/awards/grand-prize', 'DELETE')).status, 200);
+  assert.equal((await W('/v1/admin/awards/grand-prize', 'DELETE')).status, 404);
+  assert.equal((await W('/v1/admin/awards/grand-prize/publish', 'POST')).status, 404);
+  assert.deepEqual((await (await send('/v1/admin/awards', { j })).json()).awards.map((a) => a.id), ['winner-fiap-startup-one-2026', 'finalist-fiap-next-2025']);
+});
+
+test('a read-only origin (the me page) reads the public GETs, and nothing of the gate or the dashboard', async () => {
+  const ME_SITE = 'https://me.aphes.ist';
+  for (const p of ['/v1/awards', '/v1/works', '/v1/texts', '/v1/posts']) {
+    const r = await send(p, { origin: ME_SITE });
+    assert.equal(r.status, 200, p);
+    assert.equal(r.headers.get('access-control-allow-origin'), ME_SITE, p);
+    assert.equal(r.headers.get('access-control-allow-credentials'), null, 'no credentials for a reader');
+  }
+  /* the preflight of a GET is answered, the preflight of a write is not */
+  let r = await send('/v1/awards', { method: 'OPTIONS', origin: ME_SITE, headers: { 'Access-Control-Request-Method': 'GET' } });
+  assert.equal(r.status, 204);
+  assert.equal(r.headers.get('access-control-allow-origin'), ME_SITE);
+  assert.equal(r.headers.get('access-control-allow-methods'), 'GET, HEAD, OPTIONS');
+  r = await send('/v1/awards', { method: 'OPTIONS', origin: ME_SITE, headers: { 'Access-Control-Request-Method': 'PUT' } });
+  assert.equal(r.headers.get('access-control-allow-origin'), null);
+  /* never the gate or the dashboard: no CORS headers, and the writes are refused as for any foreign origin */
+  r = await send('/v1/auth/password', { method: 'POST', body: { password: PASSWORD }, origin: ME_SITE, ip: '10.7.0.1' });
+  assert.equal(r.status, 403);
+  assert.equal(r.headers.get('access-control-allow-origin'), null);
+  r = await send('/v1/auth/session', { origin: ME_SITE });
+  assert.equal(r.headers.get('access-control-allow-origin'), null);
+  r = await send('/v1/admin/awards', { origin: ME_SITE });
+  assert.equal(r.status, 401);
+  assert.equal(r.headers.get('access-control-allow-origin'), null);
+  r = await send('/v1/admin/awards/x', { method: 'OPTIONS', origin: ME_SITE, headers: { 'Access-Control-Request-Method': 'GET' } });
+  assert.equal(r.headers.get('access-control-allow-origin'), null);
+  /* the site's own origin keeps everything it had */
+  r = await send('/v1/awards');
+  assert.equal(r.headers.get('access-control-allow-credentials'), 'true');
+});
+
 test('moderation through the content service: the wall and the forum, server to server', async () => {
   const { j, csrf } = await login();
   const W = (p, method) => send(p, { method, j, headers: { 'X-CSRF-Token': csrf } });
@@ -488,6 +656,8 @@ test('the nightly export: every entry as the section files, committed as the own
   assert.match(files['archive/content/a-draft.md'], /^---\ntitle: a draft\n[\s\S]*published: false\n---\nsoon\.\[\^n\]\n\n\[\^n\]: a note\.\n$/);
   assert.ok(files['book/content/02-the-stone.md'].includes('quote_lang: de'));
   assert.equal(JSON.parse(files['works/content/works.json']).works.length, 2);
+  assert.equal(JSON.parse(files['works/content/works.json']).works[0].status, 'not launched yet');
+  assert.deepEqual(JSON.parse(files['me/content/awards.json']).awards.map((a) => a.id), ['winner-fiap-startup-one-2026', 'finalist-fiap-next-2025']);
   assert.ok(gh.calls.every((x) => x.ua === 'aphes.ist-content'));
   /* nothing changed: no new commit */
   r = await W('/v1/admin/export', 'POST');

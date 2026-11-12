@@ -4,7 +4,9 @@
 //! - `archive/content/<slug>.md`: front matter (title, date, stage, summary, example, published), the body, the notes
 //!   as `[^id]: text` lines, and the figures as `figure: <name> <url>` lines in the front matter;
 //! - `book/content/<NN>-<slug>.md`: the book's front matter, the picture by URL, the note's paragraphs;
-//! - `works/content/works.json`: the shape of section/works' file, each map's `file` its URL.
+//! - `works/content/works.json`: the shape of section/works' file, each map's `file` its URL, with each work's `line`
+//!   and `status` when it has them;
+//! - `me/content/awards.json`: the awards, in order, as `{awards: [{id, title, note, line, published?}]}`.
 //!
 //! Pictures stay in R2 under keys made from their bytes, so a URL in an exported file never changes what it shows.
 //! The formatting is pure and tested here; the commit goes through GitHub's git data API (one tree, one commit, and
@@ -115,6 +117,11 @@ pub fn works_json(works: &[Value]) -> String {
                 "map": { "file": w["map"]["url"], "caption": w["map"]["caption"], "settings": w["map"]["settings"] },
                 "sources": w["sources"], "flags": w["flags"],
             });
+            for k in ["line", "status"] {
+                if !st(w, k).is_empty() {
+                    o[k] = w[k].clone();
+                }
+            }
             if w["published"].as_bool() == Some(false) {
                 o["published"] = json!(false);
             }
@@ -128,8 +135,28 @@ pub fn works_json(works: &[Value]) -> String {
         + "\n"
 }
 
+pub fn awards_json(awards: &[Value]) -> String {
+    let list: Vec<Value> = awards
+        .iter()
+        .map(|a| {
+            let mut o =
+                json!({ "id": a["id"], "title": a["title"], "note": a["note"], "line": a["line"] });
+            if a["published"].as_bool() == Some(false) {
+                o["published"] = json!(false);
+            }
+            o
+        })
+        .collect();
+    serde_json::to_string_pretty(&json!({ "awards": list })).unwrap_or_default() + "\n"
+}
+
 /// every file of the export: (path, text)
-pub fn files(posts: &[Value], books: &[Value], works: &[Value]) -> Vec<(String, String)> {
+pub fn files(
+    posts: &[Value],
+    books: &[Value],
+    works: &[Value],
+    awards: &[Value],
+) -> Vec<(String, String)> {
     let mut out: Vec<(String, String)> = posts
         .iter()
         .map(|p| (format!("archive/content/{}.md", st(p, "slug")), post_md(p)))
@@ -141,9 +168,10 @@ pub fn files(posts: &[Value], books: &[Value], works: &[Value]) -> Vec<(String, 
             .map(|(i, b)| (book_file(i, b), book_md(b))),
     );
     out.push(("works/content/works.json".into(), works_json(works)));
+    out.push(("me/content/awards.json".into(), awards_json(awards)));
     out.push((
         "README.md".into(),
-        "# content\n\nThe nightly export of the content service: every archive post, book entry and work, drafts too, \
+        "# content\n\nThe nightly export of the content service: every archive post, book entry, work and award, drafts too, \
 in the files the section branches read. Written by the content Worker; do not edit here, edit in the dashboard.\n"
             .into(),
     ));
@@ -183,6 +211,21 @@ mod tests {
         assert_eq!(j["works"][0]["map"]["file"], "u");
         assert_eq!(j["section"]["gloss"], "opera");
         assert!(j["works"][0].get("published").is_none());
-        assert_eq!(files(&[], &[], &[]).len(), 2);
+        assert_eq!(files(&[], &[], &[], &[]).len(), 3);
+    }
+
+    #[test]
+    fn works_carry_their_line_and_awards_are_a_file() {
+        let w = json!({ "id": "x", "line": "a line.", "status": "", "map": { "url": "u" }, "published": true });
+        let j: Value = serde_json::from_str(&works_json(&[w])).unwrap();
+        assert_eq!(j["works"][0]["line"], "a line.");
+        assert!(
+            j["works"][0].get("status").is_none(),
+            "an empty status is left out"
+        );
+        let a = json!({ "id": "a", "title": "t", "note": "", "line": "l", "published": false });
+        let j: Value = serde_json::from_str(&awards_json(&[a])).unwrap();
+        assert_eq!(j["awards"][0]["title"], "t");
+        assert_eq!(j["awards"][0]["published"], false);
     }
 }

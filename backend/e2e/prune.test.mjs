@@ -33,7 +33,7 @@ before(async () => {
       /* the works, through the seed, from the tests' own works and empty archive and book branches */
       const empty = fixtureCommit({ 'README.md': 'nothing here\n' });
       const s = spawnSync(process.execPath, [path.join(root, 'content', 'tools', 'seed.mjs'), '--local', '--persist-to', state, '-c', 'wrangler.e2e.toml'],
-        { encoding: 'utf8', env: { ...process.env, ARCHIVE_REF: empty, BOOK_REF: empty, WORKS_REF: worksFixture(), DS_REF: simulacraFixture() } });
+        { encoding: 'utf8', env: { ...process.env, ARCHIVE_REF: empty, BOOK_REF: empty, WORKS_REF: worksFixture(), DS_REF: simulacraFixture(), ME_REF: empty } });
       if (s.status !== 0) throw new Error(s.stdout + s.stderr);
       runs.seed = s.stdout;
       /* the rows the first seed wrote, marked example, and what the owner added since */

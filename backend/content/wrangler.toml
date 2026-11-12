@@ -13,6 +13,8 @@ command = "worker-build --release"
 [vars]
 # the site's origins, comma-separated: CORS answers only these, and the gate takes requests only from them
 ALLOWED_ORIGINS = "https://aphes.ist,https://www.aphes.ist,https://aphesist.pages.dev"
+# origins that may only read the public GETs (texts, works, awards, pictures): CORS for them, never for the gate or the dashboard
+READ_ORIGINS = "https://me.aphes.ist,https://aphesist-me.pages.dev"
 # the gate's email comes from this address, on the domain verified in Resend (see ../README.md)
 EMAIL_FROM = "clavis@aphes.ist"
 # the mail API the gate posts to (Resend's; the end-to-end tests point it at a local stand-in)

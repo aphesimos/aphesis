@@ -5,6 +5,7 @@
 //!   GET  /v1/posts            /v1/posts/:slug       archive · codex
 //!   GET  /v1/books            /v1/books/:slug       book · liber
 //!   GET  /v1/works            /v1/works/:id         works · opera
+//!   GET  /v1/awards                                 the owner's awards, for the me page (ETag, 304)
 //!   GET  /v1/texts                                  the site's texts the owner changed {texts: {key: value}, version}
 //!   GET  /media/:key                                a picture from R2, cached for a year
 //!
@@ -15,11 +16,11 @@
 //!   POST /v1/auth/logout
 //!
 //! the dashboard (session cookie; writes also need the site's Origin and X-CSRF-Token)
-//!   GET  /v1/admin/{posts|books|works}                 every entry, drafts too
-//!   GET  /v1/admin/{posts|books|works}/:id             one entry, as the public API will answer it (the preview)
-//!   PUT  /v1/admin/{posts|books|works}/:id             create or update (a different id in the body renames)
-//!   DELETE /v1/admin/{posts|books|works}/:id
-//!   POST /v1/admin/{posts|books|works}/:id/publish     and /unpublish
+//!   GET  /v1/admin/{posts|books|works|awards}                 every entry, drafts too
+//!   GET  /v1/admin/{posts|books|works|awards}/:id             one entry, as the public API will answer it (the preview)
+//!   PUT  /v1/admin/{posts|books|works|awards}/:id             create or update (a different id in the body renames)
+//!   DELETE /v1/admin/{posts|books|works|awards}/:id
+//!   POST /v1/admin/{posts|books|works|awards}/:id/publish     and /unpublish
 //!   POST /v1/admin/media                               a density map made in the browser (multipart: file)
 //!   GET  /v1/admin/texts                               every text the site reads: default, value, version
 //!   GET  /v1/admin/texts/:key    PUT {value, version?}    POST /v1/admin/texts/:key/reset
@@ -36,7 +37,7 @@
 //!
 //! Bindings: `DB` (D1), `MEDIA` (R2, bucket aphesis-content). Secrets: `OWNER_PASSWORD_HASH`, `OWNER_EMAIL`,
 //! `AUTH_SALT`, `RESEND_API_KEY` (the gate's mail, through Resend), `WALL_ADMIN_TOKEN`, `FORUM_ADMIN_SECRET`. Vars:
-//! `ALLOWED_ORIGINS`, `EMAIL_FROM`, `MAIL_API`, `SESSION_SECONDS`, `WALL_API`, `FORUM_API`.
+//! `ALLOWED_ORIGINS`, `READ_ORIGINS` (origins that may only read the public GETs), `EMAIL_FROM`, `MAIL_API`, `SESSION_SECONDS`, `WALL_API`, `FORUM_API`.
 
 pub mod code;
 pub mod cookie;
@@ -75,6 +76,8 @@ struct Ctx {
     base: String,
     cookies: String,
     ip: String,
+    /// a public GET, HEAD or the preflight of one: the only requests a read-only origin may make
+    read: bool,
 }
 
 /// the kinds of entries: table, key column, and how a row is answered
@@ -83,6 +86,7 @@ enum Kind3 {
     Posts,
     Books,
     Works,
+    Awards,
 }
 
 impl Kind3 {
@@ -91,6 +95,7 @@ impl Kind3 {
             "posts" => Some(Kind3::Posts),
             "books" => Some(Kind3::Books),
             "works" => Some(Kind3::Works),
+            "awards" => Some(Kind3::Awards),
             _ => None,
         }
     }
@@ -99,10 +104,11 @@ impl Kind3 {
             Kind3::Posts => "posts",
             Kind3::Books => "books",
             Kind3::Works => "works",
+            Kind3::Awards => "awards",
         }
     }
     fn key(self) -> &'static str {
-        if self == Kind3::Works {
+        if matches!(self, Kind3::Works | Kind3::Awards) {
             "id"
         } else {
             "slug"
@@ -113,13 +119,14 @@ impl Kind3 {
             Kind3::Posts => "post",
             Kind3::Books => "book",
             Kind3::Works => "work",
+            Kind3::Awards => "award",
         }
     }
     fn order(self) -> &'static str {
         match self {
             Kind3::Posts => "date DESC, slug DESC",
             Kind3::Books => "position, slug",
-            Kind3::Works => "position, id",
+            Kind3::Works | Kind3::Awards => "position, id",
         }
     }
     fn out(self, row: &Value, base: &str, admin: bool) -> Value {
@@ -127,6 +134,7 @@ impl Kind3 {
             Kind3::Posts => model::post_out(row, base, admin),
             Kind3::Books => model::book_out(row, base, admin),
             Kind3::Works => model::work_out(row, base, admin),
+            Kind3::Awards => model::award_out(row, admin),
         }
     }
 }
@@ -150,7 +158,11 @@ impl Ctx {
         http::Headers::new()
             .with("content-type", "application/json; charset=utf-8")
             .with("x-content-type-options", "nosniff")
-            .merge(&self.cors.headers_for(self.origin.as_deref()))
+            .merge(
+                &self
+                    .cors
+                    .headers_for_read(self.origin.as_deref(), self.read),
+            )
     }
 
     fn json_with(
@@ -267,11 +279,19 @@ impl Ctx {
 
 #[event(fetch)]
 async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
-    let mut cors =
-        Cors::new(&env::string(&env, "ALLOWED_ORIGINS").unwrap_or_default()).with_credentials(true);
+    let mut cors = Cors::new(&env::string(&env, "ALLOWED_ORIGINS").unwrap_or_default())
+        .with_credentials(true)
+        .with_read_origins(&env::string(&env, "READ_ORIGINS").unwrap_or_default());
     cors.methods = "GET, POST, PUT, DELETE, OPTIONS";
     cors.headers = "Content-Type, X-CSRF-Token";
     let url = req.url()?;
+    let read = public_read(
+        req.method(),
+        url.path(),
+        req.headers()
+            .get("Access-Control-Request-Method")?
+            .as_deref(),
+    );
     let c = Ctx {
         base: format!("{}://{}", url.scheme(), url.host_str().unwrap_or(""))
             + &url.port().map(|p| format!(":{p}")).unwrap_or_default(),
@@ -279,6 +299,7 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         cookies: req.headers().get("Cookie")?.unwrap_or_default(),
         ip: req.headers().get("CF-Connecting-IP")?.unwrap_or_default(),
         cors,
+        read,
         env,
     };
     match route(&c, req).await {
@@ -288,6 +309,22 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             c.fail(500, "the service stumbled")
         }
     }
+}
+
+/// whether a request is a public read, which `READ_ORIGINS` may make: a GET or HEAD, or the preflight of one, that is
+/// not under the gate (`/v1/auth`) or the dashboard (`/v1/admin`)
+fn public_read(m: Method, path: &str, asks: Option<&str>) -> bool {
+    let get = |m: &str| m.eq_ignore_ascii_case("GET") || m.eq_ignore_ascii_case("HEAD");
+    let method = match m {
+        Method::Get | Method::Head => true,
+        Method::Options => asks.is_some_and(get),
+        _ => false,
+    };
+    let p = path.trim_matches('/');
+    method
+        && !["v1/auth", "v1/admin"]
+            .iter()
+            .any(|x| p == *x || p.starts_with(&format!("{x}/")))
 }
 
 async fn route(c: &Ctx, mut req: Request) -> Result<Response> {
@@ -301,12 +338,13 @@ async fn route(c: &Ctx, mut req: Request) -> Result<Response> {
     let p: Vec<&str> = path.iter().map(String::as_str).collect();
     let m = req.method();
     if m == Method::Options {
-        return http::empty(204, &c.cors.headers_for(c.origin.as_deref()));
+        return http::empty(204, &c.cors.headers_for_read(c.origin.as_deref(), c.read));
     }
     match (m.clone(), p.as_slice()) {
         (Method::Get, [""]) => c.public(&json!({ "service": "content" })),
         (Method::Get, ["media", rest @ ..]) => media(c, &rest.join("/")).await,
         (Method::Get, ["v1", "texts"]) => public_texts(c, &req).await,
+        (Method::Get, ["v1", "awards"]) => public_awards(c, &req).await,
         (Method::Get, ["v1", kind]) if Kind3::from(kind).is_some() => {
             list(c, Kind3::from(kind).unwrap(), false).await
         }
@@ -395,6 +433,32 @@ async fn public_texts(c: &Ctx, req: &Request) -> Result<Response> {
     c.json_with(200, &body, cache, &[("etag", tag)])
 }
 
+/// the published awards, briefly cached; a page that has them already gets 304 by the ETag, a hash of the answer
+async fn public_awards(c: &Ctx, req: &Request) -> Result<Response> {
+    let rows = c
+        .rows(
+            &format!(
+                "SELECT * FROM awards WHERE published = 1 ORDER BY {}",
+                Kind3::Awards.order()
+            ),
+            &[],
+        )
+        .await?;
+    let items: Vec<Value> = rows.iter().map(|r| model::award_out(r, false)).collect();
+    let body = json!({ "awards": items });
+    let tag = format!("\"a{}\"", &sha256_hex(&body.to_string())[..16]);
+    let cache = "public, max-age=30";
+    if req.headers().get("If-None-Match")?.as_deref() == Some(tag.as_str()) {
+        let h = c
+            .headers()
+            .with("cache-control", cache)
+            .with("etag", &tag)
+            .to_worker();
+        return Ok(Response::empty()?.with_status(304).with_headers(h));
+    }
+    c.json_with(200, &body, cache, &[("etag", tag)])
+}
+
 async fn text_row(c: &Ctx, key: &str) -> Result<Option<Value>> {
     c.row(
         "SELECT key, value, version, updated FROM texts WHERE key = ?1",
@@ -432,6 +496,9 @@ async fn save_text(c: &Ctx, req: &mut Request, t: &texts::Text) -> Result<Respon
         Ok(v) => v,
         Err(e) => return c.fail(400, &e),
     };
+    if let Err(e) = texts::key_in(t.key, &value) {
+        return c.fail(400, &e);
+    }
     let want = match texts::version_in(&body) {
         Ok(v) => v,
         Err(e) => return c.fail(400, &e),
@@ -992,6 +1059,8 @@ async fn save(c: &Ctx, req: &mut Request, k: Kind3, id: &str) -> Result<Response
                     "sources",
                     "flags",
                     "position",
+                    "line",
+                    "status",
                 ],
                 vec![
                     s(&w.id),
@@ -1006,7 +1075,17 @@ async fn save(c: &Ctx, req: &mut Request, k: Kind3, id: &str) -> Result<Response
                     j(&w.sources),
                     j(&w.flags),
                     n(w.position),
+                    s(&w.line),
+                    s(&w.status),
                 ],
+            ),
+            Err(e) => return c.fail(400, &e),
+        },
+        Kind3::Awards => match model::award_in(&body) {
+            Ok(a) => (
+                a.id.clone(),
+                vec!["id", "title", "note", "line", "position"],
+                vec![s(&a.id), s(&a.title), s(&a.note), s(&a.line), n(a.position)],
             ),
             Err(e) => return c.fail(400, &e),
         },
@@ -1240,7 +1319,7 @@ async fn run_export(env: &Env) -> Result<Value> {
     let base = var("PUBLIC_URL").unwrap_or_else(|| "https://content-api.aphes.ist".into());
     let db = env.d1("DB")?;
     let mut all = Vec::new();
-    for k in [Kind3::Posts, Kind3::Books, Kind3::Works] {
+    for k in [Kind3::Posts, Kind3::Books, Kind3::Works, Kind3::Awards] {
         let rows = db
             .prepare(format!(
                 "SELECT * FROM {} ORDER BY {}",
@@ -1256,7 +1335,7 @@ async fn run_export(env: &Env) -> Result<Value> {
                 .collect::<Vec<_>>(),
         );
     }
-    let files = export::files(&all[0], &all[1], &all[2]);
+    let files = export::files(&all[0], &all[1], &all[2], &all[3]);
     let fail = |what: &str, st: u16| worker::Error::RustError(format!("github {what}: {st}"));
     let (st, r) = github(
         &api,
@@ -1321,8 +1400,8 @@ async fn run_export(env: &Env) -> Result<Value> {
     };
     let who = json!({ "name": export::OWNER_NAME, "email": export::OWNER_EMAIL, "date": date });
     let message = format!(
-        "Export the content: {} posts, {} book entries, {} works\n\nWritten nightly from the content service, drafts included.",
-        all[0].len(), all[1].len(), all[2].len()
+        "Export the content: {} posts, {} book entries, {} works, {} awards\n\nWritten nightly from the content service, drafts included.",
+        all[0].len(), all[1].len(), all[2].len(), all[3].len()
     );
     let parents: Vec<Value> = parent.iter().map(|p| json!(p)).collect();
     let (st, c) = github(&api, &token, Method::Post, &format!("/repos/{repo}/git/commits"),
@@ -1353,4 +1432,40 @@ async fn run_export(env: &Env) -> Result<Value> {
         return Err(fail("ref update", st));
     }
     Ok(json!({ "committed": true, "files": files.len(), "commit": commit }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn read_origins_reach_only_the_public_reads() {
+        for p in [
+            "/",
+            "/v1/texts",
+            "/v1/works",
+            "/v1/awards",
+            "/v1/works/heild",
+            "/media/m/x.png",
+        ] {
+            assert!(public_read(Method::Get, p, None), "{p}");
+            assert!(public_read(Method::Head, p, None), "{p}");
+            assert!(public_read(Method::Options, p, Some("GET")), "{p}");
+        }
+        for p in [
+            "/v1/auth/session",
+            "/v1/auth/password",
+            "/v1/admin/works",
+            "/v1/admin",
+            "/v1/admin/texts/x/",
+            "/v1/auth",
+        ] {
+            assert!(!public_read(Method::Get, p, None), "{p}");
+            assert!(!public_read(Method::Options, p, Some("GET")), "{p}");
+        }
+        assert!(!public_read(Method::Post, "/v1/texts", None));
+        assert!(!public_read(Method::Put, "/v1/awards", None));
+        assert!(!public_read(Method::Options, "/v1/awards", Some("PUT")));
+        assert!(!public_read(Method::Options, "/v1/awards", None));
+    }
 }

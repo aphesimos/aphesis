@@ -152,3 +152,76 @@ test('the link preview: its title and description are listed first and reach the
   assert.equal(r.status, 200);
   assert.equal((await (await send('/v1/texts')).json()).texts['meta.description'], undefined);
 });
+
+test('the me page: its keys are listed with the page\'s own words, and save, reset and validate like the rest', async () => {
+  const { cookie, csrf } = await login();
+  const w = { 'X-CSRF-Token': csrf };
+  let r = await send('/v1/admin/texts', { cookie });
+  const all = await r.json();
+  assert.equal(all.screens[all.screens.length - 1], 'me');
+  const keys = ['me.name', 'me.meta', 'me.lede', 'me.bio', 'me.looking', 'me.page', 'me.contact', 'me.education.1', 'me.education.2',
+    'me.tools.code', 'me.tools.ai', 'me.tools.web', 'me.tools.infra', 'me.tools.design', 'me.languages', 'me.email', 'me.github'];
+  assert.deepEqual(all.texts.filter((t) => t.screen === 'me').map((t) => t.key), keys);
+  const by = (k) => all.texts.find((t) => t.key === k);
+  for (const k of keys) {
+    assert.equal(by(k).value, by(k).default, k);
+    assert.equal(by(k).overridden, false, k);
+    assert.ok(by(k).label, k);
+  }
+  assert.equal(by('me.name').default, 'enzo vasconcelos');
+  assert.equal(by('me.meta').default, 'software engineer · applied ai, agents and automation');
+  assert.equal(by('me.education.1').default, 'bsc in software engineering · FIAP · 2023–2026');
+  assert.equal(by('me.education.2').default, 'technical diploma in systems development · ETEC · 2020–2022');
+  assert.equal(by('me.tools.code').default, 'TypeScript, Python, Go, Rust, Java');
+  assert.equal(by('me.email').default, 'enzo@aphes.ist');
+  assert.equal(by('me.github').default, 'https://github.com/aphesist');
+  assert.match(by('me.page').default, /^this is the plain version\. \[aphes\.ist\]\(https:\/\/aphes\.ist\/\)/);
+  assert.equal(all.texts.filter((t) => t.screen === 'me').length, keys.length);
+
+  /* save, see it on the public answer, reset */
+  r = await send('/v1/admin/texts/me.meta', { method: 'PUT', cookie, body: { value: 'software engineer · in florianópolis' }, headers: w });
+  assert.equal(r.status, 200);
+  assert.equal((await r.json()).text.overridden, true);
+  r = await send('/v1/admin/texts/me.education.1', { method: 'PUT', cookie, body: { value: 'msc in something · FIAP · 2027' }, headers: w });
+  assert.equal(r.status, 200);
+  let pub = await (await send('/v1/texts')).json();
+  assert.equal(pub.texts['me.meta'], 'software engineer · in florianópolis');
+  assert.equal(pub.texts['me.education.1'], 'msc in something · FIAP · 2027');
+  assert.equal(pub.texts['me.name'], undefined, 'only what was set');
+  for (const k of ['me.meta', 'me.education.1']) {
+    r = await send(`/v1/admin/texts/${k}/reset`, { method: 'POST', cookie, headers: w });
+    assert.equal(r.status, 200);
+    const { text } = await r.json();
+    assert.equal(text.value, text.default);
+    assert.equal(text.overridden, false);
+  }
+  pub = await (await send('/v1/texts')).json();
+  assert.deepEqual(Object.keys(pub.texts).filter((k) => k.startsWith('me.')), []);
+
+  /* the email is an address, the github profile an https address; every other key keeps the general rules */
+  for (const value of ['enzo', 'enzo@aphes', 'enzo@', '@aphes.ist', 'en zo@aphes.ist', 'enzo@aphes. ist', 'a@b@c.d']) {
+    r = await send('/v1/admin/texts/me.email', { method: 'PUT', cookie, body: { value }, headers: w });
+    assert.equal(r.status, 400, value);
+    assert.match((await r.json()).error, /email address/);
+  }
+  for (const value of ['github.com/aphesist', 'http://github.com/aphesist', 'https://', 'https://git hub.com/x', 'mailto:a@b.c', 'javascript:alert(1)']) {
+    r = await send('/v1/admin/texts/me.github', { method: 'PUT', cookie, body: { value }, headers: w });
+    assert.equal(r.status, 400, value);
+    assert.match((await r.json()).error, /https address/);
+  }
+  r = await send('/v1/admin/texts/me.email', { method: 'PUT', cookie, body: { value: '  hello@example.org  ' }, headers: w });
+  assert.equal(r.status, 200);
+  assert.equal((await r.json()).text.value, 'hello@example.org');
+  r = await send('/v1/admin/texts/me.github', { method: 'PUT', cookie, body: { value: 'https://github.com/someone-else' }, headers: w });
+  assert.equal(r.status, 200);
+  pub = await (await send('/v1/texts')).json();
+  assert.deepEqual([pub.texts['me.email'], pub.texts['me.github']], ['hello@example.org', 'https://github.com/someone-else']);
+  for (const k of ['me.email', 'me.github']) assert.equal((await send(`/v1/admin/texts/${k}/reset`, { method: 'POST', cookie, headers: w })).status, 200);
+  r = await send('/v1/admin/texts/me.name', { method: 'PUT', cookie, body: { value: 'x'.repeat(401) }, headers: w });
+  assert.equal(r.status, 400, 'the length rule holds on this screen too');
+  r = await send('/v1/admin/texts/me.name', { method: 'PUT', cookie, body: { value: 'two\nlines' }, headers: w });
+  assert.equal(r.status, 400);
+  r = await send('/v1/admin/texts/me.name', { method: 'PUT', cookie, body: { value: 'not an address, and fine' }, headers: w });
+  assert.equal(r.status, 200);
+  await send('/v1/admin/texts/me.name/reset', { method: 'POST', cookie, headers: w });
+});

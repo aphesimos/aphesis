@@ -30,6 +30,7 @@ on the `section/works` branch (cut from `site`, merged back when finished).
 | `aphesis` | this repository's `README.md` (`main`) and the `mark` branch README | the φ, `system/assets/Logos/phi.svg` on `design-system` |
 | `contraprova` | the contraprova repository's `README.md` and `results/swepro-main/README.md` (`main`); every number as the results give it | the governed cascade, `assets/readme/cascade-dark.svg` on contraprova's `main`, without its words, fog and cursor, thickened |
 | `anamnesis` | the anamnesis repository's `README.md` (`main`, v0.1.0); in progress | the demo brain's 1,100 entries at their anatomy coordinates, `demo/transcendentalist/snapshot/views.json.gz` on anamnesis's `main` |
+| `heuresis` | the heuresis repository's `README.md` (`main`); in progress, so no performance claims | the pipeline diagram in heuresis's `README.md` (`main`), drawn cell by cell with no font |
 
 ## Adding a work
 

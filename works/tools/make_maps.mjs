@@ -14,6 +14,9 @@
      anamnesis  the demo brain, its 1,100 entries at their own anatomy coordinates, seen from the front as its
               README hero sees it (x, -1.05 y), demo/transcendentalist/snapshot/views.json.gz on `origin/main` of
               the anamnesis repository (path in ANAMNESIS_REPO, default ../../anamnesis)
+     heuresis the pipeline in its README.md (the first fenced block) on `origin/main` of the heuresis repository (path
+              in HEURESIS_REPO, default ../../heuresis), drawn cell by cell with no font: a word is a row of soft
+              cells, ─ and │ are thin bars, ► ▼ ▲ are bright points
 
      NODE_PATH=$(npm root -g) node works/tools/make_maps.mjs [id ...]   (needs the `playwright` package and its
      Chromium; with ids, only those maps are made)
@@ -33,6 +36,7 @@ const OUT = join(REPO, 'works', 'maps');
 const HEILD = process.env.HEILD_REPO || resolve(REPO, '..', 'heild');
 const CONTRAPROVA = process.env.CONTRAPROVA_REPO || resolve(REPO, '..', 'contraprova');
 const ANAMNESIS = process.env.ANAMNESIS_REPO || resolve(REPO, '..', 'anamnesis');
+const HEURESIS = process.env.HEURESIS_REPO || resolve(REPO, '..', 'heuresis');
 
 const show = (repo, spec) => execFileSync('git', ['-C', repo, 'show', spec], { encoding: 'utf8' });
 const showBytes = (repo, spec) => execFileSync('git', ['-C', repo, 'show', spec], { maxBuffer: 1 << 26 });
@@ -63,6 +67,23 @@ function brain(views) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 ${w + 20} ${h + 20}" width="${w + 20}" height="${h + 20}"><g fill="#fff" fill-opacity=".4">${dots}</g></svg>`;
 }
 
+/* a text diagram, one character cell (12 x 20) at a time, so the map needs no font */
+function diagram(md) {
+  const lines = md.split('```')[1].split('\n').slice(1).filter((l, i, a) => i < a.length - 1 || l.trim());
+  const W = 12, H = 20, cols = Math.max(...lines.map((l) => [...l].length));
+  const cells = [];
+  lines.forEach((l, r) => [...l].forEach((ch, c) => {
+    const x = c * W, y = r * H;
+    if (ch === ' ') return;
+    if (ch === '─') cells.push(`<rect x="${x}" y="${y + 7}" width="${W}" height="6"/>`);
+    else if (ch === '│') cells.push(`<rect x="${x + 3}" y="${y}" width="6" height="${H}"/>`);
+    else if ('►▼▲'.includes(ch)) cells.push(`<rect x="${x}" y="${y + 2}" width="${W}" height="${H - 4}"/>`);
+    else cells.push(`<rect x="${x}" y="${y + 4}" width="${W}" height="${H - 8}" fill-opacity=".8"/>`);
+  }));
+  const w = cols * W, h = lines.length * H;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="#000"/><g fill="#fff">${cells.join('')}</g></svg>`;
+}
+
 const ALL = {
   heild: () => ({ svg: white(show(HEILD, 'origin/design-system:design-system/logos/heild-wordmark-papel.svg')),
     height: 300, blur: 2.2, margin: 0.16, gamma: 1.1 }),
@@ -72,6 +93,7 @@ const ALL = {
     height: 370, blur: 2, margin: 0.06, gamma: 1.0 }),
   anamnesis: () => ({ svg: brain(JSON.parse(gunzipSync(showBytes(ANAMNESIS, 'origin/main:demo/transcendentalist/snapshot/views.json.gz')))),
     height: 560, blur: 6, margin: 0.1, gamma: 0.9 }),
+  heuresis: () => ({ svg: diagram(show(HEURESIS, 'origin/main:README.md')), height: 300, blur: 3, margin: 0.06, gamma: 0.9 }),
 };
 const ids = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(ALL);
 const MAPS = ids.map((id) => { if (!ALL[id]) throw new Error('no map called ' + id); return { id, ...ALL[id]() }; });

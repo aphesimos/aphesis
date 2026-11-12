@@ -144,6 +144,38 @@
       "flags": {
         "needs_owner_review": false
       }
+    },
+    {
+      "id": "heuresis",
+      "name": "heuresis",
+      "gloss": "εὕρεσις",
+      "gloss_tip": "εὕρεσις · discovery",
+      "year": "2026",
+      "role": "author: the engine, its locked judge and the pre-registered benchmark; in progress",
+      "description": "retrieve what was in force, cite it, and abstain when you cannot. an open-source retrieval engine for large corpora that change over time, in any domain. it works in order of cost: cheap local stages first, one model call, then local checks. it filters by the date a text was in force before it ranks, and every answer sentence is checked against the passages it cites; otherwise it gives a typed abstention that says why. it is in progress: built and tested offline, its pre-registered test not yet run.",
+      "links": [
+        {
+          "label": "the repository",
+          "href": "https://github.com/aphesist/heuresis"
+        }
+      ],
+      "map": {
+        "file": "heuresis.png",
+        "caption": "the pipeline · understand, retrieve, answer, verify, decide",
+        "settings": {
+          "scatter": 0.7,
+          "erosion": 0.5,
+          "ceiling": 0.78,
+          "gain": 1.0
+        }
+      },
+      "sources": {
+        "description": "heuresis README.md (main branch, e1ad84c): tagline, how it works, status; no performance claims, as the pre-registered test has not run",
+        "map": "heuresis main branch: the pipeline diagram in README.md, drawn cell by cell"
+      },
+      "flags": {
+        "needs_owner_review": false
+      }
     }
   ]
 }

@@ -93,36 +93,27 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
 /* the reds. Mark with .aph-red each red mark that is not text in an .aph-ink container: the seal, an icon, the eye, the
    ear, red words. While the wave runs it keeps the old theme's colours (its reds, and the ink and ground it draws
    with, such as the halo of ground behind the passage) until the wave reaches where it stands, then turns to the new
-   ones over half a second with minimum jerk (the keyframes are the curve). The runtime gives each its moment
-   (--aph-red-at) and both themes' colours (--shift-accent-a, -b and the same for each colour below). An element
-   marked .aph-red carries no CSS animation of its own (mark its box), and a colour transition inside it is turned
-   off while the wave runs (.aph-shifting), or it would trail the turn. */
-@property --aph-red-k { syntax: '<number>'; inherits: false; initial-value: 1; }
-/* the old colours are the rule's own value (k 0), not the animation's: before its turn the animation does nothing, so
-   the element is left alone, and after it the end holds */
-.aph-shifting .aph-red { animation: aph-red .5s linear var(--aph-red-at, 0ms) forwards; }
-@keyframes aph-red {
-  0% { --aph-red-k: 0; } 10% { --aph-red-k: .00856; } 20% { --aph-red-k: .05792; } 30% { --aph-red-k: .16308; }
-  40% { --aph-red-k: .31744; } 50% { --aph-red-k: .5; } 60% { --aph-red-k: .68256; } 70% { --aph-red-k: .83692; }
-  80% { --aph-red-k: .94208; } 90% { --aph-red-k: .99144; } 100% { --aph-red-k: 1; }
-}
+   ones over half a second with minimum jerk. The runtime gives each its moment and does the turning itself, frame by
+   frame: it sets every colour of the theme on the mark (--aph-red-accent and the same for each colour below) as
+   plain colours it works out, so the reds never rest on the browser mixing colours in CSS (where one could not, a
+   red took the ink's colour for the whole wave). A mark that appears while the wave runs has the new theme's colours
+   at once. An element marked .aph-red carries no colour transition while the wave runs (turn it off inside it under
+   .aph-shifting), or it would trail the turn. */
 /* what the runtime turns. At the click the runtime reads what nobody marked: ink that reaches the fog blends as if it
    were in an .aph-ink container, and what cannot blend (a red it was not told about, ink inside a layer of its own, a
-   box whose text shares it with a red or sits on its own ground) is marked .aph-turn and turns like the reds. The
-   runtime moves --aph-red-k itself, frame by frame, so the box keeps any animation it has. */
-/* both keep every colour of the old theme (k 0) until their moment, and have the new ones when it has passed (k 1) */
+   box whose text shares it with a red or sits on its own ground) is marked .aph-turn and turns like the reds, from the
+   old theme's colours to the new ones, the same way. */
 .aph-shifting .aph-red, .aph-shifting .aph-turn {
-  --aph-red-k: 0;
-  --accent: color-mix(in oklab, var(--shift-accent-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-accent-b));
-  --accent-text: color-mix(in oklab, var(--shift-accent-text-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-accent-text-b));
-  --seal: color-mix(in oklab, var(--shift-seal-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-seal-b));
-  --rubedo: color-mix(in oklab, var(--shift-rubedo-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-rubedo-b));
-  --rubedo-text: color-mix(in oklab, var(--shift-rubedo-text-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-rubedo-text-b));
-  --ink: color-mix(in oklab, var(--shift-ink-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-ink-b));
-  --ink-soft: color-mix(in oklab, var(--shift-ink-soft-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-ink-soft-b));
-  --line: color-mix(in oklab, var(--shift-line-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-line-b));
-  --fog: color-mix(in oklab, var(--shift-fog-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-fog-b));
-  --bg: color-mix(in oklab, var(--shift-bg-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-bg-b));
+  --accent: var(--aph-red-accent, var(--shift-accent-b));
+  --accent-text: var(--aph-red-accent-text, var(--shift-accent-text-b));
+  --seal: var(--aph-red-seal, var(--shift-seal-b));
+  --rubedo: var(--aph-red-rubedo, var(--shift-rubedo-b));
+  --rubedo-text: var(--aph-red-rubedo-text, var(--shift-rubedo-text-b));
+  --ink: var(--aph-red-ink, var(--shift-ink-b));
+  --ink-soft: var(--aph-red-ink-soft, var(--shift-ink-soft-b));
+  --line: var(--aph-red-line, var(--shift-line-b));
+  --fog: var(--aph-red-fog, var(--shift-fog-b));
+  --bg: var(--aph-red-bg, var(--shift-bg-b));
 }
 
 /* the ear: the sound's switch, beside the eye. Listening, three arcs of stipple arrive at the ear and breathe with

@@ -583,20 +583,32 @@
      over old cells and new ones alike. When the wave has covered the screen the blend is lifted; nothing visibly
      changes. A call while a wave is running is ignored (returns false). */
   var SHIFT = null;
-  /* the reds. An element marked .aph-red (the seal, an icon, the eye, the ear, red words) keeps the old theme's reds
-     (accent, accent-text, seal) until the wave reaches it, then turns to the new ones over RED_TURN ms with minimum
-     jerk (bundle.css: .aph-red). Its moment comes from the fields' own model of the wave: a cell turns once
-     MJ(t / duration) passes .76 times its distance from the origin over the farthest corner, plus a hash (.14) and the
-     fog's noise (.1), .12 on average; the turn is centred on that moment. */
+  /* the reds. An element marked .aph-red (the seal, an icon, the eye, the ear, red words) keeps the old theme's
+     colours until the wave reaches it, then turns to the new ones over RED_TURN ms with minimum jerk. Its moment comes
+     from the fields' own model of the wave: a cell turns once MJ(t / duration) passes .76 times its distance from the
+     origin over the farthest corner, plus a hash (.14) and the fog's noise (.1), .12 on average; the turn is centred
+     on that moment. The runtime turns it itself, frame by frame with the wave's own time, giving it every colour of
+     the theme as plain colours (bundle.css: .aph-red): a turn never rests on the browser mixing colours in CSS, which
+     where it could not left every red the ink's colour for the whole wave. */
   var RED_TURN = 500;
   function rootValue(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
   function mjInverse(y) { var lo = 0, hi = 1; for (var i = 0; i < 24; i++) { var m = (lo + hi) / 2; if (MJ(m) < y) lo = m; else hi = m; } return (lo + hi) / 2; }
-  function redsAt(org, far, dur) {
-    Array.prototype.forEach.call(document.querySelectorAll('.aph-red'), function (el) {
-      var r = el.getBoundingClientRect(), d = Math.hypot(r.left + r.width / 2 - org[0], r.top + r.height / 2 - org[1]);
-      el.style.setProperty('--aph-red-at', Math.max(0, Math.round(dur * mjInverse(Math.min(1, 0.76 * d / far + 0.12)) - RED_TURN / 2)) + 'ms');
-    });
+  function momentOf(el, org, far, dur) {
+    var r = el.getBoundingClientRect(), d = Math.hypot(r.left + r.width / 2 - org[0], r.top + r.height / 2 - org[1]);
+    return dur * mjInverse(Math.min(1, 0.76 * d / far + 0.12)) - RED_TURN / 2;
   }
+  /* a colour as oklab [L, a, b]: oklch() exactly as written, anything else as the canvas draws it (sRGB) */
+  function labOf(s) {
+    var m = /^oklch\(\s*([\d.]+)(%?)\s+([\d.]+)(%?)\s+([\d.]+)(?:deg)?\s*\)$/.exec(s);
+    if (m) { var C = +m[3] * (m[4] ? 0.004 : 1), h = +m[5] * Math.PI / 180; return [+m[1] / (m[2] ? 100 : 1), C * Math.cos(h), C * Math.sin(h)]; }
+    var c = rgba(s).map(function (v) { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    var l = Math.cbrt(0.4122214708 * c[0] + 0.5363325363 * c[1] + 0.0514459929 * c[2]);
+    var q = Math.cbrt(0.2119034982 * c[0] + 0.6806995451 * c[1] + 0.1073969566 * c[2]);
+    var w = Math.cbrt(0.0883024619 * c[0] + 0.2817188376 * c[1] + 0.6299787005 * c[2]);
+    return [0.2104542553 * l + 0.7936177850 * q - 0.0040720468 * w, 1.9779984951 * l - 2.4285922050 * q + 0.4505937099 * w, 0.0259040371 * l + 0.7827717662 * q - 0.8086757660 * w];
+  }
+  /* a of the way from x to y, in oklab (as CSS mixes colours by default) */
+  function mixLab(x, y, a) { return 'oklab(' + [0, 1, 2].map(function (i) { return (x[i] + (y[i] - x[i]) * a).toFixed(4); }).join(' ') + ')'; }
   /* the rest of the page. Right after the click (once its handler has run, so a section that takes a mask off under
      .aph-shifting, or the shell stepping its inscription aside, already has) the runtime reads the page once and gives
      every piece of ink that is in no .aph-ink container and no .aph-red mark the treatment it can take:
@@ -751,6 +763,13 @@
      anything is written, so the page's style is worked out once for the reading. */
   function wavePlan(org, far, dur, A, B, dark, inks) {
     var blended = [], turned = [], suspended = [], pinned = [], mo = null, wo = null, watched = new Map(), reds = new Set(), greys = new Map(), acts = null, frames = 0;
+    /* every colour of the theme on a red or a turn, inline, as its turn stands at k: the old theme's exactly at 0, the
+       new one's exactly at 1, oklab between (bundle.css maps the theme's colours there while the wave runs) */
+    var TA = TURN.map(function (n) { return labOf(A[n]); }), TB = TURN.map(function (n) { return labOf(B[n]); });
+    function turnTo(el, k) { TURN.forEach(function (n, i) { el.style.setProperty('--aph-red-' + n.slice(2), k <= 0 ? A[n] : k >= 1 ? B[n] : mixLab(TA[i], TB[i], k)); }); }
+    function unturn(el) { TURN.forEach(function (n) { el.style.removeProperty('--aph-red-' + n.slice(2)); }); }
+    /* the marked reds, each given its moment and the old theme's colours at the click */
+    var marks = Array.prototype.map.call(document.querySelectorAll('.aph-red'), function (el) { turnTo(el, 0); return { el: el, at: momentOf(el, org, far, dur), k: 0 }; });
     var mirrors = [], mirrored = new Set();
     /* under the blend an element's own colour is the white ink, which is right for ink but reads black or white for a
        grey: a box that blends with a grey of its own keeps it as the grey that reads as that grey on both grounds (the
@@ -790,7 +809,7 @@
           els.forEach(function (x) {
             var c = cutOf(x); if (c) { watch(x, c); return; }
             var j = turned.findIndex(function (t) { return t.el === x; }); if (j >= 0) turned.splice(j, 1);
-            x.classList.remove('aph-turn'); x.style.removeProperty('--aph-red-k'); x.classList.add('aph-ink');
+            x.classList.remove('aph-turn'); unturn(x); x.classList.add('aph-ink');
             suspended.splice(suspended.indexOf(x), 1);
             if (greys.has(x)) pinColor(x, greys.get(x));
           });
@@ -832,8 +851,8 @@
         if (x[1] === 2 && x[2]) watch(el, x[2]);
         if (x[1] === 3) return;
         el.classList.add('aph-turn'); if (x[3]) pinColor(el, x[3]);
-        /* its moment is read at the next frame; k starts at the rule's own 0, so nothing is written until it comes */
-        turned.push({ el: el, at: null, k: 0 });
+        /* it holds the old theme's colours from now; its moment is read at the next frame */
+        turnTo(el, 0); turned.push({ el: el, at: null, k: 0 });
       });
       if (first) greys.forEach(function (g, el) { if (el.isConnected && el.classList.contains('aph-ink')) pinColor(el, g); });
       /* a marked container read under the blend showed its white ink: its own colour is known only now */
@@ -859,21 +878,19 @@
         });
         mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
       },
-      /* each frame: a turn runs over RED_TURN ms from its moment, with minimum jerk (the moments are read first, then
-         the turns written) */
+      /* each frame: a red or a turn runs over RED_TURN ms from its moment, with minimum jerk (the turns' moments are
+         read first, then the colours written) */
       tick: function (t) {
         var j, x;
-        /* (from the second frame, when the first has laid the page out) */
-        if (++frames > 1) for (j = 0; j < turned.length; j++) {
-          x = turned[j]; if (x.at !== null) continue;
-          var r = x.el.getBoundingClientRect(), d = Math.hypot(r.left + r.width / 2 - org[0], r.top + r.height / 2 - org[1]);
-          x.at = dur * mjInverse(Math.min(1, 0.76 * d / far + 0.12)) - RED_TURN / 2;
-        }
-        for (j = 0; j < turned.length; j++) {
-          x = turned[j]; if (x.at === null) continue;
-          var k = MJ((t - x.at) / RED_TURN);
-          if (k !== x.k) { x.k = k; x.el.style.setProperty('--aph-red-k', String(Math.round(k * 1e4) / 1e4)); }
-        }
+        /* (a turn's from the second frame, when the first has laid the page out) */
+        if (++frames > 1) for (j = 0; j < turned.length; j++) { x = turned[j]; if (x.at === null) x.at = momentOf(x.el, org, far, dur); }
+        [marks, turned].forEach(function (list) {
+          for (j = 0; j < list.length; j++) {
+            x = list[j]; if (x.at === null) continue;
+            var k = Math.round(MJ((t - x.at) / RED_TURN) * 1e3) / 1e3;
+            if (k !== x.k) { x.k = k; turnTo(x.el, k); }
+          }
+        });
       },
       stop: function () { if (mo) { mo.disconnect(); mo = null; } if (wo) { wo.disconnect(); wo = null; } watched.clear(); },
       /* the colours go back with the blend, in the same frame (a grey given for the blend is wrong without it); a colour
@@ -886,7 +903,8 @@
       end: function () {
         plan.stop(); plan.unpin();
         blended.forEach(function (el) { el.classList.remove('aph-ink'); });
-        turned.forEach(function (x) { x.el.classList.remove('aph-turn'); x.el.style.removeProperty('--aph-red-k'); });
+        turned.forEach(function (x) { x.el.classList.remove('aph-turn'); unturn(x.el); });
+        marks.forEach(function (x) { unturn(x.el); }); marks = [];
         suspended.forEach(function (el) { el.classList.add('aph-ink'); });
         mirrors.forEach(function (m) { m.remove(); var j = MIRROR.list.indexOf(m); if (j >= 0) MIRROR.list.splice(j, 1); });
         blended = []; turned = []; suspended = []; mirrors = []; mirrored.clear();
@@ -919,7 +937,6 @@
     /* both themes' colours, for the reds and the turns */
     TURN.forEach(function (n) { root.style.setProperty('--shift-' + n.slice(2) + '-a', A[n]); root.style.setProperty('--shift-' + n.slice(2) + '-b', B[n]); });
     var dur = o.duration || cssMs('--duration-shift', 5200), t = 0, last = null;
-    redsAt(org, far, dur);
     root.classList.add('aph-shifting');
     /* the rest of the page is read once the click's handler has run (a section may take a mask off under .aph-shifting,
        the shell steps its inscription aside), still before the frame */
@@ -934,7 +951,6 @@
       plan.stop(); plan.unpin();
       still(function () { if (PLAN === plan) { plan.end(); PLAN = null; } });
       root.classList.remove('aph-shifting'); SHIFT = null; themeColor(); if (o.done) o.done();
-      Array.prototype.forEach.call(document.querySelectorAll('.aph-red'), function (el) { el.style.removeProperty('--aph-red-at'); });
     }
     requestAnimationFrame(tick);
     return true;

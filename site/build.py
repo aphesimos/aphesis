@@ -4,7 +4,7 @@
   python3 site/build.py --fragment OUT   # writes the same page without <!doctype>/<html>/<head>/<body>
   python3 site/build.py --out OUT --music-index URL   # the music library from another copy (checks)
   python3 site/build.py --local          # the sections from the local branches (default: what origin has)
-  python3 site/build.py --worker FILE    # also write the Pages worker (src/worker.js, the link preview) with the content api
+  python3 site/build.py --worker FILE    # also write the Pages worker (src/worker.js: one address, the link preview) with the content api
   python3 site/build.py --lab-kit DIR    # also write the lab kit (design-system: system/lab-kit/v*/) to DIR/lab-kit/
 
 Nothing here is a copy of another branch. The build reads, with git, from the branches that own each part:
@@ -384,7 +384,7 @@ if __name__ == '__main__':
     open(out, 'w', encoding='utf-8').write(page)
     print(out, len(page))
     if worker:
-        # the link preview's words, live: dist/_worker.js serves `/` with the owner's meta.title and meta.description
+        # dist/_worker.js: every other host to https://aphes.ist, and `/` with the owner's meta.title and meta.description
         js = open(os.path.join(D, 'src', 'worker.js'), encoding='utf-8').read()
         js = js.replace('/*__CONTENTAPI__*/', json.dumps(api.strip().rstrip('/')))
         open(worker, 'w', encoding='utf-8').write(js)

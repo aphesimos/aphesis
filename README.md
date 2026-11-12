@@ -25,7 +25,7 @@ python3 site/build.py --out FILE         # write the page elsewhere (the deploy 
 python3 site/build.py --content-api URL  # the content service for archive, book, works and the gate (or APHESIS_CONTENT_API)
 python3 site/build.py --turnstile-sitekey KEY   # the wall and the forum go live (or TURNSTILE_SITEKEY)
 python3 site/build.py --require-gate     # stop if APHESIS_GATE_PHRASE or APHESIS_GATE_ROUTE is missing (the deploy sets it)
-python3 site/build.py --worker FILE      # also write the Pages worker (src/worker.js, the link preview) with the content api
+python3 site/build.py --worker FILE      # also write the Pages worker (src/worker.js: one address, the link preview) with the content api
 python3 site/build.py --lab-kit DIR      # also write the lab kit to DIR/lab-kit/ (the deploy: dist/lab-kit/)
 ```
 
@@ -43,7 +43,7 @@ The build copies nothing from other branches; it reads them with git:
 - `site/src/shell.html`: the page: the fog canvas, the seal, the inscription, the host for a section, the passage, the eye.
 - `site/src/shell.css`: the shell's marks, all under `aph-*` ids, so no section stylesheet touches them and they touch no section.
 - `site/src/shell.js`: the home (seal, inscription, passage, eye), the routes, and the mount and unmount of sections.
-- `site/src/worker.js`: the Pages worker that writes the link preview's words into the served page (below).
+- `site/src/worker.js`: the Pages worker: it sends every other host to `https://aphes.ist` and writes the link preview's words into the served page (below).
 - `site/tools/make_icons.py`: the static icons in `site/public/` (apple-touch-icon, icon-512, og-card, favicon.ico, site.webmanifest),
   made from the closed Φ as the seal engine draws it. The tab icon is the eye, drawn live by the shell: open while the
   page is seen, closed while it is hidden or the window is left.
@@ -173,7 +173,7 @@ over (`#book/faust`, `#home`) and carries `{ aphGate: 1 }` in its state, so:
 The phrase and the route come from `APHESIS_GATE_PHRASE` and `APHESIS_GATE_ROUTE` and reach the page only as salted
 PBKDF2 hashes (section/gate's own build, `--entrances`). Without them those two entrances do not exist; the ritual and
 the door still open the gate. The desk talks to the content service (`--content-api`), whose session cookie needs the
-real domain (`aphes.ist`), not `aphesist.pages.dev`.
+real domain (`https://aphes.ist`), the only address the site answers at (see One address).
 
 ## The site's texts
 
@@ -198,8 +198,8 @@ on the dark ground, from `site/tools/make_icons.py`. The title and description i
 
 The owner changes the title and the description from the desk (texts, `link preview`: `meta.title` and
 `meta.description` in the content service). Crawlers run no script, so the words must be in the HTML as served:
-`site/src/worker.js` is published as `dist/_worker.js` (Pages advanced mode), and `site/public/_routes.json` sends
-only `/` through it; every other path is a static file the worker never sees. For `/` it reads `/v1/texts` from the
+`site/src/worker.js` is published as `dist/_worker.js` (Pages advanced mode); every other path on aphes.ist is a static
+file it hands straight to Pages. For `/` it reads `/v1/texts` from the
 content service, keeps the answer five minutes per Cloudflare location (Cache API), and writes the set keys over
 `og:title`, `og:description` and the meta description with HTMLRewriter. A key not set, or a service down, slow
 (1.5 s) or answering nonsense, leaves the page exactly as built (a failed answer is kept a minute). The page's ETag
@@ -207,6 +207,25 @@ carries a tag of the words, so a browser holding the page from before an edit ge
 reaches the served page within five minutes, with no redeploy; each app then keeps its own copy of a preview for a
 while (Discord and X for hours or days); Facebook's sharing debugger refreshes its copy at once, and a link with a
 new query (`aphes.ist/?v=2`) is a new link to every app.
+
+## One address
+
+The site has one public address, `https://aphes.ist`. Any other host that reaches the Pages project (`www.aphes.ist`,
+`aphesist.pages.dev`, the preview and branch aliases `<hash>.aphesist.pages.dev`) gets a `301` to `https://aphes.ist`
+with the same path and query, before the worker does anything else; the fragment (`#book`, `#music/...`) never leaves
+the browser and stays on the new address by itself. The redirect is cached a day and carries
+`Access-Control-Allow-Origin: *`, so a viewer elsewhere that links the lab kit through an old host follows it under
+CORS. `localhost` and `127.0.0.1` are served as aphes.ist, so `wrangler pages dev dist` shows the page; to try the
+redirect locally, set the host: `curl -sI -H 'Host: www.aphes.ist' http://127.0.0.1:8788/lab-kit/v1/lab.css`.
+
+For a redirect to cover every URL the worker runs on every path: `site/public/_routes.json` includes `/*`. A route
+list cannot depend on the host, so excluding the static files would leave them answering at every alias. On aphes.ist
+the worker hands those files to `env.ASSETS.fetch` and sets `_headers`' rules on them again (the security headers, and
+the lab kit's CORS, `Cross-Origin-Resource-Policy` and cache), so they leave exactly as before. The cost: every request
+is a Functions request, against 100,000 a day on the free plan, and the site sees about 2,000; the page is one file, so
+a visit is a handful of requests. Past the limit, with the project's failure mode left at fail open, Pages serves the
+static files without the worker: the site stays up, and only the redirect and the live link preview pause until the
+next day.
 
 ## Backends
 
@@ -302,7 +321,7 @@ One-time setup:
 4. **Domain.** The domain is registered at Hostinger and its DNS runs on Cloudflare:
    - In Cloudflare, use Add a domain, enter `aphes.ist` and choose the Free plan.
    - At Hostinger, replace the domain's nameservers with the two that Cloudflare shows. If Hostinger has DNSSEC on, turn it off first; you can turn it back on later through Cloudflare.
-   - Once Cloudflare says the domain is active, open Workers & Pages, then `aphesist`, then Custom domains. Add `aphes.ist`, and `www.aphes.ist` if wanted. Cloudflare creates the DNS records and the certificate itself.
+   - Once Cloudflare says the domain is active, open Workers & Pages, then `aphesist`, then Custom domains. Add `aphes.ist`, and `www.aphes.ist` if wanted (the worker sends it to `https://aphes.ist`). Cloudflare creates the DNS records and the certificate itself.
 
 Locally, the same build with the inputs exported (placeholders, never the real ones):
 

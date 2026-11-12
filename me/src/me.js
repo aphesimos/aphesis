@@ -368,13 +368,6 @@
     return fetch(CFG.api + path, { signal: ctl && ctl.signal, credentials: 'omit' })
       .then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (d) { clearTimeout(t); return d; });
   }
-  function loadCanvas(url) {
-    return new Promise(function (res) {
-      var im = new Image(); im.crossOrigin = 'anonymous';
-      im.onload = function () { var c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; c.getContext('2d').drawImage(im, 0, 0); res(c); };
-      im.onerror = function () { res(null); }; im.src = url;
-    });
-  }
   function refresh() {
     if (!CFG.api) return;
     getJSON('/v1/texts').then(function (d) {
@@ -388,10 +381,12 @@
       d.works.forEach(function (w) {
         var li = w && $('.works .work[data-id="' + w.id + '"]'); if (!li) return;
         if (typeof w.line === 'string' && w.line) swapText($('[data-line]', li), w.line);
-        var mp = w.map || {};
-        if (maps[w.id] && (mp.url || mp.caption || mp.settings)) {
-          if (mp.settings) maps[w.id].settings = mp.settings;
-          if (mp.url) loadCanvas(mp.url).then(function (c) { if (c) maps[w.id].src = c; });
+        /* the status is the tag beside the name; an empty one takes the tag away. The work's own map (the works
+           section's picture) is not used here: the page's pictures are previews of each work's page, made at build */
+        if (typeof w.status === 'string') {
+          var head = $('.whead', li), tag = $('.tag', head);
+          if (w.status && !tag) { tag = document.createElement('span'); tag.className = 'aph-meta tag'; head.appendChild(tag); }
+          if (tag) { if (w.status) tag.textContent = w.status; else tag.remove(); }
         }
       });
     });

@@ -1,6 +1,6 @@
-# Builds me.aphes.ist (me/: the page and the lab kit it stands on) and publishes it to Cloudflare Pages on every push
-# to `me` that touches it (and by hand). me/build.py copies the lab kit from design-system beside the page and stops
-# while a [[placeholder]] is left in it, so an unfinished page never goes out.
+# Builds me.aphes.ist (me/: one self-contained page on the design system's runtime) and publishes it to Cloudflare
+# Pages on every push to `me` that touches it (and by hand). me/build.py reads the runtime, tokens, fonts and φ from
+# design-system and stops while a [[placeholder]] is left in the page, so an unfinished page never goes out.
 #
 # Secrets: CLOUDFLARE_API_TOKEN (Account · Cloudflare Pages · Edit), CLOUDFLARE_ACCOUNT_ID: the same as the site's.
 # The custom domain me.aphes.ist is attached once, by hand, in the Pages dashboard (see me/README.md).
@@ -48,7 +48,7 @@ jobs:
         run: pip install pillow numpy
 
       - name: Build the page
-        run: python3 me/build.py --require-filled --out dist
+        run: python3 me/build.py --require-filled --content-api https://content-api.aphes.ist --out dist
 
       - name: Create the Pages project the first time
         run: |

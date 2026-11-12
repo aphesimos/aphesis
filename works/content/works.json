@@ -11,8 +11,8 @@
       "gloss": "totum",
       "gloss_tip": "totum · the whole",
       "year": "2026",
-      "role": "author: identity, design system, site and demo",
-      "description": "heild is old norse for the whole. it is a system that brings a company's tools into one place: a dashboard, a crm with whatsapp, a timesheet, finance, files and an app for the client. alongside them works a team of ai members, one for each area. the members prepare the work and a person approves it: transmitting, paying, signing and sending to the client always pass through an approval card that carries the name of whoever approved. it has not launched yet.",
+      "role": "author: myself.",
+      "description": "heild is old norse for the whole. it is a system that brings a company's tools into one place:  combining multiple systems into a single one, while also adding agentic AI members. one for each area. the prepare the work and a person approves it: transmitting, paying, signing and sending to the client always pass through an approval card that carries the name of whoever approved. it has not launched yet.",
       "links": [
         {
           "label": "the site",
@@ -30,7 +30,7 @@
           "scatter": 0.8,
           "erosion": 0.58,
           "ceiling": 0.74,
-          "gain": 1
+          "gain": 1.0
         }
       },
       "sources": {
@@ -47,8 +47,8 @@
       "gloss": "ἄφεσις",
       "gloss_tip": "ἄφεσις · a letting go",
       "year": "2026",
-      "role": "author: the design system, the font, the mark and the site",
-      "description": "aphes.ist is an experimental, hermetic personal site, and this is part of it. it is one document that never reloads: a stippled fog, a φ drawn by hand that travels between the center and the corner, typewriter text and a brush script for names. it holds a design system where nothing is solid, aphesis script, a variable font drawn with the φ's brush, and the engine that redraws the φ live and closes it into the seal in the corner.",
+      "role": "author: myself.",
+      "description": "aphes.ist is an experimental, hermetic personal site, and this is part of it.",
       "links": [
         {
           "label": "the repository",
@@ -57,12 +57,12 @@
       ],
       "map": {
         "file": "https://content-api.aphes.ist/media/m/f274675b159346d380504d1a.png",
-        "caption": "the φ · drawn by hand",
+        "caption": "the φ · phi",
         "settings": {
           "scatter": 0.75,
           "erosion": 0.55,
           "ceiling": 0.76,
-          "gain": 1
+          "gain": 1.0
         }
       },
       "sources": {

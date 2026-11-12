@@ -1500,8 +1500,10 @@
      three brush strokes and a little stipple on the 24-unit grid. State 0 is at rest; state 1 is chosen (the first tap):
      the same cells gather toward the mark's heart, closer and a little denser. Hovering or focusing stirs the stipple
      (CSS: .aph-icon). Seeds 201 to 299 belong to them. */
-  /* grain(x, y): a fixed value 0..1 per point, so a stipple can thin with a gradient and stay the same on every visit */
-  function grain(x, y) { var s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); }
+  /* speck(x, y): a fixed value 0..1 per point, so a stipple can thin with a gradient and stay the same on every visit.
+     Not grain: the masked-text grain(i) further down shares this scope, and as the later declaration it is the one
+     every call to grain reaches. */
+  function speck(x, y) { var s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); }
   /* sow(test, seed, count, size, g, k): stipple() whose cells are drawn toward g by the factor k (1 = where they fell) */
   function sow(test, seed, count, size, g, k) {
     var r = rng(seed), d = '';
@@ -1549,7 +1551,7 @@
     for (var i = 1; i < steps.length; i++) sp = sp.concat(line(steps[i - 1][0], steps[i - 1][1], steps[i][0], steps[i][1], 8).slice(1));
     var strokes = brush(arch, 1.8, 211, 0.12) + brush(sp, 1.1, 213, 0.28, 0.05);
     function under(x) { return x < 10.2 ? 12.6 : x < 12.6 ? 15.2 : x < 15 ? 17.8 : 20.6; }
-    function night(x, y) { return x > 7.6 && x < 16.4 && y < 20.8 && y > under(x) + 0.8 && grain(x, y) < 0.25 + (y - 12) / 9; }
+    function night(x, y) { return x > 7.6 && x < 16.4 && y < 20.8 && y > under(x) + 0.8 && speck(x, y) < 0.25 + (y - 12) / 9; }
     ICONS.descent = sectionIcon(strokes, [[night, 217, 1500, 0.62]], [12, 18]);
   })();
 
@@ -1666,9 +1668,7 @@
   /* the owner's projects, each a repository of its own, drawn as the sections are (one to a few brush strokes and a
      little stipple on the 24-unit grid, at rest 0 and gathered 1) so they can stand among them, as they do on the
      profile's ring. They are not sections of the site: Aphesis.PROJECTS lists them apart. Seeds 401 to 499 belong to
-     them. speck(x, y) is grain(x, y) above under a name of its own: the masked-text grain(i) further down shares that
-     name, and as a later declaration in this scope it is the one every call to grain reaches. */
-  function speck(x, y) { var s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); }
+     them. Their stipple thins with speck(x, y), as the sections' does. */
   var PROJECTS = ['contraprova', 'heuresis', 'anamnesis', 'autopoiesis'];
 
   /* contraprova (probatio contraria): a balance, its beam level: two marks weighed against each other and found

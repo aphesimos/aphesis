@@ -88,8 +88,7 @@ clockwise from the top.
 
 These need no build; link them, or copy them into the repository:
 
-- `system/assets/Icons/animated/<name>-{dark,light}.svg`: every section and project icon except descent (64px,
-  stirring).
+- `system/assets/Icons/animated/<name>-{dark,light}.svg`: every section and project icon (64px, stirring).
 - `system/assets/Logos/phi-boil-{dark,light}.svg`: the φ, boiling.
 
 ```html

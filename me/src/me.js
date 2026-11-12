@@ -327,7 +327,7 @@
   function swapText(el, v) { if (el.textContent !== v) el.textContent = v; }
   function applyText(key, v) {
     if (v == null) return;
-    if (typeof v !== 'string' && key !== 'me.education') return;
+    if (typeof v !== 'string') return;
     var el = $('[data-key="' + key + '"]');
     if (key === 'me.email' || key === 'me.github') { $$('.foot [data-key="' + key + '"]').forEach(function (f) { if (key === 'me.email') { f.textContent = v; f.href = 'mailto:' + v; } else f.href = v; }); }
     if (!el) return;
@@ -343,16 +343,13 @@
     else if (key === 'me.page') { el.innerHTML = md(v); underlines(); }
     else if (key === 'me.email') { $$('[data-key="me.email"]').forEach(function (f) { f.textContent = v; f.href = 'mailto:' + v; }); underlines(); }
     else if (key === 'me.github') { $$('[data-key="me.github"]').forEach(function (f) { f.href = v; if (!f.closest('.foot')) f.textContent = v.replace(/^https?:\/\//, ''); }); underlines(); }
-    else if (key === 'me.education') {
-      var rows = Array.isArray(v) ? v : String(v).split('\n').map(function (l) { var q = l.split(' | '); return { title: q[0], note: q[1] }; });
-      el.innerHTML = '';
-      rows.forEach(function (r) {
-        if (!r || !r.title) return;
-        var li = document.createElement('li'); li.className = 'rv aph-ink'; li.setAttribute('data-zone', '');
-        var n = document.createElement('span'); n.className = 'iname'; n.textContent = r.title; li.appendChild(n);
-        if (r.note) { var t = document.createElement('span'); t.className = 'aph-meta tag'; t.textContent = r.note; li.appendChild(t); }
-        el.appendChild(li);
-      });
+    else if (/^me\.education\.\d+$/.test(key)) {
+      /* `title · note`, split at the first ` · `; the note may hold more of them (FIAP · 2023–2026) */
+      var i = v.indexOf(' · '), title = i < 0 ? v : v.slice(0, i), note = i < 0 ? '' : v.slice(i + 3);
+      swapText($('.iname', el), title);
+      var tg = $('.tag', el);
+      if (note && !tg) { tg = document.createElement('span'); tg.className = 'aph-meta tag'; el.appendChild(tg); }
+      if (tg) { if (note) swapText(tg, note); else tg.remove(); }
     }
     else swapText(el, v);
   }

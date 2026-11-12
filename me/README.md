@@ -8,7 +8,7 @@ nouns keep their capitals. The words are the approved ones from the earlier stat
 
 | path | what |
 | --- | --- |
-| `content/me.json` | every word on the page, as data: name, meta line, lede, bio, works (name, href, tag, line, map), awards, education, tools, languages, looking, this page, contact |
+| `content/me.json` | every word on the page, as data: name, meta line, lede, bio, works (name, href, repo, icon, tag, line), awards, education, tools, languages, looking, this page, contact |
 | `src/template.html`, `src/me.css`, `src/me.js` | the page's shell, its css and its script (plain JavaScript on the design system's `window.Aphesis`) |
 | `previews/` | one density map per work (`<id>.png`, 560x350 grayscale, white = dense) of its linked page, made by `tools/capture_previews.mjs` |
 | `tools/capture_previews.mjs` | dev tool: opens each work's link with Playwright at 1280x800, waits for load + 2 s (8 s for aphes.ist), and writes the map (inverted for a light ground, auto levels 1st to 99.5th percentile, gentle contrast curve, mild unsharp). A site that fails falls back to its GitHub repo page. Run: `node me/tools/capture_previews.mjs [id ...]` |
@@ -42,13 +42,15 @@ The build needs Pillow and numpy: each preview map becomes a 1-bit mask of 2px s
 blue-noise-like field, a ceiling near .9, some lost points) for the static stipple, and a posterized 420px map for the
 live one.
 
-## Header
+## Header and footer
 
-The lab kit's receding header (system/lab-kit/v1/lab.css 1.1.0: `.lab-header--sticky`, `--blur`, `--lab-band` 50px,
-`--lab-veil-blur` 4px), ported as it is: a sticky header in the page column with the φ on the left and the nav
-(work, awards, contact) on the right; on a phone the nav runs on one scrolling line beneath. The script measures its
-height into `--lab-header-h`. The blur is dropped while the fog is on, as in the kit, and the veil steps aside while the
-eye's wave runs.
+Both follow the anamnesis landing page (aphesist/anamnesis, branch `site`). The header is one thin fixed line: the φ
+(to aphes.ist, with the seal's boil; the hero's φ lands on it), the name, the nav (work, awards, contact, with the letter
+lift) and the eye, which switches the theme with the wave from where it stands. A light, softly blurred veil of the
+ground lies under it only once the page has scrolled, and a second veil lets the bottom edge recede; both step aside
+while the eye's wave runs. On a phone the name gives way to the nav. The footer is a dotted rule of cells, then
+gloss-labelled rows of links (`scribe`: email and github; `opera`: each work's site) and `made by aphesist · part of
+aφesis`.
 
 ## Work
 
@@ -85,14 +87,33 @@ underline at once and there is no smooth scrolling.
 
 ## Content refresh
 
-When built with a content API, the page fetches, in parallel with a 2.5s timeout each, `GET {api}/v1/texts` (keys
-`me.name`, `me.meta`, `me.lede`, `me.bio`, `me.looking`, `me.page`, `me.contact`, `me.education`, `me.tools.code`,
-`.ai`, `.web`, `.infra`, `.design`, `me.languages`, `me.email`, `me.github` override the matching text; `me.education`
-is a list of `{title, note}` or lines of `title | note`), `GET {api}/v1/works` (a work's `line` replaces ours, `map.url`
-its picture) and `GET {api}/v1/awards` (`{awards: [{title, note, line}]}` replaces the list). Text not yet reached by
-the intro is replaced before it plays; text already shown is swapped silently. Failures are silent.
-The CSP in `public/_headers` allows `https://content-api.aphes.ist` for `connect-src` and `img-src`, and `data:` fonts
-because the faces are embedded.
+The owner edits the page in the desk's `me · nomen` place (section/gate); built with a content API, the page reads those
+edits at every load, in parallel, 2.5 s at most each, and keeps its own words for anything that does not answer:
+
+- `GET {api}/v1/texts`: the `me.*` keys replace the matching text: `me.name`, `me.meta`, `me.lede`, `me.bio`,
+  `me.looking`, `me.page`, `me.contact`, `me.education.1` and `.2` (each `title · note`, split at the first ` · `),
+  `me.tools.code`, `.ai`, `.web`, `.infra`, `.design`, `me.languages`, `me.email`, `me.github`.
+- `GET {api}/v1/works`: a work's `line` and `status` (the tag beside its name) replace ours, matched by id. Its picture
+  is not used: the page's pictures are the previews of each work's page, made at build. A work that is not in the
+  content service (autopoiesis, for now) keeps what `content/me.json` says.
+- `GET {api}/v1/awards`: the published awards replace the list.
+
+Text the intro has not reached yet is replaced before it plays; text already shown is swapped silently. The content
+service answers this origin for its public reads only (`READ_ORIGINS`), and the CSP in `public/_headers` allows
+`https://content-api.aphes.ist` for `connect-src` and `img-src`, and `data:` fonts because the faces are embedded.
+
+## Deploy
+
+The workflow `me` builds the page with the content service's address and publishes it with wrangler to the Cloudflare
+Pages project **`aphesist-me`** on every push to `me` that touches `me/` or the workflow (a commit whose message carries
+`[skip ci]` does not run it). It uses the repository's `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, creates the
+project the first time, and the page answers at `https://aphesist-me.pages.dev`. Runs started by a push may wait for
+approval in Actions.
+
+The domain is attached once, by hand: Cloudflare dashboard → Workers & Pages → `aphesist-me` → Custom domains → Set up a
+custom domain → `me.aphes.ist` → Activate. A DNS record alone is not enough here (unlike the GitHub Pages sites, which
+take theirs from a `CNAME` file): Pages serves and certifies only the hostnames added to the project. The `aphes.ist`
+zone is on Cloudflare, so that step also creates the proxied CNAME `me` → `aphesist-me.pages.dev`.
 
 ## Accessibility
 

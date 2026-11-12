@@ -168,9 +168,10 @@ def render_main(c, previews, seal):
     # education
     e = c['education']
     items = []
-    for it in e['items']:
-        items.append(f'<li class="rv aph-ink" data-zone><span class="iname">{esc(it["title"])}</span><span class="aph-meta tag">{esc(it["note"])}</span></li>')
-    h.append(section('education', e['heading'], e['gloss'], '<ul class="list" data-key="me.education">\n' + '\n'.join(items) + '\n</ul>', 'book'))
+    # each entry is the content service's me.education.<n>, written there as `title · note`
+    for n, it in enumerate(e['items'], 1):
+        items.append(f'<li class="rv aph-ink" data-zone data-key="me.education.{n}"><span class="iname">{esc(it["title"])}</span><span class="aph-meta tag">{esc(it["note"])}</span></li>')
+    h.append(section('education', e['heading'], e['gloss'], '<ul class="list">\n' + '\n'.join(items) + '\n</ul>', 'book'))
 
     # tools
     t = c['tools']

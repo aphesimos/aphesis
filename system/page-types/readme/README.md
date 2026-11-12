@@ -110,7 +110,9 @@ evaluation). Three columns, in this order:
     <img alt="a full sentence of what it shows, lowercase, with its numbers" src="assets/readme/NAME-light.svg" width="100%">
   </picture>
   ```
-  GitHub resolves `<picture>` to the reader's GitHub theme. The ground is transparent, the colours are the tokens,
+  GitHub resolves `<picture>` to the reader's GitHub theme. **A picture inside a link stays on one line**
+  (`<a href=…><picture><source …><img …></picture></a>`, as the header is): split across lines inside `<a>`, GitHub
+  drops the `<source>` and shows the light picture on a dark theme. The ground is transparent, the colours are the tokens,
   the motion is CSS and is still under reduced motion (the readme kit's rules).
 - **When a picture changes, its path changes.** GitHub's image proxy caches by path, so a redrawn SVG keeps showing
   the old one under the same name. Write the new one under a new name (`results-2-dark.svg`; the kit's `--name`)

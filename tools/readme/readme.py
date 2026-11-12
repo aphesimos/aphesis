@@ -100,9 +100,12 @@ def font_css(script_text='', elite_text=''):
             ".t{font-family:'Special Elite','Aphesis Script',monospace}")
     return css
 
+_METRICS = {}
 def advance(text, size, font='elite'):
-    f = TTFont(ELITE_FONTS[0]) if font == 'elite' else script_font()
-    cm, hm, upm = f.getBestCmap(), f['hmtx'], f['head'].unitsPerEm
+    if font not in _METRICS:   # read each font once: the ring's fog asks for a name's width at every cell
+        f = TTFont(ELITE_FONTS[0]) if font == 'elite' else script_font()
+        _METRICS[font] = (f.getBestCmap(), f['hmtx'], f['head'].unitsPerEm)
+    cm, hm, upm = _METRICS[font]
     return sum(hm[cm[ord(c)]][0] if ord(c) in cm else upm * .5 for c in text) * size / upm
 
 LICENCE = ('<!-- type: Aphesis Script (c) 2026 aphesist, SIL OFL 1.1, Reserved Font Name "Aphesis Script"; Special Elite '
@@ -161,22 +164,35 @@ def calm_rect(x0, y0, x1, y1, pad, residue):
 def edges(w, h, ex=46, ey=26):
     return lambda x, y: _ss(x / ex) * _ss((w - x) / ex) * _ss(y / ey) * _ss((h - y) / ey)
 
-FOG_LOW = .6
+# the fog's shimmer: every cell belongs to one of eight groups (a hash of its place in the whole field), and each group
+# fades in and out on its own clock, 0 to 1 and back, ease-in-out, so the curve ends where it starts and nothing
+# resets. The periods (4, 6, 8, 12 s) divide 24 s, so the whole loops every 24 s; the phases differ, so cells come
+# and go at random while the total stays about even; the phase slides a little with x (bands of SHIMMER_BAND px), so
+# the shimmer travels slowly across. Group and phase depend only on a cell's place in the whole field, never on the
+# image it falls in, so the pieces of a mosaic keep their seams invisible. Reduced motion: every cell at .6.
+SHIMMER = [(4, .0), (6, .37), (8, .71), (12, .13), (6, .86), (8, .29), (4, .55), (12, .62)]
+SHIMMER_BAND, SHIMMER_SLIDE = 104, .06
+
 def fog_layer(frames, theme, period=12, ox=0, oy=0, w=None, h=None, name='f'):
-    """the fog's frames as layers that breathe: each layer's opacity follows a cosine between FOG_LOW and 1 over the
-    period, the layers 1/n of a period apart, so their sum stays nearly even and the fog drifts as the field moves
-    between frames. The curve ends where it starts: the loop has no seam, and the pieces of a mosaic, all on the same
-    curve, stay joined. The phase is written into each layer's keyframes rather than an animation-delay, so pausing
-    every animation at a moment still shows the layers apart. Reduced motion: every layer rests at 1.
-    Cells outside (ox, oy, w, h) are dropped (a piece of a mosaic)."""
-    n = len(frames); css = ''; body = '<g fill="%s" opacity="%s" shape-rendering="crispEdges">' % (THEMES[theme]['fog'], FOG_OPACITY[theme])
-    stops = 24
-    for i, cells in enumerate(frames):
-        if w is not None: cells = [(x - ox, y - oy) for x, y in cells if ox - 2 < x < ox + w and oy - 2 < y < oy + h]
-        kf = ''.join('%s%%{opacity:%.3f}' % (num(100 * k / stops), (1 + FOG_LOW) / 2 + (1 - FOG_LOW) / 2 * math.cos(2 * math.pi * (k / stops - i / n)))
-                     for k in range(stops + 1))
-        css += '.%s%d{animation:%sk%d %ss linear infinite}@keyframes %sk%d{%s}' % (name, i, name, i, period, name, i, kf)
-        body += '<path class="%s%d" d="%s"/>' % (name, i, ''.join('M%d %dh2v2h-2z' % p for p in cells))
+    """the cells of all the frames, shimmering (above). frames are in the whole field's coordinates; a piece of a
+    mosaic gives its place and size (ox, oy, w, h) and keeps only its own cells. period is kept for callers and unused:
+    the shimmer's clocks are SHIMMER's."""
+    seen, groups = set(), {}
+    for fr in frames:
+        for (x, y) in fr:
+            if w is not None and not (ox - 2 < x < ox + w and oy - 2 < y < oy + h): continue
+            gx, gy = int(round(x)), int(round(y))
+            if (gx, gy) in seen: continue
+            seen.add((gx, gy))
+            g = (((gx * 73856093) ^ (gy * 19349663)) & 0x7fffffff) % len(SHIMMER)
+            groups.setdefault((g, gx // SHIMMER_BAND), []).append((x - ox, y - oy))
+    css = '@keyframes %ssh{0%%,100%%{opacity:0}40%%,60%%{opacity:1}}' % name
+    body = '<g fill="%s" opacity="%s" shape-rendering="crispEdges">' % (THEMES[theme]['fog'], FOG_OPACITY[theme])
+    for (g, band), cells in sorted(groups.items()):
+        per, ph = SHIMMER[g]
+        cls = '%s%d_%d' % (name, g, band)
+        css += '.%s{opacity:.6;animation:%ssh %ss ease-in-out %.2fs infinite}' % (cls, name, per, -((ph + band * SHIMMER_SLIDE) % 1) * per)
+        body += '<path class="%s" d="%s"/>' % (cls, ''.join('M%d %dh2v2h-2z' % p for p in cells))
     return css, body + '</g>'
 
 # ------------------------------------------------------------------ the φ, boiling

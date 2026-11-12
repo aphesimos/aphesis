@@ -104,7 +104,7 @@ one moment, add this rule to the SVG's `<style>`:
 *{animation-delay:-3s!important;animation-play-state:paused!important}
 ```
 
-Every animation starts at 0, so this freezes the image at 3 s.
+Every animation starts at 0, so this freezes the image at 3 s. It is exact for the type, the caret, the icons and the φ. The fog's eight groups carry their phases as negative delays, so the rule puts them all in step: judge the fog live, where its cells should visibly come and go with no moment where the whole field jumps.
 
 ## Rebuilding the runtime
 

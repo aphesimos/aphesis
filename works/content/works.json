@@ -84,7 +84,7 @@
       "links": [
         {
           "label": "the replay",
-          "href": "https://aphesist.github.io/contraprova/"
+          "href": "https://contraprova.aphes.ist/"
         },
         {
           "label": "the repository",
@@ -118,6 +118,10 @@
       "role": "author: the app, the brain and its evaluation; in progress",
       "description": "a local-first second brain, open source, that measures itself. notes, sources and conversations become a turning 3d stipple brain of linked dots, with regions that keep their names as it grows and every change an event in a hash-chained log. it works with no model, or with yours: a local one, an api key, or the subscriptions you already have. it asks one question of your own writing: what share of the links i later make by hand was already latent in what i had written? it is in progress.",
       "links": [
+        {
+          "label": "the site",
+          "href": "https://anamnesis.aphes.ist/"
+        },
         {
           "label": "the repository",
           "href": "https://github.com/aphesist/anamnesis"

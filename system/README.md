@@ -108,7 +108,7 @@ The φ is the only logo. It is always `seal` red, with a boil that reseeds 8 tim
 
 - **Cursor** (`Aphesis.cursor`): a disc in difference blend, the negative of what it covers. 0.2 at rest, 1 over links and buttons, `data-cursor=".55"` for small controls, tightening on press. Fine pointers only. It is the only cursor: the system cursor is hidden everywhere while it runs.
 - **Theme shift** (`Aphesis.themeShift`): the eye's switch. The theme is applied at once and the ground changes cell by cell as a wave from the eye over `duration-shift`, while the page stays live; text in `.aph-ink` containers is the negative of the cell beneath it until the wave has passed, and each red mark (`.aph-red`) turns to the new theme's red when the wave reaches it. What is not marked the runtime reads at the click: ink that reaches the fog blends the same way, and what cannot (an unmarked red, ink in a layer of its own) turns where it stands as the wave reaches it (`.aph-turn`). Never switch the theme from the eye without it.
-- **Bands** (`.aph-bands`, or `mask-image: var(--aph-bands)` where only some widths need it): a scroller that covers the screen lets what scrolls under the seal (top-left) and the eye, the ear and the passage (the bottom corners) recede instead of running into them; its content fades out through a band at the top and one at the bottom, sized to those marks and the safe-area insets. A mask, so the fog stays crisp and nothing solid is laid on the page; through the eye's wave the runtime keeps the text inside painted cell by cell (a mirror of the fog at the scroller's back).
+- **Bands** (`.aph-bands`, or `mask-image: var(--aph-bands)` where only some widths need it): a scroller that covers the screen lets what scrolls under the seal (top-left) and the eye, the ear and the passage (the bottom corners) recede instead of running into them; its content fades out through a band at the top and one at the bottom, sized to those marks and the safe-area insets. A mask, so the fog stays crisp and nothing solid is laid on the page; through the eye's wave the runtime keeps the text inside painted cell by cell (a mirror of the fog at the scroller's back). Outside the site (a research viewer, a project page), the lab kit carries the same band in a standalone form: `.lab-header--sticky` and `.lab-bands` (see "Lab kit", "The receding header").
 - **Tooltip** (`Aphesis.tooltip`): any element with `data-tip`. Never the `title` attribute.
 - **Scrollbar** (`Aphesis.Scroll`): no native bar anywhere; a red disturbance in the stipple along the right edge of whatever scrolls, only while it scrolls or the pointer is at that edge. It runs by itself (see "Browser defaults").
 - **Masked text** (`Aphesis.grain`, `Aphesis.grains`, `.aph-grains`): every secret field (a password, the gate's words while hidden) shows one round grain of stipple per character, the i-th grain always the same (`components/Grain`). 14 px with a 4 px gap, in `ink` (`currentColor`), centred or left as the line is; where a line must hold more characters, shrink both through `--grain-size` and `--grain-gap`, never to squares or bullets. The caret (the typewriter's underscore, in `accent`) follows the last grain. The grains are `aria-hidden`; the real `<input>` stays under them, transparent, for screen readers, autofill and password managers.
@@ -297,6 +297,7 @@ All lowercase, all on tokens. Classes start with `lab-`.
 | legend | `ul.lab-legend > li.lab-key.lab-cN` | keys: line (default), `--dot`, `--bar`, `--band` (stipple), `--dotted`, `--rule` (the red reference), `--ramp` (sequential), `--ramp.lab-key--div` |
 | charts | `figure.lab-chart > svg`, `figcaption` | below |
 | point clouds | `figure.lab-cloud > canvas`, `Lab.points()` | below |
+| receding header | `header.lab-header.lab-header--sticky` (+ `.lab-header--blur`), `footer.lab-footer--sticky`, `.lab-bands` | since 1.1: what scrolls fades out under a sticky header through the site's band; below |
 | tooltip | any `[data-tip]` inside `.lab` | typed in meta beside the pointer, a hairline of accent on its left; also on keyboard focus |
 
 ### Data-viz tokens
@@ -307,7 +308,7 @@ In `tokens.json` under `dataviz`, both themes, checked by the build (WCAG 2: tex
 - **Sequential** `lab-seq-1` to `7`: the neutral scale, low to high (`n-300` to `n-900` light, `n-800` to `n-150` dark): magnitude is the density of ink.
 - **Diverging** `lab-div-1` to `7`: lapis, through the ground's grey (`n-200` light, `n-800` dark), to rubedo. Put what asks for attention (worse, over budget) on the rubedo side.
 - **Roles**: `lab-mark` (one series: ink), `lab-ref` (the one that matters: accent), `lab-dim` (context marks), `lab-grid`, `lab-axis` (both decorative: the labels carry the values), `lab-axis-text` (`ink-soft`), `lab-pass`, `lab-fail`.
-- **Sizes**: `lab-cell` 2px, `lab-stroke` 2px, `lab-hair` 1px, `lab-dot` 6px, `lab-point` 2px, `lab-point-emph` 4px, `lab-point-pick` 8px, `lab-dim-alpha` .32, `lab-fog-alpha` .55.
+- **Sizes**: `lab-cell` 2px, `lab-stroke` 2px, `lab-hair` 1px, `lab-dot` 6px, `lab-point` 2px, `lab-point-emph` 4px, `lab-point-pick` 8px, `lab-dim-alpha` .32, `lab-fog-alpha` .55, `lab-band` 50px and `lab-veil-blur` 4px (the receding header).
 - **Colour classes**: `.lab-c1` to `.lab-c8`, `.lab-s1` to `.lab-s7`, `.lab-d1` to `.lab-d7`, `.lab-ink`, `.lab-soft`, `.lab-dim`, `.lab-accent` each set `--lab-k`, which every mark, key and swatch paints with.
 
 ### Charts
@@ -327,9 +328,43 @@ The chart layer styles SVG; it draws nothing. Wrap the `<svg>` in `figure.lab-ch
 
 `Lab.points()` returns the style for a 3D viewer (three.js, regl, deck.gl): `background` (`bg`), `point` (`fog`, for one class), `colors` (the categorical slots, for clusters), `dim` and `dimAlpha` (out of focus), `pick` (`lab-ref`), sizes in device pixels, `square: true`, `sizeAttenuation: false`, and `depthFog` (the ground's colour). Points are square cells that do not grow with nearness: at rest one cell (2px); a cluster in focus two cells (4px) while the others go to `lab-dim` at 32%; the one picked point four cells (8px) in red; far points sink into the ground (mixed toward `bg`) instead of shrinking. In three.js: `new THREE.PointsMaterial({size: P.size, sizeAttenuation: false, vertexColors: true})` (its points are squares already) and `scene.fog = new THREE.Fog(P.background, near, far)`. Turning is by hand (drag, arrow keys); a cloud never spins on its own.
 
+### The receding header
+
+Since 1.1. The lab kit's form of the site's bands (`.aph-bands`): content that scrolls under a sticky header (or over a sticky footer) does not meet a hard edge; it is faint under most of the header and comes clear just past it, through the same eased band (`lab-band`, 50px: the content at 0, .12 halfway, .45 at four fifths, then whole).
+
+**When.** A page or app with a header that stays while long content scrolls: a landing page, a viewer with many sections, a log. A short page needs no sticky header at all.
+
+**A page whose document scrolls** (most pages):
+
+```html
+<body class="lab">
+  <div class="lab-page">
+    <header class="lab-header lab-header--sticky lab-header--blur">
+      <a class="lab-mark" href="https://aphes.ist/" aria-label="aphes.ist"></a>
+      <span class="lab-project">anamnesis</span>
+      <nav class="lab-nav" aria-label="sections"><a href="#notes">notes</a> …</nav>
+      <div class="lab-controls">
+        <button class="lab-button" data-lab-toggle="theme">close the eye</button>
+      </div>
+    </header>
+    <main> … </main>
+  </div>
+</body>
+```
+
+- `.lab-header--sticky` keeps the header at the top and lays a veil of the ground under it: opaque over the header's own box, easing out over `lab-band` below it, across the column and its gutters. It is the ground's own colour, so no bar is seen, only text receding. Both themes, and a nested `data-theme`, follow by themselves.
+- `.lab-header--blur` (optional) adds a faint blur, `lab-veil-blur` (4px), under the same graded mask, only where the browser has `backdrop-filter` (`@supports`). It is dropped while the stipple ground is on, so the cells are never smeared, and for readers who ask for less transparency (`prefers-reduced-transparency`).
+- `.lab-footer--sticky` (and `.lab-footer--blur`) is the same from the bottom.
+- Links to a part of the page land below the header: `scroll-padding-top` follows `--lab-header-h`, which lab.js measures from the header itself (without lab.js it is 73px plus the safe-area inset).
+- On a phone the header stays short: the name and the controls on one line, the nav on one line beneath that scrolls sideways.
+
+**An app whose own pane scrolls** (a full-height scroller under a fixed header): put `.lab-bands` on the scroller. It is the site's bands as a mask, sized by `--lab-header-h` and `--lab-footer-h` (set them, or let lab.js measure a `.lab-header--sticky` / `.lab-footer--sticky`). For a box inside the page (a log, a list) use `.lab-bands.lab-bands--inner`: no header, no insets, only the bands. Give the box a height; its first and last children get room so that at rest nothing sits in a band.
+
+**Do**: keep the header to one line of marks and words; let the document scroll; leave the blur off unless the page is mostly text; keep the header inside `.lab-page` so the veil spans the column. **Don't**: give the header a background, a border, a shadow or a solid bar; raise `lab-veil-blur` past a few pixels or blur the stipple ground; put the sticky header inside an element with `overflow` (sticky stops working there; use `.lab-bands` on that element instead); mask the document itself (a mask follows the element, not the screen). Nothing here moves: there is no animation to reduce, and the theme and ground change at once.
+
 ### Versions and how a project takes it
 
-- The major version is in the path: `v1` only changes in ways that keep a page working (fixes, new classes, new tokens); a change that would break a page goes to `v2/`, and `v1/` stays served. The exact version is in the head of `lab.css` and in `Lab.version`.
+- The major version is in the path: `v1` only changes in ways that keep a page working (fixes, new classes, new tokens); a change that would break a page goes to `v2/`, and `v1/` stays served. The exact version is in the head of `lab.css` and in `Lab.version`: 1.0.0 the kit, 1.1.0 the receding header (`.lab-header--sticky`, `.lab-header--blur`, `.lab-footer--sticky`, `.lab-bands`, tokens `lab-band` and `lab-veil-blur`).
 - The site's deploy publishes every `system/lab-kit/v*/` directory of `design-system` to `https://aphes.ist/lab-kit/`, with `Access-Control-Allow-Origin: *` (the fonts load from other origins) and an hour of caching. A push to `design-system` reaches the address with the site's next deploy.
 - **Link it** (above) to follow `v1` as it is fixed. **Or vendor it**: copy `system/lab-kit/v1/` (lab.css, lab.js, fonts/) into the project, link it relatively, and note the version from the head of `lab.css`. The paths inside are relative, so the copy works as it is.
 - A viewer inside an app (React, a canvas app) puts `lab` on its own root element instead of `<body>`; the tokens are on `:root`, so they reach it. The kit's custom properties have the system's names (`--bg`, `--ink`, `--accent`, `--lab-*`); an app whose own properties use those names renames its own.

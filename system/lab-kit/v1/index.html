@@ -20,16 +20,17 @@
   .demo-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 0; }
   .demo-chart { width: 100%; }
   .demo-note { max-width: 65ch; }
+  .demo-pane { height: 300px; }
 </style>
 </head>
 <body class="lab">
 <div class="lab-page">
 
-<header class="lab-header">
+<header class="lab-header lab-header--sticky lab-header--blur">
   <a class="lab-mark" href="https://aphes.ist/" aria-label="aphes.ist, home"></a>
   <span class="lab-project">lab kit <span class="lab-gloss" lang="la">instrumenta</span></span>
   <nav class="lab-nav" aria-label="on this page">
-    <a href="#use">use</a><a href="#colour">colour</a><a href="#figures">figures</a><a href="#charts">charts</a><a href="#tables">tables</a><a href="#notes">notes</a><a href="#cloud">cloud</a>
+    <a href="#use">use</a><a href="#colour">colour</a><a href="#figures">figures</a><a href="#charts">charts</a><a href="#tables">tables</a><a href="#notes">notes</a><a href="#header">header</a><a href="#cloud">cloud</a>
   </nav>
   <div class="lab-controls">
     <button class="lab-button" type="button" data-lab-toggle="theme">close the eye</button>
@@ -206,6 +207,37 @@ Plot.plot({ ...Lab.plot(), marks: [Plot.dot(rows, { x: 'cost', y: 'quality', fil
 vegaEmbed(el, spec, { config: Lab.vega(), renderer: 'svg', actions: false });</code></pre>
 </section>
 
+<section class="lab-section" id="header" aria-labelledby="header-h">
+  <h2 id="header-h">the receding header</h2>
+  <p class="lab-prose">this page's header stays while the page scrolls, and what passes under it recedes instead of being cut: it is faint under most of the header and comes clear just past it, through the same band as the site's. the veil is the ground's own colour, so there is no bar to see; a faint blur sits under it where the browser can draw one, and goes when the stipple ground is on, so the cells never smear.</p>
+  <pre data-label="html"><code>&lt;div class="lab-page"&gt;
+  &lt;header class="lab-header lab-header--sticky lab-header--blur"&gt;
+    &lt;a class="lab-mark" href="https://aphes.ist/" aria-label="aphes.ist"&gt;&lt;/a&gt;
+    &lt;span class="lab-project"&gt;anamnesis&lt;/span&gt;
+    &lt;nav class="lab-nav" aria-label="sections"&gt;…&lt;/nav&gt;
+    &lt;div class="lab-controls"&gt;…&lt;/div&gt;
+  &lt;/header&gt;
+  &lt;main&gt;…&lt;/main&gt;
+&lt;/div&gt;</code></pre>
+  <div class="demo-grid">
+    <div class="lab-callout">
+      <span class="lab-callout-label">do</span>
+      <p>keep the header short (one line, the nav on a second line on a phone), let the page itself scroll, and leave the blur optional. links to a part of the page land below the header on their own.</p>
+    </div>
+    <div class="lab-callout lab-callout--alert">
+      <span class="lab-callout-label">don't</span>
+      <p>give the header a fill, a border or a shadow, raise the blur past a few pixels, or blur the stipple ground. if a reader cannot read what is under the header, it has receded enough.</p>
+    </div>
+  </div>
+  <h3>a pane that scrolls on its own · lab-bands lab-bands--inner</h3>
+  <div class="lab-bands lab-bands--inner demo-pane" tabindex="0" aria-label="a run log that scrolls on its own">
+    <table class="lab-table lab-table--dense">
+      <thead><tr><th scope="col">run</th><th scope="col">mode</th><th scope="col" class="num">cost</th><th scope="col" class="num">quality</th></tr></thead>
+      <tbody id="demo-log"></tbody>
+    </table>
+  </div>
+</section>
+
 <section class="lab-section" id="cloud" aria-labelledby="cloud-h">
   <h2 id="cloud-h">point clouds</h2>
   <p class="lab-prose">points are single square cells, like the fog: they do not grow with nearness, and the far ones sink into the ground instead. a cluster in focus is drawn at two cells and the rest recede; the one picked point is red. drag, or focus the picture and use the arrow keys, to turn it.</p>
@@ -340,8 +372,8 @@ vegaEmbed(el, spec, { config: Lab.vega(), renderer: 'svg', actions: false });</c
     el('path', { class: 'lab-step lab-ink', d: path(st) }, f.g);
     front.forEach(function (d) { el('rect', { class: 'lab-dot lab-c' + (d.k + 1), x: Math.round(x(d.cost)) - 3, y: Math.round(y(d.q)) - 3, width: 6, height: 6, tabindex: 0, 'data-tip': d.mode + ' · on the frontier\n$' + f2(d.cost) + ' · quality ' + f2(d.q) }, f.g); });
     el('rect', { class: 'lab-ring', x: Math.round(x(picked.cost)) - 8.5, y: Math.round(y(picked.q)) - 8.5, width: 17, height: 17 }, f.g);
-    var right = x(picked.cost) > f.iw - 150;
-    el('text', { class: 'lab-label', x: x(picked.cost) + (right ? -14 : 14), y: y(picked.q) + 22, 'text-anchor': right ? 'end' : 'start' }, f.g, 'picked · $' + f2(picked.cost) + ', ' + f2(picked.q));
+    var right = x(picked.cost) > f.iw - 150;   /* the label goes where the plot is empty: below the frontier, to the right of the ring if there is room */
+    el('text', { class: 'lab-label', x: x(picked.cost) + (right ? 10 : 14), y: y(picked.q) + (right ? 30 : 22), 'text-anchor': right ? 'end' : 'start' }, f.g, 'picked · $' + f2(picked.cost) + ', ' + f2(picked.q));
   }
   function barChart() {
     var host = document.querySelector('#ch-bars .demo-chart');
@@ -452,7 +484,15 @@ vegaEmbed(el, spec, { config: Lab.vega(), renderer: 'svg', actions: false });</c
     });
   }
 
-  function all() { lineChart(); paretoChart(); barChart(); heatChart(); divChart(); cloud(); swatches(); }
+  function log() {
+    var tb = document.getElementById('demo-log'); if (tb.children.length) return;
+    runs.slice().sort(function (a, b) { return a.cost - b.cost; }).forEach(function (d, i) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td class="num">' + String(i + 1).padStart(2, '0') + '</td><td>' + d.mode + '</td><td class="num">$' + f2(d.cost) + '</td><td class="num">' + f2(d.q) + '</td>';
+      tb.appendChild(tr);
+    });
+  }
+  function all() { log(); lineChart(); paretoChart(); barChart(); heatChart(); divChart(); cloud(); swatches(); }
   function start() {
     document.getElementById('kit-version').textContent = Lab.version;
     all();

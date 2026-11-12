@@ -1,9 +1,6 @@
 <div align="center">
 
-<a href="https://aphes.ist/"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/hero-dark.svg">
-  <img alt="aφesis: the φ drawn in the fog. what is loosed below is loosed above." src="assets/readme/hero-light.svg" width="100%">
-</picture></a>
+<a href="https://aphes.ist/"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/hero-dark.svg"><img alt="aφesis: the φ drawn in the fog. what is loosed below is loosed above." src="assets/readme/hero-light.svg" width="100%"></picture></a>
 
 </div>
 

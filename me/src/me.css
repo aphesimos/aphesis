@@ -28,52 +28,46 @@ html.mo #fog.on { opacity: 1; transition: opacity 1.2s var(--easing-settle); }
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
 .blk { max-width: 62ch; margin-left: auto; margin-right: auto; }
-.page > main { padding-top: var(--space-4); }
+.page > main { padding-top: calc(var(--space-6) + env(safe-area-inset-top, 0px)); }
 /* the halo of ground behind text is declared on each .aph-ink piece itself, so it reads the --bg the theme shift sets there */
 .aph-ink { text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg); }
 
-/* the receding header: the design system's lab kit 1.1.0 (system/lab-kit/v1/lab.css), ported as it is. Content passing
-   under the sticky header is faint under most of it and comes clear just past it, through the eased band (50px). Never a
-   solid bar: the veil is the ground's own colour. The header sits in the page column; the φ is on its left, the nav on
-   its right; script measures its height into --lab-header-h (as lab.js does). */
-:root {
-  --lab-band: 50px; --lab-veil-blur: 4px;
-  --lab-header-h: calc(env(safe-area-inset-top, 0px) + 84px);   /* the script replaces it with the sticky header's own height */
-  --lab-gutter: max(16px, env(safe-area-inset-left, 0px));
-  --lab-veil: linear-gradient(to bottom, var(--bg) calc(100% - var(--lab-band)),
-    color-mix(in oklab, var(--bg) 88%, transparent) calc(100% - var(--lab-band) * .5),
-    color-mix(in oklab, var(--bg) 55%, transparent) calc(100% - var(--lab-band) * .2), transparent);
-  --lab-veil-mask: linear-gradient(to bottom, #000 calc(100% - var(--lab-band)), rgba(0, 0, 0, .55) calc(100% - var(--lab-band) * .5), transparent);
+/* the header and the bottom band, as on anamnesis.aphes.ist: fixed and slim. At rest the header lies on the ground with
+   nothing behind it; once the page moves (.scrolled) a light veil of the ground, softly blurred and fading out at its
+   lower edge, lets what scrolls beneath recede. The bottom band does the same at the foot of the screen. Never a solid bar. */
+html { scroll-padding-top: calc(var(--space-7) + env(safe-area-inset-top, 0px)); }
+.top {
+  position: fixed; z-index: var(--z-nav); left: 0; right: 0; top: 0;
+  display: flex; align-items: center; gap: var(--space-4);
+  padding: calc(var(--space-3) + env(safe-area-inset-top, 0px)) max(var(--space-4), env(safe-area-inset-right, 0px), calc((100% - 1280px) / 2 + var(--space-4))) var(--space-3) max(var(--space-4), env(safe-area-inset-left, 0px), calc((100% - 1280px) / 2 + var(--space-4)));
 }
-.lab-header { padding: max(var(--space-4), env(safe-area-inset-top, 0px)) 0 var(--space-4); }
-.lab-header--sticky { position: sticky; z-index: 10; isolation: isolate; top: 0; }
-.lab-header--sticky::before, .lab-header--blur::after {
-  content: ""; position: absolute; left: calc(-1 * var(--lab-gutter)); right: calc(-1 * var(--lab-gutter)); pointer-events: none;
-  transition: opacity var(--duration-quick) ease;
+.top::before, .veil-bottom {
+  content: ""; position: absolute; inset: 0 0 calc(-1 * var(--space-5)) 0; pointer-events: none; z-index: -1;
+  background: color-mix(in oklab, var(--bg) 80%, transparent);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent); mask-image: linear-gradient(to bottom, #000 45%, transparent);
+  opacity: 0; transition: opacity var(--duration-slow) var(--easing-settle);
 }
-.lab-header--sticky::before { z-index: -1; top: 0; bottom: calc(-1 * var(--lab-band)); background: var(--lab-veil); }
-@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .lab-header--blur::after {
-    z-index: -2; -webkit-backdrop-filter: blur(var(--lab-veil-blur)); backdrop-filter: blur(var(--lab-veil-blur));
-    -webkit-mask-image: var(--lab-veil-mask); mask-image: var(--lab-veil-mask); top: 0; bottom: calc(-1 * var(--lab-band));
-  }
+.scrolled .top::before { opacity: 1; }
+/* the veils are the ground's colour: while the eye's wave turns the fog cell by cell they would stand out as bands of
+   the new theme, so they step aside until it has passed */
+.aph-shifting .top::before, .aph-shifting .veil-bottom { opacity: 0; transition-duration: var(--duration-quick); }
+.veil-bottom {
+  position: fixed; z-index: var(--z-nav); top: auto; bottom: 0; height: calc(var(--space-6) + env(safe-area-inset-bottom, 0px)); opacity: 1;
+  -webkit-mask-image: linear-gradient(to top, #000 30%, transparent); mask-image: linear-gradient(to top, #000 30%, transparent);
 }
-.lab-fog-on .lab-header--blur::after { display: none; }   /* the stipple ground is always on here: its cells are never smeared */
-@media (prefers-reduced-transparency: reduce) { .lab-header--blur::after { display: none; } }
-html:has(.lab-header--sticky) { scroll-padding-top: calc(var(--lab-header-h) + var(--lab-band) * .5); }
-/* while the eye's wave runs the ground changes cell by cell, so the veil (the new theme's colour) steps aside until it has passed */
-.aph-shifting .lab-header--sticky::before, .aph-shifting .lab-header--blur::after { opacity: 0; }
-.hdr-in { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2) var(--space-4); max-width: 62ch; margin: 0 auto; }
-#seal { display: block; flex: none; color: var(--seal); height: 44px; width: calc(44px * 385 / 533); transition: opacity .35s var(--easing-settle); }
-.nav { display: flex; align-items: center; gap: var(--space-2) var(--space-5); }
-.nav a { text-decoration: none; padding: var(--space-2) 0; }
+#seal { display: block; flex: none; width: calc(32px * 385 / 533); height: 32px; color: var(--seal); text-decoration: none; transition: opacity .35s var(--easing-settle); }
+.project { display: inline-flex; align-items: center; text-decoration: none; color: var(--ink);
+  font-size: var(--type-label-size); letter-spacing: var(--type-label-tracking); line-height: 1; }
+.top-nav { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-5); margin-left: auto; }
+.top-nav a { padding: var(--space-2) 0; text-decoration: none; color: var(--ink-soft); font-size: var(--type-label-size); letter-spacing: var(--type-label-tracking); line-height: 1; }
+.top-nav a:hover, .top-nav a:focus-visible, .project:hover, .project:focus-visible { color: var(--accent-text); }
+.top-nav .ltr { display: inline-block; transition: transform var(--duration-slow) var(--easing-settle); transition-delay: calc(var(--i) * 22ms); }
+.top-nav a:hover .ltr, .top-nav a:focus-visible .ltr { transform: translateY(-2px); }
 
-/* fixed chrome: every edge adds its safe-area inset */
-#eye {
-  position: fixed; z-index: var(--z-corner); width: 46px; height: 46px; color: var(--accent);
-  left: calc(var(--space-3) + env(safe-area-inset-left, 0px)); bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
-}
-#eye .eye { position: absolute; inset: var(--space-2); display: block; transform-origin: 50% 50%;
+#eye { position: relative; flex: none; width: 40px; height: 40px; margin: 0 -7px 0 0; color: var(--accent); }   /* a 40px target, the 26px eye inside */
+#eye:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+#eye .eye { position: absolute; inset: 7px; display: block; transform-origin: 50% 50%;
   transition: opacity var(--duration-quick) var(--easing-settle), transform var(--duration-slow) var(--easing-settle); }
 #eye .eye svg { width: 100%; height: 100%; display: block; overflow: visible; }
 #eye .closed { opacity: 0; transform: scaleY(.2) translateY(-4px); }
@@ -84,7 +78,7 @@ html:has(.lab-header--sticky) { scroll-padding-top: calc(var(--lab-header-h) + v
   :root:not([data-theme="light"]) #eye .closed { opacity: 1; transform: none; }
 }
 #skip {
-  display: none; position: fixed; z-index: var(--z-corner); left: 50%; margin-left: -9ch; width: 18ch; text-align: center;
+  display: none; position: fixed; z-index: var(--z-tip); left: 50%; margin-left: -9ch; width: 18ch; text-align: center;
   bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px)); color: var(--ink-soft);
   opacity: 0; transform: translateY(12px); pointer-events: none;
   transition: opacity var(--duration-slow) var(--easing-settle), transform var(--duration-slow) var(--easing-settle), color var(--duration-quick) ease;
@@ -149,8 +143,16 @@ html.mo .phi-slot { height: 120px; width: calc(120px * 656 / 910); margin-bottom
 .pairs .ul { justify-self: start; }
 #contact > p { margin-bottom: var(--space-4); }
 
-.end { margin-top: var(--space-8); display: flex; justify-content: center; }
-.phi-end { display: block; width: calc(30px * 385 / 533); height: 30px; color: var(--seal); }
+/* the foot, as on anamnesis: a dotted line of cells, lines of links each led by its gloss, the signature */
+.foot { position: relative; margin-top: var(--space-7); padding: var(--space-5) 0 calc(var(--space-7) + env(safe-area-inset-bottom, 0px));
+  background: repeating-linear-gradient(to right, var(--ink-soft) 0 2px, transparent 2px 6px) left top / 100% 2px no-repeat; }
+.foot-links p { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-4); }
+.foot-links p + p { margin-top: var(--space-2); }
+.foot-links a { padding: var(--space-1) 0; text-decoration: none; color: var(--ink); font-size: var(--type-label-size); letter-spacing: var(--type-label-tracking); line-height: 1.4; transition: color var(--duration-quick) var(--easing-settle); }
+.foot-links a:hover, .foot-links a:focus-visible, .made a:hover, .made a:focus-visible { color: var(--accent-text); }
+.foot-h { min-width: 5.5em; font-size: var(--type-gloss-title-size); line-height: 1.4; padding-right: .2em; }
+.made { margin-top: var(--space-5); }
+.made a { font: 400 1.6em/1 var(--font-display); font-variation-settings: "wght" 400, "slnt" -12; letter-spacing: 0; color: var(--seal); text-decoration: none; padding-right: .2em; }
 
 /* work: each row is its text, and its link's preview as stipple beside it (below it on phones) */
 .work { display: grid; grid-template-columns: minmax(0, 1fr) 210px; column-gap: var(--space-5); align-items: start; }
@@ -192,7 +194,7 @@ html.mo .phi-slot { height: 120px; width: calc(120px * 656 / 910); margin-bottom
 /* brushed underlines: drawn by the script; a plain underline stays until then and without it */
 a.ul, button.ul { position: relative; display: inline-block; }
 html:not(.ul-on) a.ul, html:not(.ul-on) button.ul { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; text-decoration-color: var(--ink-soft); }
-html:not(.ul-on) .nav a, html:not(.ul-on) a.wname, html:not(.ul-on) a.email { text-decoration: none; }
+html:not(.ul-on) a.wname, html:not(.ul-on) a.email { text-decoration: none; }
 .ul > svg { position: absolute; left: 0; bottom: -5px; height: 8px; overflow: visible; pointer-events: none; }
 .ul > svg path { fill: currentColor; }
 .ul .ur { color: var(--ink-soft); opacity: .7; }
@@ -228,10 +230,11 @@ html.mo .hero .meta .aph-caret { transition: opacity 1.2s ease; }
 
 @media (max-width: 560px) {
   /* the kit's phone header: the φ on one line, the nav on one scrolling line beneath */
-  .lab-header { padding-bottom: var(--space-2); }
-  .nav { order: 3; width: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; gap: var(--space-5); padding-bottom: var(--space-1); }
-  .nav::-webkit-scrollbar { display: none; }
-  .nav a { white-space: nowrap; }
+  /* the header on a phone, as anamnesis's: tighter, and the name steps aside */
+  .top { gap: var(--space-3); }
+  .top-nav { gap: var(--space-1) var(--space-4); }
+  .project .nm { display: none; }
+  .foot-h { flex-basis: 100%; }
   html.mo .phi-slot { height: 84px; width: calc(84px * 656 / 910); }
   .pairs > div, .pairs > li { grid-template-columns: 1fr; }
   .pairs > * + * { margin-top: var(--space-3); }
@@ -241,6 +244,6 @@ html.mo .hero .meta .aph-caret { transition: opacity 1.2s ease; }
 /* reduce motion: nothing hidden (no html.mo), no smooth scroll, no travelling, hover draws at once */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .ul .uh, #eye .eye, .gloss, .gloss-title, #seal, .pvs, .pvbox canvas { transition: none; }
+  .ul .uh, #eye .eye, .gloss, .gloss-title, #seal, .pvs, .pvbox canvas, .top::before, .top-nav .ltr { transition: none; }
   .aph-icon .aph-st path { animation: none !important; }
 }

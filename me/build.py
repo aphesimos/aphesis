@@ -197,6 +197,22 @@ def render_main(c, previews, seal):
     return '\n\n'.join(h)
 
 
+def render_foot(c):
+    ct = c['contact']
+    gh = re.sub(r'^https?://', '', ct['github'])
+    works = ''.join(f'<a href="{attr(it["href"])}">{esc(it["name"])}</a>' for it in c['works']['items'])
+    return (
+        '<footer class="foot blk">\n'
+        '<nav class="foot-links" aria-label="contact and work">\n'
+        f'<p><span class="foot-h gloss aph-ink" lang="la">{esc(ct["gloss"])}</span>'
+        f'<a class="aph-ink" data-key="me.email" href="mailto:{attr(ct["email"])}">{esc(ct["email"])}</a>'
+        f'<a class="aph-ink" data-key="me.github" href="{attr(ct["github"])}">github</a></p>\n'
+        f'<p><span class="foot-h gloss aph-ink" lang="la">{esc(c["works"]["gloss"])}</span>{works}</p>\n'
+        '</nav>\n'
+        '<p class="made aph-meta aph-ink">made by aphesist · part of <a href="https://aphes.ist/">aφesis</a></p>\n'
+        '</footer>')
+
+
 def host(href):
     """the link's host, and its path unless it is the root: contraprova.aphes.ist, github.com/aphesist/heuresis"""
     u = urlparse(href)
@@ -310,7 +326,8 @@ def build(args):
     tpl = open(os.path.join(HERE, 'src', 'template.html'), encoding='utf-8').read()
     js = open(os.path.join(HERE, 'src', 'me.js'), encoding='utf-8').read()
     page = (tpl.replace('<!--__MAIN__-->', render_main(c, previews, seal))
-            .replace('__SEAL__', seal).replace('__PHI_END__', seal)
+            .replace('<!--__FOOT__-->', render_foot(c))
+            .replace('__SEAL__', seal)
             .replace('__FAVICON__', favicon)
             .replace('__TITLE__', esc(c['title'])).replace('__DESCRIPTION__', attr(c['description']))
             .replace('__OGDESC__', attr(c['og_description']))

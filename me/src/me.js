@@ -65,9 +65,10 @@
   A.cursor();
   A.tooltip();
 
-  /* ---------------------------------------------------------------- the receding header: its height as --lab-header-h (as lab.js does) */
-  var hdr = $('.lab-header--sticky');
-  if (hdr && typeof ResizeObserver === 'function') new ResizeObserver(function () { root.style.setProperty('--lab-header-h', Math.round(hdr.getBoundingClientRect().height) + 'px'); }).observe(hdr);
+  /* ---------------------------------------------------------------- the header: the veil shows once the page has moved; the parts lift letter by letter */
+  var scrolled = function () { root.classList.toggle('scrolled', (window.pageYOffset || 0) > 8); };
+  addEventListener('scroll', scrolled, { passive: true }); scrolled();
+  $$('.top-nav a').forEach(function (a) { A.letters(a); });
 
   /* ---------------------------------------------------------------- section icons and headings */
   $$('.si').forEach(function (el) { el.innerHTML = A.icon(el.dataset.icon, REDUCED ? 1 : 0); });
@@ -328,6 +329,7 @@
     if (v == null) return;
     if (typeof v !== 'string' && key !== 'me.education') return;
     var el = $('[data-key="' + key + '"]');
+    if (key === 'me.email' || key === 'me.github') { $$('.foot [data-key="' + key + '"]').forEach(function (f) { if (key === 'me.email') { f.textContent = v; f.href = 'mailto:' + v; } else f.href = v; }); }
     if (!el) return;
     if (key === 'me.name') { nameLetters(v); if (intro.done) $$('.nl').forEach(function (l) { l.classList.add('on'); }); document.title = v; }
     else if (key === 'me.meta') {
@@ -339,8 +341,8 @@
       if (started[k] || intro.done) { p.textContent = v; p.classList.add('rdy'); } else p.dataset.text = v;
     }
     else if (key === 'me.page') { el.innerHTML = md(v); underlines(); }
-    else if (key === 'me.email') { el.textContent = v; el.href = 'mailto:' + v; underlines(); }
-    else if (key === 'me.github') { el.href = v; el.textContent = v.replace(/^https?:\/\//, ''); underlines(); }
+    else if (key === 'me.email') { $$('[data-key="me.email"]').forEach(function (f) { f.textContent = v; f.href = 'mailto:' + v; }); underlines(); }
+    else if (key === 'me.github') { $$('[data-key="me.github"]').forEach(function (f) { f.href = v; if (!f.closest('.foot')) f.textContent = v.replace(/^https?:\/\//, ''); }); underlines(); }
     else if (key === 'me.education') {
       var rows = Array.isArray(v) ? v : String(v).split('\n').map(function (l) { var q = l.split(' | '); return { title: q[0], note: q[1] }; });
       el.innerHTML = '';

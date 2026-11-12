@@ -55,7 +55,7 @@ Options: `--width`, `--height`, `--icon-size`, `--name` (the file name), `--pref
 output folder, if it is not the folder as given) and `--seed` (the fog).
 
 Icon names are the sections (`book`, `descent`, `archive`, `laboratory`, `works`, `wall`, `forum`, `music`) and the
-projects (`contraprova`, `heuresis`, `anamnesis`, `autopoiesis`). A new project gets its icon in
+projects (`contraprova`, `heuresis`, `anamnesis`, `autopoiesis`, `parataxis`). A new project gets its icon in
 `tools/bundle_src.js` first, under "PROJECT ICONS", drawn the same way, and is added to `PROJECTS`. Then rebuild
 `system/components/bundle.js` (below).
 

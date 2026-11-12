@@ -1669,7 +1669,7 @@
      little stipple on the 24-unit grid, at rest 0 and gathered 1) so they can stand among them, as they do on the
      profile's ring. They are not sections of the site: Aphesis.PROJECTS lists them apart. Seeds 401 to 499 belong to
      them. Their stipple thins with speck(x, y), as the sections' does. */
-  var PROJECTS = ['contraprova', 'heuresis', 'anamnesis', 'autopoiesis'];
+  var PROJECTS = ['contraprova', 'heuresis', 'anamnesis', 'autopoiesis', 'parataxis'];
 
   /* contraprova (probatio contraria): a balance, its beam level: two marks weighed against each other and found
      equal. The post and its foot, the beam, two pans on their cords, and in each pan a heap of stipple, alike */
@@ -1729,6 +1729,22 @@
       brush(arc(C[0], C[1], r, -86, -66, 8), 3.4, 488, 0.3, 0.05);
     function matter(x, y) { var d = Math.hypot(x - C[0], y - C[1]); return d < 4.4 && speck(x, y) < 0.78 - d * 0.14; }
     ICONS.autopoiesis = sectionIcon(strokes, [[matter, 489, 2400, 0.56]], C, 0.7);
+  })();
+
+  /* parataxis (παράταξις): placing side by side. Three lanes stand side by side under one bar, the interface round
+     that fixes what each provides before any writes; below, their strokes lean in to meet at a gate, the test-gated
+     merge. Work in stipple runs down between the lanes and gathers where they meet */
+  (function () {
+    var strokes = brush(line(4.4, 5.0, 19.6, 4.8, 24), 1.3, 491, 0.2) +
+      brush(line(7.2, 7.2, 7.4, 14.2, 14), 1.15, 492, 0.32, 0.06) +
+      brush(line(12, 7.1, 11.9, 14.3, 14), 1.15, 493, 0.32, 0.06) +
+      brush(line(16.8, 7.2, 16.6, 14.2, 14), 1.15, 494, 0.32, 0.06) +
+      brush(line(7.6, 15.4, 11.3, 18.8, 10), 0.95, 495, 0.32, 0.05) +
+      brush(line(16.4, 15.4, 12.7, 18.8, 10), 0.95, 496, 0.32, 0.05) +
+      brush(line(9.2, 20.4, 14.8, 20.3, 12), 1.25, 497, 0.3, 0.05);
+    function work(x0, x1) { return function (x, y) { return x > x0 && x < x1 && y > 7.6 && y < 13.8 && speck(x, y) < 0.42 + (y - 7.6) * 0.05; }; }
+    function met(x, y) { var u = (x - 12) / 1.9, v = (y - 17.2) / 1.25; return u * u + v * v < 1; }
+    ICONS.parataxis = sectionIcon(strokes, [[work(8.6, 10.5), 498, 900, 0.46], [work(13.4, 15.3), 499, 900, 0.46], [met, 490, 1400, 0.56]], [12, 17.2], 0.72);
   })();
 
   function mountEar(el) {

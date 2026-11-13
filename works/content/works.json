@@ -39,7 +39,9 @@
       },
       "flags": {
         "needs_owner_review": false
-      }
+      },
+      "line": "a company's tools in one place (a dashboard, a crm with WhatsApp, a timesheet, finance, files, an app for the client), with a team of ai members, one for each area: they prepare the work, and a person approves it.",
+      "status": "not launched yet"
     },
     {
       "id": "aphesis",
@@ -71,7 +73,117 @@
       },
       "flags": {
         "needs_owner_review": false
-      }
+      },
+      "line": "my experimental site: one page of stippled fog, a hand-drawn φ and typewriter text, with its own design system, a typeface drawn with the φ's brush, and Rust workers on Cloudflare."
+    },
+    {
+      "id": "contraprova",
+      "name": "contraprova",
+      "gloss": "probatio contraria",
+      "gloss_tip": "probatio contraria · the counter-proof",
+      "year": "2026",
+      "role": "author: the orchestrator, the pre-registered study and the replay",
+      "description": "a governed orchestrator. a strong model plans from outlines, claude haiku does the narrow work, a gate checks each change, and only what the gate blocks escalates to a stronger model. every fact is an event in a hash-chained log; every claim is tied to a number registered before the run. on 88 fresh swe-bench pro tasks the cascade solved 83 and a single opus 85: −2.3 points [−8.0, +3.4], inside the pre-registered 10-point margin, at $0.055 per solved task against $0.139, about 61% less.",
+      "links": [
+        {
+          "label": "the replay",
+          "href": "https://contraprova.aphes.ist/"
+        },
+        {
+          "label": "the repository",
+          "href": "https://github.com/aphesist/contraprova"
+        }
+      ],
+      "map": {
+        "file": "https://content-api.aphes.ist/media/m/f0c403997406306d4cbd5a35.png",
+        "caption": "the governed cascade · plan, work, gate, fork",
+        "settings": {
+          "scatter": 0.7,
+          "erosion": 0.5,
+          "ceiling": 0.78,
+          "gain": 1
+        }
+      },
+      "sources": {
+        "description": "contraprova README.md (main branch) and results/swepro-main/README.md: 83/88 vs 85/88, -2.3 points [-8.0, 3.4], cost per solved task $0.0546 vs $0.1390, ratio 0.393 [0.299, 0.510]",
+        "map": "contraprova main branch: assets/readme/cascade-dark.svg, without its words, fog and cursor"
+      },
+      "flags": {
+        "needs_owner_review": false
+      },
+      "line": "a governed orchestrator. in a pre-registered study on 88 fresh SWE-bench Pro tasks, a Haiku-first cascade matched single Opus within a 10-point margin (83 vs 85 solved) at about 61% less cost per solved task."
+    },
+    {
+      "id": "anamnesis",
+      "name": "anamnesis",
+      "gloss": "ἀνάμνησις",
+      "gloss_tip": "ἀνάμνησις · recollection",
+      "year": "2026",
+      "role": "author: the app, the brain and its evaluation; in progress",
+      "description": "a local-first second brain, open source, that measures itself. notes, sources and conversations become a turning 3d stipple brain of linked dots, with regions that keep their names as it grows and every change an event in a hash-chained log. it works with no model, or with yours: a local one, an api key, or the subscriptions you already have. it asks one question of your own writing: what share of the links i later make by hand was already latent in what i had written? it is in progress.",
+      "links": [
+        {
+          "label": "the site",
+          "href": "https://anamnesis.aphes.ist/"
+        },
+        {
+          "label": "the repository",
+          "href": "https://github.com/aphesist/anamnesis"
+        }
+      ],
+      "map": {
+        "file": "https://content-api.aphes.ist/media/m/b58b1bc48547d44bbd955b22.png",
+        "caption": "the demo brain · 1,100 dated entries from thoreau and emerson",
+        "settings": {
+          "scatter": 0.75,
+          "erosion": 0.5,
+          "ceiling": 0.78,
+          "gain": 1
+        }
+      },
+      "sources": {
+        "description": "anamnesis README.md (main branch, v0.1.0)",
+        "map": "anamnesis main branch: demo/transcendentalist/snapshot/views.json.gz, the anatomy layout seen from the front"
+      },
+      "flags": {
+        "needs_owner_review": false
+      },
+      "line": "an open-source, local-first second brain that measures itself.",
+      "status": "in progress"
+    },
+    {
+      "id": "heuresis",
+      "name": "heuresis",
+      "gloss": "εὕρεσις",
+      "gloss_tip": "εὕρεσις · discovery",
+      "year": "2026",
+      "role": "author: the engine, its locked judge and the pre-registered benchmark; in progress",
+      "description": "retrieve what was in force, cite it, and abstain when you cannot. an open-source retrieval engine for large corpora that change over time, in any domain. it works in order of cost: cheap local stages first, one model call, then local checks. it filters by the date a text was in force before it ranks, and every answer sentence is checked against the passages it cites; otherwise it gives a typed abstention that says why. it is in progress: built and tested offline, its pre-registered test not yet run.",
+      "links": [
+        {
+          "label": "the repository",
+          "href": "https://github.com/aphesist/heuresis"
+        }
+      ],
+      "map": {
+        "file": "https://content-api.aphes.ist/media/m/ac6d5b3a3a2e1168a889b4b5.png",
+        "caption": "the pipeline · understand, retrieve, answer, verify, decide",
+        "settings": {
+          "scatter": 0.7,
+          "erosion": 0.5,
+          "ceiling": 0.78,
+          "gain": 1
+        }
+      },
+      "sources": {
+        "description": "heuresis README.md (main branch, e1ad84c): tagline, how it works, status; no performance claims, as the pre-registered test has not run",
+        "map": "heuresis main branch: the pipeline diagram in README.md, drawn cell by cell"
+      },
+      "flags": {
+        "needs_owner_review": false
+      },
+      "line": "a retrieval engine for corpora that change over time. it cites its sources, and abstains when it can't.",
+      "status": "in progress"
     }
   ]
 }

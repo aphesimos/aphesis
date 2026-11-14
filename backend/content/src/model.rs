@@ -4,7 +4,7 @@
 //! - **post** (archive · codex): slug, title, summary, stage, date, markdown body, notes `[{id, text}]` (the
 //!   archive's `[^id]` footnotes), figures `[{name, key, w, h}]` (density maps the body names as
 //!   `![caption](simulacrum:<name>)`), example, published.
-//! - **book** (book · liber): slug, title, author, year, note (paragraphs separated by a blank line), quote,
+//! - **book** (book · liber): slug, title, author, year, note (paragraphs separated by a blank line, line breaks kept inside: the archive's small markdown), quote,
 //!   quote_lang, quote_en, caption, picture `{key, w, h}`, adjust (simulacrum settings and map adjustments:
 //!   gain, scatter, erosion, ceiling, crop `[x, y, w, h]`, blur, contrast, brightness), position, example, published.
 //! - **work** (works · opera): the fields of section/works `content/works.json`: id, name, gloss, gloss_tip, year,
@@ -335,11 +335,24 @@ pub fn book_in(v: &Value) -> R<Book> {
         _ => return Err("crop is x, y, width and height in map pixels".into()),
     }
     let note = text(v, "note", 1, 4000)?;
-    // paragraphs: one blank line between them, single spaces inside
-    let note = note
-        .split("\n\n")
-        .map(|p| p.split_whitespace().collect::<Vec<_>>().join(" "))
+    // paragraphs: one blank line between them. Inside one, the line breaks stay (the book sets the archive's small
+    // markdown, and a list or a quote is written on lines), a line's indent stays, its other spaces become one.
+    let mut paragraphs: Vec<Vec<String>> = vec![Vec::new()];
+    for l in note.lines() {
+        if l.trim().is_empty() {
+            if !paragraphs.last().is_some_and(|p| p.is_empty()) {
+                paragraphs.push(Vec::new());
+            }
+        } else {
+            let indent: String = l.chars().take_while(|c| c.is_whitespace()).collect();
+            let words = l.split_whitespace().collect::<Vec<_>>().join(" ");
+            paragraphs.last_mut().unwrap().push(format!("{indent}{words}"));
+        }
+    }
+    let note = paragraphs
+        .iter()
         .filter(|p| !p.is_empty())
+        .map(|p| p.join("\n"))
         .collect::<Vec<_>>()
         .join("\n\n");
     Ok(Book {
@@ -584,6 +597,10 @@ mod tests {
     fn books_are_checked() {
         let b = book_in(&book()).unwrap();
         assert_eq!(b.note, "one\n\ntwo words");
+        /* a list and a quote keep their lines, a plain paragraph's wrapped lines stay lines (the book joins them) */
+        let mut x = book();
+        x["note"] = json!("intro  line\n- a\n-  b   c\n  - nested\n   \n> q\n> r\n\n\n\nlast");
+        assert_eq!(book_in(&x).unwrap().note, "intro line\n- a\n- b c\n  - nested\n\n> q\n> r\n\nlast");
         assert_eq!(b.adjust["crop"], json!([0, 10, 400, 300]));
         let bad = |k: &str, v: Value| {
             let mut x = book();

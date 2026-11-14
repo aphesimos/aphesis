@@ -90,6 +90,14 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 #eMeta { margin: 0 0 var(--space-5); }
 .note p { margin: 0 0 var(--space-3); }
 .note p:last-child { margin-bottom: 0; }
+/* the note's markdown, set as the archive sets its prose (markup.js): italics in the script, lists, a quote indented */
+.note ul, .note ol { margin: 0 0 var(--space-3); padding-left: var(--space-5); }
+.note li { margin: 0 0 var(--space-1); }
+.note a { text-decoration-color: var(--accent); text-underline-offset: 4px; }
+.note em { font-style: normal; font-family: var(--font-display); font-variation-settings: "wght" 400, "slnt" -12; font-size: 1.12em; padding-right: .08em; }
+.note code { font-family: var(--font-text); color: var(--ink-soft); }
+.note blockquote { margin: var(--space-4) 0; padding: 0 0 0 var(--space-5); font-size: var(--type-lede-size); line-height: var(--type-lede-line); color: var(--ink-soft); }
+.note blockquote p { margin: 0 0 var(--space-2); }
 #eQuote { margin: var(--space-5) 0 0; padding: 0; }
 #eQuote p {
   margin: 0; font-size: var(--type-lede-size); line-height: var(--type-lede-line); color: var(--ink-soft); display: inline;

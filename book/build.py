@@ -76,6 +76,12 @@ def scalar(v):
     return v
 
 
+def paragraph(p):
+    """One paragraph of a note: the line breaks stay (a list or a quote is written on lines; src/markup.js joins a
+    plain paragraph's lines with a space), runs of spaces inside a line become one, the indent of a line is kept."""
+    return '\n'.join(re.sub(r'(?<=\S)[ \t]+', ' ', ln).rstrip() for ln in p.strip().split('\n') if ln.strip())
+
+
 def read_entry(path):
     text = open(path, encoding='utf-8').read().replace('\r\n', '\n')
     m = re.match(r'^---\n(.*?)\n---\n(.*)$', text, flags=re.S)
@@ -100,7 +106,7 @@ def read_entry(path):
         meta['crop'] = [float(v) for v in str(meta['crop']).replace(',', ' ').split()]
         if len(meta['crop']) != 4:
             sys.exit(f'{path}: crop is x y width height, in map pixels')
-    paras = [re.sub(r'\s+', ' ', p).strip() for p in re.split(r'\n\s*\n', m.group(2).strip()) if p.strip()]
+    paras = [paragraph(p) for p in re.split(r'\n\s*\n', m.group(2).strip()) if p.strip()]
     words = sum(len(p.split()) for p in paras)
     if not 60 <= words <= 200:
         print(f'warning: {os.path.basename(path)}: the note has {words} words (60 to 200 read best)', file=sys.stderr)
@@ -133,7 +139,7 @@ def entries_module(items):
 
 
 # ---------- modules ----------
-ORDER = ['entries.js', 'content.js', 'motion.js', 'numerals.js', 'plate.js', 'leaf.js', 'turning.js', 'main.js']
+ORDER = ['entries.js', 'content.js', 'motion.js', 'numerals.js', 'plate.js', 'markup.js', 'leaf.js', 'turning.js', 'main.js']
 
 
 def scope_module(name, src):

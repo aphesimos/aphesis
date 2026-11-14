@@ -56,9 +56,14 @@ quote: Solve et coagula
 quote_lang: la
 quote_en: dissolve and coagulate.
 ---
-The note: 60 to 200 words, plain paragraphs separated by a blank line.
+The note: 60 to 200 words, paragraphs separated by a blank line.
 ```
 
+- The note is the archive's small markdown, set by `src/markup.js` (the archive's own converter, line for line, without
+  headings, fences and footnotes): `*italic*` or `_italic_` (in the script, as the archive sets it), `**strong**`, `` `code` ``,
+  `[a link](https://…)`, `> a quote` and `- ` / `1. ` lists. A plain paragraph is a plain paragraph; its lines are joined with a
+  space. `node book/tools/markup-parity.mjs` proves it against the archive's `render.js`. The desk edits and previews a note
+  with the same editor and module as an archive post.
 - `title` is lowercase (Aphesis Script has no capitals). `author` and `year` are free text in meta; proper nouns keep
   their capitals.
 - `map` names a density map in `design-system:system/assets/Simulacra/`. A picture that is not there yet is prepared

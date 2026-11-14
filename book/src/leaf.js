@@ -4,6 +4,7 @@
    leaves with a quick fade and blur, and the next enters with the system's soft entrance (a blur and a rise). */
 
 import { roman } from './numerals.js';
+import { noteHtml } from './markup.js';
 
 const A = window.Aphesis;
 const $ = (id) => document.getElementById(id);
@@ -28,7 +29,7 @@ export function createLeaf(entries, { onChoose }) {
     const e = entries[i];
     els.title.textContent = e.title;
     els.meta.textContent = e.author + ' · ' + e.year;
-    els.note.replaceChildren(...e.note.map((t) => { const p = document.createElement('p'); p.textContent = t; return p; }));
+    els.note.innerHTML = noteHtml(e.note);   /* the paragraphs, and the archive's small markdown inside them (markup.js) */
     const q = els.quote, qp = q.querySelector('p');
     if (e.quote) {
       q.hidden = false;

@@ -44,6 +44,22 @@ A.tooltip();
 const corners = [{ el: $('seal'), pad: 10 }, { el: $('controls'), pad: 8 }];
 const zones = (list) => fog.zones(corners.concat(list));
 
+/* the desk is wide, two columns (the editor and its preview), so the fog's own clearing is used for it, not a zone: a
+   zone is an ellipse, and the right-hand column's corners stayed under fog. The clearing is a band down the middle
+   of the screen, full to about four fifths of its half-width, whose width is the desk's, plus its margin, so the fog
+   keeps to the far edges and the margins and leaves both columns clear. Away from the desk the page's own fog. */
+const DESK_MARGIN = 40;
+/* and the columns themselves are calm too: the editing column and the preview, whichever of them is on screen, found
+   again each frame (the editor opens and closes under the desk), a zone being any object with a getBoundingClientRect */
+const shown = (sel) => ({ getBoundingClientRect: () => { for (const el of $('deskIn').querySelectorAll(sel)) { const r = el.getBoundingClientRect(); if (r.width) return r; } return new DOMRect(); } });
+const COLUMNS = [{ el: shown('.editor .write, .place-body > .pane:not(.editor)'), pad: 36 }, { el: shown('.editor .read'), pad: 36 }];
+function deskFog() {
+  const r = $('deskIn').getBoundingClientRect(), w = innerWidth;
+  fog.set({ density: 0.5, clear: 1, clearWidth: Math.min(1, Math.max(0.3, (r.width + 2 * DESK_MARGIN) / w / 0.7)) });
+}
+const fogAway = () => fog.set({ density: 0.62, clear: 0, clearWidth: null });
+addEventListener('resize', () => { if (step === 3) deskFog(); });
+
 const api = CONFIG.mock && createMockApi ? createMockApi() : createApi(CONFIG.api);
 const gate = $('gate'), desk = $('desk');
 const announceEl = $('announce');
@@ -126,7 +142,8 @@ function openDesk() {
   gate.hidden = true; desk.hidden = false;
   desk.classList.remove('enter'); void desk.offsetWidth; desk.classList.add('enter');
   if (!dash) dash = createDash({ api, root: $('deskIn'), onLeave: leave });
-  zones([{ el: $('deskIn'), pad: 0 }]);
+  zones(COLUMNS);
+  deskFog();
   const t = desk.querySelector('.title'); if (t) t.focus({ preventScroll: true });
   root.dataset.gate = 'desk';
   announce('the desk');
@@ -135,6 +152,7 @@ function leave() {
   dash = null; $('deskIn').replaceChildren();
   $('eye').hidden = false;
   /* the eye draws itself again */
+  fogAway();
   eye.destroy();
   eye = createEye($('eye'), { follow: caretOfOne });
   openGate();

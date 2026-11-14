@@ -242,3 +242,50 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .me-new .me-row { margin-bottom: var(--space-5); }
 .act:disabled { color: var(--ink-soft); cursor: default; }
 .act:disabled .uline { display: none; }
+
+/* the markdown editor (md-editor.js): a transparent textarea over a pre that holds the same text in colour. The two must
+   lay out alike, so the pre never changes a glyph's width: no size, no weight, no padding; marks are dimmed, em is
+   slanted, strong is struck twice, headings, quotes and lists take colour. The pre is in the flow and sets the height. */
+.md-ed { display: block; }
+.md-bar { display: flex; flex-wrap: wrap; gap: 0 var(--space-4); margin: 0 0 var(--space-1); }
+.md-bar .act { padding: var(--space-1) 0; color: var(--ink-soft); font-size: var(--type-meta-size); }
+.md-bar .act:hover, .md-bar .act:focus-visible { color: var(--ink); }
+.md-t-italic .act-t { font-style: italic; }
+.md-t-bold .act-t { text-shadow: .5px 0 0 currentColor, -.5px 0 0 currentColor; }
+.md-surface { position: relative; }
+.md-mirror, .field .md-input {
+  display: block; box-sizing: border-box; width: 100%; margin: 0; padding: var(--space-1) 0; border: 0; border-radius: var(--radius-none);
+  font: 400 var(--type-body-size)/var(--type-body-line) var(--font-text); letter-spacing: normal; word-spacing: normal; tab-size: 2;
+  white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; font-kerning: none; font-variant-ligatures: none;
+}
+.md-mirror { min-height: calc(var(--md-rows, 12) * var(--type-body-line) * var(--type-body-size) + 2 * var(--space-1)); overflow: hidden; pointer-events: none; color: var(--ink); }
+.field .md-input {
+  position: absolute; inset: 0; height: 100%; min-height: 0; resize: none; overflow: hidden; background: none; outline: none;
+  color: transparent; -webkit-text-fill-color: transparent; caret-color: var(--accent); text-shadow: none;
+}
+.md-input::selection { background: color-mix(in srgb, var(--accent) 26%, transparent); color: transparent; -webkit-text-fill-color: transparent; }
+.md-input::placeholder { color: var(--ink-soft); -webkit-text-fill-color: var(--ink-soft); }
+.md-m { color: var(--ink-soft); opacity: .6; }
+.md-s { text-shadow: .5px 0 0 currentColor, -.5px 0 0 currentColor, 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg); }
+.md-e { font-style: italic; color: var(--accent-text); }
+.md-c { color: var(--ink-soft); background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.md-k { color: var(--accent-text); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 4px; }
+.md-u, .md-fence { color: var(--ink-soft); opacity: .7; }
+.md-f, .md-fig { color: var(--accent-text); }
+.md-def { color: var(--ink-soft); }
+.md-codeline { color: var(--ink-soft); }
+.md-h { color: var(--accent-text); text-shadow: .5px 0 0 currentColor, -.5px 0 0 currentColor, 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg); }
+.md-q { color: var(--ink-soft); }
+.md-qm, .md-li { color: var(--accent); }
+.field.md:focus-within .base { color: var(--accent); }
+.aph-shifting .md-s, .aph-shifting .md-h { text-shadow: .5px 0 0 currentColor, -.5px 0 0 currentColor; }
+
+/* a book note in the preview: as the book sets it (book.css, .note) */
+.gp-note-md p { margin: 0 0 var(--space-3); }
+.gp-note-md ul, .gp-note-md ol { margin: 0 0 var(--space-3); padding-left: var(--space-5); }
+.gp-note-md li { margin: 0 0 var(--space-1); }
+.gp-note-md a { text-decoration-color: var(--accent); text-underline-offset: 4px; }
+.gp-note-md em { font-style: normal; font-family: var(--font-display); font-variation-settings: "wght" 400, "slnt" -12; font-size: 1.12em; padding-right: .08em; }
+.gp-note-md code { font-family: var(--font-text); color: var(--ink-soft); }
+.gp-note-md blockquote { margin: var(--space-4) 0; padding: 0 0 0 var(--space-5); font-size: var(--type-lede-size); line-height: var(--type-lede-line); color: var(--ink-soft); }
+.gp-note-md blockquote p { margin: 0 0 var(--space-2); }

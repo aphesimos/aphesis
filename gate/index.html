@@ -106,36 +106,27 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-text); 
 /* the reds. Mark with .aph-red each red mark that is not text in an .aph-ink container: the seal, an icon, the eye, the
    ear, red words. While the wave runs it keeps the old theme's colours (its reds, and the ink and ground it draws
    with, such as the halo of ground behind the passage) until the wave reaches where it stands, then turns to the new
-   ones over half a second with minimum jerk (the keyframes are the curve). The runtime gives each its moment
-   (--aph-red-at) and both themes' colours (--shift-accent-a, -b and the same for each colour below). An element
-   marked .aph-red carries no CSS animation of its own (mark its box), and a colour transition inside it is turned
-   off while the wave runs (.aph-shifting), or it would trail the turn. */
-@property --aph-red-k { syntax: '<number>'; inherits: false; initial-value: 1; }
-/* the old colours are the rule's own value (k 0), not the animation's: before its turn the animation does nothing, so
-   the element is left alone, and after it the end holds */
-.aph-shifting .aph-red { animation: aph-red .5s linear var(--aph-red-at, 0ms) forwards; }
-@keyframes aph-red {
-  0% { --aph-red-k: 0; } 10% { --aph-red-k: .00856; } 20% { --aph-red-k: .05792; } 30% { --aph-red-k: .16308; }
-  40% { --aph-red-k: .31744; } 50% { --aph-red-k: .5; } 60% { --aph-red-k: .68256; } 70% { --aph-red-k: .83692; }
-  80% { --aph-red-k: .94208; } 90% { --aph-red-k: .99144; } 100% { --aph-red-k: 1; }
-}
+   ones over half a second with minimum jerk. The runtime gives each its moment and does the turning itself, frame by
+   frame: it sets every colour of the theme on the mark (--aph-red-accent and the same for each colour below) as
+   plain colours it works out, so the reds never rest on the browser mixing colours in CSS (where one could not, a
+   red took the ink's colour for the whole wave). A mark that appears while the wave runs has the new theme's colours
+   at once. An element marked .aph-red carries no colour transition while the wave runs (turn it off inside it under
+   .aph-shifting), or it would trail the turn. */
 /* what the runtime turns. At the click the runtime reads what nobody marked: ink that reaches the fog blends as if it
    were in an .aph-ink container, and what cannot blend (a red it was not told about, ink inside a layer of its own, a
-   box whose text shares it with a red or sits on its own ground) is marked .aph-turn and turns like the reds. The
-   runtime moves --aph-red-k itself, frame by frame, so the box keeps any animation it has. */
-/* both keep every colour of the old theme (k 0) until their moment, and have the new ones when it has passed (k 1) */
+   box whose text shares it with a red or sits on its own ground) is marked .aph-turn and turns like the reds, from the
+   old theme's colours to the new ones, the same way. */
 .aph-shifting .aph-red, .aph-shifting .aph-turn {
-  --aph-red-k: 0;
-  --accent: color-mix(in oklab, var(--shift-accent-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-accent-b));
-  --accent-text: color-mix(in oklab, var(--shift-accent-text-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-accent-text-b));
-  --seal: color-mix(in oklab, var(--shift-seal-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-seal-b));
-  --rubedo: color-mix(in oklab, var(--shift-rubedo-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-rubedo-b));
-  --rubedo-text: color-mix(in oklab, var(--shift-rubedo-text-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-rubedo-text-b));
-  --ink: color-mix(in oklab, var(--shift-ink-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-ink-b));
-  --ink-soft: color-mix(in oklab, var(--shift-ink-soft-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-ink-soft-b));
-  --line: color-mix(in oklab, var(--shift-line-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-line-b));
-  --fog: color-mix(in oklab, var(--shift-fog-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-fog-b));
-  --bg: color-mix(in oklab, var(--shift-bg-a) calc(100% - 100% * var(--aph-red-k)), var(--shift-bg-b));
+  --accent: var(--aph-red-accent, var(--shift-accent-b));
+  --accent-text: var(--aph-red-accent-text, var(--shift-accent-text-b));
+  --seal: var(--aph-red-seal, var(--shift-seal-b));
+  --rubedo: var(--aph-red-rubedo, var(--shift-rubedo-b));
+  --rubedo-text: var(--aph-red-rubedo-text, var(--shift-rubedo-text-b));
+  --ink: var(--aph-red-ink, var(--shift-ink-b));
+  --ink-soft: var(--aph-red-ink-soft, var(--shift-ink-soft-b));
+  --line: var(--aph-red-line, var(--shift-line-b));
+  --fog: var(--aph-red-fog, var(--shift-fog-b));
+  --bg: var(--aph-red-bg, var(--shift-bg-b));
 }
 
 /* the ear: the sound's switch, beside the eye. Listening, three arcs of stipple arrive at the ear and breathe with
@@ -627,6 +618,53 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .me-new .me-row { margin-bottom: var(--space-5); }
 .act:disabled { color: var(--ink-soft); cursor: default; }
 .act:disabled .uline { display: none; }
+
+/* the markdown editor (md-editor.js): a transparent textarea over a pre that holds the same text in colour. The two must
+   lay out alike, so the pre never changes a glyph's width: no size, no weight, no padding; marks are dimmed, em is
+   slanted, strong is struck twice, headings, quotes and lists take colour. The pre is in the flow and sets the height. */
+.md-ed { display: block; }
+.md-bar { display: flex; flex-wrap: wrap; gap: 0 var(--space-4); margin: 0 0 var(--space-1); }
+.md-bar .act { padding: var(--space-1) 0; color: var(--ink-soft); font-size: var(--type-meta-size); }
+.md-bar .act:hover, .md-bar .act:focus-visible { color: var(--ink); }
+.md-t-italic .act-t { font-style: italic; }
+.md-t-bold .act-t { text-shadow: .5px 0 0 currentColor, -.5px 0 0 currentColor; }
+.md-surface { position: relative; }
+.md-mirror, .field .md-input {
+  display: block; box-sizing: border-box; width: 100%; margin: 0; padding: var(--space-1) 0; border: 0; border-radius: var(--radius-none);
+  font: 400 var(--type-body-size)/var(--type-body-line) var(--font-text); letter-spacing: normal; word-spacing: normal; tab-size: 2;
+  white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; font-kerning: none; font-variant-ligatures: none;
+}
+.md-mirror { min-height: calc(var(--md-rows, 12) * var(--type-body-line) * var(--type-body-size) + 2 * var(--space-1)); overflow: hidden; pointer-events: none; color: var(--ink); }
+.field .md-input {
+  position: absolute; inset: 0; height: 100%; min-height: 0; resize: none; overflow: hidden; background: none; outline: none;
+  color: transparent; -webkit-text-fill-color: transparent; caret-color: var(--accent); text-shadow: none;
+}
+.md-input::selection { background: color-mix(in srgb, var(--accent) 26%, transparent); color: transparent; -webkit-text-fill-color: transparent; }
+.md-input::placeholder { color: var(--ink-soft); -webkit-text-fill-color: var(--ink-soft); }
+.md-m { color: var(--ink-soft); opacity: .6; }
+.md-s { text-shadow: .5px 0 0 currentColor, -.5px 0 0 currentColor, 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg); }
+.md-e { font-style: italic; color: var(--accent-text); }
+.md-c { color: var(--ink-soft); background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.md-k { color: var(--accent-text); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 4px; }
+.md-u, .md-fence { color: var(--ink-soft); opacity: .7; }
+.md-f, .md-fig { color: var(--accent-text); }
+.md-def { color: var(--ink-soft); }
+.md-codeline { color: var(--ink-soft); }
+.md-h { color: var(--accent-text); text-shadow: .5px 0 0 currentColor, -.5px 0 0 currentColor, 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg); }
+.md-q { color: var(--ink-soft); }
+.md-qm, .md-li { color: var(--accent); }
+.field.md:focus-within .base { color: var(--accent); }
+.aph-shifting .md-s, .aph-shifting .md-h { text-shadow: .5px 0 0 currentColor, -.5px 0 0 currentColor; }
+
+/* a book note in the preview: as the book sets it (book.css, .note) */
+.gp-note-md p { margin: 0 0 var(--space-3); }
+.gp-note-md ul, .gp-note-md ol { margin: 0 0 var(--space-3); padding-left: var(--space-5); }
+.gp-note-md li { margin: 0 0 var(--space-1); }
+.gp-note-md a { text-decoration-color: var(--accent); text-underline-offset: 4px; }
+.gp-note-md em { font-style: normal; font-family: var(--font-display); font-variation-settings: "wght" 400, "slnt" -12; font-size: 1.12em; padding-right: .08em; }
+.gp-note-md code { font-family: var(--font-text); color: var(--ink-soft); }
+.gp-note-md blockquote { margin: var(--space-4) 0; padding: 0 0 0 var(--space-5); font-size: var(--type-lede-size); line-height: var(--type-lede-line); color: var(--ink-soft); }
+.gp-note-md blockquote p { margin: 0 0 var(--space-2); }
 
 </style>
 </head>
@@ -1249,20 +1287,32 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
      over old cells and new ones alike. When the wave has covered the screen the blend is lifted; nothing visibly
      changes. A call while a wave is running is ignored (returns false). */
   var SHIFT = null;
-  /* the reds. An element marked .aph-red (the seal, an icon, the eye, the ear, red words) keeps the old theme's reds
-     (accent, accent-text, seal) until the wave reaches it, then turns to the new ones over RED_TURN ms with minimum
-     jerk (bundle.css: .aph-red). Its moment comes from the fields' own model of the wave: a cell turns once
-     MJ(t / duration) passes .76 times its distance from the origin over the farthest corner, plus a hash (.14) and the
-     fog's noise (.1), .12 on average; the turn is centred on that moment. */
+  /* the reds. An element marked .aph-red (the seal, an icon, the eye, the ear, red words) keeps the old theme's
+     colours until the wave reaches it, then turns to the new ones over RED_TURN ms with minimum jerk. Its moment comes
+     from the fields' own model of the wave: a cell turns once MJ(t / duration) passes .76 times its distance from the
+     origin over the farthest corner, plus a hash (.14) and the fog's noise (.1), .12 on average; the turn is centred
+     on that moment. The runtime turns it itself, frame by frame with the wave's own time, giving it every colour of
+     the theme as plain colours (bundle.css: .aph-red): a turn never rests on the browser mixing colours in CSS, which
+     where it could not left every red the ink's colour for the whole wave. */
   var RED_TURN = 500;
   function rootValue(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
   function mjInverse(y) { var lo = 0, hi = 1; for (var i = 0; i < 24; i++) { var m = (lo + hi) / 2; if (MJ(m) < y) lo = m; else hi = m; } return (lo + hi) / 2; }
-  function redsAt(org, far, dur) {
-    Array.prototype.forEach.call(document.querySelectorAll('.aph-red'), function (el) {
-      var r = el.getBoundingClientRect(), d = Math.hypot(r.left + r.width / 2 - org[0], r.top + r.height / 2 - org[1]);
-      el.style.setProperty('--aph-red-at', Math.max(0, Math.round(dur * mjInverse(Math.min(1, 0.76 * d / far + 0.12)) - RED_TURN / 2)) + 'ms');
-    });
+  function momentOf(el, org, far, dur) {
+    var r = el.getBoundingClientRect(), d = Math.hypot(r.left + r.width / 2 - org[0], r.top + r.height / 2 - org[1]);
+    return dur * mjInverse(Math.min(1, 0.76 * d / far + 0.12)) - RED_TURN / 2;
   }
+  /* a colour as oklab [L, a, b]: oklch() exactly as written, anything else as the canvas draws it (sRGB) */
+  function labOf(s) {
+    var m = /^oklch\(\s*([\d.]+)(%?)\s+([\d.]+)(%?)\s+([\d.]+)(?:deg)?\s*\)$/.exec(s);
+    if (m) { var C = +m[3] * (m[4] ? 0.004 : 1), h = +m[5] * Math.PI / 180; return [+m[1] / (m[2] ? 100 : 1), C * Math.cos(h), C * Math.sin(h)]; }
+    var c = rgba(s).map(function (v) { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    var l = Math.cbrt(0.4122214708 * c[0] + 0.5363325363 * c[1] + 0.0514459929 * c[2]);
+    var q = Math.cbrt(0.2119034982 * c[0] + 0.6806995451 * c[1] + 0.1073969566 * c[2]);
+    var w = Math.cbrt(0.0883024619 * c[0] + 0.2817188376 * c[1] + 0.6299787005 * c[2]);
+    return [0.2104542553 * l + 0.7936177850 * q - 0.0040720468 * w, 1.9779984951 * l - 2.4285922050 * q + 0.4505937099 * w, 0.0259040371 * l + 0.7827717662 * q - 0.8086757660 * w];
+  }
+  /* a of the way from x to y, in oklab (as CSS mixes colours by default) */
+  function mixLab(x, y, a) { return 'oklab(' + [0, 1, 2].map(function (i) { return (x[i] + (y[i] - x[i]) * a).toFixed(4); }).join(' ') + ')'; }
   /* the rest of the page. Right after the click (once its handler has run, so a section that takes a mask off under
      .aph-shifting, or the shell stepping its inscription aside, already has) the runtime reads the page once and gives
      every piece of ink that is in no .aph-ink container and no .aph-red mark the treatment it can take:
@@ -1417,6 +1467,13 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
      anything is written, so the page's style is worked out once for the reading. */
   function wavePlan(org, far, dur, A, B, dark, inks) {
     var blended = [], turned = [], suspended = [], pinned = [], mo = null, wo = null, watched = new Map(), reds = new Set(), greys = new Map(), acts = null, frames = 0;
+    /* every colour of the theme on a red or a turn, inline, as its turn stands at k: the old theme's exactly at 0, the
+       new one's exactly at 1, oklab between (bundle.css maps the theme's colours there while the wave runs) */
+    var TA = TURN.map(function (n) { return labOf(A[n]); }), TB = TURN.map(function (n) { return labOf(B[n]); });
+    function turnTo(el, k) { TURN.forEach(function (n, i) { el.style.setProperty('--aph-red-' + n.slice(2), k <= 0 ? A[n] : k >= 1 ? B[n] : mixLab(TA[i], TB[i], k)); }); }
+    function unturn(el) { TURN.forEach(function (n) { el.style.removeProperty('--aph-red-' + n.slice(2)); }); }
+    /* the marked reds, each given its moment and the old theme's colours at the click */
+    var marks = Array.prototype.map.call(document.querySelectorAll('.aph-red'), function (el) { turnTo(el, 0); return { el: el, at: momentOf(el, org, far, dur), k: 0 }; });
     var mirrors = [], mirrored = new Set();
     /* under the blend an element's own colour is the white ink, which is right for ink but reads black or white for a
        grey: a box that blends with a grey of its own keeps it as the grey that reads as that grey on both grounds (the
@@ -1456,7 +1513,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
           els.forEach(function (x) {
             var c = cutOf(x); if (c) { watch(x, c); return; }
             var j = turned.findIndex(function (t) { return t.el === x; }); if (j >= 0) turned.splice(j, 1);
-            x.classList.remove('aph-turn'); x.style.removeProperty('--aph-red-k'); x.classList.add('aph-ink');
+            x.classList.remove('aph-turn'); unturn(x); x.classList.add('aph-ink');
             suspended.splice(suspended.indexOf(x), 1);
             if (greys.has(x)) pinColor(x, greys.get(x));
           });
@@ -1498,8 +1555,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
         if (x[1] === 2 && x[2]) watch(el, x[2]);
         if (x[1] === 3) return;
         el.classList.add('aph-turn'); if (x[3]) pinColor(el, x[3]);
-        /* its moment is read at the next frame; k starts at the rule's own 0, so nothing is written until it comes */
-        turned.push({ el: el, at: null, k: 0 });
+        /* it holds the old theme's colours from now; its moment is read at the next frame */
+        turnTo(el, 0); turned.push({ el: el, at: null, k: 0 });
       });
       if (first) greys.forEach(function (g, el) { if (el.isConnected && el.classList.contains('aph-ink')) pinColor(el, g); });
       /* a marked container read under the blend showed its white ink: its own colour is known only now */
@@ -1525,21 +1582,19 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
         });
         mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
       },
-      /* each frame: a turn runs over RED_TURN ms from its moment, with minimum jerk (the moments are read first, then
-         the turns written) */
+      /* each frame: a red or a turn runs over RED_TURN ms from its moment, with minimum jerk (the turns' moments are
+         read first, then the colours written) */
       tick: function (t) {
         var j, x;
-        /* (from the second frame, when the first has laid the page out) */
-        if (++frames > 1) for (j = 0; j < turned.length; j++) {
-          x = turned[j]; if (x.at !== null) continue;
-          var r = x.el.getBoundingClientRect(), d = Math.hypot(r.left + r.width / 2 - org[0], r.top + r.height / 2 - org[1]);
-          x.at = dur * mjInverse(Math.min(1, 0.76 * d / far + 0.12)) - RED_TURN / 2;
-        }
-        for (j = 0; j < turned.length; j++) {
-          x = turned[j]; if (x.at === null) continue;
-          var k = MJ((t - x.at) / RED_TURN);
-          if (k !== x.k) { x.k = k; x.el.style.setProperty('--aph-red-k', String(Math.round(k * 1e4) / 1e4)); }
-        }
+        /* (a turn's from the second frame, when the first has laid the page out) */
+        if (++frames > 1) for (j = 0; j < turned.length; j++) { x = turned[j]; if (x.at === null) x.at = momentOf(x.el, org, far, dur); }
+        [marks, turned].forEach(function (list) {
+          for (j = 0; j < list.length; j++) {
+            x = list[j]; if (x.at === null) continue;
+            var k = Math.round(MJ((t - x.at) / RED_TURN) * 1e3) / 1e3;
+            if (k !== x.k) { x.k = k; turnTo(x.el, k); }
+          }
+        });
       },
       stop: function () { if (mo) { mo.disconnect(); mo = null; } if (wo) { wo.disconnect(); wo = null; } watched.clear(); },
       /* the colours go back with the blend, in the same frame (a grey given for the blend is wrong without it); a colour
@@ -1552,7 +1607,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       end: function () {
         plan.stop(); plan.unpin();
         blended.forEach(function (el) { el.classList.remove('aph-ink'); });
-        turned.forEach(function (x) { x.el.classList.remove('aph-turn'); x.el.style.removeProperty('--aph-red-k'); });
+        turned.forEach(function (x) { x.el.classList.remove('aph-turn'); unturn(x.el); });
+        marks.forEach(function (x) { unturn(x.el); }); marks = [];
         suspended.forEach(function (el) { el.classList.add('aph-ink'); });
         mirrors.forEach(function (m) { m.remove(); var j = MIRROR.list.indexOf(m); if (j >= 0) MIRROR.list.splice(j, 1); });
         blended = []; turned = []; suspended = []; mirrors = []; mirrored.clear();
@@ -1585,7 +1641,6 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     /* both themes' colours, for the reds and the turns */
     TURN.forEach(function (n) { root.style.setProperty('--shift-' + n.slice(2) + '-a', A[n]); root.style.setProperty('--shift-' + n.slice(2) + '-b', B[n]); });
     var dur = o.duration || cssMs('--duration-shift', 5200), t = 0, last = null;
-    redsAt(org, far, dur);
     root.classList.add('aph-shifting');
     /* the rest of the page is read once the click's handler has run (a section may take a mask off under .aph-shifting,
        the shell steps its inscription aside), still before the frame */
@@ -1600,7 +1655,6 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       plan.stop(); plan.unpin();
       still(function () { if (PLAN === plan) { plan.end(); PLAN = null; } });
       root.classList.remove('aph-shifting'); SHIFT = null; themeColor(); if (o.done) o.done();
-      Array.prototype.forEach.call(document.querySelectorAll('.aph-red'), function (el) { el.style.removeProperty('--aph-red-at'); });
     }
     requestAnimationFrame(tick);
     return true;
@@ -2166,8 +2220,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
      three brush strokes and a little stipple on the 24-unit grid. State 0 is at rest; state 1 is chosen (the first tap):
      the same cells gather toward the mark's heart, closer and a little denser. Hovering or focusing stirs the stipple
      (CSS: .aph-icon). Seeds 201 to 299 belong to them. */
-  /* grain(x, y): a fixed value 0..1 per point, so a stipple can thin with a gradient and stay the same on every visit */
-  function grain(x, y) { var s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); }
+  /* speck(x, y): a fixed value 0..1 per point, so a stipple can thin with a gradient and stay the same on every visit.
+     Not grain: the masked-text grain(i) further down shares this scope, and as the later declaration it is the one
+     every call to grain reaches. */
+  function speck(x, y) { var s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); }
   /* sow(test, seed, count, size, g, k): stipple() whose cells are drawn toward g by the factor k (1 = where they fell) */
   function sow(test, seed, count, size, g, k) {
     var r = rng(seed), d = '';
@@ -2215,7 +2271,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     for (var i = 1; i < steps.length; i++) sp = sp.concat(line(steps[i - 1][0], steps[i - 1][1], steps[i][0], steps[i][1], 8).slice(1));
     var strokes = brush(arch, 1.8, 211, 0.12) + brush(sp, 1.1, 213, 0.28, 0.05);
     function under(x) { return x < 10.2 ? 12.6 : x < 12.6 ? 15.2 : x < 15 ? 17.8 : 20.6; }
-    function night(x, y) { return x > 7.6 && x < 16.4 && y < 20.8 && y > under(x) + 0.8 && grain(x, y) < 0.25 + (y - 12) / 9; }
+    function night(x, y) { return x > 7.6 && x < 16.4 && y < 20.8 && y > under(x) + 0.8 && speck(x, y) < 0.25 + (y - 12) / 9; }
     ICONS.descent = sectionIcon(strokes, [[night, 217, 1500, 0.62]], [12, 18]);
   })();
 
@@ -2332,10 +2388,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   /* the owner's projects, each a repository of its own, drawn as the sections are (one to a few brush strokes and a
      little stipple on the 24-unit grid, at rest 0 and gathered 1) so they can stand among them, as they do on the
      profile's ring. They are not sections of the site: Aphesis.PROJECTS lists them apart. Seeds 401 to 499 belong to
-     them. speck(x, y) is grain(x, y) above under a name of its own: the masked-text grain(i) further down shares that
-     name, and as a later declaration in this scope it is the one every call to grain reaches. */
-  function speck(x, y) { var s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); }
-  var PROJECTS = ['contraprova', 'heuresis', 'anamnesis', 'autopoiesis'];
+     them. Their stipple thins with speck(x, y), as the sections' does. */
+  var PROJECTS = ['contraprova', 'heuresis', 'anamnesis', 'autopoiesis', 'parataxis'];
 
   /* contraprova (probatio contraria): a balance, its beam level: two marks weighed against each other and found
      equal. The post and its foot, the beam, two pans on their cords, and in each pan a heap of stipple, alike */
@@ -2395,6 +2449,22 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       brush(arc(C[0], C[1], r, -86, -66, 8), 3.4, 488, 0.3, 0.05);
     function matter(x, y) { var d = Math.hypot(x - C[0], y - C[1]); return d < 4.4 && speck(x, y) < 0.78 - d * 0.14; }
     ICONS.autopoiesis = sectionIcon(strokes, [[matter, 489, 2400, 0.56]], C, 0.7);
+  })();
+
+  /* parataxis (παράταξις): placing side by side. Three lanes stand side by side under one bar, the interface round
+     that fixes what each provides before any writes; below, their strokes lean in to meet at a gate, the test-gated
+     merge. Work in stipple runs down between the lanes and gathers where they meet */
+  (function () {
+    var strokes = brush(line(4.4, 5.0, 19.6, 4.8, 24), 1.3, 491, 0.2) +
+      brush(line(7.2, 7.2, 7.4, 14.2, 14), 1.15, 492, 0.32, 0.06) +
+      brush(line(12, 7.1, 11.9, 14.3, 14), 1.15, 493, 0.32, 0.06) +
+      brush(line(16.8, 7.2, 16.6, 14.2, 14), 1.15, 494, 0.32, 0.06) +
+      brush(line(7.6, 15.4, 11.3, 18.8, 10), 0.95, 495, 0.32, 0.05) +
+      brush(line(16.4, 15.4, 12.7, 18.8, 10), 0.95, 496, 0.32, 0.05) +
+      brush(line(9.2, 20.4, 14.8, 20.3, 12), 1.25, 497, 0.3, 0.05);
+    function work(x0, x1) { return function (x, y) { return x > x0 && x < x1 && y > 7.6 && y < 13.8 && speck(x, y) < 0.42 + (y - 7.6) * 0.05; }; }
+    function met(x, y) { var u = (x - 12) / 1.9, v = (y - 17.2) / 1.25; return u * u + v * v < 1; }
+    ICONS.parataxis = sectionIcon(strokes, [[work(8.6, 10.5), 498, 900, 0.46], [work(13.4, 15.3), 499, 900, 0.46], [met, 490, 1400, 0.56]], [12, 17.2], 0.72);
   })();
 
   function mountEar(el) {
@@ -3709,6 +3779,77 @@ async function prepareUpload(file, limits = LIMITS) {
 
 return { ACCEPT, decode, toDensity, prepareMap, prepareUpload };
 })();
+/* ---- book/markup.js ---- */
+M["book/markup.js"] = (function () {
+/* markup: a note's markdown, in the browser. The same small subset the archive writes its posts in, and the same
+   converter: inline (code, links, strong, em) and small_markdown (paragraphs, > quotes, - and 1. lists) are archive's
+   render.js, line for line, without what a note has no use for (headings, fenced code, footnotes, figures: a heading
+   or a fence typed here shows as the words it is). The desk edits a note with the same editor as an archive post and
+   previews it with this module, so what the owner sees is what the book sets. A note with no markup in it comes out
+   as its paragraphs, as before. tools/markup-parity.mjs proves it against the archive's render.js.
+
+   A note is the book's `note`: an array of paragraphs (a blank line between them in the text). Inside one paragraph a
+   line break stays, so a list or a quote can be written; a paragraph's lines are joined with a space, as the archive
+   joins them. */
+
+/* html.escape(s, quote=True) */
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
+
+/* Python's \w, for the patterns that use it */
+const W = '\\p{L}\\p{N}_';
+
+/* a link goes only where a page can safely follow it: a web or mail address, a #place, or a relative path */
+const safeHref = (h) => /^(https?:\/\/|mailto:|#|\/|\.\.?\/)/i.test(h) || !/^[a-z][a-z0-9+.-]*:/i.test(h);
+
+function inline(s) {
+  const codes = [];
+  s = s.replace(/`([^`]+)`/g, (_, c) => { codes.push('<code>' + esc(c) + '</code>'); return '\x00' + (codes.length - 1) + '\x00'; });
+  s = esc(s);
+  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, t, h) => (safeHref(h) ? '<a href="' + h + '">' + t + '</a>' : m));
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(new RegExp('(?<![' + W + '*])\\*([^*]+)\\*(?![' + W + '*])', 'gu'), '<em>$1</em>');
+  s = s.replace(new RegExp('(?<![' + W + '_])_([^_]+)_(?![' + W + '_])', 'gu'), '<em>$1</em>');
+  return s.replace(/\x00(\d+)\x00/g, (_, i) => codes[+i]);
+}
+
+const LIST = /^(\s*[-*]|\s*\d+\.)\s+/;
+const PARA_STOP = /^(>|\s*[-*]\s|\s*\d+\.\s)/;
+const pyStrip = (s) => s.replace(/^\s+|\s+$/g, '');
+
+function blocks(src) {
+  const out = [], lines = src.split('\n');
+  let i = 0;
+  while (i < lines.length) {
+    const ln = lines[i];
+    if (!pyStrip(ln)) { i++; continue; }
+    if (ln.startsWith('>')) {
+      const block = [];
+      while (i < lines.length && lines[i].startsWith('>')) { block.push(lines[i].replace(/^>\s?/, '')); i++; }
+      out.push('<blockquote>' + blocks(block.join('\n')) + '</blockquote>');
+      continue;
+    }
+    if (LIST.test(ln)) {
+      const tag = /^\s*\d+\./.test(ln) ? 'ol' : 'ul';
+      const items = [];
+      while (i < lines.length && LIST.test(lines[i])) { items.push('<li>' + inline(lines[i].replace(LIST, '')) + '</li>'); i++; }
+      out.push(`<${tag}>` + items.join('') + `</${tag}>`);
+      continue;
+    }
+    const para = [];
+    while (i < lines.length && pyStrip(lines[i]) && !PARA_STOP.test(lines[i])) { para.push(pyStrip(lines[i])); i++; }
+    out.push('<p>' + inline(para.join(' ')) + '</p>');
+  }
+  return out.join('\n');
+}
+
+/* a note (an array of paragraphs, or the text) -> markup */
+function noteHtml(note) {
+  const text = Array.isArray(note) ? note.join('\n\n') : String(note || '');
+  return blocks(text);
+}
+
+return { noteHtml };
+})();
 /* ---- mockdata.js ---- */
 M["mockdata.js"] = (function () {
 const MOCK = null;
@@ -4053,6 +4194,332 @@ function createLine(form, { secret }) {
 
 return { cells, createLine };
 })();
+/* ---- md-editor.js ---- */
+M["md-editor.js"] = (function () {
+/* md-editor: the one editor for every prose field on the desk (an archive post's body, a book entry's note). It is
+   Obsidian's way of writing in the site's idiom: the markdown stays text, and is styled as it is typed.
+
+   How it is made. A plain <textarea> sits, transparent, over a <pre> that holds the same text in colour: the pre is
+   what is seen, the textarea is what is typed in. That keeps everything the browser does for a textarea (undo, redo,
+   IME, spellcheck, selection, the caret, the phone's keyboard) and costs only one rule: the two must lay out
+   identically, so nothing the pre does may change a glyph's width. Marks are dimmed, *em* is slanted, **strong** is
+   struck twice, quotes and lists have their own colour; a size or a weight would move the text and is never used. The pre
+   is in the flow and sets the height, the textarea is laid over it, so there is nothing to keep in step by script.
+
+   Every edit goes through edit(): execCommand('insertText') where the browser has it, so a shortcut is one step of
+   the native undo, and a value set with its input event where it does not.
+
+   Shortcuts (⌘ on a Mac, ctrl elsewhere): mod+i italic, mod+b strong, mod+e code, mod+k link, mod+shift+. quote,
+   mod+shift+8 list, mod+shift+7 numbered list, mod+alt+2 and 3 heading. Enter continues a list or a quote and
+   ends it on an empty item; Tab and shift+Tab indent and outdent a list item; Backspace right after a marker
+   takes the marker; * _ ` [ ( around a selection wrap it; a pasted address over a selection makes a link.
+
+   Only what the archive's renderer (render.js: small_markdown and inline) understands is ever written. The book's
+   note is the same subset without headings, notes and figures (`tools`). */
+
+const { h, act, rule } = M["ui.js"];
+const MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');
+const MOD = MAC ? '⌘' : 'ctrl';
+let seed = 0;
+
+/* ---------- what the pre shows ---------- */
+const W = '\\p{L}\\p{N}_';
+const MK = 1, CODE = 2, STRONG = 4, EM = 8, LINK = 16, URL_ = 32, FN = 64;
+const CLASSES = [[MK, 'm'], [CODE, 'c'], [STRONG, 's'], [EM, 'e'], [LINK, 'k'], [URL_, 'u'], [FN, 'f']];
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const LIST = /^(\s*[-*]|\s*\d+\.)\s+/;
+
+/* the inline marks of a line, one flag word per character; the same patterns, in the same order, as render.js */
+function flagsOf(s, base) {
+  const f = new Uint8Array(s.length).fill(base);
+  let m = s;
+  const hide = (a, b) => { m = m.slice(0, a) + '\x00'.repeat(b - a) + m.slice(b); };
+  const run = (re, fn) => { re.lastIndex = 0; let r; const hits = []; while ((r = re.exec(m))) hits.push(r); hits.forEach(fn); };
+  run(/`([^`]+)`/g, (r) => { const a = r.index, b = a + r[0].length; f[a] |= MK; f[b - 1] |= MK; for (let i = a + 1; i < b - 1; i++) f[i] |= CODE; hide(a, b); });
+  run(new RegExp('\\[\\^([' + W + '-]+)\\]', 'gu'), (r) => { const a = r.index, b = a + r[0].length; for (let i = a; i < b; i++) f[i] |= FN; f[a] |= MK; f[a + 1] |= MK; f[b - 1] |= MK; hide(a, b); });
+  run(/\[([^\]]+)\]\(([^)\s]+)\)/g, (r) => {
+    const a = r.index, t = r[1].length, u = r[2].length;
+    f[a] |= MK; for (let i = a + 1; i < a + 1 + t; i++) f[i] |= LINK;
+    const m2 = a + 1 + t; f[m2] |= MK; f[m2 + 1] |= MK;
+    for (let i = m2 + 2; i < m2 + 2 + u; i++) f[i] |= URL_;
+    f[m2 + 2 + u] |= MK;
+    hide(m2, m2 + 3 + u);
+  });
+  run(/\*\*([^*]+)\*\*/g, (r) => { const a = r.index, b = a + r[0].length; f[a] |= MK; f[a + 1] |= MK; f[b - 1] |= MK; f[b - 2] |= MK; for (let i = a + 2; i < b - 2; i++) f[i] |= STRONG; hide(a, a + 2); hide(b - 2, b); });
+  run(new RegExp('(?<![' + W + '*])\\*([^*]+)\\*(?![' + W + '*])', 'gu'), (r) => { const a = r.index, b = a + r[0].length; f[a] |= MK; f[b - 1] |= MK; for (let i = a + 1; i < b - 1; i++) f[i] |= EM; hide(a, a + 1); hide(b - 1, b); });
+  run(new RegExp('(?<![' + W + '_])_([^_]+)_(?![' + W + '_])', 'gu'), (r) => { const a = r.index, b = a + r[0].length; f[a] |= MK; f[b - 1] |= MK; for (let i = a + 1; i < b - 1; i++) f[i] |= EM; hide(a, a + 1); hide(b - 1, b); });
+  return f;
+}
+
+function spans(s, flags) {
+  let out = '', i = 0;
+  while (i < s.length) {
+    let j = i + 1;
+    while (j < s.length && flags[j] === flags[i]) j++;
+    const f = flags[i], cls = CLASSES.filter(([bit]) => f & bit).map(([, c]) => 'md-' + c).join(' ');
+    out += cls ? `<span class="${cls}">${esc(s.slice(i, j))}</span>` : esc(s.slice(i, j));
+    i = j;
+  }
+  return out;
+}
+const marked = (s) => (s ? `<span class="md-m">${esc(s)}</span>` : '');
+
+/* a line's rest, with its inline marks */
+function inlineLine(s) { return s ? spans(s, flagsOf(s, 0)) : ''; }
+
+/* the whole text, line by line: the block rules of small_markdown (headings ##–####, > quotes, - and 1. lists, fences, figures) */
+function highlight(text) {
+  let fence = false;
+  return text.split('\n').map((ln) => {
+    if (ln.startsWith('```')) { fence = !fence; return `<span class="md-fence">${esc(ln)}</span>`; }
+    if (fence) return `<span class="md-codeline">${esc(ln)}</span>`;
+    let m = ln.match(/^(#{2,4})(\s+)(.*)$/);
+    if (m) return `<span class="md-h">${marked(m[1] + m[2])}${inlineLine(m[3])}</span>`;
+    if (/^!\[[^\]]*\]\(simulacrum:[\p{L}\p{N}_-]+\)\s*$/u.test(ln)) return `<span class="md-fig">${esc(ln)}</span>`;
+    if (/^\[\^[\p{L}\p{N}_-]+\]:/u.test(ln)) return `<span class="md-def">${esc(ln)}</span>`;
+    if (ln.startsWith('>')) {
+      const q = ln.match(/^>\s?/)[0], rest = ln.slice(q.length), li = rest.match(LIST);
+      return `<span class="md-q"><span class="md-qm">${esc(q)}</span>${li ? `<span class="md-li">${esc(li[0])}</span>` + inlineLine(rest.slice(li[0].length)) : inlineLine(rest)}</span>`;
+    }
+    m = ln.match(LIST);
+    if (m) return `<span class="md-li">${esc(m[0])}</span>` + inlineLine(ln.slice(m[0].length));
+    return inlineLine(ln);
+  }).join('\n');
+}
+
+/* ---------- the editor ---------- */
+const TOOLS = {
+  heading: ['heading', 'a heading, ## then ### · ' + MOD + ' alt 2, 3'],
+  italic: ['italic', 'italic · ' + MOD + ' i'],
+  bold: ['bold', 'strong · ' + MOD + ' b'],
+  quote: ['quote', 'quote · ' + MOD + ' shift .'],
+  list: ['list', 'a list · ' + MOD + ' shift 8'],
+  numbered: ['numbered', 'a numbered list · ' + MOD + ' shift 7'],
+  code: ['code', 'code · ' + MOD + ' e'],
+  link: ['link', 'a link · ' + MOD + ' k · or paste an address over the words'],
+  note: ['note', 'a note: [^mark] in the text, its words beside'],
+  figure: ['figure', 'a figure: a picture, and its line in the text'],
+};
+const ALL_TOOLS = ['heading', 'italic', 'bold', 'quote', 'list', 'numbered', 'code', 'link', 'note', 'figure'];
+
+/* mdEditor({value, tools, onNote, onFigure, spell}) -> {el, input, set(v), append(text), focus()}
+   `input` is the textarea itself: read .value, listen for 'input'. */
+function mdEditor({ value = '', tools = ALL_TOOLS, onNote, onFigure, spell = true, rows = 14, label = 'the text' } = {}) {
+  const ta = h('textarea', { class: 'md-input', autocapitalize: 'none', 'aria-label': label, spellcheck: spell ? 'true' : 'false', autocomplete: 'off' });
+  ta.value = value;
+  const pre = h('pre', { class: 'md-mirror', 'aria-hidden': 'true' });
+  const surface = h('div', { class: 'md-surface', style: `--md-rows:${rows}` }, pre, ta);
+  const paint = () => { pre.innerHTML = highlight(ta.value) + '​'; };
+  paint();
+  ta.addEventListener('input', paint);
+
+  /* every change goes through here, as one step of the native undo where the browser allows it */
+  function edit(from, to, text, selA, selB) {
+    const v = ta.value, next = v.slice(0, from) + text + v.slice(to);
+    ta.focus();
+    if (next !== v) {
+      let ok = false;
+      ta.setSelectionRange(from, to);
+      try { ok = text ? document.execCommand('insertText', false, text) : document.execCommand('delete'); } catch (_) { ok = false; }
+      if (!ok || ta.value !== next) { ta.value = next; ta.dispatchEvent(new Event('input', { bubbles: true })); }
+    }
+    const a = selA === undefined ? from + text.length : selA;
+    ta.setSelectionRange(a, selB === undefined ? a : selB);
+  }
+
+  const lineStart = (v, p) => v.lastIndexOf('\n', p - 1) + 1;
+  const lineEnd = (v, p) => { const e = v.indexOf('\n', p); return e < 0 ? v.length : e; };
+  function inFence(v, at) { let n = 0; for (const ln of v.slice(0, at).split('\n')) if (ln.startsWith('```')) n++; return n % 2 === 1; }
+
+  /* the lines a selection touches, whole: [from, to, lines] */
+  function block() {
+    const v = ta.value, s = ta.selectionStart; let e = ta.selectionEnd;
+    if (e > s && v[e - 1] === '\n') e--;
+    const a = lineStart(v, s), b = lineEnd(v, e);
+    return { a, b, lines: v.slice(a, b).split('\n'), s, e: ta.selectionEnd, single: v.slice(a, b).indexOf('\n') < 0 };
+  }
+  /* rewrite the lines of the selection with fn(line, index, all); the selection follows */
+  function mapLines(fn) {
+    const { a, b, lines, s, e } = block();
+    const next = lines.map((l, i) => fn(l, i, lines));
+    const text = next.join('\n');
+    if (text === lines.join('\n')) return;
+    if (s === e) {
+      const delta = text.length - (b - a);
+      edit(a, b, text, Math.max(a, s + delta));
+    } else edit(a, b, text, a, a + text.length);
+  }
+
+  /* inline marks: wrap, or unwrap when they are there already (inside the selection or just outside it) */
+  function toggleInline(mark) {
+    const v = ta.value, ch = mark[0], k = mark.length;
+    let s = ta.selectionStart, e = ta.selectionEnd;
+    while (s < e && /\s/.test(v[s])) s++;
+    while (e > s && /\s/.test(v[e - 1])) e--;
+    if (s === e) {
+      /* no words: a pair of marks with the caret between, or the pair taken out when the caret is in an empty one */
+      if (v.slice(s - k, s) === mark && v.slice(s, s + k) === mark) return edit(s - k, s + k, '', s - k);
+      return edit(s, s, mark + mark, s + k);
+    }
+    const sel = v.slice(s, e);
+    const run = (str, atEnd) => { let n = 0; if (atEnd) while (n < str.length && str[str.length - 1 - n] === ch) n++; else while (n < str.length && str[n] === ch) n++; return n; };
+    const lead = run(sel, false), trail = run(sel, true), pre = run(v.slice(0, s), true), post = run(v.slice(e), false);
+    const present = (n) => (ch === '*' && k === 1 ? n === 1 || n === 3 : n >= k);
+    const inner = lead > 0 && trail > 0 && lead < sel.length ? Math.min(lead, trail) : 0;
+    if (inner && present(inner)) return edit(s, e, sel.slice(k, sel.length - k), s, e - 2 * k);
+    if (!inner && pre > 0 && post > 0 && present(Math.min(pre, post))) return edit(s - k, e + k, sel, s - k, e - k);
+    return edit(s, e, mark + sel + mark, s + k, e + k);
+  }
+
+  function link() {
+    const v = ta.value;
+    let s = ta.selectionStart, e = ta.selectionEnd;
+    while (s < e && /\s/.test(v[s])) s++;
+    while (e > s && /\s/.test(v[e - 1])) e--;
+    const sel = v.slice(s, e), m = sel.match(/^\[([^\]]*)\]\(([^)]*)\)$/);
+    if (m) return edit(s, e, m[1], s, s + m[1].length);
+    if (/^(https?:\/\/|mailto:)\S+$/i.test(sel)) return edit(s, e, `[](${sel})`, s + 1);
+    if (sel) return edit(s, e, `[${sel}]()`, s + sel.length + 3);
+    edit(s, e, '[]()', s + 1);
+  }
+
+  /* a heading: the button goes round (## then ### then none), the shortcuts set one level or take it off */
+  function heading(level) {
+    mapLines((l, i) => {
+      if (i) return l;
+      const m = l.match(/^(#{2,4})\s+/), have = m ? m[1].length : 0, rest = m ? l.slice(m[0].length) : l;
+      const want = level ? (have === level ? 0 : level) : have === 0 ? 2 : have === 2 ? 3 : 0;
+      return (want ? '#'.repeat(want) + ' ' : '') + rest;
+    });
+  }
+  function quote() {
+    const { lines, single } = block();
+    const all = lines.some((l) => l.trim()) && lines.every((l) => !l.trim() || l.startsWith('>'));
+    mapLines((l) => (all ? l.replace(/^>[ ]?/, '') : l.startsWith('>') ? l : (l.trim() || single ? '> ' + l : '>')));
+  }
+  function list(numbered) {
+    const { lines, single } = block();
+    const mine = numbered ? /^(\s*)\d+\.\s+/ : /^(\s*)[-*]\s+/, any = /^(\s*)([-*]|\d+\.)\s+/;
+    const all = lines.every((l) => !l.trim() || mine.test(l)) && lines.some((l) => l.trim());
+    let n = 0;
+    mapLines((l) => {
+      if (!l.trim() && !single) return l;
+      if (all) return l.replace(mine, '$1');
+      const ind = (l.match(any) || l.match(/^(\s*)/))[1];
+      return ind + (numbered ? ++n + '. ' : '- ') + l.replace(any, '').replace(/^\s+/, '');
+    });
+  }
+  function note() {
+    if (!onNote) return;
+    const id = onNote(); if (!id) return;
+    const e = ta.selectionEnd;
+    edit(e, e, `[^${id}]`);
+  }
+  function indent(out) {
+    const { lines } = block();
+    const items = lines.filter((l) => LIST.test(l));
+    if (!items.length || (out && !items.some((l) => /^\s/.test(l)))) return false;   /* nothing to move: Tab goes on as Tab does */
+    mapLines((l) => (!LIST.test(l) ? l : out ? l.replace(/^(\t| {1,2})/, '') : '  ' + l));
+    return true;
+  }
+
+  const DO = { heading: () => heading(), italic: () => toggleInline('*'), bold: () => toggleInline('**'), code: () => toggleInline('`'), link, quote, list: () => list(false), numbered: () => list(true), note, figure: () => onFigure && onFigure() };
+
+  /* Enter at the end of a list item or a quote line goes on with the next; on an empty one it ends the list */
+  function enter() {
+    const v = ta.value, s = ta.selectionStart;
+    if (s !== ta.selectionEnd) return false;
+    const ls = lineStart(v, s), le = lineEnd(v, s), line = v.slice(ls, le);
+    if (inFence(v, ls) || line.startsWith('```')) return false;
+    const q = (line.match(/^(?:>[ ]?)+/) || [''])[0], rest = line.slice(q.length), lm = rest.match(/^(\s*)([-*]|\d+\.)(\s+)/);
+    if (!q && !lm) return false;
+    const head = q.length + (lm ? lm[0].length : 0);
+    if (s - ls < head) return false;
+    const qp = q && !/ $/.test(q) ? q + ' ' : q;
+    if (!line.slice(head).trim() && s === le) {
+      if (lm && lm[1]) { const n = lm[1].startsWith('\t') ? 1 : Math.min(2, lm[1].length); edit(ls + q.length, ls + q.length + n, '', s - n); return true; }
+      edit(ls, le, lm ? qp.trimEnd() : '', ls + (lm ? qp.trimEnd().length : 0));
+      return true;
+    }
+    const marker = lm ? lm[1] + (/\d/.test(lm[2]) ? (parseInt(lm[2], 10) + 1) + '.' : lm[2]) + lm[3] : '';
+    edit(s, s, '\n' + qp + marker);
+    return true;
+  }
+
+  /* Backspace just after a marker takes the whole marker */
+  function backspace() {
+    const v = ta.value, s = ta.selectionStart;
+    if (s !== ta.selectionEnd) return false;
+    const ls = lineStart(v, s), before = v.slice(ls, s);
+    if (!before || inFence(v, ls) || !/^(\s*([-*]|\d+\.)\s+|(?:>[ ]?)+)$/.test(before)) return false;
+    edit(ls, s, '', ls);
+    return true;
+  }
+
+  ta.addEventListener('keydown', (e) => {
+    if (e.isComposing || e.keyCode === 229) return;
+    const mod = MAC ? e.metaKey : e.ctrlKey;
+    let did = false;
+    if (mod && !e.altKey && !e.shiftKey && !(MAC && e.ctrlKey)) {
+      const k = e.key.toLowerCase();
+      const t = { i: 'italic', b: 'bold', e: 'code', k: 'link' }[k];
+      if (t && tools.includes(t)) { DO[t](); did = true; }
+    } else if (mod && e.shiftKey && !e.altKey) {
+      const t = { Period: 'quote', Digit8: 'list', Digit7: 'numbered' }[e.code];
+      if (t && tools.includes(t)) { DO[t](); did = true; }
+    } else if (mod && e.altKey && !e.shiftKey && tools.includes('heading') && (e.code === 'Digit2' || e.code === 'Digit3')) {
+      heading(e.code === 'Digit2' ? 2 : 3);
+      did = true;
+    } else if (!mod && !e.altKey) {
+      if (e.key === 'Enter' && !e.shiftKey) did = enter();
+      else if (e.key === 'Backspace' && !e.shiftKey) did = backspace();
+      else if (e.key === 'Tab') did = indent(e.shiftKey);
+      else if (ta.selectionStart !== ta.selectionEnd && !ta.value.slice(ta.selectionStart, ta.selectionEnd).includes('\n') && ['*', '_', '`', '[', '('].includes(e.key)) {
+        const s = ta.selectionStart, en = ta.selectionEnd, close = { '[': ']', '(': ')' }[e.key] || e.key;
+        edit(s, en, e.key + ta.value.slice(s, en) + close, s + 1, en + 1);
+        did = true;
+      }
+    }
+    if (did) e.preventDefault();
+  });
+
+  /* an address pasted over words makes them a link */
+  ta.addEventListener('paste', (e) => {
+    const t = ((e.clipboardData && e.clipboardData.getData('text/plain')) || '').trim();
+    const s = ta.selectionStart, en = ta.selectionEnd, sel = ta.value.slice(s, en);
+    if (s === en || sel.includes('\n') || !/^(https?:\/\/|mailto:)\S+$/i.test(t)) return;
+    e.preventDefault();
+    edit(s, en, `[${sel}](${t.replace(/\(/g, '%28').replace(/\)/g, '%29')})`);
+  });
+
+  /* the toolbar: words with a brushed underline, quiet, each one in the way it will look */
+  const bar = h('div', { class: 'md-bar', role: 'toolbar', 'aria-label': 'writing marks' },
+    ...ALL_TOOLS.filter((t) => tools.includes(t) && (t !== 'note' || onNote) && (t !== 'figure' || onFigure)).map((t) => {
+      const b = act(TOOLS[t][0], () => { DO[t](); ta.focus(); }, { 'data-tip': TOOLS[t][1], 'data-cursor': '.55', class: 'act aph-label md-t md-t-' + t });
+      b.addEventListener('mousedown', (e) => e.preventDefault());   /* the selection stays in the text */
+      return b;
+    }));
+
+  const el = h('div', { class: 'md-ed' }, bar, surface);
+  return {
+    el, input: ta,
+    set(v) { ta.value = v; paint(); },
+    append(text) { const n = ta.value.length; edit(n, n, text); },
+    focus() { ta.focus(); },
+  };
+}
+
+/* a field as ui.field makes it: its label, the editor, the brushed baseline, a hint */
+function mdField(label, ed, hint) {
+  const id = 'md' + (seed++);
+  ed.input.id = id;
+  return h('div', { class: 'field md' },
+    h('label', { class: 'aph-label aph-ink', for: id, text: label }), ed.el, rule('base', 1.2),
+    hint ? h('span', { class: 'hint aph-meta aph-ink', text: hint }) : null);
+}
+
+return { MOD, highlight, ALL_TOOLS, mdEditor, mdField };
+})();
 /* ---- ed-archive.js ---- */
 M["ed-archive.js"] = (function () {
 /* ed-archive: archive posts. The list of every post, drafts too; the editor (slug, title, summary, stage, date,
@@ -4060,13 +4527,14 @@ M["ed-archive.js"] = (function () {
    modules (render.js, stage-icon.js, marks.js, figure.js, read from section/archive at build) under the archive's own
    stylesheet, so the preview is the post as the archive will show it. */
 
-const { h, act, sure, field, text, area, choice, check, status, debounce, today, slugify, rule, setLabel } = M["ui.js"];
+const { h, act, sure, field, text, choice, check, status, debounce, today, slugify, rule, setLabel } = M["ui.js"];
 const { convert, postHtml, STAGES, STAGE_TIPS, dateText } = M["archive/render.js"];
 const { drawStageIcons, stageIcon } = M["archive/stage-icon.js"];
 const { drawMarks, markInk } = M["archive/marks.js"];
 const { createFigures } = M["archive/figure.js"];
 const { ARCHIVE_CSS } = M["archive/css.js"];
 const { toDensity, checkFile, ACCEPT } = M["forum/density.js"];
+const { mdEditor, mdField, MOD } = M["md-editor.js"];
 function createArchiveEditor({ api, root, onDirty }) {
   let posts = [], cur = null, figures = null;
   const listEl = h('ol', { class: 'entries', 'aria-label': 'posts' });
@@ -4107,12 +4575,14 @@ function createArchiveEditor({ api, root, onDirty }) {
   function editor(p, fresh) {
     let saved = fresh ? '' : p.slug;
     const say = h('p', { class: 'say aph-meta aph-ink', role: 'status', 'aria-live': 'polite' });
+    /* the body: the shared markdown editor, with a note and a figure a button away */
+    const bodyEd = mdEditor({ value: p.body, rows: 18, spell: true, label: 'the text, in markdown', onNote: () => addNote(), onFigure: () => figFile.click() });
     const f = {
       slug: text(p.slug, { inputmode: 'url' }),
       title: text(p.title, { 'data-spell': '1' }),
       summary: text(p.summary, { 'data-spell': '1' }),
       date: text(p.date, { inputmode: 'numeric', placeholder: 'yyyy-mm-dd' }),
-      body: area(p.body, { rows: 18, 'data-spell': '1' }),
+      body: bodyEd.input,
     };
     if (fresh) f.title.addEventListener('input', () => { if (!f.slug.dataset.touched) f.slug.value = slugify(f.title.value); });
     f.slug.addEventListener('input', () => { f.slug.dataset.touched = '1'; });
@@ -4130,6 +4600,16 @@ function createArchiveEditor({ api, root, onDirty }) {
       return li;
     }
     p.notes.forEach((n) => notesEl.append(noteRow(n)));
+    /* a note from the editor: the next free mark goes into the text, its row opens here, the caret in its words */
+    function addNote() {
+      const used = new Set([...notesEl.querySelectorAll('.note-id')].map((i) => i.value.trim()));
+      let n = 1;
+      while (used.has(String(n)) || f.body.value.includes('[^' + n + ']')) n++;
+      const li = noteRow({ id: String(n), text: '' });
+      notesEl.append(li); refresh();
+      setTimeout(() => li.querySelector('.note-t').focus(), 0);
+      return String(n);
+    }
     /* figures: a picture becomes a density map here, in the browser, by the forum's rules, then goes up */
     const figsEl = h('ol', { class: 'figs-ed' });
     let figs = p.figures.map((x) => ({ ...x }));
@@ -4154,7 +4634,7 @@ function createArchiveEditor({ api, root, onDirty }) {
         if (r.status !== 201) { status(say, r.data.error || 'the picture did not go', true); return; }
         figs = figs.filter((x) => x.name !== name).concat([{ name, key: r.data.key, w: r.data.w, h: r.data.h, url: r.data.url }]);
         drawFigs();
-        if (!f.body.value.includes(`simulacrum:${name})`)) f.body.value += `\n\n![caption · artist, year](simulacrum:${name})\n`;
+        if (!f.body.value.includes(`simulacrum:${name})`)) bodyEd.append(`${f.body.value && !f.body.value.endsWith('\n\n') ? (f.body.value.endsWith('\n') ? '\n' : '\n\n') : ''}![caption · artist, year](simulacrum:${name})\n`);
         figName.value = '';
         status(say, 'the picture is up: ' + name);
         refresh();
@@ -4223,7 +4703,7 @@ function createArchiveEditor({ api, root, onDirty }) {
           field('title', f.title), field('slug · the address', f.slug, '#archive/<slug>'), field('summary', f.summary),
           h('div', { class: 'field' }, h('span', { class: 'aph-label aph-ink', text: 'stage' }), stage.el),
           field('date', f.date), h('div', { class: 'field' }, example.el),
-          field('the text · markdown', f.body, '## heading · *a latin word* · **strong** · > quote · [^note] · ![caption](simulacrum:name)'),
+          mdField('the text · markdown', bodyEd, `${MOD} i italic · ${MOD} b strong · ${MOD} k link · ${MOD} shift . quote · enter goes on with a list or a quote · tab indents`),
           h('div', { class: 'field' }, h('span', { class: 'aph-label aph-ink', text: 'notes' }), notesEl, act('add a note', () => { notesEl.append(noteRow()); refresh(); })),
           h('div', { class: 'field' }, h('span', { class: 'aph-label aph-ink', text: 'figures' }), figsEl,
             h('div', { class: 'fig-new' }, figName, h('label', { class: 'act aph-label file-act', 'data-cursor': '.55' }, h('span', { class: 'act-t', text: 'a picture' }), figFile, rule('uline', 1.4)))),
@@ -4257,6 +4737,8 @@ M["ed-entries.js"] = (function () {
 
 const { h, act, sure, field, text, area, check, status, debounce, slugify, rule, setLabel } = M["ui.js"];
 const { toDensity, checkFile, ACCEPT } = M["forum/density.js"];
+const { mdEditor, mdField, MOD } = M["md-editor.js"];
+const { noteHtml } = M["book/markup.js"];
 const A = window.Aphesis;
 let sim = null, simCanvas = null;
 function simulacrum() {
@@ -4266,6 +4748,9 @@ function simulacrum() {
   }
   return { sim, canvas: simCanvas };
 }
+
+/* a paragraph of a note as the service keeps it: the line breaks stay (a list, a quote), spaces in a line become one */
+const paragraph = (p) => p.split('\n').map((l) => l.replace(/(?<=\S)[ \t]+/g, ' ').trimEnd()).filter((l) => l.trim()).join('\n');
 
 /* the book's own preparation of a map: crop, blur, brightness, contrast (book/src/main.js, prepare) */
 function prepare(img, e) {
@@ -4297,7 +4782,7 @@ const KINDS = {
     pictureOf: (e) => e.picture, settingsOf: (e) => e.adjust || {},
     numbers: [['gain', 'gain'], ['scatter', 'scatter'], ['erosion', 'erosion'], ['ceiling', 'ceiling'], ['blur', 'blur · px'], ['contrast', 'contrast'], ['brightness', 'brightness']],
     fields: [['title', 'title', 1], ['slug', 'slug · the address', 0, '#book/<slug>'], ['author', 'author', 1], ['year', 'year', 0], ['caption', 'caption · work · artist, date', 1],
-      ['note', 'the note · paragraphs, a blank line between them', 1, '60 to 200 words read best', 'area'], ['quote', 'quote · in its own language', 1, '', 'area'],
+      ['note', 'the note · paragraphs, a blank line between them', 1, `60 to 200 words read best · ${MOD} i italic · ${MOD} b strong · ${MOD} k link · ${MOD} shift . quote`, 'md'], ['quote', 'quote · in its own language', 1, '', 'area'],
       ['quote_lang', 'its language · la, grc, de…', 0], ['quote_en', 'the english · in the tooltip', 1]],
   },
   works: {
@@ -4350,6 +4835,12 @@ function createEntriesEditor({ api, root, kind }) {
     const fieldEls = K.fields.map(([k, label, spell, hint, type]) => {
       let v = e[k] ?? '';
       if (k === 'note' && Array.isArray(v)) v = v.join('\n\n');
+      if (type === 'md') {
+        /* the book's note: the archive's editor, with what the book sets (no heading, note or figure) */
+        const ed = mdEditor({ value: String(v), rows: 10, spell: !!spell, label, tools: ['italic', 'bold', 'quote', 'list', 'numbered', 'code', 'link'] });
+        f[k] = ed.input;
+        return mdField(label, ed, hint);
+      }
       f[k] = type === 'area' ? area(String(v), { rows: k === 'quote' ? 3 : k === 'line' ? 3 : 8, maxlength: LIMITS[k] || null, 'data-spell': spell ? '1' : null }) : text(String(v), { maxlength: LIMITS[k] || null, 'data-spell': spell ? '1' : null });
       return field(label, f[k], hint);
     });
@@ -4437,13 +4928,15 @@ function createEntriesEditor({ api, root, kind }) {
       const o = entry();
       dirty = true; state();
       if (kind === 'books') {
-        const note = o.note.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+        const note = o.note.split(/\n\s*\n/).map(paragraph).filter(Boolean);
+        const noteEl = h('div', { class: 'gp-note-md aph-ink' });
+        noteEl.innerHTML = noteHtml(note);   /* the book's own rendering of a note (book/src/markup.js) */
         const q = o.quote ? h('blockquote', { class: 'gp-quote aph-ink' }, h('p', { lang: o.quote_lang || null, 'data-tip': o.quote_en || null, text: o.quote })) : null;
         words.replaceChildren(
           h('p', { class: 'gp-cap aph-meta aph-ink', text: o.caption }),
           h('h2', { class: 'gp-title aph-display aph-ink', text: o.title || 'untitled' }),
           h('p', { class: 'aph-meta aph-ink', text: [o.author, o.year].filter(Boolean).join(' · ') }),
-          ...note.map((t) => h('p', { class: 'gp-note aph-ink', text: t })), q);
+          noteEl, ...(q ? [q] : []));
       } else {
         words.replaceChildren(
           h('p', { class: 'aph-gloss aph-ink', 'data-tip': o.gloss_tip || null, text: o.gloss }),
@@ -5049,6 +5542,22 @@ A.tooltip();
 const corners = [{ el: $('seal'), pad: 10 }, { el: $('controls'), pad: 8 }];
 const zones = (list) => fog.zones(corners.concat(list));
 
+/* the desk is wide, two columns (the editor and its preview), so the fog's own clearing is used for it, not a zone: a
+   zone is an ellipse, and the right-hand column's corners stayed under fog. The clearing is a band down the middle
+   of the screen, full to about four fifths of its half-width, whose width is the desk's, plus its margin, so the fog
+   keeps to the far edges and the margins and leaves both columns clear. Away from the desk the page's own fog. */
+const DESK_MARGIN = 40;
+/* and the columns themselves are calm too: the editing column and the preview, whichever of them is on screen, found
+   again each frame (the editor opens and closes under the desk), a zone being any object with a getBoundingClientRect */
+const shown = (sel) => ({ getBoundingClientRect: () => { for (const el of $('deskIn').querySelectorAll(sel)) { const r = el.getBoundingClientRect(); if (r.width) return r; } return new DOMRect(); } });
+const COLUMNS = [{ el: shown('.editor .write, .place-body > .pane:not(.editor)'), pad: 36 }, { el: shown('.editor .read'), pad: 36 }];
+function deskFog() {
+  const r = $('deskIn').getBoundingClientRect(), w = innerWidth;
+  fog.set({ density: 0.5, clear: 1, clearWidth: Math.min(1, Math.max(0.3, (r.width + 2 * DESK_MARGIN) / w / 0.7)) });
+}
+const fogAway = () => fog.set({ density: 0.62, clear: 0, clearWidth: null });
+addEventListener('resize', () => { if (step === 3) deskFog(); });
+
 const api = CONFIG.mock && createMockApi ? createMockApi() : createApi(CONFIG.api);
 const gate = $('gate'), desk = $('desk');
 const announceEl = $('announce');
@@ -5131,7 +5640,8 @@ function openDesk() {
   gate.hidden = true; desk.hidden = false;
   desk.classList.remove('enter'); void desk.offsetWidth; desk.classList.add('enter');
   if (!dash) dash = createDash({ api, root: $('deskIn'), onLeave: leave });
-  zones([{ el: $('deskIn'), pad: 0 }]);
+  zones(COLUMNS);
+  deskFog();
   const t = desk.querySelector('.title'); if (t) t.focus({ preventScroll: true });
   root.dataset.gate = 'desk';
   announce('the desk');
@@ -5140,6 +5650,7 @@ function leave() {
   dash = null; $('deskIn').replaceChildren();
   $('eye').hidden = false;
   /* the eye draws itself again */
+  fogAway();
   eye.destroy();
   eye = createEye($('eye'), { follow: caretOfOne });
   openGate();

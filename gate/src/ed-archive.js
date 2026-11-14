@@ -3,13 +3,14 @@
    modules (render.js, stage-icon.js, marks.js, figure.js, read from section/archive at build) under the archive's own
    stylesheet, so the preview is the post as the archive will show it. */
 
-import { h, act, sure, field, text, area, choice, check, status, debounce, today, slugify, rule, setLabel } from './ui.js';
+import { h, act, sure, field, text, choice, check, status, debounce, today, slugify, rule, setLabel } from './ui.js';
 import { convert, postHtml, STAGES, STAGE_TIPS, dateText } from './archive/render.js';
 import { drawStageIcons, stageIcon } from './archive/stage-icon.js';
 import { drawMarks, markInk } from './archive/marks.js';
 import { createFigures } from './archive/figure.js';
 import { ARCHIVE_CSS } from './archive/css.js';
 import { toDensity, checkFile, ACCEPT } from './forum/density.js';
+import { mdEditor, mdField, MOD } from './md-editor.js';
 
 export function createArchiveEditor({ api, root, onDirty }) {
   let posts = [], cur = null, figures = null;
@@ -51,12 +52,14 @@ export function createArchiveEditor({ api, root, onDirty }) {
   function editor(p, fresh) {
     let saved = fresh ? '' : p.slug;
     const say = h('p', { class: 'say aph-meta aph-ink', role: 'status', 'aria-live': 'polite' });
+    /* the body: the shared markdown editor, with a note and a figure a button away */
+    const bodyEd = mdEditor({ value: p.body, rows: 18, spell: true, label: 'the text, in markdown', onNote: () => addNote(), onFigure: () => figFile.click() });
     const f = {
       slug: text(p.slug, { inputmode: 'url' }),
       title: text(p.title, { 'data-spell': '1' }),
       summary: text(p.summary, { 'data-spell': '1' }),
       date: text(p.date, { inputmode: 'numeric', placeholder: 'yyyy-mm-dd' }),
-      body: area(p.body, { rows: 18, 'data-spell': '1' }),
+      body: bodyEd.input,
     };
     if (fresh) f.title.addEventListener('input', () => { if (!f.slug.dataset.touched) f.slug.value = slugify(f.title.value); });
     f.slug.addEventListener('input', () => { f.slug.dataset.touched = '1'; });
@@ -74,6 +77,16 @@ export function createArchiveEditor({ api, root, onDirty }) {
       return li;
     }
     p.notes.forEach((n) => notesEl.append(noteRow(n)));
+    /* a note from the editor: the next free mark goes into the text, its row opens here, the caret in its words */
+    function addNote() {
+      const used = new Set([...notesEl.querySelectorAll('.note-id')].map((i) => i.value.trim()));
+      let n = 1;
+      while (used.has(String(n)) || f.body.value.includes('[^' + n + ']')) n++;
+      const li = noteRow({ id: String(n), text: '' });
+      notesEl.append(li); refresh();
+      setTimeout(() => li.querySelector('.note-t').focus(), 0);
+      return String(n);
+    }
     /* figures: a picture becomes a density map here, in the browser, by the forum's rules, then goes up */
     const figsEl = h('ol', { class: 'figs-ed' });
     let figs = p.figures.map((x) => ({ ...x }));
@@ -98,7 +111,7 @@ export function createArchiveEditor({ api, root, onDirty }) {
         if (r.status !== 201) { status(say, r.data.error || 'the picture did not go', true); return; }
         figs = figs.filter((x) => x.name !== name).concat([{ name, key: r.data.key, w: r.data.w, h: r.data.h, url: r.data.url }]);
         drawFigs();
-        if (!f.body.value.includes(`simulacrum:${name})`)) f.body.value += `\n\n![caption · artist, year](simulacrum:${name})\n`;
+        if (!f.body.value.includes(`simulacrum:${name})`)) bodyEd.append(`${f.body.value && !f.body.value.endsWith('\n\n') ? (f.body.value.endsWith('\n') ? '\n' : '\n\n') : ''}![caption · artist, year](simulacrum:${name})\n`);
         figName.value = '';
         status(say, 'the picture is up: ' + name);
         refresh();
@@ -167,7 +180,7 @@ export function createArchiveEditor({ api, root, onDirty }) {
           field('title', f.title), field('slug · the address', f.slug, '#archive/<slug>'), field('summary', f.summary),
           h('div', { class: 'field' }, h('span', { class: 'aph-label aph-ink', text: 'stage' }), stage.el),
           field('date', f.date), h('div', { class: 'field' }, example.el),
-          field('the text · markdown', f.body, '## heading · *a latin word* · **strong** · > quote · [^note] · ![caption](simulacrum:name)'),
+          mdField('the text · markdown', bodyEd, `${MOD} i italic · ${MOD} b strong · ${MOD} k link · ${MOD} shift . quote · enter goes on with a list or a quote · tab indents`),
           h('div', { class: 'field' }, h('span', { class: 'aph-label aph-ink', text: 'notes' }), notesEl, act('add a note', () => { notesEl.append(noteRow()); refresh(); })),
           h('div', { class: 'field' }, h('span', { class: 'aph-label aph-ink', text: 'figures' }), figsEl,
             h('div', { class: 'fig-new' }, figName, h('label', { class: 'act aph-label file-act', 'data-cursor': '.55' }, h('span', { class: 'act-t', text: 'a picture' }), figFile, rule('uline', 1.4)))),

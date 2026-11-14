@@ -13,6 +13,7 @@ Nothing is copied from other branches; they are read with git:
   section/archive  archive/src/render.js, stage-icon.js, marks.js, figure.js and archive.css: the preview of a post is
                    drawn by the archive's own modules under its own stylesheet (scoped here to .gp-archive)
   section/forum    forum/src/density.js: a picture becomes a density map in the browser by the forum's rules
+  section/book     book/src/markup.js: the book's note, set as the book sets it, for the preview of an entry
   section/book, section/works, design-system maps: only for --mock, the demo's content
   me               me/content/me.json, for --mock: the me page's words, works' lines and awards (until that branch
                    carries it, vendor/me.json is the same file)
@@ -219,8 +220,8 @@ def size(b):
 
 # ---------- modules ----------
 ORDER = ['config.js', 'archive/assets.js', 'archive/render.js', 'archive/stage-icon.js', 'archive/marks.js', 'archive/figure.js',
-         'archive/css.js', 'forum/refusal.js', 'forum/density.js', 'mockdata.js', 'mock.js', 'ui.js', 'api.js', 'eye.js', 'line.js',
-         'ed-archive.js', 'ed-entries.js', 'moderation.js', 'ed-texts.js', 'ed-me.js', 'dash.js', 'main.js']
+         'archive/css.js', 'forum/refusal.js', 'forum/density.js', 'book/markup.js', 'mockdata.js', 'mock.js', 'ui.js', 'api.js', 'eye.js', 'line.js',
+         'md-editor.js', 'ed-archive.js', 'ed-entries.js', 'moderation.js', 'ed-texts.js', 'ed-me.js', 'dash.js', 'main.js']
 
 
 def scope_module(name, src):
@@ -251,6 +252,8 @@ def module_source(f, opts):
         return 'export const ARCHIVE_CSS = ' + json.dumps(scope_css(show(AR, 'archive/src/archive.css'), '.gp-archive')) + ';\n'
     if f.startswith('archive/'):
         return show(AR, 'archive/src/' + f[8:])
+    if f == 'book/markup.js':
+        return show(ref('section/book', 'BOOK_REF'), 'book/src/markup.js')
     if f.startswith('forum/'):
         return show(FR, 'forum/src/' + f[6:])
     if f == 'mockdata.js':

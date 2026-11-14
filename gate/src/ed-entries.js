@@ -6,6 +6,8 @@
 
 import { h, act, sure, field, text, area, check, status, debounce, slugify, rule, setLabel } from './ui.js';
 import { toDensity, checkFile, ACCEPT } from './forum/density.js';
+import { mdEditor, mdField, MOD } from './md-editor.js';
+import { noteHtml } from './book/markup.js';
 
 const A = window.Aphesis;
 let sim = null, simCanvas = null;
@@ -16,6 +18,9 @@ function simulacrum() {
   }
   return { sim, canvas: simCanvas };
 }
+
+/* a paragraph of a note as the service keeps it: the line breaks stay (a list, a quote), spaces in a line become one */
+const paragraph = (p) => p.split('\n').map((l) => l.replace(/(?<=\S)[ \t]+/g, ' ').trimEnd()).filter((l) => l.trim()).join('\n');
 
 /* the book's own preparation of a map: crop, blur, brightness, contrast (book/src/main.js, prepare) */
 function prepare(img, e) {
@@ -47,7 +52,7 @@ const KINDS = {
     pictureOf: (e) => e.picture, settingsOf: (e) => e.adjust || {},
     numbers: [['gain', 'gain'], ['scatter', 'scatter'], ['erosion', 'erosion'], ['ceiling', 'ceiling'], ['blur', 'blur · px'], ['contrast', 'contrast'], ['brightness', 'brightness']],
     fields: [['title', 'title', 1], ['slug', 'slug · the address', 0, '#book/<slug>'], ['author', 'author', 1], ['year', 'year', 0], ['caption', 'caption · work · artist, date', 1],
-      ['note', 'the note · paragraphs, a blank line between them', 1, '60 to 200 words read best', 'area'], ['quote', 'quote · in its own language', 1, '', 'area'],
+      ['note', 'the note · paragraphs, a blank line between them', 1, `60 to 200 words read best · ${MOD} i italic · ${MOD} b strong · ${MOD} k link · ${MOD} shift . quote`, 'md'], ['quote', 'quote · in its own language', 1, '', 'area'],
       ['quote_lang', 'its language · la, grc, de…', 0], ['quote_en', 'the english · in the tooltip', 1]],
   },
   works: {
@@ -100,6 +105,12 @@ export function createEntriesEditor({ api, root, kind }) {
     const fieldEls = K.fields.map(([k, label, spell, hint, type]) => {
       let v = e[k] ?? '';
       if (k === 'note' && Array.isArray(v)) v = v.join('\n\n');
+      if (type === 'md') {
+        /* the book's note: the archive's editor, with what the book sets (no heading, note or figure) */
+        const ed = mdEditor({ value: String(v), rows: 10, spell: !!spell, label, tools: ['italic', 'bold', 'quote', 'list', 'numbered', 'code', 'link'] });
+        f[k] = ed.input;
+        return mdField(label, ed, hint);
+      }
       f[k] = type === 'area' ? area(String(v), { rows: k === 'quote' ? 3 : k === 'line' ? 3 : 8, maxlength: LIMITS[k] || null, 'data-spell': spell ? '1' : null }) : text(String(v), { maxlength: LIMITS[k] || null, 'data-spell': spell ? '1' : null });
       return field(label, f[k], hint);
     });
@@ -187,13 +198,15 @@ export function createEntriesEditor({ api, root, kind }) {
       const o = entry();
       dirty = true; state();
       if (kind === 'books') {
-        const note = o.note.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+        const note = o.note.split(/\n\s*\n/).map(paragraph).filter(Boolean);
+        const noteEl = h('div', { class: 'gp-note-md aph-ink' });
+        noteEl.innerHTML = noteHtml(note);   /* the book's own rendering of a note (book/src/markup.js) */
         const q = o.quote ? h('blockquote', { class: 'gp-quote aph-ink' }, h('p', { lang: o.quote_lang || null, 'data-tip': o.quote_en || null, text: o.quote })) : null;
         words.replaceChildren(
           h('p', { class: 'gp-cap aph-meta aph-ink', text: o.caption }),
           h('h2', { class: 'gp-title aph-display aph-ink', text: o.title || 'untitled' }),
           h('p', { class: 'aph-meta aph-ink', text: [o.author, o.year].filter(Boolean).join(' · ') }),
-          ...note.map((t) => h('p', { class: 'gp-note aph-ink', text: t })), q);
+          noteEl, ...(q ? [q] : []));
       } else {
         words.replaceChildren(
           h('p', { class: 'aph-gloss aph-ink', 'data-tip': o.gloss_tip || null, text: o.gloss }),

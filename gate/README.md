@@ -50,15 +50,33 @@ all of them alike. A session still open (two hours) goes straight to the desk. E
 moderation · *custodia*, texts · *verba*, me · *nomen*, and `leave` (which ends the session; the eye draws itself again).
 
 - **archive**: every post, drafts too, with its stage icon, date and state. The editor: title, slug (the address,
-  `#archive/<slug>`), summary, stage (the four stage icons), date, example, the markdown body, its notes (`[^id]`
+  `#archive/<slug>`), summary, stage (the four stage icons), date, example, the markdown body (written in the desk's
+  markdown editor, below), its notes (`[^id]`
   in the text, their words beside), and figures (a picture becomes a density map in the browser, by the forum's
   rules, and goes up; the body gets its `![caption](simulacrum:name)` line). Beside it, the live preview: the
   archive's own `render.js`, `stage-icon.js`, `marks.js` and `figure.js`, under the archive's own stylesheet
   (scoped to the preview by the build), so the post is drawn exactly as the archive will draw it, figures as
   simulacra. Save, publish or unpublish, delete (it asks once more, in the line).
+- **the markdown editor** (`md-editor.js`): one editor for every prose field: the archive's body and the book's note.
+  The markdown stays text and is styled as it is typed (Obsidian's live preview, in the site's hand): a transparent
+  `<textarea>` over a `<pre>` that holds the same text in colour, so native undo, IME, spellcheck and selection all
+  stay; the pre never changes a glyph's width (headings are in accent and struck twice, `*em*` is slanted, `**strong**`
+  struck twice, `> ` quotes and list markers have their colour, marks are dimmed, code is tinted; no size, no weight,
+  since a wider glyph would move the text from its caret). Under the label, a quiet toolbar of words
+  (heading, italic, bold, quote, list, numbered, code, link, note, figure; the book's note has no heading, note or
+  figure). Shortcuts, ⌘ on a Mac and ctrl elsewhere: `mod i` italic, `mod b` strong, `mod e` code, `mod k` link,
+  `mod shift .` quote, `mod shift 8` list, `mod shift 7` numbered list, `mod alt 2` and `3` heading; each toggles, wrapping
+  the selection or taking the marks off. Enter goes on with a list (`1.` counts up) or a quote and, on an empty item,
+  ends it; Tab and shift+Tab indent and outdent a list item; Backspace right after a marker takes it; `*` `_` `` ` ``
+  `[` `(` around a selection wrap it; an address pasted over words makes a link. Every edit is one step of the
+  native undo (`execCommand('insertText')`). It writes only what the archive's `render.js` reads (the archive's renderer
+  flattens a nested list, so a Tab indent shows only in the editor).
 - **book** and **works**: the same pattern, with the picture turned into a density map in the browser and previewed
   as a simulacrum with the entry's own settings (gain, scatter, erosion, ceiling; for the book also crop, blur,
-  contrast and brightness, applied as the book applies them), beside its words. Works also take their links.
+  contrast and brightness, applied as the book applies them), beside its words. A book's note is written in the same
+  markdown editor and previewed with the book's own `markup.js` (`section/book`, read at build as `book/markup.js`),
+  which is the archive's small markdown without headings, fences and footnotes; works' texts are plain, as the works
+  section sets them. Works also take their links.
 - **moderation**: the wall's lines, the forum's reports and threads; a thread opens to its posts; each can be removed
   (the first post removes the thread). The content service calls the wall and the forum server to server; no
   admin secret is in the page. **The owner writes here too**, as *aphesist*: a line on the wall (Enter), a new
@@ -87,6 +105,10 @@ moderation · *custodia*, texts · *verba*, me · *nomen*, and `leave` (which en
   kind like works: `/v1/admin/awards[/<id>]` (and `/publish`, `/unpublish`), public `GET /v1/awards`. In `--mock` the
   desk serves all of it from memory, from `me/content/me.json` (read from `me`, else `vendor/me.json`).
 - **On a phone**, one column, with a choice between `write` and `read` for the editor and its preview.
+
+**The fog on the desk**: the desk is two columns wide, so the fog's own clearing (`clear`, `clearWidth`) is used, its band
+as wide as the desk and its margin, plus a calm zone on the editing column and on the preview wherever they are
+(`main.js`, `deskFog`); the density keeps to the far edges. Away from the desk, the page's own fog.
 
 Nothing is solid: fields are words on a brushed baseline, buttons are labels whose brushed underline draws in,
 choices put the chosen one in accent. The desk is a scrolling column with no stacking context around its ink but
@@ -121,7 +143,7 @@ APHESIS_GATE_PHRASE='<phrase>' APHESIS_GATE_ROUTE='<route>' python3 gate/build.p
 ```
 
 It reads with git: the design system (tokens, runtime, font), `section/archive` (`render.js`, `stage-icon.js`,
-`marks.js`, `figure.js`, `archive.css`), `section/forum` (`density.js`), and for `--mock` the archive, book and works
+`marks.js`, `figure.js`, `archive.css`), `section/book` (`markup.js`), `section/forum` (`density.js`), and for `--mock` the archive, book and works
 content. Each ref falls back to `origin/<ref>`. Special Elite is vendored in `vendor/`.
 
 | module | what it does |
@@ -132,6 +154,7 @@ content. Each ref falls back to `origin/<ref>`. Special Elite is vendored in `ve
 | `eye.js` | the gate's use of `Aphesis.Eye`: a refusal is a held cut to closed, the key a held cut to wide |
 | `line.js` | the baseline, the caret, the grains or words, the tremble, and the stipple dissolve and condense |
 | `ui.js` | the desk's small parts: fields, buttons, choices |
+| `md-editor.js` | the markdown editor: live styling, shortcuts, lists and quotes that go on, the toolbar |
 | `ed-archive.js` | posts, with the archive's own preview |
 | `ed-entries.js` | book entries and works, with the simulacrum preview |
 | `moderation.js` | the wall and the forum |
